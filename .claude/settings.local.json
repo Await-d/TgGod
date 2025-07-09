@@ -69,7 +69,8 @@
       "Bash(touch:*)",
       "Bash(rm -rf node_modules)",
       "Bash(CI=false pnpm build)",
-      "Bash(docker build:*)"
+      "Bash(docker build:*)",
+      "Bash(git pull:*)"
     ],
     "deny": []
   }
