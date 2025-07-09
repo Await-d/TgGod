@@ -18,14 +18,12 @@ import {
   Col,
   Statistic,
   Avatar,
-  Badge,
   Divider,
   Switch,
   Drawer,
 } from 'antd';
 import {
   SendOutlined,
-  SearchOutlined,
   DeleteOutlined,
   ReloadOutlined,
   EyeOutlined,
@@ -36,16 +34,14 @@ import {
   VideoCameraOutlined,
   AudioOutlined,
   PushpinOutlined,
-  HeartOutlined,
   ShareAltOutlined,
   FilterOutlined,
-  DownloadOutlined,
   SyncOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useTelegramStore, useAuthStore } from '../store';
-import { messageApi, telegramApi } from '../services/apiService';
-import { TelegramMessage, TelegramGroup, MessageSendRequest, MessageSearchRequest } from '../types';
+import { useAuthStore } from '../store';
+import { messageApi, telegramApi, ruleApi } from '../services/apiService';
+import { TelegramMessage, TelegramGroup, MessageSendRequest } from '../types';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -61,8 +57,11 @@ const MessagesPage: React.FC = () => {
   const [sendModalVisible, setSendModalVisible] = useState(false);
   const [messageDetailVisible, setMessageDetailVisible] = useState(false);
   const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
+  const [quickRuleModalVisible, setQuickRuleModalVisible] = useState(false);
+  const [selectedMessageForRule, setSelectedMessageForRule] = useState<TelegramMessage | null>(null);
   const [form] = Form.useForm();
   const [searchForm] = Form.useForm();
+  const [ruleForm] = Form.useForm();
   const [pagination, setPagination] = useState({ current: 1, pageSize: 50, total: 0 });
   const [filters, setFilters] = useState<any>({});
   const [stats, setStats] = useState<any>(null);
@@ -70,7 +69,6 @@ const MessagesPage: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   
   const { user } = useAuthStore();
-  const navigate = useNavigate();
 
   // 检查是否为移动设备
   useEffect(() => {
@@ -214,6 +212,55 @@ const MessagesPage: React.FC = () => {
     setFilters(searchParams);
     await fetchMessages(selectedGroup?.id || 0, 1, searchParams);
     setFilterDrawerVisible(false);
+  };
+
+  // 快捷创建规则
+  const handleCreateQuickRule = (messageData: TelegramMessage) => {
+    setSelectedMessageForRule(messageData);
+    
+    // 预填充表单数据
+    const ruleName = `基于消息 #${messageData.message_id} 的规则`;
+    const keywords = messageData.text ? [messageData.text.substring(0, 50)] : [];
+    const senderFilter = messageData.sender_username ? [messageData.sender_username] : [];
+    const mediaTypes = messageData.media_type ? [messageData.media_type] : [];
+    
+    ruleForm.setFieldsValue({
+      name: ruleName,
+      keywords: keywords,
+      sender_filter: senderFilter,
+      media_types: mediaTypes,
+      include_forwarded: messageData.is_forwarded,
+      is_active: true,
+    });
+    
+    setQuickRuleModalVisible(true);
+  };
+
+  // 提交快捷规则
+  const handleQuickRuleSubmit = async (values: any) => {
+    if (!selectedGroup) return;
+    
+    try {
+      const ruleData = {
+        ...values,
+        group_id: selectedGroup.id,
+        keywords: values.keywords || [],
+        exclude_keywords: values.exclude_keywords || [],
+        sender_filter: values.sender_filter || [],
+        media_types: values.media_types || [],
+      };
+      
+      await ruleApi.createRule(ruleData);
+      message.success('规则创建成功！');
+      
+      // 重置表单和状态
+      ruleForm.resetFields();
+      setQuickRuleModalVisible(false);
+      setSelectedMessageForRule(null);
+      
+    } catch (error: any) {
+      message.error('创建规则失败: ' + error.message);
+    }
   };
 
   // 清除搜索
@@ -376,7 +423,7 @@ const MessagesPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      width: isMobile ? 80 : 120,
+      width: isMobile ? 120 : 160,
       render: (record: TelegramMessage) => (
         <Space size="small" direction={isMobile ? 'vertical' : 'horizontal'}>
           <Tooltip title="查看详情">
@@ -400,6 +447,15 @@ const MessagesPage: React.FC = () => {
                 setReplyTo(record);
                 setSendModalVisible(true);
               }}
+            />
+          </Tooltip>
+          
+          <Tooltip title="创建规则">
+            <Button 
+              type="text" 
+              icon={<PlusOutlined />}
+              size={isMobile ? 'small' : 'middle'}
+              onClick={() => handleCreateQuickRule(record)}
             />
           </Tooltip>
           
@@ -827,6 +883,205 @@ const MessagesPage: React.FC = () => {
               </Card>
             )}
           </div>
+        )}
+      </Modal>
+
+      {/* 快捷创建规则模态框 */}
+      <Modal
+        title={
+          <Space>
+            <PlusOutlined />
+            快捷创建下载规则
+            {selectedMessageForRule && (
+              <Tag color="blue">基于消息 #{selectedMessageForRule.message_id}</Tag>
+            )}
+          </Space>
+        }
+        open={quickRuleModalVisible}
+        onCancel={() => {
+          setQuickRuleModalVisible(false);
+          setSelectedMessageForRule(null);
+          ruleForm.resetFields();
+        }}
+        footer={null}
+        width={isMobile ? '100%' : 800}
+        style={isMobile ? { top: 20 } : {}}
+      >
+        {selectedMessageForRule && (
+          <>
+            <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f5f5f5' }}>
+              <Text strong>参考消息:</Text>
+              <div style={{ marginTop: 8 }}>
+                <Space direction="vertical" size="small">
+                  <div>
+                    <Text strong>发送者:</Text> {selectedMessageForRule.sender_name} 
+                    {selectedMessageForRule.sender_username && (
+                      <Text type="secondary">(@{selectedMessageForRule.sender_username})</Text>
+                    )}
+                  </div>
+                  {selectedMessageForRule.text && (
+                    <div>
+                      <Text strong>内容:</Text> 
+                      <Paragraph style={{ margin: '4px 0' }}>
+                        {selectedMessageForRule.text}
+                      </Paragraph>
+                    </div>
+                  )}
+                  {selectedMessageForRule.media_type && (
+                    <div>
+                      <Text strong>媒体类型:</Text> {selectedMessageForRule.media_type}
+                    </div>
+                  )}
+                  <div>
+                    <Text strong>时间:</Text> {new Date(selectedMessageForRule.date).toLocaleString()}
+                  </div>
+                </Space>
+              </div>
+            </Card>
+            
+            <Form
+              form={ruleForm}
+              onFinish={handleQuickRuleSubmit}
+              layout="vertical"
+            >
+              <Form.Item
+                name="name"
+                label="规则名称"
+                rules={[{ required: true, message: '请输入规则名称' }]}
+              >
+                <Input placeholder="请输入规则名称" />
+              </Form.Item>
+              
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="keywords"
+                    label="关键词"
+                    tooltip="包含这些关键词的消息将被匹配"
+                  >
+                    <Select
+                      mode="tags"
+                      placeholder="输入关键词，按回车添加"
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </Col>
+                
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="exclude_keywords"
+                    label="排除关键词"
+                    tooltip="包含这些关键词的消息将被排除"
+                  >
+                    <Select
+                      mode="tags"
+                      placeholder="输入排除关键词，按回车添加"
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="sender_filter"
+                    label="发送者过滤"
+                    tooltip="只匹配这些发送者的消息"
+                  >
+                    <Select
+                      mode="tags"
+                      placeholder="输入用户名，按回车添加"
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </Col>
+                
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="media_types"
+                    label="媒体类型"
+                    tooltip="只匹配这些媒体类型的消息"
+                  >
+                    <Select
+                      mode="multiple"
+                      placeholder="选择媒体类型"
+                      style={{ width: '100%' }}
+                    >
+                      <Option value="photo">图片</Option>
+                      <Option value="video">视频</Option>
+                      <Option value="document">文档</Option>
+                      <Option value="audio">音频</Option>
+                      <Option value="voice">语音</Option>
+                      <Option value="sticker">贴纸</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Row gutter={16}>
+                <Col xs={24} sm={8}>
+                  <Form.Item
+                    name="min_views"
+                    label="最小查看数"
+                  >
+                    <Input 
+                      type="number" 
+                      placeholder="最小查看数"
+                      min={0}
+                    />
+                  </Form.Item>
+                </Col>
+                
+                <Col xs={24} sm={8}>
+                  <Form.Item
+                    name="max_views"
+                    label="最大查看数"
+                  >
+                    <Input 
+                      type="number" 
+                      placeholder="最大查看数"
+                      min={0}
+                    />
+                  </Form.Item>
+                </Col>
+                
+                <Col xs={24} sm={8}>
+                  <Form.Item
+                    name="include_forwarded"
+                    label="包含转发消息"
+                    valuePropName="checked"
+                  >
+                    <Switch />
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item
+                name="is_active"
+                label="启用规则"
+                valuePropName="checked"
+                initialValue={true}
+              >
+                <Switch />
+              </Form.Item>
+              
+              <Form.Item>
+                <Space>
+                  <Button type="primary" htmlType="submit">
+                    创建规则
+                  </Button>
+                  <Button onClick={() => {
+                    setQuickRuleModalVisible(false);
+                    setSelectedMessageForRule(null);
+                    ruleForm.resetFields();
+                  }}>
+                    取消
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </>
         )}
       </Modal>
     </div>

@@ -76,7 +76,10 @@
       "Bash(timeout:*)",
       "Bash(alembic revision:*)",
       "Bash(alembic upgrade:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npm start)",
+      "Bash(serve:*)",
+      "Bash(BROWSER=none PORT=3000 npm start)"
     ],
     "deny": []
   }

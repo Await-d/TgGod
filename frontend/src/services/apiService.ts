@@ -8,7 +8,8 @@ import {
   TelegramMessage,
   MessageSendRequest,
   MessageSearchRequest,
-  GroupStats
+  GroupStats,
+  FilterRule
 } from '../types';
 
 // 创建axios实例
@@ -212,6 +213,47 @@ export const messageApi = {
     return api.post(`/telegram/groups/${groupId}/messages/search`, searchRequest, {
       params: { skip, limit }
     });
+  },
+};
+
+// 规则相关API
+export const ruleApi = {
+  // 获取规则列表
+  getRules: (skip: number = 0, limit: number = 100): Promise<FilterRule[]> => {
+    return api.get('/rules', { params: { skip, limit } });
+  },
+
+  // 获取群组规则
+  getGroupRules: (groupId: number): Promise<FilterRule[]> => {
+    return api.get(`/rules/group/${groupId}`);
+  },
+
+  // 创建规则
+  createRule: (rule: Partial<FilterRule>): Promise<FilterRule> => {
+    return api.post('/rules', rule);
+  },
+
+  // 更新规则
+  updateRule: (ruleId: number, rule: Partial<FilterRule>): Promise<FilterRule> => {
+    return api.put(`/rules/${ruleId}`, rule);
+  },
+
+  // 删除规则
+  deleteRule: (ruleId: number): Promise<{ message: string }> => {
+    return api.delete(`/rules/${ruleId}`);
+  },
+
+  // 获取规则详情
+  getRule: (ruleId: number): Promise<FilterRule> => {
+    return api.get(`/rules/${ruleId}`);
+  },
+
+  // 测试规则
+  testRule: (rule: Partial<FilterRule>): Promise<{
+    matched_messages: number;
+    sample_messages: TelegramMessage[];
+  }> => {
+    return api.post('/rules/test', rule);
   },
 };
 
