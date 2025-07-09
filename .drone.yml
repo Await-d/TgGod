@@ -40,45 +40,19 @@ steps:
       - docker network create tggod-network || true
       
       - echo "启动数据库容器..."
-      - >
-        docker run -d --name tggod-database 
-        --network tggod-network
-        -v /volume1/docker/apps/tggod/data:/data
-        --restart unless-stopped
-        -e TZ=Asia/Shanghai
-        registry.cn-hangzhou.aliyuncs.com/library/alpine:latest
-        sh -c "mkdir -p /data && tail -f /dev/null"
+      - docker run -d --name tggod-database --network tggod-network -v /volume1/docker/apps/tggod/data:/data --restart unless-stopped -e TZ=Asia/Shanghai registry.cn-hangzhou.aliyuncs.com/library/alpine:latest sh -c "mkdir -p /data && tail -f /dev/null"
       
       - echo "等待数据库容器启动..."
       - sleep 5
       
       - echo "启动后端容器..."
-      - >
-        docker run -d --name tggod-backend 
-        --network tggod-network
-        -p 18000:8000
-        -v /volume1/docker/apps/tggod/data:/app/data
-        -v /volume1/docker/apps/tggod/media:/app/media
-        -v /volume1/docker/apps/tggod/logs:/app/logs
-        --restart unless-stopped
-        -e TZ=Asia/Shanghai
-        -e DATABASE_URL=sqlite:///./data/tggod.db
-        -e MEDIA_ROOT=/app/media
-        -e LOG_FILE=/app/logs/app.log
-        -e PYTHONUNBUFFERED=1
-        tggod-backend:latest
+      - docker run -d --name tggod-backend --network tggod-network -p 18000:8000 -v /volume1/docker/apps/tggod/data:/app/data -v /volume1/docker/apps/tggod/media:/app/media -v /volume1/docker/apps/tggod/logs:/app/logs --restart unless-stopped -e TZ=Asia/Shanghai -e DATABASE_URL=sqlite:///./data/tggod.db -e MEDIA_ROOT=/app/media -e LOG_FILE=/app/logs/app.log -e PYTHONUNBUFFERED=1 tggod-backend:latest
       
       - echo "等待后端容器启动..."
       - sleep 10
       
       - echo "启动前端容器..."
-      - >
-        docker run -d --name tggod-frontend 
-        --network tggod-network
-        -p 18080:80
-        --restart unless-stopped
-        -e TZ=Asia/Shanghai
-        tggod-frontend:latest
+      - docker run -d --name tggod-frontend --network tggod-network -p 18080:80 --restart unless-stopped -e TZ=Asia/Shanghai tggod-frontend:latest
       
       - echo "验证容器状态..."
       - docker ps | grep tggod
