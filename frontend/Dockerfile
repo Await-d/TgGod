@@ -1,5 +1,5 @@
 # 前端Dockerfile
-FROM registry.cn-hangzhou.aliyuncs.com/library/node:18-alpine
+FROM node:18-alpine
 
 # 设置工作目录
 WORKDIR /app
@@ -11,15 +11,9 @@ RUN apk add --no-cache git python3 make g++
 ENV NODE_OPTIONS=--max-old-space-size=4096
 ENV CI=false
 
-# 配置npm镜像源
-RUN npm config set registry https://registry.npmmirror.com
-
 # 安装pnpm
-RUN npm install -g pnpm --registry=https://registry.npmmirror.com
+RUN npm install -g pnpm 
 
-# 配置pnpm镜像源和超时
-RUN pnpm config set registry https://registry.npmmirror.com
-RUN pnpm config set network-timeout 300000
 
 # 复制package文件
 COPY package*.json ./
@@ -35,7 +29,7 @@ COPY . .
 RUN pnpm build
 
 # 使用nginx提供静态文件
-FROM registry.cn-hangzhou.aliyuncs.com/library/nginx:alpine
+FROM nginx:alpine
 
 # 复制构建文件
 COPY --from=0 /app/build /usr/share/nginx/html
