@@ -42,6 +42,28 @@ const Logs: React.FC = () => {
   const [taskLogs, setTaskLogs] = React.useState<LogEntry[]>([]);
   const [systemLogs, setSystemLogs] = React.useState<LogEntry[]>([]);
 
+  const loadLogs = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      // 加载任务日志
+      const taskLogsResponse = await apiService.get<LogEntry[]>('/log/task-logs');
+      if (taskLogsResponse.success && taskLogsResponse.data) {
+        setTaskLogs(taskLogsResponse.data);
+      }
+      
+      // 加载系统日志
+      const systemLogsResponse = await apiService.get<LogEntry[]>('/log/system-logs');
+      if (systemLogsResponse.success && systemLogsResponse.data) {
+        setSystemLogs(systemLogsResponse.data);
+      }
+    } catch (error) {
+      setError('加载日志失败');
+      console.error('加载日志失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, setError]);
+
   React.useEffect(() => {
     loadLogs();
     
@@ -51,7 +73,7 @@ const Logs: React.FC = () => {
     });
     
     return unsubscribe;
-  }, []);
+  }, [loadLogs, addLog]);
 
   React.useEffect(() => {
     // 过滤日志
@@ -69,28 +91,6 @@ const Logs: React.FC = () => {
     
     setFilteredLogs(filtered);
   }, [logs, levelFilter, searchText]);
-
-  const loadLogs = async () => {
-    setLoading(true);
-    try {
-      // 加载任务日志
-      const taskLogsResponse = await apiService.get<LogEntry[]>('/log/logs/task');
-      if (taskLogsResponse.success && taskLogsResponse.data) {
-        setTaskLogs(taskLogsResponse.data);
-      }
-
-      // 加载系统日志
-      const systemLogsResponse = await apiService.get<LogEntry[]>('/log/logs/system');
-      if (systemLogsResponse.success && systemLogsResponse.data) {
-        setSystemLogs(systemLogsResponse.data);
-      }
-    } catch (error) {
-      setError('加载日志失败');
-      console.error('加载日志失败:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleClearLogs = async (type: 'task' | 'system') => {
     try {

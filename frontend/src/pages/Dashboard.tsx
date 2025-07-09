@@ -20,15 +20,11 @@ const Dashboard: React.FC = () => {
   const { logs } = useLogStore();
   const [loading, setLoading] = React.useState(false);
 
-  React.useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
       // 加载统计数据
-      const statsResponse = await apiService.get('/telegram/groups');
+      // const statsResponse = await apiService.get('/telegram/groups');
       // TODO: 实现统计数据API
       
       // 加载任务数据
@@ -51,17 +47,11 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setTasks, setStatistics]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'running': return '#52c41a';
-      case 'paused': return '#faad14';
-      case 'completed': return '#1890ff';
-      case 'failed': return '#f5222d';
-      default: return '#d9d9d9';
-    }
-  };
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

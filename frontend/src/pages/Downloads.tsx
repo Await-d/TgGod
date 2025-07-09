@@ -40,11 +40,7 @@ const Downloads: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [form] = Form.useForm();
 
-  React.useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
       // 加载群组数据
@@ -70,7 +66,11 @@ const Downloads: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setLoading, setError, setGroups, setRules, setTasks]);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSubmit = async (values: any) => {
     try {

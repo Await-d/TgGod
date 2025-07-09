@@ -44,11 +44,7 @@ const Rules: React.FC = () => {
   const [editingRule, setEditingRule] = React.useState<FilterRule | null>(null);
   const [form] = Form.useForm();
 
-  React.useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
       // 加载群组数据
@@ -68,7 +64,11 @@ const Rules: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setLoading, setError, setGroups, setRules]);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSubmit = async (values: any) => {
     try {

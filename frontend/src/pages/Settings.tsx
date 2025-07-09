@@ -38,11 +38,7 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [configs, setConfigs] = React.useState<Record<string, ConfigItem>>({});
 
-  React.useEffect(() => {
-    loadConfigs();
-  }, []);
-
-  const loadConfigs = async () => {
+  const loadConfigs = React.useCallback(async () => {
     setLoading(true);
     try {
       const response = await apiService.get('/config/configs');
@@ -62,7 +58,11 @@ const Settings: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [form]);
+
+  React.useEffect(() => {
+    loadConfigs();
+  }, [loadConfigs]);
 
   const handleSave = async () => {
     try {

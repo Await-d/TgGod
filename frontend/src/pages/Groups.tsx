@@ -21,8 +21,7 @@ import {
   DeleteOutlined, 
   PlayCircleOutlined,
   PauseCircleOutlined,
-  TeamOutlined,
-  MessageOutlined
+  TeamOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../types';
 import { useTelegramStore, useGlobalStore } from '../store';
@@ -36,11 +35,7 @@ const Groups: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [form] = Form.useForm();
 
-  React.useEffect(() => {
-    loadGroups();
-  }, []);
-
-  const loadGroups = async () => {
+  const loadGroups = React.useCallback(async () => {
     setLoading(true);
     try {
       const response = await apiService.get<TelegramGroup[]>('/telegram/groups');
@@ -53,7 +48,11 @@ const Groups: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setLoading, setError, setGroups]);
+
+  React.useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
 
   const handleAddGroup = async (values: { username: string }) => {
     try {
