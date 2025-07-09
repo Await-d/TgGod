@@ -1,5 +1,5 @@
 # 前端Dockerfile
-FROM node:18-alpine
+FROM registry.cn-hangzhou.aliyuncs.com/library/node:18-alpine
 
 # 设置工作目录
 WORKDIR /app
@@ -35,7 +35,7 @@ COPY . .
 RUN pnpm build
 
 # 使用nginx提供静态文件
-FROM nginx:alpine
+FROM registry.cn-hangzhou.aliyuncs.com/library/nginx:alpine
 
 # 复制构建文件
 COPY --from=0 /app/build /usr/share/nginx/html
