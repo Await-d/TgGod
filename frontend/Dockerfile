@@ -4,11 +4,26 @@ FROM node:18-alpine
 # 设置工作目录
 WORKDIR /app
 
+# 安装依赖项
+RUN apk add --no-cache git python3 make g++
+
+# 设置环境变量
+ENV NODE_OPTIONS=--max-old-space-size=4096
+ENV CI=false
+
+# 配置npm镜像源
+RUN npm config set registry https://registry.npmmirror.com
+
 # 安装pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm --registry=https://registry.npmmirror.com
+
+# 配置pnpm镜像源和超时
+RUN pnpm config set registry https://registry.npmmirror.com
+RUN pnpm config set network-timeout 300000
 
 # 复制package文件
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
 
 # 安装依赖
 RUN pnpm install
