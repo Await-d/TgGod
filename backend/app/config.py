@@ -77,6 +77,22 @@ class Settings:
         return self._get_config("secret_key", "your-secret-key-here")
     
     @property
+    def jwt_secret_key(self) -> str:
+        return self._get_config("jwt_secret_key", "your-jwt-secret-key-here-change-in-production")
+    
+    @property
+    def default_admin_username(self) -> str:
+        return self._get_config("default_admin_username", "admin")
+    
+    @property
+    def default_admin_password(self) -> str:
+        return self._get_config("default_admin_password", "admin123")
+    
+    @property
+    def default_admin_email(self) -> str:
+        return self._get_config("default_admin_email", "admin@tggod.local")
+    
+    @property
     def algorithm(self) -> str:
         return "HS256"
     
