@@ -1,7 +1,7 @@
 # Docker配置文件
 
 # 后端Dockerfile
-FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.11-slim
+FROM registry.cn-hangzhou.aliyuncs.com/library/python:3.11.8-slim
 
 # 设置工作目录
 WORKDIR /app
