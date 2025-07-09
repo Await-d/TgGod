@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Menu, Avatar, Dropdown, Badge, Button } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Badge, Button, Drawer } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   DashboardOutlined,
@@ -13,7 +13,8 @@ import {
   LogoutOutlined,
   WifiOutlined,
   DisconnectOutlined,
-  MessageOutlined
+  MessageOutlined,
+  MenuOutlined
 } from '@ant-design/icons';
 import { webSocketService } from '../../services/websocket';
 import { useGlobalStore, useAuthStore } from '../../store';
@@ -33,6 +34,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   
   const [collapsed, setCollapsed] = React.useState(false);
   const [wsConnected, setWsConnected] = React.useState(false);
+  const [mobileMenuVisible, setMobileMenuVisible] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    // 检查是否为移动设备
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   React.useEffect(() => {
     // 监听WebSocket连接状态
@@ -99,6 +114,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
+    // 移动端点击菜单后关闭抽屉
+    if (isMobile) {
+      setMobileMenuVisible(false);
+    }
   };
 
   const handleUserMenuClick = ({ key }: { key: string }) => {
@@ -124,63 +143,111 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider 
-        collapsible 
-        collapsed={collapsed} 
-        onCollapse={setCollapsed}
-        theme="dark"
+      {/* 桌面端侧边栏 */}
+      {!isMobile && (
+        <Sider 
+          collapsible 
+          collapsed={collapsed} 
+          onCollapse={setCollapsed}
+          theme="dark"
+        >
+          <div style={{ 
+            height: 64, 
+            padding: '16px', 
+            color: 'white', 
+            fontSize: '18px',
+            fontWeight: 'bold',
+            textAlign: 'center'
+          }}>
+            {collapsed ? 'TG' : 'TgGod'}
+          </div>
+          
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            onClick={handleMenuClick}
+          />
+        </Sider>
+      )}
+      
+      {/* 移动端导航抽屉 */}
+      <Drawer
+        title="TgGod"
+        placement="left"
+        onClose={() => setMobileMenuVisible(false)}
+        open={mobileMenuVisible}
+        styles={{
+          body: { padding: 0 },
+          header: { 
+            background: '#001529', 
+            color: 'white',
+            borderBottom: '1px solid #303030'
+          }
+        }}
+        width={250}
       >
-        <div style={{ 
-          height: 64, 
-          padding: '16px', 
-          color: 'white', 
-          fontSize: '18px',
-          fontWeight: 'bold',
-          textAlign: 'center'
-        }}>
-          {collapsed ? 'TG' : 'TgGod'}
-        </div>
-        
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
           onClick={handleMenuClick}
+          style={{ height: '100%', borderRight: 0 }}
         />
-      </Sider>
+      </Drawer>
       
       <Layout>
         <Header style={{ 
-          padding: '0 24px', 
+          padding: isMobile ? '0 16px' : '0 24px', 
           background: '#fff',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           boxShadow: '0 1px 4px rgba(0,21,41,.08)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <h1 style={{ margin: 0, fontSize: '20px', color: '#1890ff' }}>
-              Telegram群组下载系统
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '16px' }}>
+            {/* 移动端菜单按钮 */}
+            {isMobile && (
+              <Button 
+                type="text" 
+                icon={<MenuOutlined />}
+                onClick={() => setMobileMenuVisible(true)}
+                style={{ padding: '4px 8px' }}
+              />
+            )}
+            
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: isMobile ? '16px' : '20px', 
+              color: '#1890ff',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}>
+              {isMobile ? 'TgGod' : 'Telegram群组下载系统'}
             </h1>
             
             {/* WebSocket连接状态 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {wsConnected ? (
-                <WifiOutlined style={{ color: '#52c41a' }} />
-              ) : (
-                <DisconnectOutlined style={{ color: '#f5222d' }} />
-              )}
-              <span style={{ 
-                fontSize: '12px', 
-                color: wsConnected ? '#52c41a' : '#f5222d' 
-              }}>
-                {wsConnected ? '已连接' : '未连接'}
-              </span>
-            </div>
+            {!isMobile && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {wsConnected ? (
+                  <WifiOutlined style={{ color: '#52c41a' }} />
+                ) : (
+                  <DisconnectOutlined style={{ color: '#f5222d' }} />
+                )}
+                <span style={{ 
+                  fontSize: '12px', 
+                  color: wsConnected ? '#52c41a' : '#f5222d' 
+                }}>
+                  {wsConnected ? '已连接' : '未连接'}
+                </span>
+              </div>
+            )}
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '16px' }}>
             {/* 错误提示 */}
             {error && (
               <Button 
@@ -188,8 +255,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 danger 
                 size="small"
                 onClick={clearError}
+                style={{ maxWidth: isMobile ? '120px' : 'none' }}
               >
-                {error}
+                {isMobile ? '错误' : error}
               </Button>
             )}
             
@@ -199,9 +267,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </Badge>
             
             {/* 用户信息 */}
-            <span style={{ fontSize: '14px', color: '#666' }}>
-              欢迎，{user?.username}
-            </span>
+            {!isMobile && (
+              <span style={{ fontSize: '14px', color: '#666' }}>
+                欢迎，{user?.username}
+              </span>
+            )}
             
             {/* 用户菜单 */}
             <Dropdown
@@ -221,8 +291,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </Header>
         
         <Content style={{ 
-          margin: '24px 16px',
-          padding: 24,
+          margin: isMobile ? '16px 8px' : '24px 16px',
+          padding: isMobile ? 16 : 24,
           background: '#fff',
           borderRadius: '8px',
           minHeight: 280,

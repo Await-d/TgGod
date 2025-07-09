@@ -67,9 +67,22 @@ const MessagesPage: React.FC = () => {
   const [filters, setFilters] = useState<any>({});
   const [stats, setStats] = useState<any>(null);
   const [replyTo, setReplyTo] = useState<TelegramMessage | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   
   const { user } = useAuthStore();
   const navigate = useNavigate();
+
+  // 检查是否为移动设备
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // 获取群组列表
   const fetchGroups = async () => {
@@ -229,19 +242,21 @@ const MessagesPage: React.FC = () => {
       title: '消息ID',
       dataIndex: 'message_id',
       key: 'message_id',
-      width: 100,
+      width: isMobile ? 80 : 100,
       render: (id: number) => <Text code>{id}</Text>,
     },
     {
       title: '发送者',
       key: 'sender',
-      width: 150,
+      width: isMobile ? 120 : 150,
       render: (record: TelegramMessage) => (
         <Space>
           <Avatar size="small" icon={<UserOutlined />} />
           <div>
-            <div>{record.sender_name || '未知'}</div>
-            {record.sender_username && (
+            <div style={{ fontSize: isMobile ? 12 : 14 }}>
+              {record.sender_name || '未知'}
+            </div>
+            {record.sender_username && !isMobile && (
               <Text type="secondary" style={{ fontSize: 12 }}>
                 @{record.sender_username}
               </Text>
@@ -254,7 +269,7 @@ const MessagesPage: React.FC = () => {
       title: '消息内容',
       key: 'content',
       render: (record: TelegramMessage) => (
-        <div style={{ maxWidth: 300 }}>
+        <div style={{ maxWidth: isMobile ? 200 : 300 }}>
           <Space direction="vertical" size="small">
             {record.reply_to_message_id && (
               <Tag color="blue">
@@ -264,8 +279,15 @@ const MessagesPage: React.FC = () => {
             
             {record.text && (
               <Paragraph 
-                ellipsis={{ rows: 2, expandable: true, symbol: 'more' }}
-                style={{ margin: 0 }}
+                ellipsis={{ 
+                  rows: isMobile ? 1 : 2, 
+                  expandable: !isMobile, 
+                  symbol: 'more' 
+                }}
+                style={{ 
+                  margin: 0, 
+                  fontSize: isMobile ? 12 : 14 
+                }}
               >
                 {record.text}
               </Paragraph>
@@ -274,8 +296,10 @@ const MessagesPage: React.FC = () => {
             {record.media_type && (
               <Space>
                 {getMediaIcon(record.media_type)}
-                <Text type="secondary">{record.media_type}</Text>
-                {record.media_filename && (
+                {!isMobile && (
+                  <Text type="secondary">{record.media_type}</Text>
+                )}
+                {record.media_filename && !isMobile && (
                   <Text code style={{ fontSize: 12 }}>
                     {record.media_filename}
                   </Text>
@@ -285,17 +309,17 @@ const MessagesPage: React.FC = () => {
             
             {record.is_forwarded && (
               <Tag color="orange">
-                <ShareAltOutlined /> 转发
+                <ShareAltOutlined /> {isMobile ? '转发' : '转发'}
               </Tag>
             )}
             
             {record.is_pinned && (
               <Tag color="red">
-                <PushpinOutlined /> 置顶
+                <PushpinOutlined /> {isMobile ? '置顶' : '置顶'}
               </Tag>
             )}
             
-            {record.reactions && Object.keys(record.reactions).length > 0 && (
+            {record.reactions && Object.keys(record.reactions).length > 0 && !isMobile && (
               <Space size="small">
                 {Object.entries(record.reactions).map(([emoji, count]) => (
                   <Tag key={emoji} color="pink">
@@ -312,17 +336,21 @@ const MessagesPage: React.FC = () => {
       title: '时间',
       dataIndex: 'date',
       key: 'date',
-      width: 180,
+      width: isMobile ? 100 : 180,
       render: (date: string) => (
         <div>
-          <div>{new Date(date).toLocaleDateString()}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {new Date(date).toLocaleTimeString()}
-          </Text>
+          <div style={{ fontSize: isMobile ? 12 : 14 }}>
+            {new Date(date).toLocaleDateString()}
+          </div>
+          {!isMobile && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {new Date(date).toLocaleTimeString()}
+            </Text>
+          )}
         </div>
       ),
     },
-    {
+    ...(!isMobile ? [{
       title: '统计',
       key: 'stats',
       width: 120,
@@ -344,17 +372,18 @@ const MessagesPage: React.FC = () => {
           )}
         </Space>
       ),
-    },
+    }] : []),
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: isMobile ? 80 : 120,
       render: (record: TelegramMessage) => (
-        <Space size="small">
+        <Space size="small" direction={isMobile ? 'vertical' : 'horizontal'}>
           <Tooltip title="查看详情">
             <Button 
               type="text" 
               icon={<EyeOutlined />}
+              size={isMobile ? 'small' : 'middle'}
               onClick={() => {
                 setSelectedMessage(record);
                 setMessageDetailVisible(true);
@@ -366,6 +395,7 @@ const MessagesPage: React.FC = () => {
             <Button 
               type="text" 
               icon={<MessageOutlined />}
+              size={isMobile ? 'small' : 'middle'}
               onClick={() => {
                 setReplyTo(record);
                 setSendModalVisible(true);
@@ -373,18 +403,21 @@ const MessagesPage: React.FC = () => {
             />
           </Tooltip>
           
-          <Popconfirm
-            title="确认删除这条消息吗？"
-            onConfirm={() => handleDeleteMessage(record.message_id)}
-          >
-            <Tooltip title="删除">
-              <Button 
-                type="text" 
-                danger
-                icon={<DeleteOutlined />}
-              />
-            </Tooltip>
-          </Popconfirm>
+          {!isMobile && (
+            <Popconfirm
+              title="确认删除这条消息吗？"
+              onConfirm={() => handleDeleteMessage(record.message_id)}
+            >
+              <Tooltip title="删除">
+                <Button 
+                  type="text" 
+                  danger
+                  icon={<DeleteOutlined />}
+                  size="small"
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -404,30 +437,46 @@ const MessagesPage: React.FC = () => {
   }, [selectedGroup]);
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 16 : 24 }}>
       <Row gutter={[16, 16]}>
         {/* 顶部统计卡片 */}
         {stats && (
           <Col span={24}>
             <Row gutter={16}>
-              <Col span={6}>
+              <Col xs={12} sm={6}>
                 <Card>
-                  <Statistic title="总消息数" value={stats.total_messages} />
+                  <Statistic 
+                    title="总消息数" 
+                    value={stats.total_messages}
+                    valueStyle={{ fontSize: isMobile ? 16 : 24 }}
+                  />
                 </Card>
               </Col>
-              <Col span={6}>
+              <Col xs={12} sm={6}>
                 <Card>
-                  <Statistic title="媒体消息" value={stats.media_messages} />
+                  <Statistic 
+                    title="媒体消息" 
+                    value={stats.media_messages}
+                    valueStyle={{ fontSize: isMobile ? 16 : 24 }}
+                  />
                 </Card>
               </Col>
-              <Col span={6}>
+              <Col xs={12} sm={6}>
                 <Card>
-                  <Statistic title="文字消息" value={stats.text_messages} />
+                  <Statistic 
+                    title="文字消息" 
+                    value={stats.text_messages}
+                    valueStyle={{ fontSize: isMobile ? 16 : 24 }}
+                  />
                 </Card>
               </Col>
-              <Col span={6}>
+              <Col xs={12} sm={6}>
                 <Card>
-                  <Statistic title="群组成员" value={stats.member_count} />
+                  <Statistic 
+                    title="群组成员" 
+                    value={stats.member_count}
+                    valueStyle={{ fontSize: isMobile ? 16 : 24 }}
+                  />
                 </Card>
               </Col>
             </Row>
@@ -438,9 +487,9 @@ const MessagesPage: React.FC = () => {
         <Col span={24}>
           <Card
             title={
-              <Space>
-                <Title level={4} style={{ margin: 0 }}>
-                  群组消息管理
+              <Space wrap>
+                <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>
+                  {isMobile ? '消息管理' : '群组消息管理'}
                 </Title>
                 {selectedGroup && (
                   <Tag color="blue">{selectedGroup.title}</Tag>
@@ -448,11 +497,11 @@ const MessagesPage: React.FC = () => {
               </Space>
             }
             extra={
-              <Space>
+              <Space wrap size="small">
                 <Select
                   placeholder="选择群组"
                   value={selectedGroup?.id}
-                  style={{ width: 200 }}
+                  style={{ width: isMobile ? 120 : 200 }}
                   onChange={(value) => {
                     const group = groups.find(g => g.id === value);
                     setSelectedGroup(group || null);
@@ -470,13 +519,15 @@ const MessagesPage: React.FC = () => {
                   icon={<SendOutlined />}
                   onClick={() => setSendModalVisible(true)}
                   disabled={!selectedGroup}
+                  size={isMobile ? 'small' : 'middle'}
                 >
-                  发送消息
+                  {isMobile ? '发送' : '发送消息'}
                 </Button>
                 
                 <Button 
                   icon={<FilterOutlined />}
                   onClick={() => setFilterDrawerVisible(true)}
+                  size={isMobile ? 'small' : 'middle'}
                 >
                   筛选
                 </Button>
@@ -486,14 +537,16 @@ const MessagesPage: React.FC = () => {
                   onClick={handleSyncMessages}
                   loading={loading}
                   disabled={!selectedGroup}
+                  size={isMobile ? 'small' : 'middle'}
                 >
-                  同步消息
+                  {isMobile ? '同步' : '同步消息'}
                 </Button>
                 
                 <Button 
                   icon={<ReloadOutlined />}
                   onClick={() => selectedGroup && fetchMessages(selectedGroup.id, 1, filters)}
                   loading={loading}
+                  size={isMobile ? 'small' : 'middle'}
                 >
                   刷新
                 </Button>
@@ -509,15 +562,20 @@ const MessagesPage: React.FC = () => {
                 current: pagination.current,
                 pageSize: pagination.pageSize,
                 total: pagination.total,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+                showSizeChanger: !isMobile,
+                showQuickJumper: !isMobile,
+                showTotal: (total, range) => 
+                  isMobile ? 
+                    `${range[0]}-${range[1]} / ${total}` : 
+                    `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
                 onChange: (page, pageSize) => {
                   setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 50 }));
                   selectedGroup && fetchMessages(selectedGroup.id, page, filters);
                 },
+                size: isMobile ? 'small' : 'default',
               }}
-              scroll={{ x: 1200 }}
+              scroll={{ x: isMobile ? 600 : 1200 }}
+              size={isMobile ? 'small' : undefined}
             />
           </Card>
         </Col>
@@ -541,7 +599,8 @@ const MessagesPage: React.FC = () => {
           form.resetFields();
         }}
         footer={null}
-        width={600}
+        width={isMobile ? '100%' : 600}
+        style={isMobile ? { top: 20 } : {}}
       >
         {replyTo && (
           <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f5f5f5' }}>
@@ -593,7 +652,7 @@ const MessagesPage: React.FC = () => {
         placement="right"
         onClose={() => setFilterDrawerVisible(false)}
         open={filterDrawerVisible}
-        width={400}
+        width={isMobile ? '100%' : 400}
       >
         <Form
           form={searchForm}
@@ -654,12 +713,13 @@ const MessagesPage: React.FC = () => {
         open={messageDetailVisible}
         onCancel={() => setMessageDetailVisible(false)}
         footer={null}
-        width={800}
+        width={isMobile ? '100%' : 800}
+        style={isMobile ? { top: 20 } : {}}
       >
         {selectedMessage && (
           <div>
             <Row gutter={16}>
-              <Col span={12}>
+              <Col xs={24} md={12}>
                 <Card size="small" title="基本信息">
                   <p><strong>消息ID:</strong> {selectedMessage.message_id}</p>
                   <p><strong>发送者:</strong> {selectedMessage.sender_name || '未知'}</p>
@@ -669,7 +729,7 @@ const MessagesPage: React.FC = () => {
                 </Card>
               </Col>
               
-              <Col span={12}>
+              <Col xs={24} md={12}>
                 <Card size="small" title="消息状态">
                   <Space direction="vertical">
                     <div>
