@@ -29,7 +29,7 @@ COPY . .
 RUN pnpm build
 
 # 使用nginx提供静态文件
-FROM nginx:alpine
+FROM nginx:latest
 
 # 复制构建文件
 COPY --from=0 /app/build /usr/share/nginx/html
