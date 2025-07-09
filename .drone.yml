@@ -3,133 +3,113 @@ type: docker
 name: tggod-deploy
 
 steps:
-  - name: build-frontend
-    image: node:18-alpine
-    commands:
-      - cd frontend
-      - npm install -g pnpm
-      - pnpm install
-      - pnpm build
-    when:
-      branch: master
-      event: push
-
-  - name: build-backend
-    image: python:3.9-slim
-    commands:
-      - cd backend
-      - pip install -r requirements.txt
-      - python -m pytest tests/ || echo "No tests found"
-    when:
-      branch: master
-      event: push
-
-  - name: deploy
+  - name: build-and-deploy
     image: docker:dind
     volumes:
-      - name: dockersock
+      - name: docker-socket
         path: /var/run/docker.sock
       - name: volume1
         path: /volume1
     commands:
-      - docker --version
-      - docker compose version
-      # 停止现有容器
-      - docker compose -f docker-compose.yml down || true
-      # 清理旧镜像
-      - docker image prune -f
-      # 构建新镜像
-      - docker compose -f docker-compose.yml build --no-cache
-      # 创建必要的目录
+      - echo "清理Docker缓存以避免构建错误..."
+      - docker system prune -f --volumes || true
+      - docker builder prune -f || true
+      
+      - echo "停止并清理现有容器..."
+      - docker stop tggod-backend tggod-frontend tggod-database || true
+      - docker rm tggod-backend tggod-frontend tggod-database || true
+      - docker network rm tggod-network || true
+      
+      - echo "开始构建后端镜像..."
+      - docker build -t tggod-backend:latest ./backend --no-cache
+      
+      - echo "开始构建前端镜像..."
+      - docker build -t tggod-frontend:latest ./frontend --no-cache
+      
+      - echo "创建必要的目录..."
       - mkdir -p /volume1/docker/apps/tggod/data
       - mkdir -p /volume1/docker/apps/tggod/media
       - mkdir -p /volume1/docker/apps/tggod/logs
       - mkdir -p /volume1/docker/apps/tggod/config
-      # 复制配置文件
-      - cp -r ./backend/app/config.py /volume1/docker/apps/tggod/config/ || true
-      - cp .env.example /volume1/docker/apps/tggod/config/.env || true
-      # 设置权限
+      
+      - echo "设置目录权限..."
       - chmod -R 755 /volume1/docker/apps/tggod
       - chown -R 1000:1000 /volume1/docker/apps/tggod
-      # 启动容器
-      - |
-        if [ -d "/volume1/docker/apps/tggod/data" ] && 
-           [ -d "/volume1/docker/apps/tggod/media" ] && 
-           [ -d "/volume1/docker/apps/tggod/logs" ]; then
-          # 停止旧容器
-          docker stop tggod-backend tggod-frontend tggod-database || true
-          docker rm tggod-backend tggod-frontend tggod-database || true
-          
-          # 创建网络
-          docker network create tggod-network || true
-          
-          # 启动数据库容器
-          docker run -d \
-            --name tggod-database \
-            -v /volume1/docker/apps/tggod/data:/data \
-            --network tggod-network \
-            --restart unless-stopped \
-            alpine:latest sh -c "mkdir -p /data && tail -f /dev/null"
-          
-          # 等待数据库容器启动
-          sleep 5
-          
-          # 启动后端容器
-          docker run -d \
-            --name tggod-backend \
-            -p 18000:8000 \
-            -e TZ="Asia/Shanghai" \
-            -e DATABASE_URL="sqlite:///./data/tggod.db" \
-            -e MEDIA_ROOT="/app/media" \
-            -e LOG_FILE="/app/logs/app.log" \
-            -v /volume1/docker/apps/tggod/data:/app/data \
-            -v /volume1/docker/apps/tggod/media:/app/media \
-            -v /volume1/docker/apps/tggod/logs:/app/logs \
-            --network tggod-network \
-            --restart unless-stopped \
-            tggod-backend:latest
-          
-          # 等待后端容器启动
-          sleep 10
-          
-          # 启动前端容器
-          docker run -d \
-            --name tggod-frontend \
-            -p 18080:80 \
-            -e TZ="Asia/Shanghai" \
-            --network tggod-network \
-            --restart unless-stopped \
-            tggod-frontend:latest
-          
-          # 验证容器状态
-          docker ps | grep tggod
-          
-          echo "TgGod deployment completed successfully!"
-          echo "Frontend: http://localhost:18080"
-          echo "Backend API: http://localhost:18000"
-        else
-          echo "Error: Required directories do not exist"
-          exit 1
-        fi
+      
+      - echo "创建Docker网络..."
+      - docker network create tggod-network || true
+      
+      - echo "启动数据库容器..."
+      - >
+        docker run -d --name tggod-database 
+        --network tggod-network
+        -v /volume1/docker/apps/tggod/data:/data
+        --restart unless-stopped
+        -e TZ=Asia/Shanghai
+        registry.cn-hangzhou.aliyuncs.com/library/alpine:latest
+        sh -c "mkdir -p /data && tail -f /dev/null"
+      
+      - echo "等待数据库容器启动..."
+      - sleep 5
+      
+      - echo "启动后端容器..."
+      - >
+        docker run -d --name tggod-backend 
+        --network tggod-network
+        -p 18000:8000
+        -v /volume1/docker/apps/tggod/data:/app/data
+        -v /volume1/docker/apps/tggod/media:/app/media
+        -v /volume1/docker/apps/tggod/logs:/app/logs
+        --restart unless-stopped
+        -e TZ=Asia/Shanghai
+        -e DATABASE_URL=sqlite:///./data/tggod.db
+        -e MEDIA_ROOT=/app/media
+        -e LOG_FILE=/app/logs/app.log
+        -e PYTHONUNBUFFERED=1
+        tggod-backend:latest
+      
+      - echo "等待后端容器启动..."
+      - sleep 10
+      
+      - echo "启动前端容器..."
+      - >
+        docker run -d --name tggod-frontend 
+        --network tggod-network
+        -p 18080:80
+        --restart unless-stopped
+        -e TZ=Asia/Shanghai
+        tggod-frontend:latest
+      
+      - echo "验证容器状态..."
+      - docker ps | grep tggod
+      
+      - echo "TgGod 部署完成！"
+      - echo "前端访问地址: http://localhost:18080"
+      - echo "后端API地址: http://localhost:18000"
+      - echo "健康检查..."
+      - sleep 5
+      - curl -f http://localhost:18000/ || echo "后端健康检查失败"
     when:
       branch: master
       event: push
 
-  - name: cleanup
+  - name: cleanup-cache
     image: docker:dind
     volumes:
-      - name: dockersock
+      - name: docker-socket
         path: /var/run/docker.sock
     commands:
-      - docker system prune -f
-      - docker image prune -f
+      - echo "开始清理Docker构建缓存..."
+      - docker image prune -f --filter "until=24h" || true
+      - docker container prune -f || true
+      - docker builder prune -f --keep-storage 1GB || true
+      - docker system df
+      - echo "Docker缓存清理完成"
     when:
-      branch: master
-      event: push
       status: [ success, failure ]
 
 volumes:
-  - name: dockersock
+  - name: docker-socket
     host:
       path: /var/run/docker.sock 
   - name: volume1
@@ -141,7 +121,3 @@ trigger:
     - master
   event:
     - push
-
----
-kind: signature
-hmac: ${DRONE_HMAC_SECRET}

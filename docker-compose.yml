@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build: ./backend
@@ -37,7 +35,7 @@ services:
       - tggod-network
 
   database:
-    image: alpine:latest
+    image: registry.cn-hangzhou.aliyuncs.com/library/alpine:latest
     container_name: tggod-database
     volumes:
       - ./data:/data

@@ -62,7 +62,14 @@
       "Bash(PORT=3000 pnpm start)",
       "Bash(pnpm build:*)",
       "Bash(grep:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git remote set-url:*)",
+      "Bash(touch:*)",
+      "Bash(rm -rf node_modules)",
+      "Bash(CI=false pnpm build)",
+      "Bash(docker build:*)"
     ],
     "deny": []
   }

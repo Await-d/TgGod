@@ -1,0 +1,15 @@
+node_modules
+build
+.git
+.gitignore
+README.md
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.log
+logs
+.drone.yml
+.serena
+.claude
