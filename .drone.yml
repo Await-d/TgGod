@@ -42,23 +42,23 @@ steps:
       - sleep 5
       
       - echo "启动后端容器..."
-      - docker run -d --name tggod-backend --network 1panel-network -p 18000:8000 -v /volume1/docker/apps/tggod/data:/app/data -v /volume1/docker/apps/tggod/media:/app/media -v /volume1/docker/apps/tggod/logs:/app/logs --restart unless-stopped -e TZ=Asia/Shanghai -e DATABASE_URL=sqlite:///./data/tggod.db -e MEDIA_ROOT=/app/media -e LOG_FILE=/app/logs/app.log -e PYTHONUNBUFFERED=1 tggod-backend:latest
+      - docker run -d --name tggod-backend --network 1panel-network -v /volume1/docker/apps/tggod/data:/app/data -v /volume1/docker/apps/tggod/media:/app/media -v /volume1/docker/apps/tggod/logs:/app/logs --restart unless-stopped -e TZ=Asia/Shanghai -e DATABASE_URL=sqlite:///./data/tggod.db -e MEDIA_ROOT=/app/media -e LOG_FILE=/app/logs/app.log -e PYTHONUNBUFFERED=1 tggod-backend:latest
       
       - echo "等待后端容器启动..."
       - sleep 10
       
       - echo "启动前端容器..."
-      - docker run -d --name tggod-frontend --network 1panel-network -p 18080:80 --restart unless-stopped -e TZ=Asia/Shanghai tggod-frontend:latest
+      - docker run -d --name tggod-frontend --network 1panel-network -p 18000:80 --restart unless-stopped -e TZ=Asia/Shanghai tggod-frontend:latest
       
       - echo "验证容器状态..."
       - docker ps | grep tggod
       
       - echo "TgGod 部署完成！"
-      - echo "前端访问地址 http://localhost:18080"
-      - echo "后端API地址 http://localhost:18000"
+      - echo "前端访问地址 http://localhost:18000"
+      - echo "后端API地址 http://localhost:18000/api"
       - echo "健康检查..."
       - sleep 5
-      - curl -f http://localhost:18000/ || echo "后端健康检查失败"
+      - curl -f http://localhost:18000/ || echo "前端健康检查失败"
     when:
       branch: master
       event: push
