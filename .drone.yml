@@ -58,8 +58,8 @@ steps:
       - docker ps | grep tggod
       
       - echo "TgGod 部署完成！"
-      - echo "前端访问地址: http://localhost:18080"
-      - echo "后端API地址: http://localhost:18000"
+      - echo "前端访问地址 http://localhost:18080"
+      - echo "后端API地址 http://localhost:18000"
       - echo "健康检查..."
       - sleep 5
       - curl -f http://localhost:18000/ || echo "后端健康检查失败"
