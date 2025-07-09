@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: tggod-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+      - ./media:/app/media
+      - ./logs:/app/logs
+    environment:
+      - DATABASE_URL=sqlite:///./data/tggod.db
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - SECRET_KEY=${SECRET_KEY}
+      - MEDIA_ROOT=/app/media
+      - LOG_FILE=/app/logs/app.log
+    restart: unless-stopped
+    depends_on:
+      - database
+    networks:
+      - tggod-network
+
+  frontend:
+    build: ./frontend
+    container_name: tggod-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - tggod-network
+
+  database:
+    image: alpine:latest
+    container_name: tggod-database
+    volumes:
+      - ./data:/data
+    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
+    restart: unless-stopped
+    networks:
+      - tggod-network
+
+volumes:
+  data:
+    driver: local
+  media:
+    driver: local
+  logs:
+    driver: local
+
+networks:
+  tggod-network:
+    driver: bridge
