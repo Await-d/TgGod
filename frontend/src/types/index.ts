@@ -1,8 +1,42 @@
 // TypeScript类型定义
 
+// 用户认证相关类型
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  full_name?: string;
+  avatar_url?: string;
+  bio?: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  is_verified: boolean;
+  created_at: string;
+  updated_at?: string;
+  last_login?: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+  full_name?: string;
+}
+
 // Telegram相关类型
 export interface TelegramGroup {
   id: number;
+  telegram_id: number;
   title: string;
   username?: string;
   description?: string;
@@ -23,9 +57,35 @@ export interface TelegramMessage {
   media_type?: 'photo' | 'video' | 'document' | 'audio' | 'voice' | 'sticker';
   media_path?: string;
   media_size?: number;
+  media_filename?: string;
   view_count?: number;
-  created_at: string;
+  is_forwarded: boolean;
   forwarded_from?: string;
+  reply_to_message_id?: number;
+  edit_date?: string;
+  is_pinned: boolean;
+  reactions?: Record<string, number>;
+  mentions?: string[];
+  hashtags?: string[];
+  urls?: string[];
+  date: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface MessageSendRequest {
+  text: string;
+  reply_to_message_id?: number;
+}
+
+export interface MessageSearchRequest {
+  query?: string;
+  sender_username?: string;
+  media_type?: string;
+  start_date?: string;
+  end_date?: string;
+  has_media?: boolean;
+  is_forwarded?: boolean;
 }
 
 // 规则相关类型
@@ -106,4 +166,12 @@ export interface Statistics {
   active_tasks: number;
   storage_used: number;
   today_downloads: number;
+}
+
+// 群组统计类型
+export interface GroupStats {
+  total_messages: number;
+  media_messages: number;
+  text_messages: number;
+  member_count: number;
 }

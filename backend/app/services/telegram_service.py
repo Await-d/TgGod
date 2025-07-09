@@ -132,7 +132,14 @@ class TelegramService:
                 "date": message.date,
                 "view_count": message.views or 0,
                 "is_forwarded": message.forward is not None,
-                "forwarded_from": None
+                "forwarded_from": None,
+                "reply_to_message_id": message.reply_to_msg_id,
+                "edit_date": message.edit_date,
+                "is_pinned": message.pinned or False,
+                "reactions": None,
+                "mentions": [],
+                "hashtags": [],
+                "urls": []
             }
             
             # 发送者信息
@@ -157,6 +164,16 @@ class TelegramService:
                 elif message.forward.chat:
                     message_data["forwarded_from"] = message.forward.chat.title
             
+            # 处理消息文本中的特殊元素
+            if message.text:
+                message_data["mentions"] = self._extract_mentions(message.text)
+                message_data["hashtags"] = self._extract_hashtags(message.text)
+                message_data["urls"] = self._extract_urls(message.text)
+            
+            # 处理消息反应
+            if hasattr(message, 'reactions') and message.reactions:
+                message_data["reactions"] = self._process_reactions(message.reactions)
+            
             # 媒体信息
             if message.media:
                 media_info = await self._process_media(message)
@@ -167,6 +184,37 @@ class TelegramService:
         except Exception as e:
             logger.error(f"处理消息失败: {e}")
             return None
+    
+    def _extract_mentions(self, text: str) -> List[str]:
+        """提取消息中的@mentions"""
+        import re
+        mentions = re.findall(r'@(\w+)', text)
+        return mentions
+    
+    def _extract_hashtags(self, text: str) -> List[str]:
+        """提取消息中的#hashtags"""
+        import re
+        hashtags = re.findall(r'#(\w+)', text)
+        return hashtags
+    
+    def _extract_urls(self, text: str) -> List[str]:
+        """提取消息中的URLs"""
+        import re
+        urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
+        return urls
+    
+    def _process_reactions(self, reactions) -> Dict[str, Any]:
+        """处理消息反应"""
+        try:
+            reaction_data = {}
+            if hasattr(reactions, 'results'):
+                for reaction in reactions.results:
+                    if hasattr(reaction, 'reaction') and hasattr(reaction, 'count'):
+                        reaction_data[str(reaction.reaction)] = reaction.count
+            return reaction_data
+        except Exception as e:
+            logger.error(f"处理消息反应失败: {e}")
+            return {}
     
     async def _process_media(self, message: Message) -> Dict[str, Any]:
         """处理媒体文件"""
@@ -272,6 +320,100 @@ class TelegramService:
         except Exception as e:
             logger.error(f"保存消息到数据库失败: {e}")
             db.rollback()
+    
+    async def send_message(self, group_username: str, text: str, reply_to_message_id: Optional[int] = None) -> Optional[int]:
+        """发送消息到群组"""
+        try:
+            await self.initialize()
+            
+            # 获取群组实体
+            entity = await self.client.get_entity(group_username)
+            
+            # 发送消息
+            message = await self.client.send_message(
+                entity,
+                text,
+                reply_to=reply_to_message_id
+            )
+            
+            logger.info(f"消息发送成功，消息ID: {message.id}")
+            return message.id
+            
+        except Exception as e:
+            logger.error(f"发送消息失败: {e}")
+            return None
+    
+    async def delete_message(self, group_username: str, message_id: int) -> bool:
+        """删除群组消息"""
+        try:
+            await self.initialize()
+            
+            # 获取群组实体
+            entity = await self.client.get_entity(group_username)
+            
+            # 删除消息
+            await self.client.delete_messages(entity, message_id)
+            
+            logger.info(f"消息删除成功，消息ID: {message_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"删除消息失败: {e}")
+            return False
+    
+    async def edit_message(self, group_username: str, message_id: int, new_text: str) -> bool:
+        """编辑群组消息"""
+        try:
+            await self.initialize()
+            
+            # 获取群组实体
+            entity = await self.client.get_entity(group_username)
+            
+            # 编辑消息
+            await self.client.edit_message(entity, message_id, new_text)
+            
+            logger.info(f"消息编辑成功，消息ID: {message_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"编辑消息失败: {e}")
+            return False
+    
+    async def pin_message(self, group_username: str, message_id: int) -> bool:
+        """置顶消息"""
+        try:
+            await self.initialize()
+            
+            # 获取群组实体
+            entity = await self.client.get_entity(group_username)
+            
+            # 置顶消息
+            await self.client.pin_message(entity, message_id)
+            
+            logger.info(f"消息置顶成功，消息ID: {message_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"置顶消息失败: {e}")
+            return False
+    
+    async def unpin_message(self, group_username: str, message_id: int) -> bool:
+        """取消置顶消息"""
+        try:
+            await self.initialize()
+            
+            # 获取群组实体
+            entity = await self.client.get_entity(group_username)
+            
+            # 取消置顶消息
+            await self.client.unpin_message(entity, message_id)
+            
+            logger.info(f"消息取消置顶成功，消息ID: {message_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"取消置顶消息失败: {e}")
+            return False
 
 # 创建全局服务实例
 telegram_service = TelegramService()

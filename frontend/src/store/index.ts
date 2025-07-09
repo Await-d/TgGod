@@ -1,5 +1,21 @@
 import { create } from 'zustand';
-import { TelegramGroup, TelegramMessage, FilterRule, DownloadTask, LogEntry, Statistics } from '../types';
+import { persist } from 'zustand/middleware';
+import { TelegramGroup, TelegramMessage, FilterRule, DownloadTask, LogEntry, Statistics, User } from '../types';
+
+// 用户认证状态接口
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  
+  setUser: (user: User | null) => void;
+  setToken: (token: string | null) => void;
+  setIsAuthenticated: (isAuthenticated: boolean) => void;
+  setIsLoading: (isLoading: boolean) => void;
+  initializeAuth: () => void;
+  logout: () => void;
+}
 
 // 全局状态接口
 interface GlobalState {
@@ -14,10 +30,6 @@ interface GlobalState {
   // 连接状态
   connectionStatus: 'connected' | 'disconnected' | 'connecting';
   setConnectionStatus: (status: 'connected' | 'disconnected' | 'connecting') => void;
-
-  // 用户信息
-  user: any | null;
-  setUser: (user: any | null) => void;
 
   // 清除状态
   clearError: () => void;
@@ -36,6 +48,9 @@ interface TelegramState {
   addGroup: (group: TelegramGroup) => void;
   updateGroup: (id: number, updates: Partial<TelegramGroup>) => void;
   removeGroup: (id: number) => void;
+  addMessage: (message: TelegramMessage) => void;
+  updateMessage: (id: number, updates: Partial<TelegramMessage>) => void;
+  removeMessage: (id: number) => void;
 }
 
 // 规则状态接口
@@ -79,19 +94,60 @@ interface StatisticsState {
   setStatistics: (statistics: Statistics) => void;
 }
 
+// 创建用户认证状态store（持久化）
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
+      
+      setUser: (user) => set({ user }),
+      setToken: (token) => set({ token, isAuthenticated: !!token }),
+      setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
+      setIsLoading: (isLoading) => set({ isLoading }),
+      
+      initializeAuth: () => {
+        const { token } = get();
+        if (token) {
+          set({ isAuthenticated: true });
+        }
+      },
+      
+      logout: () => {
+        set({ 
+          user: null, 
+          token: null, 
+          isAuthenticated: false,
+          isLoading: false
+        });
+        // 清除localStorage
+        localStorage.removeItem('auth-storage');
+      },
+    }),
+    {
+      name: 'auth-storage',
+      partialize: (state) => ({ 
+        user: state.user, 
+        token: state.token, 
+        isAuthenticated: state.isAuthenticated 
+      }),
+    }
+  )
+);
+
 // 创建全局状态store
 export const useGlobalStore = create<GlobalState>((set) => ({
   loading: false,
   error: null,
   connectionStatus: 'disconnected',
-  user: null,
   
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
-  setUser: (user) => set({ user }),
   clearError: () => set({ error: null }),
-  reset: () => set({ loading: false, error: null, connectionStatus: 'disconnected', user: null }),
+  reset: () => set({ loading: false, error: null, connectionStatus: 'disconnected' }),
 }));
 
 // 创建Telegram状态store
@@ -116,6 +172,20 @@ export const useTelegramStore = create<TelegramState>((set) => ({
   
   removeGroup: (id) => set((state) => ({
     groups: state.groups.filter(group => group.id !== id)
+  })),
+  
+  addMessage: (message) => set((state) => ({ 
+    messages: [...state.messages, message] 
+  })),
+  
+  updateMessage: (id, updates) => set((state) => ({
+    messages: state.messages.map(message => 
+      message.id === id ? { ...message, ...updates } : message
+    )
+  })),
+  
+  removeMessage: (id) => set((state) => ({
+    messages: state.messages.filter(message => message.id !== id)
   })),
 }));
 

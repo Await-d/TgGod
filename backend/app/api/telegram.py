@@ -4,9 +4,12 @@ from typing import List, Optional
 from ..database import get_db
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..services.telegram_service import telegram_service
+from ..utils.auth import get_current_active_user
 from pydantic import BaseModel
 from datetime import datetime
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Pydantic模型
@@ -35,11 +38,38 @@ class MessageResponse(BaseModel):
     media_type: Optional[str]
     media_path: Optional[str]
     media_size: Optional[int]
+    media_filename: Optional[str]
     view_count: int
     is_forwarded: bool
     forwarded_from: Optional[str]
+    reply_to_message_id: Optional[int]
+    edit_date: Optional[datetime]
+    is_pinned: bool
+    reactions: Optional[dict]
+    mentions: Optional[list]
+    hashtags: Optional[list]
+    urls: Optional[list]
     date: datetime
     created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class MessageSendRequest(BaseModel):
+    text: str
+    reply_to_message_id: Optional[int] = None
+
+
+class MessageSearchRequest(BaseModel):
+    query: Optional[str] = None
+    sender_username: Optional[str] = None
+    media_type: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    has_media: Optional[bool] = None
+    is_forwarded: Optional[bool] = None
 
 @router.get("/groups", response_model=List[GroupResponse])
 async def get_groups(
@@ -122,20 +152,106 @@ async def get_group_messages(
     group_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    db: Session = Depends(get_db)
+    search: Optional[str] = Query(None, description="搜索消息内容"),
+    sender_username: Optional[str] = Query(None, description="按发送者用户名过滤"),
+    media_type: Optional[str] = Query(None, description="按媒体类型过滤"),
+    has_media: Optional[bool] = Query(None, description="是否包含媒体"),
+    is_forwarded: Optional[bool] = Query(None, description="是否为转发消息"),
+    start_date: Optional[datetime] = Query(None, description="开始日期"),
+    end_date: Optional[datetime] = Query(None, description="结束日期"),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
 ):
-    """获取群组消息"""
+    """获取群组消息（支持搜索和过滤）"""
+    
+    # 检查群组是否存在
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+    
+    # 构建查询
+    query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group_id)
+    
+    # 应用过滤条件
+    if search:
+        query = query.filter(TelegramMessage.text.contains(search))
+    
+    if sender_username:
+        query = query.filter(TelegramMessage.sender_username == sender_username)
+    
+    if media_type:
+        query = query.filter(TelegramMessage.media_type == media_type)
+    
+    if has_media is not None:
+        if has_media:
+            query = query.filter(TelegramMessage.media_type.isnot(None))
+        else:
+            query = query.filter(TelegramMessage.media_type.is_(None))
+    
+    if is_forwarded is not None:
+        query = query.filter(TelegramMessage.is_forwarded == is_forwarded)
+    
+    if start_date:
+        query = query.filter(TelegramMessage.date >= start_date)
+    
+    if end_date:
+        query = query.filter(TelegramMessage.date <= end_date)
+    
+    # 排序和分页
+    messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+    
+    return messages
+
+
+@router.get("/groups/{group_id}/messages/{message_id}", response_model=MessageResponse)
+async def get_message_detail(
+    group_id: int,
+    message_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """获取单条消息详情"""
+    
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
     
     # 获取消息
-    messages = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id
-    ).order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+    message = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.message_id == message_id
+    ).first()
     
-    return messages
+    if not message:
+        raise HTTPException(status_code=404, detail="消息不存在")
+    
+    return message
+
+
+@router.get("/groups/{group_id}/messages/{message_id}/replies", response_model=List[MessageResponse])
+async def get_message_replies(
+    group_id: int,
+    message_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """获取消息的回复"""
+    
+    # 检查群组是否存在
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+    
+    # 获取回复消息
+    replies = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.reply_to_message_id == message_id
+    ).order_by(TelegramMessage.date.asc()).offset(skip).limit(limit).all()
+    
+    return replies
 
 @router.post("/groups/{group_id}/sync")
 async def sync_group_messages(
@@ -189,3 +305,177 @@ async def get_group_stats(
         "text_messages": total_messages - media_messages,
         "member_count": group.member_count
     }
+
+
+@router.post("/groups/{group_id}/send", response_model=dict)
+async def send_message_to_group(
+    group_id: int,
+    message_request: MessageSendRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """发送消息到群组"""
+    
+    # 检查群组是否存在
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+    
+    try:
+        # 发送消息
+        message_id = await telegram_service.send_message(
+            group.username,
+            message_request.text,
+            reply_to_message_id=message_request.reply_to_message_id
+        )
+        
+        if message_id:
+            return {
+                "success": True,
+                "message_id": message_id,
+                "message": "消息发送成功"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="消息发送失败")
+    
+    except Exception as e:
+        logger.error(f"发送消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"发送消息失败: {str(e)}")
+
+
+@router.post("/groups/{group_id}/messages/{message_id}/reply", response_model=dict)
+async def reply_to_message(
+    group_id: int,
+    message_id: int,
+    text: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """回复消息"""
+    
+    # 检查群组是否存在
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+    
+    # 检查要回复的消息是否存在
+    original_message = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.message_id == message_id
+    ).first()
+    
+    if not original_message:
+        raise HTTPException(status_code=404, detail="要回复的消息不存在")
+    
+    try:
+        # 回复消息
+        reply_message_id = await telegram_service.send_message(
+            group.username,
+            text,
+            reply_to_message_id=message_id
+        )
+        
+        if reply_message_id:
+            return {
+                "success": True,
+                "message_id": reply_message_id,
+                "reply_to_message_id": message_id,
+                "message": "回复发送成功"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="回复发送失败")
+    
+    except Exception as e:
+        logger.error(f"回复消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"回复消息失败: {str(e)}")
+
+
+@router.delete("/groups/{group_id}/messages/{message_id}")
+async def delete_message(
+    group_id: int,
+    message_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """删除消息"""
+    
+    # 检查群组是否存在
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+    
+    # 检查消息是否存在
+    message = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.message_id == message_id
+    ).first()
+    
+    if not message:
+        raise HTTPException(status_code=404, detail="消息不存在")
+    
+    try:
+        # 删除Telegram消息
+        success = await telegram_service.delete_message(group.username, message_id)
+        
+        if success:
+            # 从数据库中删除消息记录
+            db.delete(message)
+            db.commit()
+            
+            return {"success": True, "message": "消息删除成功"}
+        else:
+            raise HTTPException(status_code=500, detail="消息删除失败")
+    
+    except Exception as e:
+        logger.error(f"删除消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"删除消息失败: {str(e)}")
+
+
+@router.post("/groups/{group_id}/messages/search", response_model=List[MessageResponse])
+async def search_messages(
+    group_id: int,
+    search_request: MessageSearchRequest,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """搜索群组消息"""
+    
+    # 检查群组是否存在
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+    
+    # 构建查询
+    query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group_id)
+    
+    # 应用搜索条件
+    if search_request.query:
+        query = query.filter(TelegramMessage.text.contains(search_request.query))
+    
+    if search_request.sender_username:
+        query = query.filter(TelegramMessage.sender_username == search_request.sender_username)
+    
+    if search_request.media_type:
+        query = query.filter(TelegramMessage.media_type == search_request.media_type)
+    
+    if search_request.has_media is not None:
+        if search_request.has_media:
+            query = query.filter(TelegramMessage.media_type.isnot(None))
+        else:
+            query = query.filter(TelegramMessage.media_type.is_(None))
+    
+    if search_request.is_forwarded is not None:
+        query = query.filter(TelegramMessage.is_forwarded == search_request.is_forwarded)
+    
+    if search_request.start_date:
+        query = query.filter(TelegramMessage.date >= search_request.start_date)
+    
+    if search_request.end_date:
+        query = query.filter(TelegramMessage.date <= search_request.end_date)
+    
+    # 排序和分页
+    messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+    
+    return messages

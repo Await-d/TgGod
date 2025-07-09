@@ -38,8 +38,19 @@ class TelegramMessage(Base):
     view_count = Column(Integer, default=0)
     is_forwarded = Column(Boolean, default=False)
     forwarded_from = Column(String(255), nullable=True)
+    
+    # 新增字段
+    reply_to_message_id = Column(BigInteger, nullable=True)  # 回复的消息ID
+    edit_date = Column(DateTime(timezone=True), nullable=True)  # 编辑时间
+    is_pinned = Column(Boolean, default=False)  # 是否置顶
+    reactions = Column(JSON, nullable=True)  # 消息反应（点赞等）
+    mentions = Column(JSON, nullable=True)  # 提及的用户
+    hashtags = Column(JSON, nullable=True)  # 话题标签
+    urls = Column(JSON, nullable=True)  # 消息中的链接
+    
     date = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # 关系
     group = relationship("TelegramGroup", back_populates="messages")

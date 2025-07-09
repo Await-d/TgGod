@@ -12,10 +12,12 @@ import {
   SettingOutlined,
   LogoutOutlined,
   WifiOutlined,
-  DisconnectOutlined
+  DisconnectOutlined,
+  MessageOutlined
 } from '@ant-design/icons';
 import { webSocketService } from '../../services/websocket';
-import { useGlobalStore } from '../../store';
+import { useGlobalStore, useAuthStore } from '../../store';
+import { authApi } from '../../services/apiService';
 
 const { Header, Sider, Content } = Layout;
 
@@ -27,6 +29,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { error, clearError } = useGlobalStore();
+  const { user, logout } = useAuthStore();
   
   const [collapsed, setCollapsed] = React.useState(false);
   const [wsConnected, setWsConnected] = React.useState(false);
@@ -45,7 +48,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const menuItems = [
     {
-      key: '/',
+      key: '/dashboard',
       icon: <DashboardOutlined />,
       label: '仪表板',
     },
@@ -53,6 +56,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/groups',
       icon: <TeamOutlined />,
       label: '群组管理',
+    },
+    {
+      key: '/messages',
+      icon: <MessageOutlined />,
+      label: '消息管理',
     },
     {
       key: '/rules',
@@ -95,10 +103,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const handleUserMenuClick = ({ key }: { key: string }) => {
     if (key === 'logout') {
-      // TODO: 实现退出逻辑
-      console.log('退出登录');
+      handleLogout();
     } else if (key === 'settings') {
       navigate('/settings');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+      logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('退出登录失败:', error);
+      // 即使API调用失败，也要清除本地状态
+      logout();
+      navigate('/login');
     }
   };
 
@@ -177,6 +197,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <Badge count={0} showZero={false}>
               <BellOutlined style={{ fontSize: '16px', color: '#666' }} />
             </Badge>
+            
+            {/* 用户信息 */}
+            <span style={{ fontSize: '14px', color: '#666' }}>
+              欢迎，{user?.username}
+            </span>
             
             {/* 用户菜单 */}
             <Dropdown
