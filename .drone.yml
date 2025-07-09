@@ -36,7 +36,7 @@ steps:
       - chown -R 1000:1000 /volume1/docker/apps/tggod
       
       - echo "启动数据库容器..."
-      - docker run -d --name tggod-database --network 1panel-network -v /volume1/docker/apps/tggod/data:/data --restart unless-stopped -e TZ=Asia/Shanghai registry.cn-hangzhou.aliyuncs.com/library/alpine:latest sh -c "mkdir -p /data && tail -f /dev/null"
+      - docker run -d --name tggod-database --network 1panel-network -v /volume1/docker/apps/tggod/data:/data --restart unless-stopped -e TZ=Asia/Shanghai alpine:latest sh -c "mkdir -p /data && tail -f /dev/null"
       
       - echo "等待数据库容器启动..."
       - sleep 5
