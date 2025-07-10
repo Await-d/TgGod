@@ -48,17 +48,17 @@ steps:
       - sleep 10
       
       - echo "启动前端容器..."
-      - docker run -d --name tggod-frontend --network 1panel-network -p 18000:80 --restart unless-stopped -e TZ=Asia/Shanghai tggod-frontend:latest
+      - docker run -d --name tggod-frontend --network 1panel-network -p 10200:80 --restart unless-stopped -e TZ=Asia/Shanghai tggod-frontend:latest
       
       - echo "验证容器状态..."
       - docker ps | grep tggod
       
       - echo "TgGod 部署完成！"
-      - echo "前端访问地址 http://localhost:18000"
-      - echo "后端API地址 http://localhost:18000/api"
+      - echo "前端访问地址 http://localhost:10200"
+      - echo "后端API地址 http://localhost:10200/api"
       - echo "健康检查..."
       - sleep 5
-      - curl -f http://localhost:18000/ || echo "前端健康检查失败"
+      - curl -f http://localhost:10200/ || echo "前端健康检查失败"
     when:
       branch: master
       event: push
