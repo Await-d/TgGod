@@ -12,7 +12,6 @@ import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
-import TelegramSettings from './pages/TelegramSettings';
 import { webSocketService } from './services/websocket';
 import { useGlobalStore, useAuthStore } from './store';
 
@@ -123,15 +122,6 @@ const App: React.FC = () => {
             <MainLayout>
               <Content>
                 <Settings />
-              </Content>
-            </MainLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/telegram" element={
-          <ProtectedRoute>
-            <MainLayout>
-              <Content>
-                <TelegramSettings />
               </Content>
             </MainLayout>
           </ProtectedRoute>

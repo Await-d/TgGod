@@ -11,16 +11,23 @@ import {
   Divider,
   Row,
   Col,
-  Spin
+  Spin,
+  Badge,
+  Tabs
 } from 'antd';
 import { 
   SettingOutlined, 
   SaveOutlined,
   ReloadOutlined,
-  ClearOutlined
+  ClearOutlined,
+  WifiOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
 import { apiService } from '../services/api';
 import { useGlobalStore } from '../store';
+import TelegramAuth from '../components/TelegramAuth';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -31,12 +38,27 @@ interface ConfigItem {
   is_encrypted: boolean;
 }
 
+interface TelegramStatus {
+  is_authorized: boolean;
+  user_info?: {
+    id: number;
+    first_name: string;
+    last_name?: string;
+    username?: string;
+    phone?: string;
+  };
+  message: string;
+}
+
 const Settings: React.FC = () => {
   const [form] = Form.useForm();
   const { connectionStatus } = useGlobalStore();
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [testingConnection, setTestingConnection] = React.useState(false);
   const [configs, setConfigs] = React.useState<Record<string, ConfigItem>>({});
+  const [telegramStatus, setTelegramStatus] = React.useState<TelegramStatus | null>(null);
+  const [activeTab, setActiveTab] = React.useState('system');
 
   const loadConfigs = React.useCallback(async () => {
     setLoading(true);
@@ -60,9 +82,24 @@ const Settings: React.FC = () => {
     }
   }, [form]);
 
+  const checkTelegramStatus = React.useCallback(async () => {
+    try {
+      const response = await fetch('/api/telegram/auth/status');
+      const data: TelegramStatus = await response.json();
+      setTelegramStatus(data);
+    } catch (error) {
+      console.error('Check Telegram status error:', error);
+      setTelegramStatus({
+        is_authorized: false,
+        message: '无法检查Telegram连接状态'
+      });
+    }
+  }, []);
+
   React.useEffect(() => {
     loadConfigs();
-  }, [loadConfigs]);
+    checkTelegramStatus();
+  }, [loadConfigs, checkTelegramStatus]);
 
   const handleSave = async () => {
     try {
@@ -76,6 +113,12 @@ const Settings: React.FC = () => {
       if (response.success) {
         message.success(response.message || '保存成功');
         await loadConfigs(); // 重新加载配置
+        // 如果修改了Telegram配置，重新检查状态
+        if (values.telegram_api_id || values.telegram_api_hash) {
+          setTimeout(() => {
+            checkTelegramStatus();
+          }, 1000);
+        }
       } else {
         message.error(response.message || '保存失败');
       }
@@ -84,6 +127,69 @@ const Settings: React.FC = () => {
       console.error('Save configs error:', error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    try {
+      setTestingConnection(true);
+      
+      // 先保存当前配置
+      const values = await form.validateFields(['telegram_api_id', 'telegram_api_hash']);
+      
+      const saveResponse = await apiService.post('/config/configs', {
+        configs: values
+      });
+      
+      if (!saveResponse.success) {
+        message.error('保存配置失败');
+        return;
+      }
+
+      // 测试连接
+      const response = await fetch('/api/telegram/test-connection', {
+        method: 'POST'
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        message.success(`连接测试成功！找到 ${data.stats.total_groups} 个群组`);
+        setTelegramStatus({
+          is_authorized: true,
+          user_info: data.user_info,
+          message: '连接成功'
+        });
+        
+        // 显示群组预览
+        if (data.stats.groups_preview && data.stats.groups_preview.length > 0) {
+          const groupNames = data.stats.groups_preview.map((g: any) => g.name).join(', ');
+          message.info(`群组预览: ${groupNames}`, 5);
+        }
+      } else {
+        if (data.connection_status === 'unauthorized') {
+          message.warning('API配置正确，但需要完成Telegram认证');
+          setTelegramStatus({
+            is_authorized: false,
+            message: '未授权'
+          });
+        } else {
+          message.error(data.message || '连接测试失败');
+          setTelegramStatus({
+            is_authorized: false,
+            message: data.message || '连接失败'
+          });
+        }
+      }
+      
+    } catch (error) {
+      message.error('连接测试失败');
+      console.error('Test connection error:', error);
+      setTelegramStatus({
+        is_authorized: false,
+        message: '连接测试失败'
+      });
+    } finally {
+      setTestingConnection(false);
     }
   };
 
@@ -115,11 +221,59 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleTelegramAuthSuccess = (userInfo: any) => {
+    setTelegramStatus({
+      is_authorized: true,
+      user_info: userInfo,
+      message: '认证成功'
+    });
+    message.success('Telegram认证成功');
+  };
+
+  const handleTelegramAuthError = (error: string) => {
+    message.error(`Telegram认证失败: ${error}`);
+  };
+
+  const renderTelegramStatus = () => {
+    if (!telegramStatus) {
+      return <Badge status="processing" text="检查中..." />;
+    }
+
+    if (telegramStatus.is_authorized) {
+      return (
+        <Space>
+          <Badge status="success" text="已连接" />
+          {telegramStatus.user_info && (
+            <Text type="secondary">
+              ({telegramStatus.user_info.first_name} @{telegramStatus.user_info.username})
+            </Text>
+          )}
+        </Space>
+      );
+    } else {
+      return <Badge status="error" text="未连接" />;
+    }
+  };
+
   const renderConfigSection = (title: string, configKeys: string[]) => (
     <Card 
       title={title} 
       size="small" 
       style={{ marginBottom: 16 }}
+      extra={title === 'Telegram 配置' && (
+        <Space>
+          {renderTelegramStatus()}
+          <Button
+            size="small"
+            icon={testingConnection ? <LoadingOutlined /> : <WifiOutlined />}
+            onClick={handleTestConnection}
+            loading={testingConnection}
+            disabled={saving}
+          >
+            测试连接
+          </Button>
+        </Space>
+      )}
     >
       <Row gutter={16}>
         {configKeys.map(key => {
@@ -160,31 +314,101 @@ const Settings: React.FC = () => {
     </Card>
   );
 
-  return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>
-          <SettingOutlined style={{ marginRight: 8 }} />
-          系统配置
-        </Title>
-        <Text type="secondary">
-          配置系统运行所需的参数。修改配置后需要重启服务才能生效。
-        </Text>
-      </div>
+  const systemConfigTab = (
+    <Spin spinning={loading}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSave}
+      >
+        {renderConfigSection('Telegram 配置', ['telegram_api_id', 'telegram_api_hash'])}
+        {renderConfigSection('安全配置', ['secret_key'])}
+        {renderConfigSection('数据库配置', ['database_url'])}
+        {renderConfigSection('日志配置', ['log_level', 'log_file'])}
+        {renderConfigSection('文件存储', ['media_root'])}
+        {renderConfigSection('跨域配置', ['allowed_origins'])}
 
+        <Divider />
+
+        <Row justify="space-between">
+          <Col>
+            <Space>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={saving}
+                onClick={handleSave}
+              >
+                保存配置
+              </Button>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={handleReset}
+                disabled={saving}
+              >
+                重置
+              </Button>
+            </Space>
+          </Col>
+          <Col>
+            <Space>
+              <Button
+                type="dashed"
+                icon={<ClearOutlined />}
+                onClick={handleClearCache}
+                disabled={saving}
+              >
+                清除缓存
+              </Button>
+              <Button
+                type="dashed"
+                onClick={handleInitDefaults}
+                disabled={saving}
+              >
+                初始化默认配置
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Form>
+    </Spin>
+  );
+
+  const telegramAuthTab = (
+    <div>
       <Alert
-        message="配置说明"
+        message="Telegram 认证说明"
         description={
           <div>
-            <p>• Telegram API ID 和 API Hash 需要从 https://my.telegram.org 获取</p>
-            <p>• 敏感配置项（如密钥）会加密存储，显示为 *** 时表示已设置</p>
-            <p>• 修改配置后建议重启服务以确保配置生效</p>
+            <p>• 完成认证后才能使用群组消息管理功能</p>
+            <p>• 认证信息仅存储在本地，安全可靠</p>
+            <p>• 支持两步验证，保护账户安全</p>
+            <p>• 配置Telegram API后请先测试连接状态</p>
           </div>
         }
         type="info"
         showIcon
         style={{ marginBottom: 24 }}
       />
+
+      <TelegramAuth 
+        onAuthSuccess={handleTelegramAuthSuccess}
+        onAuthError={handleTelegramAuthError}
+      />
+    </div>
+  );
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2}>
+          <SettingOutlined style={{ marginRight: 8 }} />
+          系统设置
+        </Title>
+        <Text type="secondary">
+          配置系统运行所需的参数和Telegram认证。
+        </Text>
+      </div>
 
       {connectionStatus === 'disconnected' && (
         <Alert
@@ -196,63 +420,37 @@ const Settings: React.FC = () => {
         />
       )}
 
-      <Spin spinning={loading}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSave}
-        >
-          {renderConfigSection('Telegram 配置', ['telegram_api_id', 'telegram_api_hash'])}
-          {renderConfigSection('安全配置', ['secret_key'])}
-          {renderConfigSection('数据库配置', ['database_url'])}
-          {renderConfigSection('日志配置', ['log_level', 'log_file'])}
-          {renderConfigSection('文件存储', ['media_root'])}
-          {renderConfigSection('跨域配置', ['allowed_origins'])}
-
-          <Divider />
-
-          <Row justify="space-between">
-            <Col>
-              <Space>
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  loading={saving}
-                  onClick={handleSave}
-                >
-                  保存配置
-                </Button>
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={handleReset}
-                  disabled={saving}
-                >
-                  重置
-                </Button>
-              </Space>
-            </Col>
-            <Col>
-              <Space>
-                <Button
-                  type="dashed"
-                  icon={<ClearOutlined />}
-                  onClick={handleClearCache}
-                  disabled={saving}
-                >
-                  清除缓存
-                </Button>
-                <Button
-                  type="dashed"
-                  onClick={handleInitDefaults}
-                  disabled={saving}
-                >
-                  初始化默认配置
-                </Button>
-              </Space>
-            </Col>
-          </Row>
-        </Form>
-      </Spin>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'system',
+            label: (
+              <span>
+                <SettingOutlined />
+                系统配置
+              </span>
+            ),
+            children: systemConfigTab,
+          },
+          {
+            key: 'telegram',
+            label: (
+              <span>
+                <WifiOutlined />
+                Telegram认证
+                {telegramStatus?.is_authorized ? (
+                  <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 8 }} />
+                ) : (
+                  <CloseCircleOutlined style={{ color: '#ff4d4f', marginLeft: 8 }} />
+                )}
+              </span>
+            ),
+            children: telegramAuthTab,
+          },
+        ]}
+      />
     </div>
   );
 };

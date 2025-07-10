@@ -102,11 +102,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       icon: <SettingOutlined />,
       label: '系统设置',
     },
-    {
-      key: '/telegram',
-      icon: <WifiOutlined />,
-      label: 'Telegram认证',
-    },
   ];
 
   const userMenuItems = [

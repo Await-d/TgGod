@@ -615,3 +615,63 @@ async def logout():
         logger.error(f"登出失败: {e}")
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"登出失败: {str(e)}")
+
+@router.post("/test-connection")
+async def test_telegram_connection():
+    """测试Telegram连接和群组获取"""
+    try:
+        await telegram_service.initialize()
+        
+        # 检查是否已授权
+        is_authorized = await telegram_service.client.is_user_authorized()
+        
+        if not is_authorized:
+            await telegram_service.disconnect()
+            return {
+                "success": False,
+                "message": "未授权，请先完成Telegram认证",
+                "connection_status": "unauthorized"
+            }
+        
+        # 获取用户信息
+        me = await telegram_service.client.get_me()
+        
+        # 尝试获取对话列表
+        dialogs = await telegram_service.client.get_dialogs()
+        groups = [d for d in dialogs if d.is_group or d.is_channel]
+        
+        await telegram_service.disconnect()
+        
+        return {
+            "success": True,
+            "message": "连接测试成功",
+            "connection_status": "connected",
+            "user_info": {
+                "id": me.id,
+                "first_name": me.first_name,
+                "last_name": me.last_name,
+                "username": me.username,
+                "phone": me.phone
+            },
+            "stats": {
+                "total_dialogs": len(dialogs),
+                "total_groups": len(groups),
+                "groups_preview": [
+                    {
+                        "id": group.entity.id,
+                        "name": group.name,
+                        "is_channel": group.is_channel
+                    }
+                    for group in groups[:5]  # 前5个群组预览
+                ]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"连接测试失败: {e}")
+        await telegram_service.disconnect()
+        return {
+            "success": False,
+            "message": f"连接测试失败: {str(e)}",
+            "connection_status": "error"
+        }
