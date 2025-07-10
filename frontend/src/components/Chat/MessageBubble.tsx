@@ -25,6 +25,7 @@ import {
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
 import { MessageBubbleProps } from '../../types/chat';
+import './MessageBubble.css';
 
 const { Text, Paragraph } = Typography;
 

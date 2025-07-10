@@ -1,0 +1,355 @@
+/* 消息气泡现代化样式 */
+.message-bubble {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: messageSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-bubble.own {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.message-bubble.other {
+  flex-direction: row;
+}
+
+/* 消息头像 */
+.message-avatar {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+/* 消息主体 */
+.message-body {
+  flex: 1;
+  max-width: 70%;
+  min-width: 0;
+}
+
+.message-bubble.own .message-body {
+  max-width: 75%;
+}
+
+/* 发送者信息 */
+.message-sender-info {
+  margin-bottom: 4px;
+  padding-left: 4px;
+}
+
+/* 消息气泡内容 */
+.message-bubble-content {
+  position: relative;
+  border-radius: 18px;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.message-bubble-content:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.message-bubble-content.own-bubble {
+  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  color: white;
+  border-bottom-right-radius: 6px;
+}
+
+.message-bubble-content.other-bubble {
+  background: rgba(255, 255, 255, 0.95);
+  color: #262626;
+  border-bottom-left-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 消息内容 */
+.message-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* 回复信息 */
+.reply-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.other-bubble .reply-info {
+  background: rgba(24, 144, 255, 0.1);
+  border-left-color: #1890ff;
+}
+
+/* 消息文本 */
+.message-text {
+  margin-bottom: 8px;
+}
+
+.message-text p {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.own-bubble .message-text p {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.other-bubble .message-text p {
+  color: #262626;
+}
+
+/* 媒体内容 */
+.message-media {
+  margin: 8px 0;
+}
+
+.message-media .ant-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  backdrop-filter: blur(5px);
+}
+
+.own-bubble .message-media .ant-card {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.other-bubble .message-media .ant-card {
+  background: rgba(24, 144, 255, 0.05);
+  border-color: rgba(24, 144, 255, 0.1);
+}
+
+.media-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 消息标签 */
+.message-tags {
+  margin: 8px 0 4px 0;
+}
+
+.message-tags .ant-tag {
+  border-radius: 12px;
+  font-size: 11px;
+  padding: 2px 8px;
+  margin: 2px;
+}
+
+/* 消息反应 */
+.message-reactions {
+  margin: 8px 0 4px 0;
+}
+
+.message-reactions .ant-tag {
+  border-radius: 16px;
+  font-size: 12px;
+  padding: 4px 8px;
+  margin: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: inherit;
+}
+
+/* 提及和话题标签 */
+.message-meta-tags {
+  margin: 8px 0 4px 0;
+}
+
+.message-meta-tags .ant-tag {
+  border-radius: 10px;
+  font-size: 11px;
+  padding: 2px 6px;
+  margin: 2px;
+}
+
+/* 消息底部 */
+.message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.other-bubble .message-footer {
+  border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+/* 消息时间 */
+.message-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-count {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 消息操作按钮 */
+.message-actions {
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.message-bubble:hover .message-actions {
+  opacity: 1;
+}
+
+.message-actions .action-btn {
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.message-actions .action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.own-bubble .message-actions .action-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.other-bubble .message-actions .action-btn {
+  background: rgba(24, 144, 255, 0.1);
+  border-color: rgba(24, 144, 255, 0.2);
+  color: #1890ff;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .message-bubble {
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+  
+  .message-body {
+    max-width: 85%;
+  }
+  
+  .message-bubble.own .message-body {
+    max-width: 90%;
+  }
+  
+  .message-bubble-content {
+    padding: 10px 14px;
+    border-radius: 16px;
+  }
+  
+  .message-text p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  .message-actions {
+    opacity: 1; /* 移动端常显示操作按钮 */
+  }
+  
+  .message-actions .action-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  .message-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .message-time {
+    font-size: 12px;
+  }
+}
+
+/* 小屏幕优化 */
+@media (max-width: 480px) {
+  .message-bubble {
+    gap: 6px;
+  }
+  
+  .message-bubble-content {
+    padding: 8px 12px;
+    border-radius: 14px;
+  }
+  
+  .message-text p {
+    font-size: 13px;
+  }
+  
+  .message-actions .action-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}
+
+/* 滚动动画 */
+.message-list {
+  scroll-behavior: smooth;
+}
+
+/* 加载动画 */
+.message-bubble.loading {
+  opacity: 0.6;
+  animation: messageLoading 1.5s infinite;
+}
+
+@keyframes messageLoading {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* 高亮效果 */
+.message-bubble.highlighted {
+  animation: messageHighlight 2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes messageHighlight {
+  0% {
+    background: rgba(255, 235, 59, 0.3);
+  }
+  100% {
+    background: transparent;
+  }
+}
