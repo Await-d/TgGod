@@ -23,6 +23,9 @@ class TelegramService:
     async def initialize(self):
         """初始化Telegram客户端"""
         if self.client is None:
+            # 强制清除配置缓存，确保获取最新配置
+            settings.clear_cache()
+            
             # 确保API配置不为空
             api_id = settings.telegram_api_id
             api_hash = settings.telegram_api_hash

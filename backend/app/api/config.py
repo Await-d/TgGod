@@ -52,6 +52,11 @@ async def update_configs(request: ConfigUpdateRequest, db: Session = Depends(get
             if config_service.set_config(key, value, db):
                 updated_count += 1
         
+        # 清除settings缓存以确保新配置生效
+        from ..config import settings
+        settings.clear_cache()
+        config_service.clear_cache()
+        
         return ConfigResponse(
             success=True,
             message=f"成功更新 {updated_count} 个配置项"
@@ -84,6 +89,11 @@ async def set_config(key: str, value: str, db: Session = Depends(get_db)):
     """设置单个配置"""
     try:
         if config_service.set_config(key, value, db):
+            # 清除settings缓存以确保新配置生效
+            from ..config import settings
+            settings.clear_cache()
+            config_service.clear_cache()
+            
             return ConfigResponse(
                 success=True,
                 message="设置配置成功"
@@ -113,7 +123,10 @@ async def init_configs(db: Session = Depends(get_db)):
 async def clear_cache():
     """清除配置缓存"""
     try:
+        from ..config import settings
+        settings.clear_cache()
         config_service.clear_cache()
+        
         return ConfigResponse(
             success=True,
             message="清除缓存成功"
