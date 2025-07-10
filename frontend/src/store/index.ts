@@ -189,6 +189,29 @@ export const useTelegramStore = create<TelegramState>((set) => ({
   })),
 }));
 
+// Telegram 用户状态接口
+interface TelegramUserState {
+  currentTelegramUser: {
+    id: number;
+    username: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    full_name: string | null;
+    is_self: boolean;
+  } | null;
+  
+  setCurrentTelegramUser: (user: TelegramUserState['currentTelegramUser']) => void;
+  clearCurrentTelegramUser: () => void;
+}
+
+// 创建 Telegram 用户状态 store
+export const useTelegramUserStore = create<TelegramUserState>((set) => ({
+  currentTelegramUser: null,
+  
+  setCurrentTelegramUser: (currentTelegramUser) => set({ currentTelegramUser }),
+  clearCurrentTelegramUser: () => set({ currentTelegramUser: null }),
+}));
+
 // 创建规则状态store
 export const useRuleStore = create<RuleState>((set) => ({
   rules: [],

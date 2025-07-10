@@ -14,7 +14,7 @@ import {
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'http://localhost:8002',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -147,6 +147,18 @@ export const telegramApi = {
     errors: string[];
   }> => {
     return api.post('/telegram/sync-groups');
+  },
+
+  // 获取当前 Telegram 用户信息
+  getCurrentTelegramUser: (): Promise<{
+    id: number;
+    username: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    full_name: string | null;
+    is_self: boolean;
+  }> => {
+    return api.get('/telegram/me');
   },
 };
 

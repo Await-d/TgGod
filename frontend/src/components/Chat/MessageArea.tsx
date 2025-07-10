@@ -10,7 +10,7 @@ import { TelegramGroup, TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
 import MessageHeader from './MessageHeader';
 import { messageApi, telegramApi } from '../../services/apiService';
-import { useTelegramStore } from '../../store';
+import { useTelegramStore, useAuthStore, useTelegramUserStore } from '../../store';
 import './MessageArea.css';
 
 const { Text } = Typography;
@@ -48,7 +48,22 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   
   const { messages, setMessages, addMessage, removeMessage } = useTelegramStore();
+  const { user } = useAuthStore();
+  const { currentTelegramUser, setCurrentTelegramUser } = useTelegramUserStore();
   const PAGE_SIZE = 50;
+
+  // 获取当前 Telegram 用户信息
+  const fetchCurrentTelegramUser = useCallback(async () => {
+    if (currentTelegramUser) return; // 如果已经有了，就不重复获取
+    
+    try {
+      const telegramUser = await telegramApi.getCurrentTelegramUser();
+      setCurrentTelegramUser(telegramUser);
+    } catch (error: any) {
+      console.error('获取当前 Telegram 用户信息失败:', error);
+      // 如果获取失败，我们继续使用原有的逻辑（基于系统用户信息判断）
+    }
+  }, [currentTelegramUser, setCurrentTelegramUser]);
 
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
@@ -168,6 +183,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [selectedGroup, fetchMessages, searchFilter, setMessages]);
 
+  // 获取当前 Telegram 用户信息
+  useEffect(() => {
+    fetchCurrentTelegramUser();
+  }, [fetchCurrentTelegramUser]);
+
   // 添加滚动监听
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -266,11 +286,29 @@ const MessageArea: React.FC<MessageAreaProps> = ({
                 prevMessage.sender_id !== message.sender_id ||
                 (new Date(message.date).getTime() - new Date(prevMessage.date).getTime()) > 300000; // 5分钟
               
+              // 判断消息是否为当前用户发送的
+              // 优先使用 Telegram 用户信息，如果没有则回退到系统用户信息
+              const isOwn = currentTelegramUser ? (
+                // 使用 Telegram 用户信息进行判断
+                (message.sender_id && message.sender_id === currentTelegramUser.id) ||
+                (message.sender_username && currentTelegramUser.username && 
+                 message.sender_username.toLowerCase() === currentTelegramUser.username.toLowerCase()) ||
+                (message.sender_name && currentTelegramUser.full_name && 
+                 message.sender_name === currentTelegramUser.full_name)
+              ) : user ? (
+                // 回退到系统用户信息进行判断
+                (message.sender_username && message.sender_username === user.username) ||
+                (message.sender_id && message.sender_id === user.id) ||
+                (message.sender_name && user.full_name && message.sender_name === user.full_name) ||
+                (message.sender_username && user.username && 
+                 message.sender_username.toLowerCase() === user.username.toLowerCase())
+              ) : false;
+              
               return (
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  isOwn={false} // TODO: 判断是否为自己发送的消息
+                  isOwn={!!isOwn}
                   showAvatar={showAvatar}
                   onReply={onReply}
                   onCreateRule={onCreateRule}

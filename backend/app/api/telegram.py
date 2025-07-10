@@ -62,6 +62,14 @@ class MessageSendRequest(BaseModel):
     text: str
     reply_to_message_id: Optional[int] = None
 
+class TelegramUserResponse(BaseModel):
+    id: int
+    username: Optional[str]
+    first_name: Optional[str]
+    last_name: Optional[str]
+    full_name: Optional[str]
+    is_self: bool
+
 
 class MessageSearchRequest(BaseModel):
     query: Optional[str] = None
@@ -784,3 +792,35 @@ async def test_telegram_connection():
             "message": f"连接测试失败: {str(e)}",
             "connection_status": "error"
         }
+
+@router.get("/me", response_model=TelegramUserResponse)
+async def get_current_telegram_user():
+    """获取当前 Telegram 用户信息"""
+    try:
+        # 确保 Telegram 客户端已连接
+        await telegram_service.initialize()
+        
+        # 获取当前用户信息
+        me = await telegram_service.client.get_me()
+        
+        if me:
+            full_name = ""
+            if me.first_name:
+                full_name = me.first_name
+            if me.last_name:
+                full_name += f" {me.last_name}" if full_name else me.last_name
+            
+            return TelegramUserResponse(
+                id=me.id,
+                username=me.username,
+                first_name=me.first_name,
+                last_name=me.last_name,
+                full_name=full_name.strip() if full_name else None,
+                is_self=True
+            )
+        else:
+            raise HTTPException(status_code=500, detail="无法获取当前用户信息")
+    
+    except Exception as e:
+        logger.error(f"获取当前用户信息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取当前用户信息失败: {str(e)}")

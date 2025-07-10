@@ -79,7 +79,14 @@
       "Bash(cat:*)",
       "Bash(npm start)",
       "Bash(serve:*)",
-      "Bash(BROWSER=none PORT=3000 npm start)"
+      "Bash(BROWSER=none PORT=3000 npm start)",
+      "mcp__serena__replace_symbol_body",
+      "Bash(npm test:*)",
+      "mcp__serena__insert_before_symbol",
+      "Bash(cd /root/project/TgGod/backend)",
+      "Bash(rm /root/project/TgGod/frontend/src/pages/TelegramSettings.tsx /root/project/TgGod/frontend/src/pages/TelegramSettings.css)",
+      "Bash(rm:*)",
+      "mcp__serena__think_about_task_adherence"
     ],
     "deny": []
   }
