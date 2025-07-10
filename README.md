@@ -25,8 +25,54 @@ TgGod/
 
 - **前端**: React, TypeScript, Ant Design, Socket.io
 - **后端**: Python, FastAPI, Telethon, SQLAlchemy
-- **数据库**: SQLite (默认)
-- **部署**: Docker
+- **数据库**: SQLite (外部挂载)
+- **部署**: Docker (单服务架构)
+
+## 快速开始
+
+### 方式一：一键启动
+```bash
+git clone <repository-url>
+cd TgGod
+./quick-start.sh
+```
+
+### 方式二：手动部署
+```bash
+# 1. 克隆项目
+git clone <repository-url>
+cd TgGod
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env 文件，配置Telegram API信息
+
+# 3. 启动服务
+docker-compose up -d
+
+# 4. 访问应用
+# 前端: http://localhost
+# API: http://localhost/docs
+```
+
+## 服务架构
+
+**单服务架构** - 前端 + 后端 + 数据库合并为一个容器：
+- **端口**: 80 (统一入口)
+- **前端**: Nginx 提供静态文件服务
+- **后端**: FastAPI 运行在内部8000端口
+- **数据库**: SQLite 外部挂载持久化
+- **文件**: 媒体、日志、会话文件外部挂载
+
+## 数据持久化
+
+所有重要数据都挂载到外部目录：
+```
+./data/              # 数据库文件
+./media/             # 媒体文件
+./logs/              # 日志文件
+./telegram_sessions/ # Telegram会话
+```
 
 ## 开发状态
 

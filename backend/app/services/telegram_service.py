@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class TelegramService:
     def __init__(self):
         self.client: Optional[TelegramClient] = None
-        self.session_name = "tggod_session"
+        self.session_name = os.path.join("./telegram_sessions", "tggod_session")
         
     async def initialize(self):
         """初始化Telegram客户端"""

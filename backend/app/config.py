@@ -58,7 +58,9 @@ class Settings:
     
     @property
     def database_url(self) -> str:
-        return self._get_config("database_url", "sqlite:///./tggod.db")
+        # 默认使用外部挂载目录中的SQLite数据库
+        default_db_path = os.environ.get("DATABASE_URL", "sqlite:///./data/tggod.db")
+        return self._get_config("database_url", default_db_path)
     
     @property
     def telegram_api_id(self) -> int:
@@ -106,7 +108,9 @@ class Settings:
     
     @property
     def media_root(self) -> str:
-        return self._get_config("media_root", "./media")
+        # 默认使用外部挂载目录中的媒体文件夹
+        default_media_path = os.environ.get("MEDIA_ROOT", "./media")
+        return self._get_config("media_root", default_media_path)
     
     @property
     def max_file_size(self) -> str:
@@ -118,7 +122,9 @@ class Settings:
     
     @property
     def log_file(self) -> str:
-        return self._get_config("log_file", "./logs/app.log")
+        # 默认使用外部挂载目录中的日志文件
+        default_log_path = os.environ.get("LOG_FILE", "./logs/app.log")
+        return self._get_config("log_file", default_log_path)
     
     @property
     def smtp_host(self) -> str:
@@ -154,9 +160,16 @@ settings = Settings()
 def init_settings():
     """初始化设置 - 创建必要的目录和默认配置"""
     try:
-        # 确保媒体目录存在
+        # 确保所有必要的目录存在
         os.makedirs(settings.media_root, exist_ok=True)
         os.makedirs(os.path.dirname(settings.log_file), exist_ok=True)
+        
+        # 确保数据库目录存在
+        db_path = settings.database_url.replace("sqlite:///", "")
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
+        # 确保Telegram会话目录存在
+        os.makedirs("./telegram_sessions", exist_ok=True)
         
         # 初始化默认配置
         db = settings.get_db()

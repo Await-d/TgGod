@@ -16,49 +16,52 @@ steps:
       - docker builder prune -f || true
       
       - echo "停止并清理现有容器..."
+      - docker stop tggod || true
+      - docker rm tggod || true
+      
+      - echo "清理旧的多服务容器（如果存在）..."
       - docker stop tggod-backend tggod-frontend tggod-database || true
       - docker rm tggod-backend tggod-frontend tggod-database || true
   
-      - echo "开始构建后端镜像..."
-      - docker build -t tggod-backend:latest ./backend --no-cache
-      
-      - echo "开始构建前端镜像..."
-      - docker build -t tggod-frontend:latest ./frontend --no-cache
+      - echo "开始构建TgGod单服务镜像..."
+      - docker build -t tggod:latest . --no-cache
       
       - echo "创建必要的目录..."
       - mkdir -p /volume1/docker/apps/tggod/data
       - mkdir -p /volume1/docker/apps/tggod/media
       - mkdir -p /volume1/docker/apps/tggod/logs
+      - mkdir -p /volume1/docker/apps/tggod/telegram_sessions
       - mkdir -p /volume1/docker/apps/tggod/config
       
       - echo "设置目录权限..."
       - chmod -R 755 /volume1/docker/apps/tggod
       - chown -R 1000:1000 /volume1/docker/apps/tggod
       
-      - echo "启动数据库容器..."
-      - docker run -d --name tggod-database --network 1panel-network -v /volume1/docker/apps/tggod/data:/data --restart unless-stopped -e TZ=Asia/Shanghai alpine:latest sh -c "mkdir -p /data && tail -f /dev/null"
+      - echo "启动TgGod单服务容器..."
+      - docker run -d --name tggod --network 1panel-network -p 10200:80 -v /volume1/docker/apps/tggod/data:/app/data -v /volume1/docker/apps/tggod/media:/app/media -v /volume1/docker/apps/tggod/logs:/app/logs -v /volume1/docker/apps/tggod/telegram_sessions:/app/telegram_sessions --restart unless-stopped -e TZ=Asia/Shanghai -e DATABASE_URL=sqlite:///./data/tggod.db -e MEDIA_ROOT=/app/media -e LOG_FILE=/app/logs/app.log -e PYTHONUNBUFFERED=1 -e TELEGRAM_API_ID="$${TELEGRAM_API_ID}" -e TELEGRAM_API_HASH="$${TELEGRAM_API_HASH}" -e TELEGRAM_BOT_TOKEN="$${TELEGRAM_BOT_TOKEN}" -e SECRET_KEY="$${SECRET_KEY}" tggod:latest
       
-      - echo "等待数据库容器启动..."
-      - sleep 5
-      
-      - echo "启动后端容器..."
-      - docker run -d --name tggod-backend --network 1panel-network -v /volume1/docker/apps/tggod/data:/app/data -v /volume1/docker/apps/tggod/media:/app/media -v /volume1/docker/apps/tggod/logs:/app/logs --restart unless-stopped -e TZ=Asia/Shanghai -e DATABASE_URL=sqlite:///./data/tggod.db -e MEDIA_ROOT=/app/media -e LOG_FILE=/app/logs/app.log -e PYTHONUNBUFFERED=1 tggod-backend:latest
-      
-      - echo "等待后端容器启动..."
-      - sleep 10
-      
-      - echo "启动前端容器..."
-      - docker run -d --name tggod-frontend --network 1panel-network -p 10200:80 --restart unless-stopped -e TZ=Asia/Shanghai tggod-frontend:latest
+      - echo "等待服务启动..."
+      - sleep 15
       
       - echo "验证容器状态..."
       - docker ps | grep tggod
       
-      - echo "TgGod 部署完成！"
-      - echo "前端访问地址 http://localhost:10200"
-      - echo "后端API地址 http://localhost:10200/api"
       - echo "健康检查..."
+      - curl -f http://localhost:10200/health || echo "健康检查失败，正在重试..."
       - sleep 5
-      - curl -f http://localhost:10200/ || echo "前端健康检查失败"
+      - curl -f http://localhost:10200/health || echo "健康检查仍然失败"
+      
+      - echo "检查容器日志..."
+      - docker logs --tail 20 tggod
+      
+      - echo "检查服务端点..."
+      - curl -s http://localhost:10200/ | head -20 || echo "前端页面检查失败"
+      - curl -s http://localhost:10200/docs | head -20 || echo "API文档检查失败"
+      
+      - echo "TgGod 单服务部署完成！"
+      - echo "访问地址 - http://localhost:10200"
+      - echo "API文档 - http://localhost:10200/docs"
+      - echo "健康检查 - http://localhost:10200/health"
     when:
       branch: master
       event: push

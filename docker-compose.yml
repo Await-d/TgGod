@@ -1,14 +1,20 @@
 services:
-  backend:
-    build: ./backend
-    container_name: tggod-backend
+  tggod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tggod
     ports:
-      - "8000:8000"
+      - "80:80"
     volumes:
-      - ./backend:/app
+      # 数据库文件挂载
       - ./data:/app/data
+      # 媒体文件挂载
       - ./media:/app/media
+      # 日志文件挂载
       - ./logs:/app/logs
+      # Telegram会话文件挂载
+      - ./telegram_sessions:/app/telegram_sessions
     environment:
       - DATABASE_URL=sqlite:///./data/tggod.db
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
@@ -18,31 +24,12 @@ services:
       - MEDIA_ROOT=/app/media
       - LOG_FILE=/app/logs/app.log
     restart: unless-stopped
-    depends_on:
-      - database
-    networks:
-      - tggod-network
-
-  frontend:
-    build: ./frontend
-    container_name: tggod-frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-    networks:
-      - tggod-network
-
-  database:
-    image: registry.cn-hangzhou.aliyuncs.com/library/alpine:latest
-    container_name: tggod-database
-    volumes:
-      - ./data:/data
-    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
-    restart: unless-stopped
-    networks:
-      - tggod-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   data:
@@ -51,7 +38,5 @@ volumes:
     driver: local
   logs:
     driver: local
-
-networks:
-  tggod-network:
-    driver: bridge
+  telegram_sessions:
+    driver: local
