@@ -21,6 +21,10 @@ interface MessageAreaProps {
   onCreateRule: (message: TelegramMessage) => void;
   searchFilter?: any;
   isMobile?: boolean;
+  searchQuery?: string;
+  onQuote?: (message: TelegramMessage) => void;
+  onForward?: (message: TelegramMessage, targets: string[], comment?: string) => void;
+  contacts?: any[];
 }
 
 const MessageArea: React.FC<MessageAreaProps> = ({
@@ -28,7 +32,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   onReply,
   onCreateRule,
   searchFilter = {},
-  isMobile = false
+  isMobile = false,
+  searchQuery = '',
+  onQuote,
+  onForward,
+  contacts = []
 }) => {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);

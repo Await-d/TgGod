@@ -1,0 +1,99 @@
+.voice-message {
+  max-width: 300px;
+  border: 1px solid #d9d9d9;
+  border-radius: 20px;
+  padding: 12px 16px;
+  background: #fafafa;
+  margin: 8px 0;
+}
+
+.voice-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.play-button {
+  color: #1890ff !important;
+  font-size: 24px;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  height: auto !important;
+  width: auto !important;
+  min-width: auto !important;
+}
+
+.play-button:hover {
+  color: #40a9ff !important;
+}
+
+.voice-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.voice-waveform {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.voice-time {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 2px;
+}
+
+.voice-filename {
+  font-size: 11px;
+  color: #595959;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-size {
+  font-size: 10px;
+  color: #bfbfbf;
+}
+
+.download-button {
+  color: #8c8c8c !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  height: auto !important;
+  width: auto !important;
+  min-width: auto !important;
+}
+
+.download-button:hover {
+  color: #1890ff !important;
+}
+
+/* 播放状态动画 */
+.voice-message.playing .voice-waveform {
+  animation: voiceWave 1.5s ease-in-out infinite;
+}
+
+@keyframes voiceWave {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .voice-message {
+    max-width: 250px;
+    padding: 10px 14px;
+  }
+  
+  .voice-content {
+    gap: 10px;
+  }
+  
+  .play-button {
+    font-size: 20px;
+  }
+}

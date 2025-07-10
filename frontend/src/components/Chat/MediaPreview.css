@@ -1,0 +1,82 @@
+.media-preview {
+  max-width: 250px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fafafa;
+  margin: 8px 0;
+}
+
+.media-thumbnail,
+.video-thumbnail {
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.media-thumbnail:hover .media-overlay,
+.video-thumbnail:hover .media-overlay {
+  opacity: 1;
+}
+
+.media-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.media-info {
+  padding: 8px 12px;
+}
+
+.media-filename {
+  font-size: 12px;
+  font-weight: 500;
+  color: #262626;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-size {
+  font-size: 11px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
+}
+
+.media-info .ant-btn {
+  padding: 0;
+  height: auto;
+  border: none;
+  box-shadow: none;
+}
+
+.media-info .ant-btn:hover {
+  color: #1890ff;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .media-preview {
+    max-width: 200px;
+  }
+  
+  .media-thumbnail img,
+  .video-thumbnail video {
+    max-width: 180px !important;
+    max-height: 120px !important;
+  }
+  
+  .media-overlay {
+    opacity: 1;
+  }
+}

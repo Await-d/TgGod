@@ -1,17 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Layout, Typography, Drawer, Button } from 'antd';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Layout, Typography, Drawer, Button, message as antMessage } from 'antd';
 import { MenuOutlined, CloseOutlined } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../types';
 import { ChatState, MessageFilter } from '../types/chat';
 import { useTelegramStore, useAuthStore } from '../store';
 import { webSocketService } from '../services/websocket';
+import { messageApi } from '../services/apiService';
+import { useMobileGestures, useIsMobile, useKeyboardHeight } from '../hooks/useMobileGestures';
 import GroupList from '../components/Chat/GroupList';
 import MessageArea from '../components/Chat/MessageArea';
+import MessageInput from '../components/Chat/MessageInput';
+import QuickActions from '../components/Chat/QuickActions';
+import MessageFilterDrawer from '../components/Chat/MessageFilterDrawer';
+import QuickRuleModal from '../components/Chat/QuickRuleModal';
+import MessageHighlight from '../components/Chat/MessageHighlight';
+import MediaPreview from '../components/Chat/MediaPreview';
+import VoiceMessage from '../components/Chat/VoiceMessage';
+import MessageQuoteForward, { QuotedMessage } from '../components/Chat/MessageQuoteForward';
 import './ChatInterface.css';
 
 const { Title } = Typography;
 
 const ChatInterface: React.FC = () => {
+  // 移动端检测
+  const isMobile = useIsMobile();
+  const { keyboardHeight, isKeyboardVisible } = useKeyboardHeight();
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  
   // 状态管理
   const [chatState, setChatState] = useState<ChatState>({
     selectedGroup: null,
@@ -22,36 +37,111 @@ const ChatInterface: React.FC = () => {
   });
   
   const [replyTo, setReplyTo] = useState<TelegramMessage | null>(null);
+  const [quotedMessage, setQuotedMessage] = useState<TelegramMessage | null>(null);
+  const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [ruleBaseMessage, setRuleBaseMessage] = useState<TelegramMessage | null>(null);
+  const [globalError, setGlobalError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
   
   // Store hooks
   const { groups, messages, setGroups, setMessages, setSelectedGroup } = useTelegramStore();
   const { isAuthenticated } = useAuthStore();
 
-  // 检查是否为移动设备
-  const checkMobile = useCallback(() => {
-    const isMobile = window.innerWidth <= 768;
-    setChatState(prev => ({ ...prev, isMobile }));
-  }, []);
+  // 移动端手势支持
+  const { isSwiping } = useMobileGestures({
+    onSwipeRight: () => {
+      if (isMobile && chatState.isGroupListCollapsed) {
+        setChatState(prev => ({ ...prev, isGroupListCollapsed: false }));
+      }
+    },
+    onSwipeLeft: () => {
+      if (isMobile && !chatState.isGroupListCollapsed) {
+        setChatState(prev => ({ ...prev, isGroupListCollapsed: true }));
+      }
+    },
+    threshold: 100,
+    element: chatContainerRef.current
+  });
 
-  // 监听窗口大小变化
+  // 更新移动端状态
   useEffect(() => {
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [checkMobile]);
+    setChatState(prev => ({ ...prev, isMobile }));
+    
+    // 移动端默认收起群组列表
+    if (isMobile && !chatState.selectedGroup) {
+      setChatState(prev => ({ ...prev, isGroupListCollapsed: true }));
+    }
+  }, [isMobile, chatState.selectedGroup]);
 
   // 初始化WebSocket连接
   useEffect(() => {
     if (isAuthenticated) {
       try {
+        setConnectionStatus('connecting');
         webSocketService.connect();
+        
+        // 监听连接状态
+        const handleConnectionOpen = () => {
+          setConnectionStatus('connected');
+          setGlobalError(null);
+          antMessage.success('实时连接已建立');
+        };
+        
+        const handleConnectionClose = () => {
+          setConnectionStatus('disconnected');
+          antMessage.warning('实时连接已断开');
+        };
+        
+        const handleConnectionError = (error: any) => {
+          setConnectionStatus('disconnected');
+          setGlobalError('连接失败，请检查网络');
+          antMessage.error('连接失败，请检查网络');
+        };
+        
+        // 订阅实时消息
+        const unsubscribeMessage = webSocketService.subscribe('message', (data) => {
+          console.log('收到新消息:', data);
+          // TODO: 将新消息添加到当前群组的消息列表
+          if (chatState.selectedGroup && data.group_id === chatState.selectedGroup.id) {
+            // 这里可以添加新消息到消息列表
+            // setMessages(prev => [...prev, data.message]);
+          }
+        });
+        
+        // 订阅消息状态更新
+        const unsubscribeStatus = webSocketService.subscribe('status', (data) => {
+          console.log('消息状态更新:', data);
+        });
+        
+        // 订阅通知
+        const unsubscribeNotification = webSocketService.subscribe('notification', (data) => {
+          console.log('收到通知:', data);
+          if (data.type === 'error') {
+            antMessage.error(data.message);
+          } else if (data.type === 'success') {
+            antMessage.success(data.message);
+          } else if (data.type === 'info') {
+            antMessage.info(data.message);
+          }
+        });
+        
+        return () => {
+          unsubscribeMessage();
+          unsubscribeStatus();
+          unsubscribeNotification();
+          webSocketService.disconnect();
+        };
       } catch (error) {
         console.error('WebSocket连接失败:', error);
+        setConnectionStatus('disconnected');
+        setGlobalError('无法建立实时连接');
       }
     }
-    return () => webSocketService.disconnect();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, chatState.selectedGroup]);
 
   // 处理群组选择
   const handleGroupSelect = useCallback((group: TelegramGroup) => {
@@ -59,14 +149,42 @@ const ChatInterface: React.FC = () => {
     setSelectedGroup(group);
     
     // 在移动端选择群组后关闭侧边栏
-    if (chatState.isMobile) {
+    if (isMobile) {
       setChatState(prev => ({ ...prev, isGroupListCollapsed: true }));
     }
-  }, [chatState.isMobile, setSelectedGroup]);
+  }, [isMobile, setSelectedGroup]);
 
   // 处理消息回复
   const handleReply = useCallback((message: TelegramMessage) => {
     setReplyTo(message);
+  }, []);
+
+  // 处理消息引用
+  const handleQuote = useCallback((message: TelegramMessage) => {
+    setQuotedMessage(message);
+  }, []);
+
+  // 处理消息转发
+  const handleForward = useCallback((message: TelegramMessage, targets: string[], comment?: string) => {
+    // TODO: 实现消息转发逻辑
+    console.log('转发消息:', message, '到:', targets, '评论:', comment);
+    antMessage.success('消息转发成功');
+  }, []);
+
+  // 移除引用消息
+  const handleRemoveQuote = useCallback(() => {
+    setQuotedMessage(null);
+  }, []);
+
+  // 处理快捷创建规则
+  const handleCreateQuickRule = useCallback((message: TelegramMessage) => {
+    setRuleBaseMessage(message);
+    setShowRuleModal(true);
+  }, []);
+
+  // 处理筛选应用
+  const handleApplyFilter = useCallback((filter: MessageFilter) => {
+    setChatState(prev => ({ ...prev, messageFilter: filter }));
   }, []);
 
   // 处理发送消息
@@ -75,13 +193,27 @@ const ChatInterface: React.FC = () => {
     
     try {
       setLoading(true);
-      // TODO: 实现发送消息逻辑
-      console.log('发送消息:', text, '回复:', replyTo?.message_id);
+      
+      // 构建消息发送请求
+      const messageData = {
+        text: text,
+        reply_to_message_id: replyTo?.message_id,
+      };
+      
+      // 调用API发送消息
+      const response = await messageApi.sendMessage(chatState.selectedGroup.id, messageData);
+      
+      console.log('消息发送成功:', response);
       
       // 清除回复状态
       setReplyTo(null);
-    } catch (error) {
+      
+      // 可以在这里添加消息到本地状态，或者让MessageArea自动刷新
+      // TODO: 可以考虑通过WebSocket实时接收新消息
+      
+    } catch (error: any) {
       console.error('发送消息失败:', error);
+      throw error; // 让MessageInput组件处理错误显示
     } finally {
       setLoading(false);
     }
@@ -98,7 +230,7 @@ const ChatInterface: React.FC = () => {
   // 渲染头部标题
   const renderHeader = () => (
     <div className="chat-header">
-      {chatState.isMobile && (
+      {isMobile && (
         <Button
           type="text"
           icon={chatState.isGroupListCollapsed ? <MenuOutlined /> : <CloseOutlined />}
@@ -106,9 +238,24 @@ const ChatInterface: React.FC = () => {
           className="mobile-menu-btn"
         />
       )}
-      <Title level={3} style={{ margin: 0 }}>
-        {chatState.selectedGroup ? chatState.selectedGroup.title : '请选择群组'}
-      </Title>
+      <div className="header-title-section">
+        <Title level={3} style={{ margin: 0 }}>
+          {chatState.selectedGroup ? chatState.selectedGroup.title : '请选择群组'}
+        </Title>
+        {/* 连接状态指示器 */}
+        <div className={`connection-status ${connectionStatus}`}>
+          <span className="status-dot"></span>
+          <span className="status-text">
+            {connectionStatus === 'connected' ? '已连接' : 
+             connectionStatus === 'connecting' ? '连接中...' : '已断开'}
+          </span>
+        </div>
+      </div>
+      {globalError && (
+        <div className="global-error">
+          {globalError}
+        </div>
+      )}
     </div>
   );
 
@@ -119,7 +266,7 @@ const ChatInterface: React.FC = () => {
       onGroupSelect={handleGroupSelect}
       searchQuery={chatState.searchQuery}
       onSearchChange={(query) => setChatState(prev => ({ ...prev, searchQuery: query }))}
-      isMobile={chatState.isMobile}
+      isMobile={isMobile}
     />
   );
 
@@ -128,65 +275,86 @@ const ChatInterface: React.FC = () => {
     <MessageArea
       selectedGroup={chatState.selectedGroup}
       onReply={handleReply}
-      onCreateRule={(message) => {
-        // TODO: 实现快捷创建规则功能
-        console.log('创建规则:', message);
-      }}
+      onCreateRule={handleCreateQuickRule}
       searchFilter={chatState.messageFilter}
-      isMobile={chatState.isMobile}
+      isMobile={isMobile}
+      searchQuery={chatState.searchQuery}
+      onQuote={handleQuote}
+      onForward={handleForward}
+      contacts={contacts}
     />
   );
 
   // 渲染消息输入区域
   const renderMessageInput = () => (
-    <div className="message-input-container">
-      {replyTo && (
-        <div className="reply-preview">
-          <div className="reply-content">
-            <span>回复: {replyTo.sender_name}</span>
-            <span>{replyTo.text}</span>
-          </div>
-          <Button 
-            type="text" 
-            size="small" 
-            onClick={() => setReplyTo(null)}
-          >
-            取消
-          </Button>
-        </div>
+    <div className="message-input-wrapper">
+      {/* 快捷操作按钮 */}
+      {chatState.selectedGroup && (
+        <QuickActions
+          selectedGroup={chatState.selectedGroup}
+          onFilter={() => setShowFilterDrawer(true)}
+          onSync={() => {
+            // TODO: 实现同步功能
+            console.log('同步消息');
+          }}
+          onCreateRule={() => {
+            setRuleBaseMessage(null);
+            setShowRuleModal(true);
+          }}
+          onSearch={() => {
+            setShowFilterDrawer(true);
+          }}
+          onDownload={() => {
+            // TODO: 实现下载功能
+            console.log('下载消息');
+          }}
+          onSettings={() => {
+            // TODO: 实现设置功能
+            console.log('群组设置');
+          }}
+          isMobile={isMobile}
+        />
       )}
       
-      <div className="input-controls">
-        <input
-          type="text"
-          placeholder={chatState.selectedGroup ? "输入消息..." : "请先选择群组"}
-          disabled={!chatState.selectedGroup}
-          className="message-input"
-          onKeyPress={(e) => {
-            if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-              handleSendMessage(e.currentTarget.value.trim());
-              e.currentTarget.value = '';
-            }
-          }}
+      {/* 引用消息显示 */}
+      {quotedMessage && (
+        <QuotedMessage
+          message={quotedMessage}
+          onRemove={handleRemoveQuote}
         />
-        <Button 
-          type="primary" 
-          disabled={!chatState.selectedGroup}
-          loading={loading}
-        >
-          发送
-        </Button>
-      </div>
+      )}
+      
+      {/* 消息输入组件 */}
+      <MessageInput
+        selectedGroup={chatState.selectedGroup}
+        replyTo={replyTo}
+        onSend={handleSendMessage}
+        onClearReply={() => setReplyTo(null)}
+        isMobile={isMobile}
+        loading={loading}
+      />
     </div>
   );
 
   return (
-    <Layout className="chat-interface">
+    <Layout 
+      className="chat-interface" 
+      ref={chatContainerRef}
+      style={{
+        paddingBottom: isKeyboardVisible ? keyboardHeight : 0,
+        transition: 'padding-bottom 0.3s ease'
+      }}
+    >
       {renderHeader()}
       
-      <div className="chat-body">
+      <div 
+        className="chat-body"
+        style={{
+          overflow: isSwiping ? 'hidden' : 'auto'
+        }}
+      >
         {/* 桌面端布局 */}
-        {!chatState.isMobile ? (
+        {!isMobile ? (
           <div className="desktop-layout">
             <div className={`group-list-panel ${chatState.isGroupListCollapsed ? 'collapsed' : ''}`}>
               {renderGroupList()}
@@ -206,17 +374,51 @@ const ChatInterface: React.FC = () => {
               open={!chatState.isGroupListCollapsed}
               width={280}
               className="mobile-group-drawer"
+              style={{
+                zIndex: 1000
+              }}
             >
               {renderGroupList()}
             </Drawer>
             
-            <div className="mobile-message-panel">
+            <div 
+              className="mobile-message-panel"
+              style={{
+                marginBottom: isKeyboardVisible ? `${keyboardHeight}px` : 0,
+                transition: 'margin-bottom 0.3s ease'
+              }}
+            >
               {renderMessageArea()}
               {renderMessageInput()}
             </div>
           </>
         )}
       </div>
+      
+      {/* 消息筛选抽屉 */}
+      <MessageFilterDrawer
+        visible={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        selectedGroup={chatState.selectedGroup}
+        currentFilter={chatState.messageFilter}
+        onApplyFilter={handleApplyFilter}
+        isMobile={isMobile}
+      />
+      
+      {/* 快捷创建规则模态框 */}
+      <QuickRuleModal
+        visible={showRuleModal}
+        onClose={() => {
+          setShowRuleModal(false);
+          setRuleBaseMessage(null);
+        }}
+        selectedGroup={chatState.selectedGroup}
+        baseMessage={ruleBaseMessage}
+        onSuccess={(rule) => {
+          console.log('规则创建成功:', rule);
+        }}
+        isMobile={isMobile}
+      />
     </Layout>
   );
 };
