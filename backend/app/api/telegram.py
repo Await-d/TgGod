@@ -649,6 +649,66 @@ async def logout():
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"登出失败: {str(e)}")
 
+@router.post("/sync-groups")
+async def sync_telegram_groups(db: Session = Depends(get_db)):
+    """从Telegram同步群组列表到数据库"""
+    try:
+        await telegram_service.initialize()
+        
+        # 检查是否已授权
+        is_authorized = await telegram_service.client.is_user_authorized()
+        if not is_authorized:
+            await telegram_service.disconnect()
+            raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
+        
+        # 获取对话列表
+        dialogs = await telegram_service.client.get_dialogs()
+        groups = [d for d in dialogs if d.is_group or d.is_channel]
+        
+        synced_count = 0
+        errors = []
+        
+        for dialog in groups:
+            try:
+                # 获取群组详细信息
+                group_info = await telegram_service.get_group_info(dialog.entity.username or str(dialog.entity.id))
+                if group_info:
+                    # 检查群组是否已存在
+                    existing_group = db.query(TelegramGroup).filter(
+                        TelegramGroup.telegram_id == group_info["telegram_id"]
+                    ).first()
+                    
+                    if existing_group:
+                        # 更新现有群组信息
+                        for key, value in group_info.items():
+                            setattr(existing_group, key, value)
+                    else:
+                        # 创建新群组
+                        new_group = TelegramGroup(**group_info)
+                        db.add(new_group)
+                    
+                    synced_count += 1
+                    
+            except Exception as e:
+                errors.append(f"同步群组 {dialog.name} 失败: {str(e)}")
+                logger.error(f"同步群组失败: {e}")
+        
+        db.commit()
+        await telegram_service.disconnect()
+        
+        return {
+            "success": True,
+            "message": f"成功同步 {synced_count} 个群组",
+            "synced_count": synced_count,
+            "total_groups": len(groups),
+            "errors": errors
+        }
+        
+    except Exception as e:
+        logger.error(f"同步群组失败: {e}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=500, detail=f"同步群组失败: {str(e)}")
+
 @router.post("/test-connection")
 async def test_telegram_connection():
     """测试Telegram连接和群组获取"""

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Input, Button, Space, message, Modal, Form, Badge, Spin } from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined, SyncOutlined } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { GroupListItemProps } from '../../types/chat';
 import GroupItem from './GroupItem';
@@ -26,6 +26,7 @@ const GroupList: React.FC<GroupListProps> = ({
   isMobile = false
 }) => {
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [addGroupModalVisible, setAddGroupModalVisible] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const [form] = Form.useForm();
@@ -38,6 +39,30 @@ const GroupList: React.FC<GroupListProps> = ({
     try {
       const response = await telegramApi.getGroups();
       setGroups(response);
+      
+      // 如果群组列表为空，尝试从Telegram同步
+      if (response.length === 0) {
+        console.log('群组列表为空，尝试从Telegram同步群组...');
+        try {
+          const syncResult = await telegramApi.syncGroups();
+          if (syncResult.success && syncResult.synced_count > 0) {
+            message.success(`成功同步 ${syncResult.synced_count} 个群组`);
+            // 重新获取群组列表
+            const updatedResponse = await telegramApi.getGroups();
+            setGroups(updatedResponse);
+          } else if (syncResult.success && syncResult.synced_count === 0) {
+            message.info('未发现新的群组');
+          }
+        } catch (syncError: any) {
+          // 同步失败，显示提示但不影响基本功能
+          if (syncError.message.includes('未授权')) {
+            message.warning('需要先完成Telegram认证才能同步群组');
+          } else {
+            message.warning('自动同步群组失败，请尝试手动同步');
+          }
+          console.error('同步群组失败:', syncError);
+        }
+      }
     } catch (error: any) {
       message.error('获取群组列表失败: ' + error.message);
       console.error('获取群组列表失败:', error);
@@ -45,6 +70,35 @@ const GroupList: React.FC<GroupListProps> = ({
       setLoading(false);
     }
   }, [setGroups]);
+
+  // 手动同步群组
+  const handleSyncGroups = async () => {
+    setSyncing(true);
+    try {
+      const syncResult = await telegramApi.syncGroups();
+      if (syncResult.success) {
+        if (syncResult.synced_count > 0) {
+          message.success(`成功同步 ${syncResult.synced_count} 个群组`);
+          // 重新获取群组列表
+          const updatedResponse = await telegramApi.getGroups();
+          setGroups(updatedResponse);
+        } else {
+          message.info('未发现新的群组');
+        }
+      } else {
+        message.error('同步群组失败');
+      }
+    } catch (error: any) {
+      if (error.message.includes('未授权')) {
+        message.error('需要先完成Telegram认证才能同步群组');
+      } else {
+        message.error('同步群组失败: ' + error.message);
+      }
+      console.error('同步群组失败:', error);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // 添加群组
   const handleAddGroup = async (values: { username: string }) => {
@@ -100,10 +154,19 @@ const GroupList: React.FC<GroupListProps> = ({
           <Space size="small">
             <Button
               type="text"
+              icon={<SyncOutlined />}
+              onClick={handleSyncGroups}
+              loading={syncing}
+              size={isMobile ? 'small' : 'middle'}
+              title="同步群组"
+            />
+            <Button
+              type="text"
               icon={<ReloadOutlined />}
               onClick={fetchGroups}
               loading={loading}
               size={isMobile ? 'small' : 'middle'}
+              title="刷新"
             />
             <Button
               type="primary"
@@ -154,13 +217,23 @@ const GroupList: React.FC<GroupListProps> = ({
           <div className="empty-groups">
             <UserOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
             <p>暂无群组</p>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setAddGroupModalVisible(true)}
-            >
-              添加群组
-            </Button>
+            <Space direction="vertical" size="middle">
+              <Button
+                type="primary"
+                icon={<SyncOutlined />}
+                onClick={handleSyncGroups}
+                loading={syncing}
+              >
+                从Telegram同步群组
+              </Button>
+              <Button
+                type="default"
+                icon={<PlusOutlined />}
+                onClick={() => setAddGroupModalVisible(true)}
+              >
+                手动添加群组
+              </Button>
+            </Space>
           </div>
         ) : (
           filteredGroups.map(group => (

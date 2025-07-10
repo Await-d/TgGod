@@ -137,6 +137,17 @@ export const telegramApi = {
   syncGroupMessages: (groupId: number, limit: number = 100): Promise<{ message: string }> => {
     return api.post(`/telegram/groups/${groupId}/sync`, { limit });
   },
+
+  // 从Telegram同步群组列表
+  syncGroups: (): Promise<{
+    success: boolean;
+    message: string;
+    synced_count: number;
+    total_groups: number;
+    errors: string[];
+  }> => {
+    return api.post('/telegram/sync-groups');
+  },
 };
 
 // 消息相关API
