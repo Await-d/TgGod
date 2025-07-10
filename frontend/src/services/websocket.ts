@@ -1,12 +1,13 @@
-import { io, Socket } from 'socket.io-client';
+// WebSocket service using native WebSocket
 import { WebSocketMessage } from '../types';
 
 class WebSocketService {
-  private socket: Socket | null = null;
+  private socket: WebSocket | null = null;
   private clientId: string = '';
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;
   private reconnectDelay: number = 1000;
+  private reconnectTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     this.clientId = this.generateClientId();
@@ -19,40 +20,54 @@ class WebSocketService {
 
   // 连接WebSocket
   connect(): void {
-    if (this.socket?.connected) {
+    if (this.socket?.readyState === WebSocket.OPEN) {
       return;
     }
 
-    const wsUrl = `ws://localhost:8001/ws/${this.clientId}`;
-    this.socket = io(wsUrl, {
-      transports: ['websocket'],
-      autoConnect: true,
-    });
-
-    this.setupEventHandlers();
+    // 获取WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/ws/${this.clientId}`;
+    
+    try {
+      this.socket = new WebSocket(wsUrl);
+      this.setupEventHandlers();
+    } catch (error) {
+      console.error('WebSocket连接失败:', error);
+      this.handleReconnect();
+    }
   }
 
   // 设置事件处理器
   private setupEventHandlers(): void {
     if (!this.socket) return;
 
-    this.socket.on('connect', () => {
+    this.socket.onopen = () => {
       console.log('WebSocket连接成功');
       this.reconnectAttempts = 0;
-    });
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+    };
 
-    this.socket.on('disconnect', () => {
-      console.log('WebSocket连接断开');
+    this.socket.onclose = (event) => {
+      console.log('WebSocket连接断开:', event.code, event.reason);
       this.handleReconnect();
-    });
+    };
 
-    this.socket.on('error', (error) => {
+    this.socket.onerror = (error) => {
       console.error('WebSocket错误:', error);
-    });
+    };
 
-    this.socket.on('message', (message: WebSocketMessage) => {
-      this.handleMessage(message);
-    });
+    this.socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        this.handleMessage(message);
+      } catch (error) {
+        console.error('解析WebSocket消息失败:', error);
+      }
+    };
   }
 
   // 处理重连
@@ -61,7 +76,7 @@ class WebSocketService {
       this.reconnectAttempts++;
       console.log(`尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
       
-      setTimeout(() => {
+      this.reconnectTimer = setTimeout(() => {
         this.connect();
       }, this.reconnectDelay * this.reconnectAttempts);
     } else {
@@ -79,8 +94,8 @@ class WebSocketService {
 
   // 发送消息
   send(message: any): void {
-    if (this.socket?.connected) {
-      this.socket.emit('message', message);
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(message));
     } else {
       console.warn('WebSocket未连接，消息发送失败');
     }
@@ -88,15 +103,20 @@ class WebSocketService {
 
   // 断开连接
   disconnect(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    
     if (this.socket) {
-      this.socket.disconnect();
+      this.socket.close();
       this.socket = null;
     }
   }
 
   // 获取连接状态
   isConnected(): boolean {
-    return this.socket?.connected || false;
+    return this.socket?.readyState === WebSocket.OPEN;
   }
 
   // 订阅特定类型的消息
