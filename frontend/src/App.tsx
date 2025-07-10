@@ -48,16 +48,70 @@ const App: React.FC = () => {
           <ProtectedRoute>
             <MainLayout>
               <Content>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/groups" element={<Groups />} />
-                  <Route path="/messages" element={<Messages />} />
-                  <Route path="/rules" element={<Rules />} />
-                  <Route path="/downloads" element={<Downloads />} />
-                  <Route path="/logs" element={<Logs />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Routes>
+                <Navigate to="/dashboard" replace />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <Dashboard />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/groups" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <Groups />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/messages" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <Messages />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/rules" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <Rules />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/downloads" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <Downloads />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/logs" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <Logs />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <Settings />
               </Content>
             </MainLayout>
           </ProtectedRoute>
