@@ -1,4 +1,4 @@
-/*/*/* 聊天界面主容器 */
+/* 聊天界面主容器 */
 .chat-interface {
   height: 100vh;
   display: flex;
@@ -7,7 +7,7 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/*/* 头部区域 */
+/* 头部区域 */
 .chat-header {
   display: flex;
   align-items: center;
@@ -101,7 +101,7 @@
   margin-right: 16px;
 }
 
-/*/* 聊天主体区域 */
+/* 聊天主体区域 */
 .chat-body {
   flex: 1;
   display: flex;
@@ -110,7 +110,7 @@
   overflow: hidden;
 }
 
-/*/* 桌面端布局 */
+/* 桌面端布局 */
 .desktop-layout {
   display: flex;
   width: 100%;
@@ -119,7 +119,7 @@
   overflow: hidden;
 }
 
-/*/* 群组列表面板 */
+/* CSS样式 */
 .group-list-panel {
   width: 300px;
   background: #fafafa;
@@ -142,7 +142,7 @@
   height: 100%;
 }
 
-/*/* 群组列表头部 */
+/* CSS样式 */
 .group-list-header {
   padding: 20px 24px;
   border-bottom: 1px solid #f0f0f0;
@@ -155,7 +155,7 @@
   overflow-y: auto;
 }
 
-/*/* 群组项目 */
+/* CSS样式 */
 .group-item {
   display: flex;
   align-items: center;
@@ -224,7 +224,7 @@
   color: #ff4d4f;
 }
 
-/*/* 消息面板 */
+/* CSS样式 */
 .message-panel {
   flex: 1;
   display: flex;
@@ -242,7 +242,7 @@
   min-height: 0;
 }
 
-/*/* 消息头部 */
+/* CSS样式 */
 .message-header {
   display: flex;
   align-items: center;
@@ -260,7 +260,7 @@
   color: #666;
 }
 
-/*/* 消息列表 */
+/* CSS样式 */
 .message-list {
   flex: 1;
   overflow-y: auto;
@@ -343,7 +343,7 @@
   background: #fff;
 }
 
-/*/* 快捷操作区域 */
+/* CSS样式 */
 .quick-actions {
   padding: 12px 20px;
   border-top: 1px solid #f0f0f0;
@@ -361,7 +361,7 @@
   justify-content: flex-start;
 }
 
-/*/* 消息输入区域 */
+/* CSS样式 */
 .message-input-container {
   border-top: 1px solid #f0f0f0;
   background: #fff;
@@ -369,7 +369,7 @@
   position: relative;
 }
 
-/*/* 回复预览 */
+/* CSS样式 */
 .reply-preview {
   display: flex;
   align-items: center;
@@ -397,7 +397,7 @@
   color: #666;
 }
 
-/*/* 输入控制区域 */
+/* CSS样式 */
 .input-controls {
   display: flex;
   align-items: center;
@@ -407,7 +407,7 @@
   border-radius: 6px;
 }
 
-/*/* 快捷操作按钮样式 */
+/* CSS样式 */
 .quick-actions .ant-btn {
   border-radius: 6px;
   border: 1px solid #d9d9d9;
@@ -420,7 +420,7 @@
   border-color: #1890ff;
 }
 
-/*/* 发送按钮样式 */
+/* CSS样式 */
 .input-controls .ant-btn {
   border-radius: 50%;
   width: 40px;
@@ -472,7 +472,7 @@
   padding: 0;
 }
 
-/*/* 移动端响应式 */
+/* CSS样式 */
 @media (max-width: 768px) {
   .chat-interface {
     background: #fff;
@@ -586,7 +586,7 @@
   }
 }
 
-/*/* 平板模式优化 */
+/* CSS样式 */
 @media (min-width: 769px) and (max-width: 1024px) {
   .group-list-panel {
     width: 280px;
@@ -808,7 +808,7 @@
   }
 }
 
-/*/* 按钮效果 - 保持简洁 */
+/* CSS样式 */
 .ant-btn {
   transition: all 0.3s ease;
 }
