@@ -1,0 +1,145 @@
+.telegram-settings {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.settings-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.settings-header h1 {
+  color: #2c3e50;
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+}
+
+.settings-header p {
+  color: #7f8c8d;
+  font-size: 16px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.settings-content {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 60px;
+}
+
+.settings-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-top: 40px;
+}
+
+.info-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e1e8ed;
+}
+
+.info-card h3 {
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-card h3::before {
+  content: '📋';
+  font-size: 20px;
+}
+
+.info-card:last-child h3::before {
+  content: '🔒';
+}
+
+.info-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.info-card li {
+  color: #34495e;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.info-card li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.info-card li:last-child {
+  margin-bottom: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .telegram-settings {
+    padding: 16px;
+  }
+  
+  .settings-header h1 {
+    font-size: 28px;
+  }
+  
+  .settings-header p {
+    font-size: 14px;
+  }
+  
+  .settings-info {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .info-card {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .telegram-settings {
+    padding: 12px;
+  }
+  
+  .settings-header {
+    margin-bottom: 30px;
+  }
+  
+  .settings-header h1 {
+    font-size: 24px;
+  }
+  
+  .settings-content {
+    margin-bottom: 40px;
+  }
+  
+  .info-card {
+    padding: 16px;
+  }
+  
+  .info-card h3 {
+    font-size: 16px;
+  }
+  
+  .info-card li {
+    font-size: 13px;
+  }
+}

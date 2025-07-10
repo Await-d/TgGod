@@ -479,3 +479,133 @@ async def search_messages(
     messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
     
     return messages
+
+
+# Telegram认证相关API
+class AuthStatusResponse(BaseModel):
+    is_authorized: bool
+    user_info: Optional[dict] = None
+    message: str
+
+class AuthCodeRequest(BaseModel):
+    phone: str
+
+class AuthLoginRequest(BaseModel):
+    phone: str
+    code: str
+    password: Optional[str] = None
+
+@router.get("/auth/status", response_model=AuthStatusResponse)
+async def get_auth_status():
+    """获取Telegram认证状态"""
+    try:
+        await telegram_service.initialize()
+        is_authorized = await telegram_service.client.is_user_authorized()
+        
+        if is_authorized:
+            me = await telegram_service.client.get_me()
+            user_info = {
+                "id": me.id,
+                "first_name": me.first_name,
+                "last_name": me.last_name,
+                "username": me.username,
+                "phone": me.phone
+            }
+            await telegram_service.disconnect()
+            return AuthStatusResponse(
+                is_authorized=True,
+                user_info=user_info,
+                message="已授权"
+            )
+        else:
+            await telegram_service.disconnect()
+            return AuthStatusResponse(
+                is_authorized=False,
+                message="未授权，需要进行手机验证"
+            )
+    except Exception as e:
+        logger.error(f"获取认证状态失败: {e}")
+        return AuthStatusResponse(
+            is_authorized=False,
+            message=f"获取认证状态失败: {str(e)}"
+        )
+
+@router.post("/auth/send-code")
+async def send_auth_code(request: AuthCodeRequest):
+    """发送验证码"""
+    try:
+        await telegram_service.initialize()
+        await telegram_service.client.send_code_request(request.phone)
+        await telegram_service.disconnect()
+        
+        return {
+            "success": True,
+            "message": "验证码已发送"
+        }
+    except Exception as e:
+        logger.error(f"发送验证码失败: {e}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=500, detail=f"发送验证码失败: {str(e)}")
+
+@router.post("/auth/login")
+async def login_with_code(request: AuthLoginRequest):
+    """使用验证码登录"""
+    try:
+        await telegram_service.initialize()
+        
+        try:
+            # 尝试使用验证码登录
+            await telegram_service.client.sign_in(request.phone, request.code)
+        except Exception as auth_error:
+            # 检查是否需要两步验证
+            if "Two-step verification" in str(auth_error) or "SessionPasswordNeeded" in str(auth_error):
+                if not request.password:
+                    await telegram_service.disconnect()
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="需要两步验证密码"
+                    )
+                # 使用两步验证密码
+                await telegram_service.client.sign_in(password=request.password)
+            else:
+                raise auth_error
+        
+        # 获取用户信息
+        me = await telegram_service.client.get_me()
+        user_info = {
+            "id": me.id,
+            "first_name": me.first_name,
+            "last_name": me.last_name,
+            "username": me.username,
+            "phone": me.phone
+        }
+        
+        await telegram_service.disconnect()
+        
+        return {
+            "success": True,
+            "message": "登录成功",
+            "user_info": user_info
+        }
+        
+    except Exception as e:
+        logger.error(f"登录失败: {e}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=500, detail=f"登录失败: {str(e)}")
+
+@router.post("/auth/logout")
+async def logout():
+    """登出"""
+    try:
+        await telegram_service.initialize()
+        await telegram_service.client.log_out()
+        await telegram_service.disconnect()
+        
+        return {
+            "success": True,
+            "message": "登出成功"
+        }
+    except Exception as e:
+        logger.error(f"登出失败: {e}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=500, detail=f"登出失败: {str(e)}")

@@ -68,6 +68,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       label: '仪表板',
     },
     {
+      key: '/chat',
+      icon: <MessageOutlined />,
+      label: '聊天界面',
+    },
+    {
       key: '/groups',
       icon: <TeamOutlined />,
       label: '群组管理',
@@ -96,6 +101,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/settings',
       icon: <SettingOutlined />,
       label: '系统设置',
+    },
+    {
+      key: '/telegram',
+      icon: <WifiOutlined />,
+      label: 'Telegram认证',
     },
   ];
 
