@@ -64,10 +64,21 @@ class Settings:
     
     @property
     def telegram_api_id(self) -> int:
+        # 优先从环境变量读取
+        env_value = os.environ.get("TELEGRAM_API_ID")
+        if env_value and env_value != "your_api_id_here":
+            try:
+                return int(env_value)
+            except ValueError:
+                pass
         return self._get_int_config("telegram_api_id", 0)
     
     @property
     def telegram_api_hash(self) -> str:
+        # 优先从环境变量读取
+        env_value = os.environ.get("TELEGRAM_API_HASH")
+        if env_value and env_value != "your_api_hash_here":
+            return env_value
         return self._get_config("telegram_api_hash", "")
     
     @property
