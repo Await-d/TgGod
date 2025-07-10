@@ -1,0 +1,288 @@
+/* 群组列表容器 */
+.group-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #fff;
+}
+
+/* 群组列表头部 */
+.group-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-title h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* 搜索框 */
+.group-search {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.group-search .ant-input-affix-wrapper {
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  transition: all 0.3s;
+}
+
+.group-search .ant-input-affix-wrapper:hover {
+  border-color: #40a9ff;
+}
+
+.group-search .ant-input-affix-wrapper-focused {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 群组统计 */
+.group-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f9f9f9;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 2px;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.stat-value.active {
+  color: #52c41a;
+}
+
+.stat-value.inactive {
+  color: #ff4d4f;
+}
+
+/* 群组列表内容 */
+.group-list-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+/* 空状态 */
+.empty-groups {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #8c8c8c;
+}
+
+.empty-groups p {
+  margin: 16px 0;
+  font-size: 16px;
+}
+
+/* 群组项目 */
+.group-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 1px solid #f5f5f5;
+  position: relative;
+}
+
+.group-item:hover {
+  background: #f5f5f5;
+}
+
+.group-item.selected {
+  background: #e6f7ff;
+  border-right: 3px solid #1890ff;
+}
+
+.group-item.selected:hover {
+  background: #e6f7ff;
+}
+
+/* 群组头像 */
+.group-avatar {
+  position: relative;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+/* 群组信息 */
+.group-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.group-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.group-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.name-text {
+  font-weight: 600;
+  color: #262626;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-username {
+  font-size: 12px;
+  color: #8c8c8c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-description {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.group-metadata {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.metadata-item {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.last-message-time {
+  font-size: 11px;
+  color: #bfbfbf;
+}
+
+/* 群组状态 */
+.group-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .group-list-header {
+    padding: 12px 16px;
+  }
+  
+  .group-search {
+    padding: 8px 12px;
+  }
+  
+  .group-stats {
+    padding: 8px 12px;
+  }
+  
+  .group-item {
+    padding: 12px;
+  }
+  
+  .group-avatar {
+    margin-right: 10px;
+  }
+  
+  .name-text {
+    font-size: 13px;
+  }
+  
+  .group-username {
+    font-size: 11px;
+  }
+  
+  .group-description {
+    font-size: 11px;
+  }
+  
+  .metadata-item {
+    font-size: 10px;
+  }
+}
+
+/* 滚动条样式 */
+.group-list-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.group-list-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.group-list-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.group-list-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

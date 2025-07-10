@@ -11,6 +11,7 @@ import Downloads from './pages/Downloads';
 import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 import LoginPage from './pages/Login';
+import ChatInterface from './pages/ChatInterface';
 import { webSocketService } from './services/websocket';
 import { useGlobalStore, useAuthStore } from './store';
 
@@ -103,6 +104,15 @@ const App: React.FC = () => {
             <MainLayout>
               <Content>
                 <Logs />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/chat" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <ChatInterface />
               </Content>
             </MainLayout>
           </ProtectedRoute>
