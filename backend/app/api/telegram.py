@@ -495,6 +495,13 @@ class AuthLoginRequest(BaseModel):
     code: str
     password: Optional[str] = None
 
+class AuthState(BaseModel):
+    phone: str
+    phone_code_hash: str
+    
+# 临时存储认证状态 (生产环境应使用Redis等持久化存储)
+auth_sessions = {}
+
 @router.get("/auth/status", response_model=AuthStatusResponse)
 async def get_auth_status():
     """获取Telegram认证状态"""
@@ -540,13 +547,22 @@ async def send_auth_code(request: AuthCodeRequest):
         await telegram_service.initialize()
         
         logger.info(f"准备发送验证码到: {request.phone}")
-        # 这里使用connect而不是start，避免交互式提示
-        await telegram_service.client.send_code_request(request.phone)
+        # 发送验证码并获取phone_code_hash
+        result = await telegram_service.client.send_code_request(request.phone)
+        
+        # 保存认证状态
+        session_key = f"auth_{request.phone}"
+        auth_sessions[session_key] = AuthState(
+            phone=request.phone,
+            phone_code_hash=result.phone_code_hash
+        )
+        
         await telegram_service.disconnect()
         
         return {
             "success": True,
-            "message": "验证码已发送"
+            "message": "验证码已发送",
+            "session_key": session_key  # 返回session key给前端
         }
     except Exception as e:
         logger.error(f"发送验证码失败: {e}")
@@ -557,13 +573,24 @@ async def send_auth_code(request: AuthCodeRequest):
 async def login_with_code(request: AuthLoginRequest):
     """使用验证码登录"""
     try:
+        # 获取认证状态
+        session_key = f"auth_{request.phone}"
+        if session_key not in auth_sessions:
+            raise HTTPException(status_code=400, detail="请先发送验证码")
+        
+        auth_state = auth_sessions[session_key]
+        
         # 确保每次都重新初始化客户端
         await telegram_service.disconnect()  # 先断开现有连接
         await telegram_service.initialize()
         
         try:
-            # 尝试使用验证码登录
-            await telegram_service.client.sign_in(request.phone, request.code)
+            # 使用phone_code_hash进行登录
+            await telegram_service.client.sign_in(
+                phone=request.phone,
+                code=request.code,
+                phone_code_hash=auth_state.phone_code_hash
+            )
         except Exception as auth_error:
             # 检查是否需要两步验证
             if "Two-step verification" in str(auth_error) or "SessionPasswordNeeded" in str(auth_error):
@@ -589,6 +616,10 @@ async def login_with_code(request: AuthLoginRequest):
         }
         
         await telegram_service.disconnect()
+        
+        # 清除认证状态
+        if session_key in auth_sessions:
+            del auth_sessions[session_key]
         
         return {
             "success": True,
