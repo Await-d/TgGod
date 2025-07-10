@@ -8,6 +8,7 @@ from ..utils.auth import get_current_active_user
 from pydantic import BaseModel
 from datetime import datetime
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -668,10 +669,15 @@ async def sync_telegram_groups(db: Session = Depends(get_db)):
         synced_count = 0
         errors = []
         
-        for dialog in groups:
+        for i, dialog in enumerate(groups):
             try:
-                # 获取群组详细信息
-                group_info = await telegram_service.get_group_info(dialog.entity.username or str(dialog.entity.id))
+                # 添加延迟以避免flood wait
+                if i > 0 and i % 5 == 0:
+                    logger.info(f"处理第{i}个群组，暂停2秒避免频率限制...")
+                    await asyncio.sleep(2)
+                
+                # 直接传递dialog.entity，避免ID查找问题
+                group_info = await telegram_service.get_group_info(dialog.entity)
                 if group_info:
                     # 检查群组是否已存在
                     existing_group = db.query(TelegramGroup).filter(
@@ -682,16 +688,26 @@ async def sync_telegram_groups(db: Session = Depends(get_db)):
                         # 更新现有群组信息
                         for key, value in group_info.items():
                             setattr(existing_group, key, value)
+                        logger.info(f"更新群组: {group_info['title']}")
                     else:
                         # 创建新群组
                         new_group = TelegramGroup(**group_info)
                         db.add(new_group)
+                        logger.info(f"新增群组: {group_info['title']}")
                     
                     synced_count += 1
+                else:
+                    logger.warning(f"跳过群组 {getattr(dialog, 'name', 'Unknown')}，无法获取信息")
                     
             except Exception as e:
-                errors.append(f"同步群组 {dialog.name} 失败: {str(e)}")
-                logger.error(f"同步群组失败: {e}")
+                error_msg = f"同步群组 {getattr(dialog, 'name', 'Unknown')} 失败: {str(e)}"
+                errors.append(error_msg)
+                logger.error(error_msg)
+                
+                # 如果是flood wait错误，增加延迟
+                if "flood" in str(e).lower() or "wait" in str(e).lower():
+                    logger.info("检测到频率限制，等待5秒...")
+                    await asyncio.sleep(5)
         
         db.commit()
         await telegram_service.disconnect()

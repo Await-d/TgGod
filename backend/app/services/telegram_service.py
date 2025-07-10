@@ -1,4 +1,5 @@
 from telethon import TelegramClient, errors
+from telethon.errors import FloodWaitError, AuthKeyUnregisteredError
 from telethon.tl.types import Channel, Chat, User, Message, MessageMediaPhoto, MessageMediaDocument
 from telethon.tl.functions.channels import GetFullChannelRequest
 from telethon.tl.functions.messages import GetHistoryRequest
@@ -51,34 +52,74 @@ class TelegramService:
             self.client = None
             logger.info("Telegram客户端已断开")
     
-    async def get_group_info(self, group_username: str) -> Optional[Dict[str, Any]]:
-        """获取群组信息"""
+    async def _handle_flood_wait(self, func, *args, **kwargs):
+        """处理Flood Wait错误的重试机制"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                return await func(*args, **kwargs)
+            except FloodWaitError as e:
+                if attempt < max_retries - 1:
+                    wait_time = min(e.seconds, 300)  # 最多等待5分钟
+                    logger.warning(f"遇到Flood Wait，等待{wait_time}秒后重试 (尝试 {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(f"达到最大重试次数，Flood Wait错误: {e}")
+                    raise
+            except Exception as e:
+                logger.error(f"执行函数时出错: {e}")
+                raise
+    
+    async def get_group_info(self, group_identifier) -> Optional[Dict[str, Any]]:
+        """获取群组信息 - 支持用户名、ID或实体对象"""
         try:
             await self.initialize()
             
-            # 获取群组实体
-            entity = await self.client.get_entity(group_username)
+            # 如果传入的已经是实体对象，直接使用
+            if hasattr(group_identifier, 'id'):
+                entity = group_identifier
+            else:
+                # 尝试获取群组实体
+                try:
+                    entity = await self.client.get_entity(group_identifier)
+                except Exception as e:
+                    logger.warning(f"无法通过标识符 {group_identifier} 获取实体: {e}")
+                    return None
             
             if isinstance(entity, (Channel, Chat)):
-                # 获取完整信息
-                if isinstance(entity, Channel):
-                    full_info = await self.client(GetFullChannelRequest(entity))
-                    member_count = full_info.full_chat.participants_count
-                    description = full_info.full_chat.about
-                else:
-                    member_count = entity.participants_count if hasattr(entity, 'participants_count') else 0
-                    description = None
+                # 获取完整信息，加入错误处理
+                member_count = 0
+                description = None
+                
+                try:
+                    if isinstance(entity, Channel):
+                        # 对于频道，尝试获取完整信息
+                        try:
+                            full_info = await self._handle_flood_wait(
+                                self.client, GetFullChannelRequest(entity)
+                            )
+                            member_count = full_info.full_chat.participants_count or 0
+                            description = full_info.full_chat.about
+                        except Exception as e:
+                            logger.warning(f"无法获取频道 {entity.title} 的完整信息: {e}")
+                            member_count = getattr(entity, 'participants_count', 0)
+                    else:
+                        # 对于普通群组
+                        member_count = getattr(entity, 'participants_count', 0)
+                        
+                except Exception as e:
+                    logger.warning(f"获取群组 {entity.title} 详细信息时出错: {e}")
                 
                 return {
                     "telegram_id": entity.id,
-                    "title": entity.title,
-                    "username": entity.username,
+                    "title": entity.title or "未知群组",
+                    "username": getattr(entity, 'username', None),
                     "description": description,
                     "member_count": member_count,
                     "is_active": True
                 }
             else:
-                logger.error(f"实体 {group_username} 不是群组或频道")
+                logger.warning(f"实体 {group_identifier} 不是群组或频道，类型: {type(entity)}")
                 return None
                 
         except Exception as e:
