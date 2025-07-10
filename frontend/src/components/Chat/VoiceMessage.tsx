@@ -95,7 +95,7 @@ const VoiceMessage: React.FC<VoiceMessageProps> = ({
   const progressPercent = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0;
 
   return (
-    <div className={`voice-message ${className || ''}`}>
+    <div className={`voice-message ${isPlaying ? 'playing' : ''} ${className || ''}`}>
       <audio ref={audioRef} src={url} preload="metadata" />
       
       <div className="voice-content">

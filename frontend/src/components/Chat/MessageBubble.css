@@ -5,6 +5,7 @@
   align-items: flex-start;
   gap: 12px;
   animation: messageSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 100%; /* 防止溢出 */
 }
 
 @keyframes messageSlideIn {
@@ -38,6 +39,8 @@
   flex: 1;
   max-width: 70%;
   min-width: 0;
+  word-wrap: break-word; /* 防止长单词溢出 */
+  overflow-wrap: break-word;
 }
 
 .message-bubble.own .message-body {
@@ -82,6 +85,7 @@
 .message-content {
   word-wrap: break-word;
   overflow-wrap: break-word;
+  max-width: 100%; /* 防止内容溢出 */
 }
 
 /* 回复信息 */
@@ -122,6 +126,7 @@
 /* 媒体内容 */
 .message-media {
   margin: 8px 0;
+  max-width: 100%; /* 防止媒体内容溢出 */
 }
 
 .message-media .ant-card {
@@ -257,6 +262,7 @@
   .message-bubble {
     margin-bottom: 12px;
     gap: 8px;
+    max-width: 100%;
   }
   
   .message-body {
@@ -270,6 +276,7 @@
   .message-bubble-content {
     padding: 10px 14px;
     border-radius: 16px;
+    max-width: 100%;
   }
   
   .message-text p {
@@ -295,6 +302,16 @@
   
   .message-time {
     font-size: 12px;
+  }
+  
+  /* 移动端媒体内容优化 */
+  .message-media {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  
+  .message-media .media-preview {
+    max-width: 100%;
   }
 }
 

@@ -86,7 +86,9 @@
       "Bash(cd /root/project/TgGod/backend)",
       "Bash(rm /root/project/TgGod/frontend/src/pages/TelegramSettings.tsx /root/project/TgGod/frontend/src/pages/TelegramSettings.css)",
       "Bash(rm:*)",
-      "mcp__serena__think_about_task_adherence"
+      "mcp__serena__think_about_task_adherence",
+      "mcp__serena__find_file",
+      "Bash(kill:*)"
     ],
     "deny": []
   }

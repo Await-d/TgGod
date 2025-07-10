@@ -25,6 +25,10 @@ import {
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
 import { MessageBubbleProps } from '../../types/chat';
+import MediaPreview from './MediaPreview';
+import VoiceMessage from './VoiceMessage';
+import './MediaPreview.css';
+import './VoiceMessage.css';
 import './MessageBubble.css';
 
 const { Text, Paragraph } = Typography;
@@ -123,26 +127,51 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {/* 媒体内容 */}
         {message.media_type && (
           <div className="message-media">
-            <Card size="small" style={{ margin: '8px 0' }}>
-              <Space>
-                {getMediaIcon(message.media_type)}
-                <div className="media-info">
-                  <div>
-                    <Text strong>{message.media_type.toUpperCase()}</Text>
-                    {message.media_size && (
-                      <Text type="secondary" style={{ marginLeft: 8 }}>
-                        {(message.media_size / (1024 * 1024)).toFixed(2)} MB
+            {/* 语音消息 */}
+            {(message.media_type === 'voice' || message.media_type === 'audio') && (
+              <VoiceMessage
+                url={message.media_path || ''}
+                duration={0} // duration not available in the type
+                filename={message.media_filename}
+                size={message.media_size ? `${(message.media_size / (1024 * 1024)).toFixed(2)} MB` : undefined}
+                className="message-voice"
+              />
+            )}
+            
+            {/* 图片/视频预览 */}
+            {(message.media_type === 'photo' || message.media_type === 'video') && message.media_path && (
+              <MediaPreview
+                url={message.media_path}
+                type={message.media_type === 'photo' ? 'image' : 'video'}
+                filename={message.media_filename}
+                size={message.media_size ? `${(message.media_size / (1024 * 1024)).toFixed(2)} MB` : undefined}
+                className="message-media-preview"
+              />
+            )}
+            
+            {/* 其他文件类型 */}
+            {!['photo', 'video', 'voice', 'audio'].includes(message.media_type) && (
+              <Card size="small" style={{ margin: '8px 0' }}>
+                <Space>
+                  {getMediaIcon(message.media_type)}
+                  <div className="media-info">
+                    <div>
+                      <Text strong>{message.media_type.toUpperCase()}</Text>
+                      {message.media_size && (
+                        <Text type="secondary" style={{ marginLeft: 8 }}>
+                          {(message.media_size / (1024 * 1024)).toFixed(2)} MB
+                        </Text>
+                      )}
+                    </div>
+                    {message.media_filename && (
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {message.media_filename}
                       </Text>
                     )}
                   </div>
-                  {message.media_filename && (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {message.media_filename}
-                    </Text>
-                  )}
-                </div>
-              </Space>
-            </Card>
+                </Space>
+              </Card>
+            )}
           </div>
         )}
 

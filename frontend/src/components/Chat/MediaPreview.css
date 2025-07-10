@@ -1,10 +1,15 @@
 .media-preview {
-  max-width: 250px;
-  border: 1px solid #d9d9d9;
-  border-radius: 8px;
+  max-width: 280px;
+  border-radius: 12px;
   overflow: hidden;
-  background: #fafafa;
+  background: #fff;
   margin: 8px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.media-preview:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .media-thumbnail,
@@ -12,6 +17,30 @@
   position: relative;
   cursor: pointer;
   overflow: hidden;
+  border-radius: 12px 12px 0 0;
+}
+
+.media-preview.image-preview .media-thumbnail,
+.media-preview.video-preview .video-thumbnail {
+  border-radius: 12px;
+}
+
+.media-preview:has(.media-info) .media-thumbnail,
+.media-preview:has(.media-info) .video-thumbnail {
+  border-radius: 12px 12px 0 0;
+}
+
+.media-thumbnail img,
+.video-thumbnail video {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.media-thumbnail:hover img,
+.video-thumbnail:hover video {
+  transform: scale(1.05);
 }
 
 .media-thumbnail:hover .media-overlay,
@@ -30,53 +59,149 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.3s ease;
+  border-radius: 12px;
+}
+
+.video-preview .media-overlay {
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .media-info {
-  padding: 8px 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
 }
 
 .media-filename {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: #262626;
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.4;
 }
 
 .media-size {
   font-size: 11px;
   color: #8c8c8c;
   margin-bottom: 8px;
+  line-height: 1.2;
 }
 
 .media-info .ant-btn {
-  padding: 0;
+  padding: 0 4px;
   height: auto;
   border: none;
   box-shadow: none;
+  font-size: 12px;
+  line-height: 1.2;
 }
 
 .media-info .ant-btn:hover {
   color: #1890ff;
+  background: #f0f8ff;
+}
+
+.media-info .ant-space {
+  justify-content: flex-start;
+}
+
+/* 消息气泡内的媒体样式 */
+.message-media-preview {
+  margin: 4px 0;
+}
+
+.message-voice {
+  margin: 4px 0;
+}
+
+/* 修复消息气泡内媒体布局 */
+.message-bubble .message-media {
+  margin: 8px 0;
+}
+
+.message-bubble .message-media .media-preview {
+  max-width: 100%;
+  margin: 0;
+}
+
+.own-bubble .message-media .media-preview {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+}
+
+.own-bubble .message-media .media-info {
+  background: rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+.own-bubble .message-media .media-filename {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.own-bubble .message-media .media-size {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.own-bubble .message-media .ant-btn {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.own-bubble .message-media .ant-btn:hover {
+  color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* 移动端适配 */
 @media (max-width: 768px) {
   .media-preview {
-    max-width: 200px;
+    max-width: 220px;
   }
   
   .media-thumbnail img,
   .video-thumbnail video {
-    max-width: 180px !important;
-    max-height: 120px !important;
+    max-width: 200px !important;
+    max-height: 130px !important;
   }
   
   .media-overlay {
-    opacity: 1;
+    opacity: 0.8;
+  }
+  
+  .media-info {
+    padding: 8px 12px;
+  }
+  
+  .media-filename {
+    font-size: 12px;
+  }
+  
+  .media-size {
+    font-size: 10px;
+  }
+  
+  .media-info .ant-btn {
+    font-size: 11px;
+    padding: 0 2px;
+  }
+}
+
+/* 小屏幕优化 */
+@media (max-width: 480px) {
+  .media-preview {
+    max-width: 180px;
+  }
+  
+  .media-thumbnail img,
+  .video-thumbnail video {
+    max-width: 160px !important;
+    max-height: 100px !important;
+  }
+  
+  .media-info {
+    padding: 6px 10px;
   }
 }

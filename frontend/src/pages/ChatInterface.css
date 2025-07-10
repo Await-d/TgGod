@@ -5,6 +5,7 @@
   flex-direction: column;
   background: #fff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow: hidden; /* 防止整体滚动 */
 }
 
 /* 头部区域 */
@@ -105,9 +106,10 @@
 .chat-body {
   flex: 1;
   display: flex;
-  min-height: 0;
+  min-height: 0; /* 修复flex子元素溢出问题 */
   background: #fff;
   overflow: hidden;
+  position: relative; /* 为内部定位元素提供参考 */
 }
 
 /* 桌面端布局 */
@@ -117,6 +119,7 @@
   height: 100%;
   background: #fff;
   overflow: hidden;
+  align-items: stretch; /* 确保子元素高度一致 */
 }
 
 /* CSS样式 */
@@ -128,6 +131,7 @@
   flex-direction: column;
   transition: all 0.3s ease;
   position: relative;
+  flex-shrink: 0; /* 防止被压缩 */
 }
 
 .group-list-panel.collapsed {
@@ -230,8 +234,9 @@
   display: flex;
   flex-direction: column;
   background: #fff;
-  min-width: 0;
+  min-width: 0; /* 防止flex子元素溢出 */
   position: relative;
+  height: 100%; /* 确保占满高度 */
 }
 
 /* 消息区域容器 */
@@ -267,6 +272,8 @@
   padding: 20px 28px;
   background: #fafafa;
   position: relative;
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #c1c1c1 #f1f1f1; /* Firefox */
 }
 
 /* 消息气泡 */
@@ -466,6 +473,8 @@
   display: flex;
   flex-direction: column;
   background: #fff;
+  height: 100%; /* 确保占满高度 */
+  min-height: 0; /* 防止溢出 */
 }
 
 .mobile-group-drawer .ant-drawer-body {
@@ -476,6 +485,12 @@
 @media (max-width: 768px) {
   .chat-interface {
     background: #fff;
+    position: fixed; /* 固定定位防止滚动 */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
   }
   
   .chat-header {
@@ -485,11 +500,14 @@
     z-index: 100;
     background: #fff;
     border-bottom: 1px solid #f0f0f0;
+    flex-shrink: 0; /* 防止被压缩 */
   }
   
   .chat-body {
     margin: 0;
     background: #fff;
+    flex: 1;
+    min-height: 0;
   }
   
   .message-list {
@@ -506,6 +524,7 @@
     backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0; /* 防止被压缩 */
   }
   
   .group-item {
