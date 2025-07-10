@@ -534,7 +534,11 @@ async def get_auth_status():
 async def send_auth_code(request: AuthCodeRequest):
     """发送验证码"""
     try:
+        # 确保每次都重新初始化客户端
+        await telegram_service.disconnect()  # 先断开现有连接
         await telegram_service.initialize()
+        
+        logger.info(f"准备发送验证码到: {request.phone}")
         await telegram_service.client.send_code_request(request.phone)
         await telegram_service.disconnect()
         
@@ -551,6 +555,8 @@ async def send_auth_code(request: AuthCodeRequest):
 async def login_with_code(request: AuthLoginRequest):
     """使用验证码登录"""
     try:
+        # 确保每次都重新初始化客户端
+        await telegram_service.disconnect()  # 先断开现有连接
         await telegram_service.initialize()
         
         try:

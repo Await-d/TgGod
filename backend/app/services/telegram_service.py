@@ -23,10 +23,19 @@ class TelegramService:
     async def initialize(self):
         """初始化Telegram客户端"""
         if self.client is None:
+            # 确保API配置不为空
+            api_id = settings.telegram_api_id
+            api_hash = settings.telegram_api_hash
+            
+            logger.info(f"API ID: {api_id}, API Hash: {'*' * len(str(api_hash)) if api_hash else 'None'}")
+            
+            if not api_id or not api_hash:
+                raise ValueError(f"API配置不完整: API ID={api_id}, API Hash={'已设置' if api_hash else '未设置'}")
+            
             self.client = TelegramClient(
                 self.session_name,
-                settings.telegram_api_id,
-                settings.telegram_api_hash
+                api_id,
+                api_hash
             )
             await self.client.start()
             logger.info("Telegram客户端初始化成功")
