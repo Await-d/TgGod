@@ -110,11 +110,7 @@ const App: React.FC = () => {
         } />
         <Route path="/chat" element={
           <ProtectedRoute>
-            <MainLayout>
-              <Content>
-                <ChatInterface />
-              </Content>
-            </MainLayout>
+            <ChatInterface />
           </ProtectedRoute>
         } />
         <Route path="/settings" element={
