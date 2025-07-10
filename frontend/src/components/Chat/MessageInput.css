@@ -1,0 +1,300 @@
+/* 消息输入容器 */
+.message-input-container {
+  background: #fff;
+  border-top: 1px solid #e8e8e8;
+  padding: 16px 24px;
+}
+
+/* 禁用状态 */
+.message-input-disabled {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: #fafafa;
+  border-top: 1px solid #e8e8e8;
+}
+
+.disabled-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 回复预览 */
+.reply-preview {
+  margin-bottom: 12px;
+}
+
+.reply-card {
+  background: #f0f2f5;
+  border: 1px solid #d9d9d9;
+}
+
+.reply-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reply-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.reply-close-btn {
+  padding: 0;
+  height: auto;
+  width: auto;
+  min-width: auto;
+}
+
+.reply-message {
+  max-width: 100%;
+}
+
+/* 输入区域 */
+.input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: border-color 0.2s;
+}
+
+.input-wrapper:focus-within {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 附件按钮 */
+.attachment-btn {
+  padding: 4px;
+  height: auto;
+  color: #8c8c8c;
+  flex-shrink: 0;
+}
+
+.attachment-btn:hover {
+  color: #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+}
+
+/* 文本输入区域 */
+.text-input-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.message-textarea {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  resize: none;
+  background: transparent;
+}
+
+.message-textarea:focus {
+  border: none;
+  box-shadow: none;
+}
+
+.message-textarea .ant-input {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+}
+
+/* 表情按钮 */
+.emoji-btn {
+  padding: 2px 4px;
+  height: auto;
+  color: #8c8c8c;
+  flex-shrink: 0;
+}
+
+.emoji-btn:hover {
+  color: #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+}
+
+/* 发送按钮 */
+.send-button-wrapper {
+  flex-shrink: 0;
+}
+
+.send-btn {
+  height: 32px;
+  border-radius: 6px;
+  padding: 0 12px;
+}
+
+.send-btn:disabled {
+  background: #f5f5f5;
+  border-color: #d9d9d9;
+  color: #bfbfbf;
+}
+
+/* 输入提示 */
+.input-hint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+/* 表情选择器 */
+.emoji-picker {
+  width: 280px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  padding: 8px;
+}
+
+.emoji-button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background-color 0.2s;
+}
+
+.emoji-button:hover {
+  background: #f0f0f0;
+}
+
+.emoji-button:active {
+  background: #e6e6e6;
+}
+
+/* 表情弹窗样式 */
+.emoji-popover .ant-popover-inner {
+  padding: 0;
+}
+
+.emoji-popover .ant-popover-inner-content {
+  padding: 0;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .message-input-container {
+    padding: 12px 16px;
+  }
+  
+  .reply-preview {
+    margin-bottom: 8px;
+  }
+  
+  .input-wrapper {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  
+  .text-input-wrapper {
+    gap: 2px;
+  }
+  
+  .send-btn {
+    height: 28px;
+    padding: 0 8px;
+    min-width: 28px;
+  }
+  
+  .input-hint {
+    display: none;
+  }
+  
+  .emoji-picker {
+    width: 240px;
+    max-height: 200px;
+  }
+  
+  .emoji-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 2px;
+    padding: 4px;
+  }
+  
+  .emoji-button {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+  
+  .message-input-disabled {
+    padding: 24px 16px;
+  }
+}
+
+/* 滚动条样式 */
+.emoji-picker::-webkit-scrollbar {
+  width: 4px;
+}
+
+.emoji-picker::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.emoji-picker::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.emoji-picker::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 加载状态 */
+.input-wrapper.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* 焦点状态优化 */
+.message-textarea:focus-within {
+  outline: none;
+}
+
+/* 文本域自适应高度 */
+.message-textarea .ant-input {
+  line-height: 1.6;
+  min-height: 20px;
+}
+
+/* 回复卡片样式优化 */
+.reply-card .ant-card-body {
+  padding: 8px 12px;
+}
+
+.reply-card .ant-card-body:hover {
+  background: #f5f5f5;
+}

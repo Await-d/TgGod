@@ -10,10 +10,88 @@
 .chat-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 16px 24px;
   background: #fff;
   border-bottom: 1px solid #e8e8e8;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-title-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+/* 连接状态指示器 */
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.connection-status.connected {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.connection-status.connecting {
+  background: #fff7e6;
+  color: #faad14;
+}
+
+.connection-status.disconnected {
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.connection-status.connected .status-dot {
+  background: #52c41a;
+  animation: pulse 2s infinite;
+}
+
+.connection-status.connecting .status-dot {
+  background: #faad14;
+  animation: pulse 1s infinite;
+}
+
+.connection-status.disconnected .status-dot {
+  background: #ff4d4f;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 全局错误 */
+.global-error {
+  background: #ff4d4f;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  max-width: 200px;
+  text-align: center;
 }
 
 .mobile-menu-btn {
@@ -245,6 +323,31 @@
   font-size: 16px;
 }
 
+/* 消息输入包装器 */
+.message-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+/* 快捷操作区域 */
+.quick-actions {
+  padding: 8px 16px;
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.quick-actions.mobile {
+  padding: 6px 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.quick-actions.desktop {
+  display: flex;
+  justify-content: flex-start;
+}
+
 /* 消息输入区域 */
 .message-input-container {
   border-top: 1px solid #e8e8e8;
@@ -321,22 +424,170 @@
 @media (max-width: 768px) {
   .chat-header {
     padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
   }
   
   .message-list {
     padding: 12px 16px;
+    padding-bottom: 20px;
   }
   
   .message-input-container {
     padding: 12px 16px;
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    border-top: 1px solid #e8e8e8;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
   }
   
   .message-content {
     max-width: 85%;
+    padding: 10px 14px;
+    font-size: 15px;
+    line-height: 1.5;
   }
   
   .group-item {
     padding: 16px 20px;
+    min-height: 72px;
+  }
+  
+  .group-item:active {
+    background: #e6f7ff;
+    transform: scale(0.98);
+    transition: all 0.1s ease;
+  }
+  
+  /* 移动端触摸优化 */
+  .chat-interface {
+    overflow: hidden;
+    height: 100vh;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    left: 0;
+  }
+  
+  /* 移动端消息气泡优化 */
+  .message-bubble {
+    margin-bottom: 12px;
+  }
+  
+  .sender-name {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  
+  .message-time {
+    font-size: 11px;
+  }
+  
+  /* 移动端按钮优化 */
+  .mobile-message-panel .ant-btn {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+  
+  /* 移动端抽屉优化 */
+  .mobile-group-drawer .ant-drawer-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .mobile-group-drawer .ant-drawer-title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+/* 小屏幕设备优化 (手机竖屏) */
+@media (max-width: 480px) {
+  .chat-header {
+    padding: 8px 12px;
+  }
+  
+  .header-title-section h3 {
+    font-size: 16px !important;
+  }
+  
+  .connection-status {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+  
+  .message-list {
+    padding: 8px 12px;
+  }
+  
+  .message-input-container {
+    padding: 8px 12px;
+  }
+  
+  .message-content {
+    max-width: 90%;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  
+  .sender-name {
+    font-size: 12px;
+  }
+  
+  .message-time {
+    font-size: 10px;
+  }
+  
+  .quick-actions.mobile {
+    padding: 4px 8px;
+  }
+  
+  .quick-actions.mobile .ant-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+  
+  .group-item {
+    padding: 12px 16px;
+    min-height: 64px;
+  }
+  
+  .group-name {
+    font-size: 14px;
+  }
+  
+  .group-username {
+    font-size: 11px;
+  }
+  
+  .member-count {
+    font-size: 11px;
+  }
+}
+
+/* 横屏模式优化 */
+@media (max-width: 768px) and (orientation: landscape) {
+  .chat-header {
+    padding: 6px 12px;
+  }
+  
+  .message-list {
+    padding: 6px 12px;
+  }
+  
+  .message-input-container {
+    padding: 6px 12px;
+  }
+  
+  .header-title-section h3 {
+    font-size: 14px !important;
+  }
+  
+  .message-content {
+    max-width: 80%;
+    padding: 6px 10px;
   }
 }
 
