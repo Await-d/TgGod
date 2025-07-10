@@ -525,6 +525,7 @@ async def get_auth_status():
             )
     except Exception as e:
         logger.error(f"获取认证状态失败: {e}")
+        await telegram_service.disconnect()
         return AuthStatusResponse(
             is_authorized=False,
             message=f"获取认证状态失败: {str(e)}"
@@ -539,6 +540,7 @@ async def send_auth_code(request: AuthCodeRequest):
         await telegram_service.initialize()
         
         logger.info(f"准备发送验证码到: {request.phone}")
+        # 这里使用connect而不是start，避免交互式提示
         await telegram_service.client.send_code_request(request.phone)
         await telegram_service.disconnect()
         

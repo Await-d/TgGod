@@ -40,7 +40,8 @@ class TelegramService:
                 api_id,
                 api_hash
             )
-            await self.client.start()
+            # 使用非交互式连接，避免在服务器环境中要求用户输入
+            await self.client.connect()
             logger.info("Telegram客户端初始化成功")
         
     async def disconnect(self):
