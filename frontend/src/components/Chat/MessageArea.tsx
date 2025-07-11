@@ -332,6 +332,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         group={selectedGroup}
         onRefresh={refreshMessages}
         onSync={syncMessages}
+        onJumpToMessage={jumpToMessage}
         loading={loading}
         isMobile={isMobile}
       />

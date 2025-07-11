@@ -9,7 +9,7 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 }
 
-/* 聊天界面在MainLayout中的容器设置 */
+/* 聊天界面在MainLayout中的容器设置 - 铺满整个屏幕 */
 .chat-interface-content {
   margin: 0 !important;        /* 覆盖MainLayout的margin */
   padding: 0 !important;       /* 覆盖MainLayout的padding */
@@ -18,13 +18,15 @@
   height: 100% !important;     /* 使用MainLayout提供的高度 */
   overflow: hidden !important; /* 覆盖MainLayout的overflow: auto */
   min-height: auto !important; /* 覆盖MainLayout的minHeight */
+  width: 100% !important;      /* 确保宽度铺满 */
+  max-width: none !important;  /* 移除最大宽度限制 */
 }
 
 .chat-interface-content .chat-interface {
   height: 100% !important;
 }
 
-/* 聊天主体区域 */
+/* 聊天主体区域 - 铺满无padding */
 .chat-body {
   flex: 1;
   display: flex;
@@ -32,22 +34,22 @@
   height: 100%;   /* 确保有确定的高度 */
   background: #f5f7fa;
   position: relative;
-  padding: 16px;
+  padding: 0;     /* 移除padding，铺满整个区域 */
 }
 
-/* 桌面端布局 - 现代卡片式设计 */
+/* 桌面端布局 - 铺满整个屏幕 */
 .desktop-layout {
   display: flex;
   width: 100%;
   height: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
+  max-width: none;    /* 移除最大宽度限制 */
+  margin: 0;          /* 移除居中margin */
   background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border-radius: 0;   /* 移除圆角，铺满整个区域 */
+  box-shadow: none;   /* 移除阴影 */
   overflow: hidden;
-  border: 1px solid #e1e8ed;
-  min-height: 0;  /* 关键：允许flex子元素收缩 */
+  border: none;       /* 移除边框 */
+  min-height: 0;      /* 关键：允许flex子元素收缩 */
 }
 
 /* 群组列表面板 - 现代化渐变设计 */
@@ -272,45 +274,163 @@
   background: linear-gradient(145deg, #5a67d8, #6b46c1);
 }
 
-/* 消息输入区域 */
-.message-input-wrapper {
-  border-top: 1px solid #e1e8ed;
-  background: #fafbfc;
-  padding: 16px;
+/* 消息头部样式 */
+.message-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+  min-height: 72px;
 }
 
-/* 响应式设计 */
-@media (max-width: 1399px) {
-  .desktop-layout {
-    max-width: 1200px;
+.header-group-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.group-details {
+  margin-left: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.group-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pinned-inline {
+  flex: 1;
+  margin-left: 16px;
+  min-width: 0;
+}
+
+.pinned-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff9c4;
+  border: 1px solid #ffd54f;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  max-width: 100%;
+}
+
+.pinned-icon {
+  color: #fa8c16;
+  flex-shrink: 0;
+}
+
+.pinned-text {
+  color: #666;
+  cursor: pointer;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.pinned-text:hover {
+  color: #1890ff;
+}
+
+.pinned-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.pinned-nav-btn {
+  padding: 0 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 2px;
+}
+
+.pinned-count {
+  font-size: 10px;
+  color: #999;
+  margin: 0 2px;
+}
+
+.group-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  margin-left: 16px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .message-header {
+    padding: 8px 12px;
+    min-height: 60px;
   }
   
+  .pinned-inline {
+    margin-left: 8px;
+  }
+  
+  .pinned-content {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+  
+  .group-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .pinned-inline {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* 响应式设计 - 移除所有断点限制 */
+@media (max-width: 1399px) {
   .group-list-panel {
     width: 340px;
   }
 }
 
 @media (max-width: 1199px) {
-  .desktop-layout {
-    max-width: 100%;
-  }
-  
   .group-list-panel {
     width: 300px;
-  }
-  
-  .chat-body {
-    padding: 8px;
   }
 }
 
 @media (max-width: 899px) {
   .group-list-panel {
     width: 280px;
-  }
-  
-  .desktop-layout {
-    border-radius: 8px;
   }
 }
 
