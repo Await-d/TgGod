@@ -4,6 +4,8 @@
   flex-direction: column;
   height: 100%;
   background: #f9f9f9;
+  min-height: 0; /* 修复flex容器溢出 */
+  overflow: hidden; /* 防止整体溢出 */
 }
 
 /* 消息区域空状态 */
@@ -75,6 +77,8 @@
   padding: 16px 24px;
   background: #f9f9f9;
   position: relative;
+  min-height: 0; /* 修复flex子元素溢出 */
+  max-height: 100%; /* 限制最大高度 */
 }
 
 /* 加载状态 */

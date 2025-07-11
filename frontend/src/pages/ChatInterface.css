@@ -252,6 +252,8 @@
   min-width: 0; /* 防止flex子元素溢出 */
   position: relative;
   height: 100%; /* 确保占满高度 */
+  overflow: hidden; /* 防止内容溢出 */
+  min-height: 0; /* 修复flex容器溢出 */
 }
 
 /* 消息区域容器 */
@@ -260,6 +262,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden; /* 防止子元素溢出 */
+  max-height: 100%; /* 限制最大高度 */
 }
 
 /* CSS样式 */
@@ -363,6 +367,8 @@
   display: flex;
   flex-direction: column;
   background: #fff;
+  flex-shrink: 0; /* 防止被压缩 */
+  border-top: 1px solid #f0f0f0;
 }
 
 /* CSS样式 */
@@ -389,6 +395,8 @@
   background: #fff;
   padding: 20px 28px;
   position: relative;
+  flex-shrink: 0; /* 防止被压缩 */
+  min-height: 80px; /* 确保最小高度 */
 }
 
 /* CSS样式 */
@@ -482,7 +490,7 @@
   cursor: not-allowed;
 }
 
-/* 移动端布局 */
+/* 移动端消息面板 */
 .mobile-message-panel {
   flex: 1;
   display: flex;
@@ -490,6 +498,7 @@
   background: #fff;
   height: 100%; /* 确保占满高度 */
   min-height: 0; /* 防止溢出 */
+  overflow: hidden; /* 防止内容溢出 */
 }
 
 .mobile-group-drawer .ant-drawer-body {
@@ -540,6 +549,7 @@
     border-top: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
     flex-shrink: 0; /* 防止被压缩 */
+    z-index: 10; /* 确保在上层 */
   }
   
   .group-item {
