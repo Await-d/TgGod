@@ -225,14 +225,14 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     } finally {
       loadingState(false);
     }
-  }, [setMessages, PAGE_SIZE, scrollToBottom]);
+  }, [setMessages, scrollToBottom, displayMessages]);
 
   // 加载更多消息
   const loadMoreMessages = useCallback(async () => {
     if (!selectedGroup || loadingMore || !hasMore) return;
     
     await fetchMessages(selectedGroup.id, page + 1, searchFilter, true);
-  }, [selectedGroup, loadingMore, hasMore, page, searchFilter, fetchMessages]);
+  }, [selectedGroup, loadingMore, hasMore, page, searchFilter]); // 移除fetchMessages依赖
 
   // 刷新消息
   const refreshMessages = useCallback(async () => {
@@ -241,7 +241,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     setPage(1);
     setHasMore(true);
     await fetchMessages(selectedGroup.id, 1, searchFilter);
-  }, [selectedGroup, searchFilter, fetchMessages]);
+  }, [selectedGroup, searchFilter]); // 移除fetchMessages依赖
 
   // 同步消息
   const syncMessages = useCallback(async () => {
@@ -250,12 +250,15 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     try {
       await telegramApi.syncGroupMessages(selectedGroup.id, 100);
       antMessage.success('消息同步成功！');
-      await refreshMessages();
+      // 直接调用fetchMessages而不依赖refreshMessages
+      setPage(1);
+      setHasMore(true);
+      await fetchMessages(selectedGroup.id, 1, searchFilter);
     } catch (error: any) {
       antMessage.error('同步消息失败: ' + error.message);
       console.error('同步消息失败:', error);
     }
-  }, [selectedGroup, refreshMessages]);
+  }, [selectedGroup, searchFilter]); // 移除refreshMessages依赖
 
   // 删除消息
   const handleDeleteMessage = useCallback(async (messageId: number) => {
@@ -271,7 +274,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [selectedGroup, removeMessage]);
 
-  // 当选择群组变化时重新加载消息
+  // 当选择群组变化时重新加载消息（只依赖selectedGroup）
   useEffect(() => {
     if (selectedGroup) {
       setPage(1);
@@ -280,7 +283,20 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     } else {
       setMessages([]);
     }
-  }, [selectedGroup, fetchMessages, searchFilter, setMessages]);
+  }, [selectedGroup]); // 只依赖selectedGroup，避免重复触发
+
+  // 当搜索过滤条件变化时重新加载消息（防抖处理）
+  useEffect(() => {
+    if (selectedGroup) {
+      const timeoutId = setTimeout(() => {
+        setPage(1);
+        setHasMore(true);
+        fetchMessages(selectedGroup.id, 1, searchFilter);
+      }, 300); // 300ms防抖
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchFilter]); // 只依赖searchFilter，防抖处理
 
   // 获取当前 Telegram 用户信息
   useEffect(() => {
