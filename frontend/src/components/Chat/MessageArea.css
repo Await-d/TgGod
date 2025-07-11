@@ -85,16 +85,7 @@
   background: #fff;
 }
 
-/* 消息头部 */
-.message-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-}
+/* 消息头部 - 已迁移到 MessageHeader.css */
 
 .header-group-info {
   display: flex;

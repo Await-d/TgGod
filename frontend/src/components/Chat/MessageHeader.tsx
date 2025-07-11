@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Space, Button, Typography, Tag, Avatar, Tooltip, Card, Row, Col, Statistic, Spin } from 'antd';
+import { Button, Typography, Tag, Avatar, Spin } from 'antd';
 import { 
   TeamOutlined,
   CheckCircleOutlined,
@@ -7,17 +7,11 @@ import {
   PushpinOutlined,
   LeftOutlined,
   RightOutlined,
-  MessageOutlined,
-  FileImageOutlined,
-  VideoCameraOutlined,
-  FileTextOutlined,
-  AudioOutlined,
-  ShareAltOutlined,
-  HeartOutlined
+  MessageOutlined
 } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../../types';
 import { messageApi, telegramApi } from '../../services/apiService';
-import './MessageArea.css'; // 导入CSS样式
+import './MessageHeader.css';
 
 const { Title, Text } = Typography;
 
@@ -42,7 +36,6 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   // 置顶消息状态
   const [pinnedMessages, setPinnedMessages] = useState<TelegramMessage[]>([]);
   const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
-  const [loadingPinned, setLoadingPinned] = useState(false);
   
   // 群组统计信息状态
   const [groupStats, setGroupStats] = useState<any>(null);
@@ -52,7 +45,6 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   const fetchPinnedMessages = useCallback(async () => {
     if (!group) return;
     
-    setLoadingPinned(true);
     try {
       const pinnedMessages = await messageApi.getPinnedMessages(group.id);
       setPinnedMessages(pinnedMessages || []);
@@ -60,8 +52,6 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
     } catch (error: any) {
       console.error('获取置顶消息失败:', error);
       setPinnedMessages([]);
-    } finally {
-      setLoadingPinned(false);
     }
   }, [group]);
 
@@ -136,39 +126,35 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   };
 
   return (
-    <div className="message-header">
-      {/* 群组基本信息 - 无卡片包裹 */}
-      <div style={{ 
-        marginBottom: 8,
-        padding: '12px 16px',
-        background: 'transparent'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className="message-header-container">
+      {/* 群组基本信息 */}
+      <div className="group-info-section">
+        <div className="group-main-info">
           {/* 群组头像 */}
           {getGroupAvatar()}
           
           {/* 群组信息 */}
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <Title level={4} style={{ margin: 0, fontSize: '18px', lineHeight: '24px', color: '#262626' }}>
+          <div className="group-details">
+            <div className="group-title-row">
+              <Title level={4} className="group-title">
                 {group.title}
               </Title>
               <Tag 
                 color={group.is_active ? 'success' : 'error'} 
                 icon={group.is_active ? <CheckCircleOutlined /> : <PauseCircleOutlined />}
-                style={{ fontSize: '11px', padding: '2px 6px', lineHeight: '16px' }}
+                className="group-status-tag"
               >
                 {group.is_active ? '活跃' : '暂停'}
               </Tag>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Text type="secondary" style={{ fontSize: '13px', lineHeight: '18px' }}>
-                <TeamOutlined style={{ marginRight: 4, fontSize: '12px' }} />
+            <div className="group-meta-row">
+              <Text type="secondary" className="member-count">
+                <TeamOutlined className="member-icon" />
                 {group.member_count?.toLocaleString() || 0} 成员
               </Text>
               {group.username && (
-                <Text type="secondary" style={{ fontSize: '12px', lineHeight: '18px' }}>
+                <Text type="secondary" className="group-username">
                   @{group.username}
                 </Text>
               )}
@@ -177,108 +163,79 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
         </div>
       </div>
 
-      {/* 群组统计信息 - 无卡片包裹 */}
+      {/* 群组统计信息 */}
       {groupStats && (
-        <div
-          style={{ 
-            marginBottom: 6,
-            padding: '8px 12px',
-            background: 'transparent',
-            border: '1px solid #f0f0f0',
-            borderRadius: 4
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <MessageOutlined style={{ fontSize: '12px' }} />
-            <span style={{ fontSize: '12px', fontWeight: 500 }}>消息统计</span>
+        <div className="stats-section">
+          <div className="stats-header">
+            <MessageOutlined className="stats-icon" />
+            <span className="stats-title">消息统计</span>
           </div>
           {loadingStats ? (
-            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div className="stats-loading">
               <Spin size="small" />
             </div>
           ) : (
-            <Row gutter={[6, 6]}>
-              {/* 第一行：主要统计 */}
-              <Col span={isMobile ? 6 : 4}>
-                <Statistic
-                  title="总数"
-                  value={groupStats.total_messages}
-                  valueStyle={{ color: '#1890ff', fontSize: '14px' }}
-                  className="compact-statistic"
-                />
-              </Col>
-              <Col span={isMobile ? 6 : 4}>
-                <Statistic
-                  title="文本"
-                  value={groupStats.text_messages}
-                  valueStyle={{ color: '#52c41a', fontSize: '14px' }}
-                  className="compact-statistic"
-                />
-              </Col>
-              <Col span={isMobile ? 6 : 4}>
-                <Statistic
-                  title="媒体"
-                  value={groupStats.media_messages}
-                  valueStyle={{ color: '#faad14', fontSize: '14px' }}
-                  className="compact-statistic"
-                />
-              </Col>
-              <Col span={isMobile ? 6 : 4}>
-                <Statistic
-                  title="图片"
-                  value={groupStats.photo_messages}
-                  valueStyle={{ color: '#13c2c2', fontSize: '14px' }}
-                  className="compact-statistic"
-                />
-              </Col>
+            <div className="stats-grid">
+              <div className="stat-item">
+                <div className="stat-value" style={{ color: '#1890ff' }}>
+                  {groupStats.total_messages}
+                </div>
+                <div className="stat-label">总数</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-value" style={{ color: '#52c41a' }}>
+                  {groupStats.text_messages}
+                </div>
+                <div className="stat-label">文本</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-value" style={{ color: '#faad14' }}>
+                  {groupStats.media_messages}
+                </div>
+                <div className="stat-label">媒体</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-value" style={{ color: '#13c2c2' }}>
+                  {groupStats.photo_messages}
+                </div>
+                <div className="stat-label">图片</div>
+              </div>
               {!isMobile && (
                 <>
-                  <Col span={4}>
-                    <Statistic
-                      title="视频"
-                      value={groupStats.video_messages}
-                      valueStyle={{ color: '#722ed1', fontSize: '14px' }}
-                      className="compact-statistic"
-                    />
-                  </Col>
-                  <Col span={4}>
-                    <Statistic
-                      title="转发"
-                      value={groupStats.forwarded_messages}
-                      valueStyle={{ color: '#fa8c16', fontSize: '14px' }}
-                      className="compact-statistic"
-                    />
-                  </Col>
+                  <div className="stat-item">
+                    <div className="stat-value" style={{ color: '#722ed1' }}>
+                      {groupStats.video_messages}
+                    </div>
+                    <div className="stat-label">视频</div>
+                  </div>
+                  <div className="stat-item">
+                    <div className="stat-value" style={{ color: '#fa8c16' }}>
+                      {groupStats.forwarded_messages}
+                    </div>
+                    <div className="stat-label">转发</div>
+                  </div>
                 </>
               )}
-            </Row>
+            </div>
           )}
         </div>
       )}
 
-      {/* 置顶消息 - 无卡片包裹 */}
+      {/* 置顶消息 */}
       {pinnedMessages.length > 0 && (
-        <div
-          style={{ 
-            marginBottom: 6,
-            padding: '6px 10px',
-            borderRadius: 4,
-            border: '1px solid #faad14',
-            backgroundColor: '#fffbf0'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <PushpinOutlined style={{ color: '#faad14', fontSize: '12px' }} />
-            <div style={{ flex: 1 }}>
-              <Text strong style={{ color: '#faad14', fontSize: '11px' }}>置顶消息</Text>
-              <div style={{ marginTop: 1 }}>
-                <Text ellipsis style={{ display: 'block', maxWidth: '200px', fontSize: '11px' }}>
+        <div className="pinned-section">
+          <div className="pinned-content">
+            <PushpinOutlined className="pinned-icon" />
+            <div className="pinned-message">
+              <Text strong className="pinned-label">置顶消息</Text>
+              <div className="pinned-text">
+                <Text ellipsis>
                   {pinnedMessages[currentPinnedIndex]?.text || '媒体消息'}
                 </Text>
               </div>
             </div>
             
-            <Space size="small">
+            <div className="pinned-actions">
               {pinnedMessages.length > 1 && (
                 <>
                   <Button 
@@ -286,9 +243,9 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                     size="small" 
                     icon={<LeftOutlined />} 
                     onClick={handlePinnedPrevious}
-                    style={{ fontSize: '9px', padding: '2px 4px' }}
+                    className="pinned-nav-btn"
                   />
-                  <Text type="secondary" style={{ fontSize: '9px' }}>
+                  <Text type="secondary" className="pinned-counter">
                     {currentPinnedIndex + 1}/{pinnedMessages.length}
                   </Text>
                   <Button 
@@ -296,7 +253,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                     size="small" 
                     icon={<RightOutlined />} 
                     onClick={handlePinnedNext}
-                    style={{ fontSize: '9px', padding: '2px 4px' }}
+                    className="pinned-nav-btn"
                   />
                 </>
               )}
@@ -304,11 +261,11 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                 type="text" 
                 size="small" 
                 onClick={handleJumpToPinned}
-                style={{ fontSize: '9px', padding: '2px 6px' }}
+                className="pinned-jump-btn"
               >
                 跳转
               </Button>
-            </Space>
+            </div>
           </div>
         </div>
       )}
