@@ -51,6 +51,9 @@ interface TelegramState {
   addMessage: (message: TelegramMessage) => void;
   updateMessage: (id: number, updates: Partial<TelegramMessage>) => void;
   removeMessage: (id: number) => void;
+  // 新增方法
+  mergeMessages: (newMessages: TelegramMessage[]) => void;
+  prependMessages: (newMessages: TelegramMessage[]) => void;
 }
 
 // 规则状态接口
@@ -158,6 +161,49 @@ export const useTelegramStore = create<TelegramState>((set) => ({
   
   setGroups: (groups) => set({ groups }),
   setMessages: (messages) => set({ messages }),
+  
+  // 新增：智能合并消息数组，去重并保持顺序
+  mergeMessages: (newMessages) => set((state) => {
+    if (!newMessages || newMessages.length === 0) return state;
+    
+    // 创建现有消息的Map，以message_id为key
+    const existingMessagesMap = new Map();
+    state.messages.forEach(msg => {
+      existingMessagesMap.set(msg.message_id, msg);
+    });
+    
+    // 合并新消息，如果存在则更新，不存在则添加
+    newMessages.forEach(newMsg => {
+      existingMessagesMap.set(newMsg.message_id, newMsg);
+    });
+    
+    // 将Map转换回数组，按date排序
+    const mergedMessages = Array.from(existingMessagesMap.values())
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    return { messages: mergedMessages };
+  }),
+  
+  // 新增：批量添加消息到顶部（用于历史消息加载）
+  prependMessages: (newMessages) => set((state) => {
+    if (!newMessages || newMessages.length === 0) return state;
+    
+    // 创建现有消息ID的Set用于快速查找
+    const existingIds = new Set(state.messages.map(m => m.message_id));
+    
+    // 过滤出不重复的新消息
+    const uniqueNewMessages = newMessages.filter(msg => !existingIds.has(msg.message_id));
+    
+    // 将新消息添加到现有消息前面
+    const combinedMessages = [...uniqueNewMessages, ...state.messages];
+    
+    // 按日期排序确保消息顺序正确
+    const sortedMessages = combinedMessages.sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    
+    return { messages: sortedMessages };
+  }),
   setSelectedGroup: (selectedGroup) => set({ selectedGroup }),
   
   addGroup: (group) => set((state) => ({ 
@@ -174,9 +220,18 @@ export const useTelegramStore = create<TelegramState>((set) => ({
     groups: state.groups.filter(group => group.id !== id)
   })),
   
-  addMessage: (message) => set((state) => ({ 
-    messages: [...state.messages, message] 
-  })),
+  addMessage: (message) => set((state) => {
+    // 检查消息是否已存在（基于message_id去重）
+    const existingIndex = state.messages.findIndex(m => m.message_id === message.message_id);
+    if (existingIndex !== -1) {
+      // 如果消息已存在，更新它
+      const updatedMessages = [...state.messages];
+      updatedMessages[existingIndex] = { ...updatedMessages[existingIndex], ...message };
+      return { messages: updatedMessages };
+    }
+    // 如果消息不存在，添加到末尾
+    return { messages: [...state.messages, message] };
+  }),
   
   updateMessage: (id, updates) => set((state) => ({
     messages: state.messages.map(message => 

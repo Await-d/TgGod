@@ -45,7 +45,9 @@ const ChatInterface: React.FC = () => {
     selectGroup,
     clearGroupSelection,
     navigateToGroup,
-    setMessages
+    setMessages,
+    mergeMessages,
+    prependMessages
   } = useChatGroupNavigation();
   
   // 实时消息管理 - 新增
@@ -72,9 +74,9 @@ const ChatInterface: React.FC = () => {
     selectedGroup,
     messages,
     (updatedMessages) => {
-      // 更新消息到store中
-      console.log('无限滚动更新消息:', updatedMessages.length);
-      setMessages(updatedMessages);
+      // 使用智能合并，避免重复消息
+      console.log('无限滚动合并消息:', updatedMessages.length);
+      mergeMessages(updatedMessages);
     },
     {
       threshold: 100,

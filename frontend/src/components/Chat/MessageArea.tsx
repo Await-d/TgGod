@@ -71,7 +71,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const messageRefs = useRef<Record<number, HTMLDivElement>>({});
   
   // 使用传入的消息或store中的消息
-  const { messages: storeMessages, setMessages, addMessage, removeMessage } = useTelegramStore();
+  const { messages: storeMessages, setMessages, addMessage, removeMessage, mergeMessages } = useTelegramStore();
   const displayMessages = propMessages || storeMessages;
   
   // 使用传入的加载状态或内部状态
@@ -201,9 +201,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       const response = await messageApi.getGroupMessages(groupId, params);
       
       if (append && pageNum > 1) {
-        // 分页加载：新获取的消息是更老的消息，插入到顶部
+        // 分页加载：使用智能合并，自动去重和排序
         const currentMessages = displayMessages;
-        setMessages([...response, ...currentMessages]);
+        mergeMessages([...response, ...currentMessages]);
       } else {
         // 首次加载：后端已返回正确顺序（最老消息在前，最新消息在后）
         setMessages(response);

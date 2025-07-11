@@ -149,11 +149,8 @@ export const useInfiniteScroll = (
         console.log(`成功加载 ${newMessages.length} 条历史消息`);
 
         if (newMessages.length > 0) {
-          // 将新消息添加到现有消息的前面（因为是历史消息）
-          const updatedMessages = [...newMessages.reverse(), ...messages];
-          
-          // 先更新消息列表
-          onMessagesUpdate(updatedMessages);
+          // 使用新的prependMessages方法，自动去重和排序
+          onMessagesUpdate([...newMessages.reverse(), ...messages]);
           
           // 等待DOM更新后再调整滚动位置
           setTimeout(() => {
@@ -192,7 +189,7 @@ export const useInfiniteScroll = (
     maintainScrollPosition
   ]);
 
-  // 滚动事件处理器 - 优化版本
+  // 统一的滚动事件处理器 - 合并所有滚动逻辑
   const handleScroll = useCallback(() => {
     if (!containerRef.current || !selectedGroup || isLoadingRef.current || !hasMore) {
       return;
@@ -205,15 +202,36 @@ export const useInfiniteScroll = (
 
     const container = containerRef.current;
     const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
     
     // 防止在滚动调整期间触发加载
-    if (Date.now() - ((window as any)._lastScrollAdjust || 0) < 1000) {
+    const timeSinceLastAdjust = Date.now() - ((window as any)._lastScrollAdjust || 0);
+    const timeSinceLastLoad = Date.now() - ((window as any)._lastLoadTrigger || 0);
+    
+    if (timeSinceLastAdjust < 1000 || timeSinceLastLoad < 2000) {
       return;
     }
     
-    // 当滚动到接近顶部时，触发加载更多
-    if (scrollTop <= threshold) {
-      console.log('滚动到顶部，准备加载历史消息...', { scrollTop, threshold });
+    // 定义触发区域
+    const immediateThreshold = threshold; // 立即触发区域
+    const preloadThreshold = Math.min(scrollHeight * 0.15, 500); // 预加载区域
+    
+    // 当滚动到立即触发区域时，立即加载
+    if (scrollTop <= immediateThreshold) {
+      console.log('滚动到顶部，立即加载历史消息...', { scrollTop, threshold: immediateThreshold });
+      
+      // 清除现有的防抖定时器
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+      
+      // 记录触发时间，防止重复触发
+      (window as any)._lastLoadTrigger = Date.now();
+      loadMore();
+    }
+    // 当滚动到预加载区域时，延迟加载（防抖）
+    else if (scrollTop <= preloadThreshold && currentPage < maxPages) {
+      console.log('进入预加载区域...', { scrollTop, threshold: preloadThreshold, currentPage });
       
       // 防抖处理
       if (debounceTimer.current) {
@@ -222,52 +240,33 @@ export const useInfiniteScroll = (
       
       debounceTimer.current = setTimeout(() => {
         // 再次检查条件，避免重复触发
-        if (containerRef.current && containerRef.current.scrollTop <= threshold && !isLoadingRef.current) {
+        if (containerRef.current && 
+            containerRef.current.scrollTop <= preloadThreshold && 
+            !isLoadingRef.current &&
+            Date.now() - ((window as any)._lastLoadTrigger || 0) >= 2000) {
+          console.log('预加载触发...');
+          (window as any)._lastLoadTrigger = Date.now();
           loadMore();
         }
       }, debounceDelay);
     }
-  }, [containerRef, selectedGroup, hasMore, threshold, debounceDelay, loadMore]);
+  }, [containerRef, selectedGroup, hasMore, threshold, debounceDelay, loadMore, currentPage, maxPages]);
 
-  // 预加载逻辑
-  const handlePreload = useCallback(() => {
-    if (!containerRef.current || !hasMore || isLoadingRef.current) {
-      return;
-    }
-
-    // 检查是否已经准备好处理滚动事件
-    if (!(window as any)._scrollReady) {
-      return;
-    }
-
-    const container = containerRef.current;
-    const scrollTop = container.scrollTop;
-    const scrollHeight = container.scrollHeight;
-    
-    // 提高预加载触发点，避免过度触发
-    const preloadTriggerPoint = Math.min(scrollHeight * 0.1, 300); // 最多300px或10%的高度
-    
-    // 当用户滚动到预加载点时，预先加载下一页
-    if (scrollTop <= preloadTriggerPoint && currentPage < maxPages) {
-      // 增加额外的防抖检查
-      if (Date.now() - ((window as any)._lastPreload || 0) < 2000) {
-        return;
-      }
-      
-      console.log('触发预加载...', { scrollTop, preloadTriggerPoint, currentPage });
-      (window as any)._lastPreload = Date.now();
-      loadMore();
-    }
-  }, [containerRef, hasMore, maxPages, currentPage, loadMore]);
-
-  // 绑定滚动事件
+  // 绑定滚动事件 - 只使用统一的handleScroll
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    // 使用节流而不是直接绑定，进一步减少触发频率
+    let ticking = false;
     const scrollHandler = () => {
-      handleScroll();
-      handlePreload();
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
     container.addEventListener('scroll', scrollHandler, { passive: true });
@@ -278,7 +277,7 @@ export const useInfiniteScroll = (
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [handleScroll, handlePreload, containerRef]);
+  }, [handleScroll, containerRef]);
 
   // 当消息数组变化时更新统计
   useEffect(() => {

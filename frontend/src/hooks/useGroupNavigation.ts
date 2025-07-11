@@ -29,7 +29,9 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     selectedGroup, 
     messages,
     setSelectedGroup, 
-    setMessages 
+    setMessages,
+    mergeMessages,
+    prependMessages 
   } = useTelegramStore();
 
   // 从URL参数恢复选中群组
@@ -181,7 +183,9 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     clearGroupSelection,
     navigateToGroup,
     getCurrentGroupId,
-    setMessages, // 新增：暴露消息更新方法
+    setMessages, // 暴露消息更新方法
+    mergeMessages, // 新增：暴露消息合并方法
+    prependMessages, // 新增：暴露消息前置添加方法
     
     // 工具方法
     restoreGroupFromUrl,
