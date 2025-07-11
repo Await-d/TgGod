@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .config import settings, init_settings
@@ -9,6 +9,7 @@ from .tasks.message_sync import message_sync_task
 import logging
 import os
 import json
+import time
 
 # 配置日志
 logging.basicConfig(
@@ -37,6 +38,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 添加请求日志中间件
+@app.middleware("http")
+async def log_requests(request, call_next):
+    start_time = time.time()
+    
+    # 记录请求信息
+    logger.info(f"🔵 请求开始: {request.method} {request.url}")
+    logger.info(f"🔵 请求头: {dict(request.headers)}")
+    
+    # 处理请求
+    response = await call_next(request)
+    
+    # 记录响应信息
+    process_time = time.time() - start_time
+    logger.info(f"🟢 请求完成: {request.method} {request.url} - 状态码: {response.status_code} - 耗时: {process_time:.4f}s")
+    
+    return response
 
 # 静态文件服务
 # 确保媒体目录存在

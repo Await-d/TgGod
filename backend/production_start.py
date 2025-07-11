@@ -79,7 +79,9 @@ def main():
                 host=host,
                 port=port,
                 workers=workers,
-                log_level="info"
+                log_level="debug",
+                access_log=True,
+                use_colors=True
             )
         else:
             # 单进程模式
@@ -87,7 +89,9 @@ def main():
                 app,
                 host=host,
                 port=port,
-                log_level="info"
+                log_level="debug",
+                access_log=True,
+                use_colors=True
             )
         
     except Exception as e:
