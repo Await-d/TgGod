@@ -69,9 +69,17 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
 
   // 跳转到消息位置
   const handleJumpToMessage = useCallback((messageId: number) => {
-    onJumpToMessage(messageId);
-    if (isMobile) {
-      setIsExpanded(false);
+    try {
+      onJumpToMessage(messageId);
+      if (isMobile) {
+        setIsExpanded(false);
+      }
+    } catch (error) {
+      console.error('跳转到消息失败:', error);
+      // 降级处理：至少关闭移动端展开状态
+      if (isMobile) {
+        setIsExpanded(false);
+      }
     }
   }, [onJumpToMessage, isMobile]);
 

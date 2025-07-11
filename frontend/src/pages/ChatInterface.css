@@ -155,31 +155,87 @@
   position: relative; /* 为内部定位元素提供参考 */
 }
 
-/* 桌面端布局 */
+/* 桌面端布局 - 参考Telegram官方设计 */
 .desktop-layout {
   display: flex;
   width: 100%;
   height: 100%;
   background: #fff;
   overflow: hidden;
-  align-items: stretch; /* 确保子元素高度一致 */
+  align-items: stretch;
+  max-width: 1680px; /* 宽屏最大宽度限制 */
+  margin: 0 auto; /* 居中显示 */
+  position: relative;
 }
 
-/* CSS样式 */
+/* 群组列表面板 - 参考TG官方 */
 .group-list-panel {
-  width: 300px;
+  width: 360px; /* 增加宽度，参考TG */
+  min-width: 320px; /* 最小宽度 */
+  max-width: 480px; /* 最大宽度 */
   background: #fafafa;
-  border-right: 1px solid #f0f0f0;
+  border-right: 1px solid #e4e6ea;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
   position: relative;
-  flex-shrink: 0; /* 防止被压缩 */
+  flex-shrink: 0;
+  z-index: 2;
 }
 
 .group-list-panel.collapsed {
   width: 0;
+  min-width: 0;
   overflow: hidden;
+  border-right: none;
+}
+
+/* 中等屏幕适配 (平板) */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .group-list-panel {
+    width: 340px;
+  }
+  
+  .message-panel {
+    max-width: none; /* 平板模式不限制宽度 */
+  }
+}
+
+/* 小屏幕桌面适配 */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .desktop-layout {
+    max-width: 1200px;
+  }
+  
+  .group-list-panel {
+    width: 300px;
+  }
+}
+
+/* 确保在较小屏幕上的布局 */
+@media (max-width: 1023px) {
+  .desktop-layout {
+    max-width: none;
+  }
+}
+
+/* 宽屏适配 - 动态调整群组列表宽度 */
+@media (min-width: 1200px) {
+  .group-list-panel {
+    width: 380px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .group-list-panel {
+    width: 420px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .group-list-panel {
+    width: 460px;
+  }
 }
 
 /* 群组列表容器 */
@@ -272,16 +328,43 @@
 }
 
 /* CSS样式 */
+/* 消息面板 - 参考TG官方设计 */
 .message-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   background: #fff;
-  min-width: 0; /* 防止flex子元素溢出 */
+  min-width: 0;
   position: relative;
-  height: 100%; /* 确保占满高度 */
-  overflow: hidden; /* 防止内容溢出 */
-  min-height: 0; /* 修复flex容器溢出 */
+  height: 100%;
+  overflow: hidden;
+  min-height: 0;
+  max-width: 1000px; /* 消息区域最大宽度，参考TG */
+}
+
+/* 宽屏模式下的消息面板居中 */
+@media (min-width: 1400px) {
+  .desktop-layout {
+    justify-content: center; /* 居中布局 */
+  }
+  
+  .message-panel {
+    max-width: 800px; /* 更舒适的阅读宽度 */
+    margin: 0 auto; /* 消息区域居中 */
+  }
+}
+
+@media (min-width: 1600px) {
+  .message-panel {
+    max-width: 900px;
+  }
+}
+
+/* 超宽屏适配 */
+@media (min-width: 1920px) {
+  .message-panel {
+    max-width: 1000px;
+  }
 }
 
 /* 消息区域容器 */

@@ -92,12 +92,22 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     }
   }, [setSelectedGroup, syncGroupToUrl, setMessages, autoLoadMessages]);
 
-  // 监听URL参数变化
+  // 监听URL参数变化和群组数据变化
   useEffect(() => {
     if (groups.length > 0) {
-      restoreGroupFromUrl();
+      const restoredGroup = restoreGroupFromUrl();
+      
+      // 如果没有从URL恢复群组，且当前也没有选中群组，可以选择默认群组
+      if (!restoredGroup && !selectedGroup && groups.length > 0) {
+        // 可以选择第一个活跃的群组作为默认
+        const defaultGroup = groups.find(g => g.is_active) || groups[0];
+        if (defaultGroup) {
+          console.log('选择默认群组:', defaultGroup.title);
+          selectGroup(defaultGroup);
+        }
+      }
     }
-  }, [restoreGroupFromUrl, groups]);
+  }, [restoreGroupFromUrl, groups, selectedGroup, selectGroup]);
 
   // 监听群组变化，同步到URL
   useEffect(() => {
@@ -106,11 +116,21 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     }
   }, [selectedGroup, syncOnGroupChange, syncGroupToUrl]);
 
-  // 页面刷新时恢复状态
+  // 页面刷新时恢复状态 - 增强版本
   useEffect(() => {
     const handlePageLoad = () => {
       if (groups.length > 0) {
         restoreGroupFromUrl();
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      // 确保当前状态保存到URL
+      if (selectedGroup && persistSelectedGroup) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('group', selectedGroup.id.toString());
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState(null, '', newUrl);
       }
     };
 
@@ -120,8 +140,13 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     }
 
     window.addEventListener('load', handlePageLoad);
-    return () => window.removeEventListener('load', handlePageLoad);
-  }, [groups, selectedGroup, restoreGroupFromUrl]);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('load', handlePageLoad);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [groups, selectedGroup, restoreGroupFromUrl, persistSelectedGroup]);
 
   // 获取当前URL中的群组ID
   const getCurrentGroupId = () => {

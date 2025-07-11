@@ -101,25 +101,52 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
   // 跳转到特定消息
   const jumpToMessage = useCallback((messageId: number) => {
-    const messageElement = messageRefs.current[messageId];
-    if (messageElement && messagesContainerRef.current) {
-      // 滚动到消息位置
-      messageElement.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center' 
-      });
-      
-      // 高亮显示消息
-      setHighlightedMessageId(messageId);
-      
-      // 3秒后取消高亮
-      setTimeout(() => {
-        setHighlightedMessageId(null);
-      }, 3000);
-      
-      // 调用完成回调
+    try {
+      const messageElement = messageRefs.current[messageId];
+      if (messageElement && messagesContainerRef.current) {
+        // 使用更安全的滚动方法
+        const container = messagesContainerRef.current;
+        const elementRect = messageElement.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        // 计算目标滚动位置
+        const targetScrollTop = container.scrollTop + elementRect.top - containerRect.top - (containerRect.height / 2) + (elementRect.height / 2);
+        
+        // 平滑滚动
+        container.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: 'smooth'
+        });
+        
+        // 高亮显示消息
+        setHighlightedMessageId(messageId);
+        
+        // 3秒后取消高亮
+        const highlightTimer = setTimeout(() => {
+          setHighlightedMessageId(null);
+        }, 3000);
+        
+        // 调用完成回调
+        if (onJumpComplete) {
+          try {
+            onJumpComplete();
+          } catch (error) {
+            console.warn('跳转完成回调执行失败:', error);
+          }
+        }
+        
+        // 清理定时器的引用
+        return () => clearTimeout(highlightTimer);
+      }
+    } catch (error) {
+      console.error('消息跳转失败:', error);
+      // 降级方案：直接调用完成回调
       if (onJumpComplete) {
-        onJumpComplete();
+        try {
+          onJumpComplete();
+        } catch (callbackError) {
+          console.warn('跳转完成回调执行失败:', callbackError);
+        }
       }
     }
   }, [messagesContainerRef, onJumpComplete]);
