@@ -85,6 +85,7 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
               icon={<PlusOutlined />}
               onClick={onCreateRule}
               size="small"
+              style={{ color: '#1890ff' }}
             />
           </Tooltip>
           
@@ -140,10 +141,10 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
         
         <Tooltip title="创建下载规则">
           <Button
-            type="primary"
+            type="text"
             icon={<PlusOutlined />}
             onClick={onCreateRule}
-            ghost
+            style={{ color: '#1890ff' }}
           >
             创建规则
           </Button>
