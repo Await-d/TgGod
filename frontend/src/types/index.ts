@@ -73,7 +73,7 @@ export interface TelegramMessage {
   reply_to_message_id?: number;
   edit_date?: string;
   is_pinned: boolean;
-  reactions?: Record<string, number> | ReactionEmoji[];
+  reactions?: Record<string, number> | ReactionEmoji[] | string;
   mentions?: string[];
   hashtags?: string[];
   urls?: string[];

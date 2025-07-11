@@ -6,7 +6,7 @@ import './MessageReactions.css';
 const { Text } = Typography;
 
 interface MessageReactionsProps {
-  reactions: Record<string, number> | ReactionEmoji[];
+  reactions: Record<string, number> | ReactionEmoji[] | string;
   isMobile?: boolean;
 }
 
@@ -15,26 +15,69 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
   isMobile = false
 }) => {
   // 如果没有反应，不渲染组件
-  if (!reactions || (Array.isArray(reactions) && reactions.length === 0) || 
-      (!Array.isArray(reactions) && Object.keys(reactions).length === 0)) {
+  if (!reactions) {
     return null;
   }
 
+  // 解析字符串格式的 ReactionEmoji
+  const parseReactionString = (reactionStr: string): ReactionEmoji[] => {
+    const reactionArray: ReactionEmoji[] = [];
+    
+    // 匹配 ReactionEmoji(emoticon='❤') 格式
+    const reactionPattern = /ReactionEmoji\(emoticon='([^']+)'\)(?:\s+(\d+))?/g;
+    let match;
+    
+    while ((match = reactionPattern.exec(reactionStr)) !== null) {
+      const emoticon = match[1];
+      const count = match[2] ? parseInt(match[2]) : 1;
+      reactionArray.push({ emoticon, count });
+    }
+    
+    // 如果没有匹配到标准格式，尝试直接提取表情符号
+    if (reactionArray.length === 0) {
+      // 匹配单独的表情符号和数字
+      const simplePattern = /([^\s\d]+)\s*(\d+)?/g;
+      while ((match = simplePattern.exec(reactionStr)) !== null) {
+        const emoticon = match[1];
+        const count = match[2] ? parseInt(match[2]) : 1;
+        
+        // 简单验证是否是表情符号（Unicode表情符号范围）
+        if (/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|❤|💕|💖|💗|💙|💚|💛|💜|🧡|🖤|🤍|🤎|💯|👍|👎/u.test(emoticon)) {
+          reactionArray.push({ emoticon, count });
+        }
+      }
+    }
+    
+    return reactionArray;
+  };
+
   // 统一处理反应数据
   const processReactions = () => {
-    if (Array.isArray(reactions)) {
+    let reactionData: ReactionEmoji[] = [];
+
+    if (typeof reactions === 'string') {
+      // 处理字符串格式
+      reactionData = parseReactionString(reactions);
+    } else if (Array.isArray(reactions)) {
       // 处理 ReactionEmoji[] 格式
-      const reactionMap: Record<string, number> = {};
-      reactions.forEach(reaction => {
-        if (reaction.emoticon) {
-          reactionMap[reaction.emoticon] = (reactionMap[reaction.emoticon] || 0) + (reaction.count || 1);
-        }
-      });
-      return Object.entries(reactionMap);
-    } else {
+      reactionData = reactions;
+    } else if (typeof reactions === 'object') {
       // 处理 Record<string, number> 格式
-      return Object.entries(reactions);
+      reactionData = Object.entries(reactions).map(([emoticon, count]) => ({
+        emoticon,
+        count: typeof count === 'number' ? count : 1
+      }));
     }
+
+    // 合并相同表情符号
+    const reactionMap: Record<string, number> = {};
+    reactionData.forEach(reaction => {
+      if (reaction.emoticon) {
+        reactionMap[reaction.emoticon] = (reactionMap[reaction.emoticon] || 0) + (reaction.count || 1);
+      }
+    });
+
+    return Object.entries(reactionMap);
   };
 
   // 按反应数量排序
