@@ -16,7 +16,7 @@ services:
       # Telegram会话文件挂载
       - ./telegram_sessions:/app/telegram_sessions
     environment:
-      - DATABASE_URL=sqlite:///./data/tggod.db
+      - DATABASE_URL=sqlite:////app/data/tggod.db
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}

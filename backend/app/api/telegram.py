@@ -183,6 +183,7 @@ async def get_group_messages(
     media_type: Optional[str] = Query(None, description="按媒体类型过滤"),
     has_media: Optional[bool] = Query(None, description="是否包含媒体"),
     is_forwarded: Optional[bool] = Query(None, description="是否为转发消息"),
+    is_pinned: Optional[bool] = Query(None, description="是否为置顶消息"),
     start_date: Optional[datetime] = Query(None, description="开始日期"),
     end_date: Optional[datetime] = Query(None, description="结束日期"),
     db: Session = Depends(get_db),
@@ -217,6 +218,9 @@ async def get_group_messages(
     if is_forwarded is not None:
         query = query.filter(TelegramMessage.is_forwarded == is_forwarded)
     
+    if is_pinned is not None:
+        query = query.filter(TelegramMessage.is_pinned == is_pinned)
+    
     if start_date:
         query = query.filter(TelegramMessage.date >= start_date)
     
@@ -224,15 +228,20 @@ async def get_group_messages(
         query = query.filter(TelegramMessage.date <= end_date)
     
     # 排序和分页逻辑：
-    # 1. 先获取最新的消息（倒序）
-    # 2. 然后对结果进行正序排列，确保前端显示时最老消息在前，最新消息在后
+    # 1. 如果是置顶消息，按照置顶时间排序（最新置顶的在前）
+    # 2. 普通消息按照日期排序，先获取最新的消息（倒序），然后对结果进行正序排列
     # 3. 这样前端就不需要做任何排序操作
     
-    # 获取消息（降序获取最新的）
-    messages_desc = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
-    
-    # 反转为正序（最老消息在前，最新消息在后）
-    messages = list(reversed(messages_desc))
+    if is_pinned is True:
+        # 置顶消息按照消息ID降序排列（最新置顶的在前）
+        messages_desc = query.order_by(TelegramMessage.id.desc()).offset(skip).limit(limit).all()
+        # 反转为正序（最早置顶的在前，最新置顶的在后）
+        messages = list(reversed(messages_desc))
+    else:
+        # 获取消息（降序获取最新的）
+        messages_desc = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+        # 反转为正序（最老消息在前，最新消息在后）
+        messages = list(reversed(messages_desc))
     
     return messages
 

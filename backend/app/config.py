@@ -59,7 +59,7 @@ class Settings:
     @property
     def database_url(self) -> str:
         # 默认使用外部挂载目录中的SQLite数据库
-        default_db_path = os.environ.get("DATABASE_URL", "sqlite:///./data/tggod.db")
+        default_db_path = os.environ.get("DATABASE_URL", "sqlite:////app/data/tggod.db")
         return self._get_config("database_url", default_db_path)
     
     @property
@@ -120,7 +120,7 @@ class Settings:
     @property
     def media_root(self) -> str:
         # 默认使用外部挂载目录中的媒体文件夹
-        default_media_path = os.environ.get("MEDIA_ROOT", "./media")
+        default_media_path = os.environ.get("MEDIA_ROOT", "/app/media")
         return self._get_config("media_root", default_media_path)
     
     @property
@@ -134,7 +134,7 @@ class Settings:
     @property
     def log_file(self) -> str:
         # 默认使用外部挂载目录中的日志文件
-        default_log_path = os.environ.get("LOG_FILE", "./logs/app.log")
+        default_log_path = os.environ.get("LOG_FILE", "/app/logs/app.log")
         return self._get_config("log_file", default_log_path)
     
     @property
@@ -180,7 +180,7 @@ def init_settings():
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         
         # 确保Telegram会话目录存在
-        os.makedirs("./telegram_sessions", exist_ok=True)
+        os.makedirs("/app/telegram_sessions", exist_ok=True)
         
         # 初始化默认配置
         db = settings.get_db()
