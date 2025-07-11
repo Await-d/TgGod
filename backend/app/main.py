@@ -8,6 +8,7 @@ from .websocket.manager import WebSocketManager
 from .tasks.message_sync import message_sync_task
 import logging
 import os
+import json
 
 # 配置日志
 logging.basicConfig(
