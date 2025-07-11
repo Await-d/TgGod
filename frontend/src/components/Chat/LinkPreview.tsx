@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Space, Button, Typography } from 'antd';
-import { LinkOutlined, ExternalLinkOutlined } from '@ant-design/icons';
+import { LinkOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import './LinkPreview.css';
 
 const { Text, Paragraph } = Typography;
@@ -91,7 +91,7 @@ const LinkPreview: React.FC<LinkPreviewProps> = ({
           <Button 
             type="text" 
             size="small" 
-            icon={<ExternalLinkOutlined />}
+            icon={<ArrowRightOutlined />}
             onClick={(e) => {
               e.stopPropagation();
               handleOpenLink();
