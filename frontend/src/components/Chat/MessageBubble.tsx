@@ -25,13 +25,13 @@ import {
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
 import { MessageBubbleProps } from '../../types/chat';
-import MediaPreview from './MediaPreview';
-import VoiceMessage from './VoiceMessage';
+import EnhancedMediaPreview from './EnhancedMediaPreview';
+import EnhancedVoiceMessage from './EnhancedVoiceMessage';
 import MessageReactions from './MessageReactions';
 import LinkPreview, { parseLinks, renderTextWithLinks } from './LinkPreview';
 import MarkdownRenderer, { isMarkdownContent } from './MarkdownRenderer';
-import './MediaPreview.css';
-import './VoiceMessage.css';
+import './EnhancedMediaPreview.css';
+import './EnhancedVoiceMessage.css';
 import './MessageReactions.css';
 import './LinkPreview.css';
 import './MarkdownRenderer.css';
@@ -166,55 +166,35 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
           </div>
         )}
 
-        {/* 媒体内容 */}
-        {message.media_type && (
+        {/* 媒体内容 - 使用增强组件 */}
+        {message.media_type && message.media_path && (
           <div className="message-media">
-            {/* 语音消息 */}
+            {/* 语音和音频消息 */}
             {(message.media_type === 'voice' || message.media_type === 'audio') && (
-              <VoiceMessage
-                url={message.media_path || ''}
+              <EnhancedVoiceMessage
+                url={message.media_path}
                 duration={0} // duration not available in the type
                 filename={message.media_filename}
                 size={message.media_size}
                 className="message-voice"
+                compact={isMobile}
               />
             )}
             
-            {/* 图片/视频预览 */}
-            {(message.media_type === 'photo' || message.media_type === 'video') && message.media_path && (
-              <MediaPreview
-                url={message.media_path}
-                type={message.media_type === 'photo' ? 'image' : 'video'}
+            {/* 所有其他媒体类型使用增强预览组件 */}
+            {!['voice', 'audio'].includes(message.media_type) && (
+              <EnhancedMediaPreview
+                mediaType={message.media_type}
+                mediaPath={message.media_path}
                 filename={message.media_filename}
                 size={message.media_size}
                 className="message-media-preview"
+                thumbnail={true}
+                onGalleryOpen={(mediaPath) => {
+                  // TODO: 打开画廊模式
+                  console.log('Open gallery for:', mediaPath);
+                }}
               />
-            )}
-            
-            {/* 其他文件类型 */}
-            {!['photo', 'video', 'voice', 'audio'].includes(message.media_type) && (
-              <Card size="small" style={{ margin: '8px 0' }}>
-                <Space>
-                  {getMediaIcon(message.media_type)}
-                  <div className="media-info">
-                    <div>
-                      <Text strong>{message.media_type.toUpperCase()}</Text>
-                      {message.media_size && (
-                        <Text type="secondary" style={{ marginLeft: 8 }}>
-                          {typeof message.media_size === 'number' 
-                            ? `${(message.media_size / (1024 * 1024)).toFixed(2)} MB`
-                            : message.media_size}
-                        </Text>
-                      )}
-                    </div>
-                    {message.media_filename && (
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {message.media_filename}
-                      </Text>
-                    )}
-                  </div>
-                </Space>
-              </Card>
             )}
           </div>
         )}

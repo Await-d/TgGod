@@ -1,0 +1,524 @@
+/* Enhanced Voice Message Styles */
+.enhanced-voice-message {
+  background: linear-gradient(135deg, #f0f8ff, #e6f7ff);
+  border: 1px solid #d9d9d9;
+  border-radius: 16px;
+  padding: 16px;
+  margin: 8px 0;
+  max-width: 400px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.enhanced-voice-message:hover {
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+  border-color: #40a9ff;
+}
+
+.enhanced-voice-message.playing {
+  background: linear-gradient(135deg, #e6f7ff, #bae7ff);
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.enhanced-voice-message.compact {
+  padding: 12px;
+  max-width: 320px;
+  background: rgba(240, 248, 255, 0.8);
+}
+
+.enhanced-voice-message.error {
+  background: #fff2f0;
+  border-color: #ffccc7;
+}
+
+/* 语音内容容器 */
+.voice-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 主要控制区域 */
+.voice-main-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.play-button {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1890ff, #40a9ff);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+}
+
+.play-button:hover,
+.play-button:focus {
+  background: linear-gradient(135deg, #40a9ff, #69c0ff);
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
+}
+
+.play-button.ant-btn-loading {
+  background: linear-gradient(135deg, #bfbfbf, #d9d9d9);
+}
+
+.compact .play-button {
+  width: 40px;
+  height: 40px;
+}
+
+.play-button .anticon {
+  font-size: 20px;
+}
+
+.compact .play-button .anticon {
+  font-size: 16px;
+}
+
+/* 进度区域 */
+.voice-progress-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 波形可视化 */
+.waveform-container {
+  height: 40px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.waveform {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  height: 100%;
+  gap: 1px;
+}
+
+.waveform-bar {
+  background: #d9d9d9;
+  border-radius: 1px;
+  transition: all 0.3s ease;
+  min-height: 4px;
+  width: 3px;
+  position: relative;
+}
+
+.waveform-bar.played {
+  background: linear-gradient(to top, #1890ff, #40a9ff);
+  box-shadow: 0 0 4px rgba(24, 144, 255, 0.3);
+}
+
+.waveform-bar:hover {
+  background: #40a9ff;
+  transform: scaleY(1.1);
+}
+
+/* 进度条（紧凑模式或备选） */
+.progress-container {
+  position: relative;
+}
+
+.voice-progress {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.voice-progress .ant-progress-bg {
+  background: linear-gradient(90deg, #1890ff, #40a9ff);
+  border-radius: 2px;
+}
+
+/* 时间信息 */
+.voice-time-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #595959;
+  font-weight: 500;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.current-time {
+  color: #1890ff;
+}
+
+.separator {
+  color: #bfbfbf;
+}
+
+.total-time {
+  color: #8c8c8c;
+}
+
+/* 扩展控制区域 */
+.voice-extended-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  backdrop-filter: blur(5px);
+}
+
+.voice-extended-controls .ant-btn {
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  color: #595959;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.voice-extended-controls .ant-btn:hover,
+.voice-extended-controls .ant-btn:focus {
+  background: rgba(24, 144, 255, 0.1);
+  color: #1890ff;
+  transform: translateY(-1px);
+}
+
+.volume-control {
+  margin: 0 8px;
+}
+
+.volume-control .ant-slider {
+  margin: 0;
+}
+
+.volume-control .ant-slider-track {
+  background: linear-gradient(90deg, #1890ff, #40a9ff);
+}
+
+.volume-control .ant-slider-handle {
+  border-color: #1890ff;
+  background: white;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.3);
+}
+
+.volume-control .ant-slider-handle:hover,
+.volume-control .ant-slider-handle:focus {
+  border-color: #40a9ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.4);
+}
+
+/* 文件信息 */
+.voice-file-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.voice-filename {
+  font-weight: 500;
+  color: #262626;
+  margin-right: 8px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-filename::before {
+  content: '🎵';
+  margin-right: 4px;
+}
+
+.voice-size {
+  color: #8c8c8c;
+  margin-right: 8px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.voice-size::before {
+  content: '💾';
+  margin-right: 2px;
+  font-size: 10px;
+}
+
+.download-button {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid #d9d9d9;
+  color: #595959;
+  border-radius: 6px;
+  padding: 4px 8px;
+  height: auto;
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+
+.download-button:hover,
+.download-button:focus {
+  background: rgba(24, 144, 255, 0.1);
+  border-color: #1890ff;
+  color: #1890ff;
+  transform: translateY(-1px);
+}
+
+/* 下载进度 */
+.download-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 4px 8px;
+  border-radius: 0 0 16px 16px;
+}
+
+/* 错误状态 */
+.voice-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: #ff4d4f;
+  font-size: 14px;
+}
+
+.voice-error .anticon {
+  font-size: 18px;
+}
+
+/* 消息气泡内的适配 */
+.message-bubble .enhanced-voice-message {
+  margin: 4px 0;
+  max-width: 100%;
+}
+
+.message-bubble.own-bubble .enhanced-voice-message {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message.playing {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .voice-time-info,
+.message-bubble.own-bubble .enhanced-voice-message .voice-filename,
+.message-bubble.own-bubble .enhanced-voice-message .voice-size {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .current-time {
+  color: rgba(255, 255, 255, 1);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .voice-extended-controls {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .voice-extended-controls .ant-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .voice-extended-controls .ant-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .voice-file-info {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .download-button {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .download-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+/* 波形在自己的消息中的样式 */
+.message-bubble.own-bubble .enhanced-voice-message .waveform-container {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .waveform-bar {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .waveform-bar.played {
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.8), white);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .voice-progress {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.message-bubble.own-bubble .enhanced-voice-message .voice-progress .ant-progress-bg {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.8), white);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .enhanced-voice-message {
+    max-width: 100%;
+    padding: 12px;
+  }
+  
+  .enhanced-voice-message.compact {
+    padding: 10px;
+  }
+  
+  .play-button {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .play-button .anticon {
+    font-size: 16px;
+  }
+  
+  .waveform-container {
+    height: 32px;
+  }
+  
+  .voice-extended-controls {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .volume-control {
+    width: 50px;
+  }
+  
+  .voice-file-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .download-button {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .enhanced-voice-message {
+    padding: 10px;
+  }
+  
+  .voice-main-controls {
+    gap: 8px;
+  }
+  
+  .play-button {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .play-button .anticon {
+    font-size: 14px;
+  }
+  
+  .waveform-container {
+    height: 28px;
+  }
+  
+  .voice-time-info {
+    font-size: 11px;
+  }
+  
+  .voice-extended-controls {
+    padding: 6px 8px;
+  }
+  
+  .voice-filename,
+  .voice-size {
+    font-size: 11px;
+  }
+  
+  .download-button {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
+
+/* 动画效果 */
+.enhanced-voice-message.playing .waveform-bar.played {
+  animation: wave-pulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes wave-pulse {
+  0% {
+    transform: scaleY(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scaleY(1.1);
+    opacity: 1;
+  }
+}
+
+.enhanced-voice-message.playing .play-button {
+  animation: play-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes play-glow {
+  0% {
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 4px 16px rgba(24, 144, 255, 0.5);
+  }
+}
+
+/* 可访问性改进 */
+.enhanced-voice-message button:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+.waveform-container:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .enhanced-voice-message {
+    border-width: 2px;
+  }
+  
+  .play-button {
+    background: #1890ff;
+  }
+  
+  .waveform-bar.played {
+    background: #1890ff;
+  }
+}

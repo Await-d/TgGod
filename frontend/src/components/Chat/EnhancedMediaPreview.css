@@ -1,0 +1,490 @@
+/* Enhanced Media Preview Styles */
+.enhanced-media-preview {
+  max-width: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  margin: 8px 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.enhanced-media-preview:hover {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* 缩略图模式 */
+.enhanced-media-preview.thumbnail-mode {
+  max-width: 200px;
+  margin: 4px 0;
+}
+
+.enhanced-media-preview.thumbnail-mode .media-thumbnail {
+  height: 120px;
+}
+
+/* 媒体缩略图 */
+.media-thumbnail {
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+}
+
+.media-thumbnail img,
+.media-thumbnail video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.media-thumbnail:hover img,
+.media-thumbnail:hover video {
+  transform: scale(1.05);
+}
+
+/* 加载状态 */
+.media-thumbnail.loading {
+  background: linear-gradient(45deg, #f5f5f5, #e8e8e8);
+  background-size: 200% 200%;
+  animation: loading-shimmer 1.5s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* 错误状态 */
+.media-thumbnail.error,
+.error-placeholder {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ff4d4f;
+  gap: 8px;
+}
+
+.error-placeholder span {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 媒体覆盖层 */
+.media-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.3s ease;
+  border-radius: inherit;
+  backdrop-filter: blur(2px);
+}
+
+.media-thumbnail:hover .media-overlay {
+  opacity: 1;
+}
+
+.media-overlay .anticon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  transform: scale(1);
+  transition: transform 0.2s ease;
+}
+
+.media-overlay:hover .anticon {
+  transform: scale(1.1);
+}
+
+/* 文件缩略图 */
+.file-thumbnail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #f0f2f5, #ffffff);
+  border: 2px dashed #d9d9d9;
+  border-radius: 12px;
+  gap: 12px;
+}
+
+.file-thumbnail:hover {
+  background: linear-gradient(135deg, #e6f7ff, #f0f8ff);
+  border-color: #1890ff;
+  transform: translateY(-2px);
+}
+
+.file-thumbnail .anticon {
+  transition: all 0.3s ease;
+}
+
+.file-thumbnail:hover .anticon {
+  transform: scale(1.2);
+}
+
+.file-type {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8c8c8c;
+  letter-spacing: 0.5px;
+}
+
+/* 媒体信息 */
+.media-info {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.media-filename {
+  font-size: 13px;
+  font-weight: 500;
+  color: #262626;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.media-filename::before {
+  content: '📎';
+  font-size: 12px;
+}
+
+.media-size {
+  font-size: 11px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.media-size::before {
+  content: '💾';
+  font-size: 10px;
+}
+
+.media-info .ant-btn {
+  padding: 2px 8px;
+  height: auto;
+  border: 1px solid #d9d9d9;
+  box-shadow: none;
+  font-size: 12px;
+  line-height: 1.2;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.media-info .ant-btn:hover {
+  color: #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+  border-color: #1890ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2);
+}
+
+/* 下载进度 */
+.download-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 4px 8px;
+  backdrop-filter: blur(5px);
+}
+
+/* 增强预览模态框 */
+.enhanced-media-modal .ant-modal-content {
+  background: #000;
+  padding: 0;
+}
+
+.enhanced-media-modal .ant-modal-body {
+  padding: 0;
+}
+
+.enhanced-media-modal .ant-modal-close {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  right: 16px;
+  top: 16px;
+}
+
+.enhanced-media-modal .ant-modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 预览控件 */
+.enhanced-preview {
+  background: #000;
+  color: white;
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-controls {
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: center;
+}
+
+.preview-controls .ant-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.preview-controls .ant-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.preview-controls .ant-btn-primary {
+  background: #1890ff;
+  border-color: #1890ff;
+}
+
+.preview-controls .ant-btn-primary:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
+}
+
+/* 预览内容 */
+.preview-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.preview-content img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+}
+
+.preview-content video {
+  max-width: 100%;
+  max-height: 100%;
+  outline: none;
+}
+
+/* 文件预览 */
+.file-preview {
+  background: #fff;
+  color: #262626;
+  padding: 48px 24px;
+  text-align: center;
+  min-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.file-info h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #262626;
+  max-width: 400px;
+  word-break: break-word;
+}
+
+.file-info p {
+  margin: 0;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* 视频缩略图特殊处理 */
+.video-thumbnail {
+  position: relative;
+}
+
+.video-thumbnail video {
+  pointer-events: none;
+}
+
+.video-thumbnail .media-overlay .anticon {
+  font-size: 48px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .enhanced-media-preview {
+    max-width: 280px;
+  }
+  
+  .enhanced-media-preview.thumbnail-mode {
+    max-width: 180px;
+  }
+  
+  .media-thumbnail {
+    height: 140px;
+  }
+  
+  .enhanced-media-preview.thumbnail-mode .media-thumbnail {
+    height: 100px;
+  }
+  
+  .preview-controls {
+    padding: 12px 16px;
+  }
+  
+  .preview-content {
+    padding: 16px;
+  }
+  
+  .file-preview {
+    padding: 32px 16px;
+  }
+  
+  .file-info h3 {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .enhanced-media-preview {
+    max-width: 240px;
+  }
+  
+  .enhanced-media-preview.thumbnail-mode {
+    max-width: 160px;
+  }
+  
+  .media-thumbnail {
+    height: 120px;
+  }
+  
+  .enhanced-media-preview.thumbnail-mode .media-thumbnail {
+    height: 80px;
+  }
+  
+  .media-info {
+    padding: 8px 12px;
+  }
+  
+  .media-filename {
+    font-size: 12px;
+  }
+  
+  .media-size {
+    font-size: 10px;
+  }
+  
+  .media-info .ant-btn {
+    font-size: 11px;
+    padding: 1px 6px;
+  }
+}
+
+/* 消息气泡内的样式适配 */
+.message-bubble .enhanced-media-preview {
+  margin: 4px 0;
+  max-width: 100%;
+}
+
+.message-bubble.own-bubble .enhanced-media-preview .media-info {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.message-bubble.own-bubble .enhanced-media-preview .media-filename,
+.message-bubble.own-bubble .enhanced-media-preview .media-size {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.message-bubble.own-bubble .enhanced-media-preview .ant-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.message-bubble.own-bubble .enhanced-media-preview .ant-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+/* 加载动画优化 */
+.media-thumbnail.loading .ant-spin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* 文件类型特定样式 */
+.enhanced-media-preview[data-file-type="photo"] .file-thumbnail {
+  background: linear-gradient(135deg, #f6ffed, #f0f9ff);
+  border-color: #52c41a;
+}
+
+.enhanced-media-preview[data-file-type="video"] .file-thumbnail {
+  background: linear-gradient(135deg, #f0f8ff, #e6f7ff);
+  border-color: #1890ff;
+}
+
+.enhanced-media-preview[data-file-type="audio"] .file-thumbnail {
+  background: linear-gradient(135deg, #f9f0ff, #f0f5ff);
+  border-color: #722ed1;
+}
+
+.enhanced-media-preview[data-file-type="document"] .file-thumbnail {
+  background: linear-gradient(135deg, #fffbf0, #fff7e6);
+  border-color: #faad14;
+}
