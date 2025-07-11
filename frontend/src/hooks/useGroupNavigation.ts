@@ -37,10 +37,19 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     const groupId = searchParams.get('group');
     if (groupId && groups.length > 0) {
       const group = groups.find(g => g.id.toString() === groupId);
-      if (group && (!selectedGroup || selectedGroup.id.toString() !== groupId)) {
-        console.log('从URL恢复群组:', group.title);
-        setSelectedGroup(group);
-        return group;
+      if (group) {
+        // 如果当前选中的群组不是URL指定的群组，才更新
+        if (!selectedGroup || selectedGroup.id.toString() !== groupId) {
+          console.log('从URL恢复群组:', group.title, 'ID:', groupId);
+          setSelectedGroup(group);
+          return group;
+        } else {
+          // 当前已经是正确的群组，不需要更新
+          console.log('当前群组已经是URL指定的群组:', group.title);
+          return group;
+        }
+      } else {
+        console.warn('URL指定的群组不存在:', groupId);
       }
     }
     return null;
@@ -92,14 +101,40 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     }
   }, [setSelectedGroup, syncGroupToUrl, setMessages, autoLoadMessages]);
 
+  // 初始化时恢复URL状态 - 优先级最高
+  useEffect(() => {
+    // 只在首次加载时执行，且群组数据已经可用
+    if (groups.length > 0 && searchParams.has('group')) {
+      const groupId = searchParams.get('group');
+      const group = groups.find(g => g.id.toString() === groupId);
+      
+      if (group) {
+        console.log('初始化：从URL恢复群组:', group.title, 'ID:', groupId);
+        setSelectedGroup(group);
+      }
+    }
+  }, [groups.length]); // 只依赖groups.length，确保只在群组数据首次加载时执行
+
   // 监听URL参数变化和群组数据变化
   useEffect(() => {
     if (groups.length > 0) {
-      const restoredGroup = restoreGroupFromUrl();
+      // 优先检查URL参数
+      const groupIdFromUrl = searchParams.get('group');
       
-      // 如果没有从URL恢复群组，且当前也没有选中群组，可以选择默认群组
-      if (!restoredGroup && !selectedGroup && groups.length > 0) {
-        // 可以选择第一个活跃的群组作为默认
+      if (groupIdFromUrl) {
+        // URL中指定了群组，尝试恢复
+        const restoredGroup = restoreGroupFromUrl();
+        console.log('URL中指定群组:', groupIdFromUrl, '恢复结果:', restoredGroup?.title);
+        
+        // 如果恢复成功，就不需要选择默认群组了
+        if (restoredGroup) {
+          return;
+        }
+      }
+      
+      // 只有在没有URL参数指定群组，且当前也没有选中群组时，才选择默认群组
+      if (!groupIdFromUrl && !selectedGroup && groups.length > 0) {
+        // 选择第一个活跃的群组作为默认
         const defaultGroup = groups.find(g => g.is_active) || groups[0];
         if (defaultGroup) {
           console.log('选择默认群组:', defaultGroup.title);
@@ -107,7 +142,7 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
         }
       }
     }
-  }, [restoreGroupFromUrl, groups, selectedGroup, selectGroup]);
+  }, [restoreGroupFromUrl, groups, selectedGroup, selectGroup, searchParams]);
 
   // 监听群组变化，同步到URL
   useEffect(() => {
