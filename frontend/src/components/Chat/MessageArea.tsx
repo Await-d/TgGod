@@ -32,7 +32,7 @@ interface MessageAreaProps {
   onLoadMore?: () => void;
   containerRef?: React.RefObject<HTMLDivElement>;
   // 新增：跳转到消息功能
-  jumpToMessageId?: number;
+  jumpToMessageId?: number | null;
   onJumpComplete?: () => void;
 }
 

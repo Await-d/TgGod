@@ -19,6 +19,7 @@ export interface InfiniteScrollResult {
   reset: () => void;
   scrollToTop: () => void;
   scrollToBottom: () => void;
+  autoScrollToBottom: () => void;
 }
 
 /**
@@ -36,7 +37,6 @@ export const useInfiniteScroll = (
     threshold = 50, // 减少触发距离，提升响应
     debounceDelay = 500, // 增加防抖延迟，减少频繁触发
     pageSize = 30, // 减少每页数量，加快加载速度
-    preloadThreshold = 2, // 减少预加载阈值
     maxPages = 20 // 减少最大页数，避免过多内存占用
   } = options;
 
@@ -44,7 +44,6 @@ export const useInfiniteScroll = (
   const [hasMore, setHasMore] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalLoaded, setTotalLoaded] = useState(0);
-  const [lastScrollHeight, setLastScrollHeight] = useState(0);
   
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
   const isLoadingRef = useRef(false);
@@ -56,7 +55,6 @@ export const useInfiniteScroll = (
     setHasMore(true);
     setIsLoadingMore(false);
     setTotalLoaded(0);
-    setLastScrollHeight(0);
     isLoadingRef.current = false;
     lastGroupId.current = selectedGroup?.id || null;
   }, [selectedGroup?.id]);
@@ -244,7 +242,6 @@ export const useInfiniteScroll = (
 
     const container = containerRef.current;
     const scrollTop = container.scrollTop;
-    const clientHeight = container.clientHeight;
     const scrollHeight = container.scrollHeight;
     
     // 提高预加载触发点，避免过度触发
@@ -268,7 +265,7 @@ export const useInfiniteScroll = (
     const container = containerRef.current;
     if (!container) return;
 
-    const scrollHandler = (event: Event) => {
+    const scrollHandler = () => {
       handleScroll();
       handlePreload();
     };
