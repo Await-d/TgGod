@@ -92,7 +92,9 @@
       "Bash(kill:*)",
       "mcp__serena__insert_at_line",
       "mcp__serena__think_about_collected_information",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "mcp__serena__replace_lines",
+      "Bash(npm run:*)"
     ],
     "deny": []
   }

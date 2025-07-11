@@ -207,6 +207,9 @@ class TelegramService:
     async def _process_message(self, message: Message) -> Optional[Dict[str, Any]]:
         """处理单条消息"""
         try:
+            # 获取当前用户信息
+            current_user = await self.client.get_me()
+            
             # 基本信息
             message_data = {
                 "message_id": message.id,
@@ -227,16 +230,21 @@ class TelegramService:
             # 发送者信息
             if message.sender:
                 if isinstance(message.sender, User):
+                    # 检查是否是当前用户发送的消息
+                    is_current_user = message.sender.id == current_user.id
+                    
                     message_data.update({
                         "sender_id": message.sender.id,
                         "sender_username": message.sender.username,
-                        "sender_name": f"{message.sender.first_name or ''} {message.sender.last_name or ''}".strip()
+                        "sender_name": f"{message.sender.first_name or ''} {message.sender.last_name or ''}".strip(),
+                        "is_own_message": is_current_user  # 直接标记是否为当前用户发送
                     })
                 elif isinstance(message.sender, Channel):
                     message_data.update({
                         "sender_id": message.sender.id,
                         "sender_username": message.sender.username,
-                        "sender_name": message.sender.title
+                        "sender_name": message.sender.title,
+                        "is_own_message": False  # 频道消息不是个人发送的
                     })
             
             # 转发信息

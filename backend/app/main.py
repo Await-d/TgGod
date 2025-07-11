@@ -5,6 +5,7 @@ from .config import settings, init_settings
 from .database import engine, Base
 from .api import telegram, rule, log, task, config, auth
 from .websocket.manager import WebSocketManager
+from .tasks.message_sync import message_sync_task
 import logging
 import os
 
@@ -65,13 +66,62 @@ async def health_check():
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await websocket_manager.connect(websocket, client_id)
+    
+    # 存储客户端订阅的群组
+    client_subscriptions = set()
+    
     try:
         while True:
-            # 保持连接活跃
-            await websocket.receive_text()
+            # 接收客户端消息
+            data = await websocket.receive_text()
+            
+            try:
+                message = json.loads(data)
+                message_type = message.get("type")
+                
+                if message_type == "subscribe_group":
+                    # 订阅群组消息
+                    group_id = message.get("group_id")
+                    if group_id:
+                        client_subscriptions.add(group_id)
+                        logger.info(f"Client {client_id} subscribed to group {group_id}")
+                        
+                        # 将群组添加到同步任务
+                        message_sync_task.add_group(int(group_id), interval=30)
+                        
+                        # 发送订阅确认
+                        await websocket_manager.send_personal_message({
+                            "type": "subscription_confirmed",
+                            "data": {"group_id": group_id}
+                        }, client_id)
+                
+                elif message_type == "unsubscribe_group":
+                    # 取消订阅群组消息
+                    group_id = message.get("group_id")
+                    if group_id and group_id in client_subscriptions:
+                        client_subscriptions.remove(group_id)
+                        logger.info(f"Client {client_id} unsubscribed from group {group_id}")
+                        
+                        # 发送取消订阅确认
+                        await websocket_manager.send_personal_message({
+                            "type": "unsubscription_confirmed",
+                            "data": {"group_id": group_id}
+                        }, client_id)
+                
+                elif message_type == "ping":
+                    # 心跳检测
+                    await websocket_manager.send_personal_message({
+                        "type": "pong"
+                    }, client_id)
+                
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON received from client {client_id}")
+            except Exception as e:
+                logger.error(f"Error processing message from client {client_id}: {e}")
+                
     except WebSocketDisconnect:
         websocket_manager.disconnect(client_id)
-        logger.info(f"Client {client_id} disconnected")
+        logger.info(f"Client {client_id} disconnected from groups: {client_subscriptions}")
 
 # 启动事件
 @app.on_event("startup")
@@ -79,6 +129,10 @@ async def startup_event():
     logger.info("Starting TgGod API...")
     # 创建数据库表
     Base.metadata.create_all(bind=engine)
+    
+    # 启动消息同步任务
+    message_sync_task.start()
+    logger.info("Message sync task started")
     logger.info("Database tables created successfully")
     
     # 初始化设置
@@ -123,6 +177,10 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down TgGod API...")
+    
+    # 停止消息同步任务
+    message_sync_task.stop()
+    logger.info("Message sync task stopped")
 
 if __name__ == "__main__":
     import uvicorn

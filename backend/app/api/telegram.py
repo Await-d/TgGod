@@ -7,6 +7,7 @@ from ..services.telegram_service import telegram_service
 from ..utils.auth import get_current_active_user
 from pydantic import BaseModel
 from datetime import datetime
+import json
 import logging
 import asyncio
 
@@ -206,8 +207,16 @@ async def get_group_messages(
     if end_date:
         query = query.filter(TelegramMessage.date <= end_date)
     
-    # 排序和分页
-    messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+    # 排序和分页逻辑：
+    # 1. 先获取最新的消息（倒序）
+    # 2. 然后对结果进行正序排列，确保前端显示时最老消息在前，最新消息在后
+    # 3. 这样前端就不需要做任何排序操作
+    
+    # 获取消息（降序获取最新的）
+    messages_desc = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+    
+    # 反转为正序（最老消息在前，最新消息在后）
+    messages = list(reversed(messages_desc))
     
     return messages
 
@@ -298,6 +307,25 @@ async def sync_group_messages(
         # 保存到数据库
         saved_count = await telegram_service.save_messages_to_db(group_id, messages, db)
         
+        # 如果有新消息，通过WebSocket推送消息统计更新
+        if saved_count > 0:
+            try:
+                from ..websocket.manager import websocket_manager
+                
+                # 推送消息统计更新
+                stats_data = {
+                    "group_id": group_id,
+                    "new_messages": saved_count,
+                    "total_fetched": len(messages),
+                    "sync_time": datetime.now().isoformat()
+                }
+                
+                await websocket_manager.send_message_stats(stats_data)
+                
+            except Exception as ws_error:
+                logger.error(f"WebSocket推送失败: {ws_error}")
+                # 不影响API响应
+        
         return {
             "message": f"成功同步 {saved_count} 条消息", 
             "total_fetched": len(messages),
@@ -330,10 +358,56 @@ async def get_group_stats(
         TelegramMessage.media_type.isnot(None)
     ).count()
     
+    # 统计各类型媒体消息数量
+    photo_messages = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.media_type == 'photo'
+    ).count()
+    
+    video_messages = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.media_type == 'video'
+    ).count()
+    
+    document_messages = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.media_type == 'document'
+    ).count()
+    
+    audio_messages = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.media_type.in_(['audio', 'voice'])
+    ).count()
+    
+    # 统计转发消息数量
+    forwarded_messages = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.is_forwarded == True
+    ).count()
+    
+    # 统计置顶消息数量
+    pinned_messages = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.is_pinned == True
+    ).count()
+    
+    # 统计有反应的消息数量
+    messages_with_reactions = db.query(TelegramMessage).filter(
+        TelegramMessage.group_id == group_id,
+        TelegramMessage.reactions.isnot(None)
+    ).count()
+    
     return {
         "total_messages": total_messages,
         "media_messages": media_messages,
         "text_messages": total_messages - media_messages,
+        "photo_messages": photo_messages,
+        "video_messages": video_messages,
+        "document_messages": document_messages,
+        "audio_messages": audio_messages,
+        "forwarded_messages": forwarded_messages,
+        "pinned_messages": pinned_messages,
+        "messages_with_reactions": messages_with_reactions,
         "member_count": group.member_count
     }
 
@@ -361,6 +435,29 @@ async def send_message_to_group(
         )
         
         if message_id:
+            # 发送消息成功后，通过WebSocket推送消息更新
+            try:
+                from ..websocket.manager import websocket_manager
+                
+                # 构造消息数据
+                message_data = {
+                    "chat_id": group_id,
+                    "message_id": message_id,
+                    "text": message_request.text,
+                    "sender_name": current_user.full_name or current_user.username,
+                    "sender_username": current_user.username,
+                    "date": datetime.now().isoformat(),
+                    "is_own_message": True,
+                    "reply_to_message_id": message_request.reply_to_message_id
+                }
+                
+                # 广播新消息
+                await websocket_manager.send_message(message_data)
+                
+            except Exception as ws_error:
+                logger.error(f"WebSocket推送失败: {ws_error}")
+                # 不影响API响应
+            
             return {
                 "success": True,
                 "message_id": message_id,
@@ -679,6 +776,54 @@ async def logout():
         logger.error(f"登出失败: {e}")
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"登出失败: {str(e)}")
+
+@router.get("/sync-status")
+async def get_sync_status():
+    """获取消息同步状态"""
+    try:
+        from ..tasks.message_sync import message_sync_task
+        
+        return {
+            "success": True,
+            "data": message_sync_task.get_sync_status()
+        }
+    except Exception as e:
+        logger.error(f"获取同步状态失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取同步状态失败: {str(e)}")
+
+@router.post("/sync-control")
+async def control_sync(action: str):
+    """控制消息同步任务"""
+    try:
+        from ..tasks.message_sync import message_sync_task
+        
+        if action == "start":
+            message_sync_task.start()
+            return {"success": True, "message": "同步任务已启动"}
+        elif action == "stop":
+            message_sync_task.stop()
+            return {"success": True, "message": "同步任务已停止"}
+        else:
+            raise HTTPException(status_code=400, detail="无效的操作")
+    except Exception as e:
+        logger.error(f"控制同步任务失败: {e}")
+        raise HTTPException(status_code=500, detail=f"控制同步任务失败: {str(e)}")
+
+@router.post("/groups/{group_id}/enable-realtime")
+async def enable_realtime_sync(group_id: int, enabled: bool = True):
+    """启用/禁用群组实时同步"""
+    try:
+        from ..tasks.message_sync import message_sync_task
+        
+        if enabled:
+            message_sync_task.add_group(group_id, interval=30)
+            return {"success": True, "message": f"群组 {group_id} 实时同步已启用"}
+        else:
+            message_sync_task.remove_group(group_id)
+            return {"success": True, "message": f"群组 {group_id} 实时同步已禁用"}
+    except Exception as e:
+        logger.error(f"设置实时同步失败: {e}")
+        raise HTTPException(status_code=500, detail=f"设置实时同步失败: {str(e)}")
 
 @router.post("/sync-groups")
 async def sync_telegram_groups(db: Session = Depends(get_db)):

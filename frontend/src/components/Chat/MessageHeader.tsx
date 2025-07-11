@@ -122,12 +122,12 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
     
     return (
       <Avatar 
-        size={isMobile ? 28 : 32} 
+        size={isMobile ? 36 : 42} 
         style={{ 
           backgroundColor: getAvatarColor(group.title),
           color: 'white',
           fontWeight: 'bold',
-          fontSize: isMobile ? '12px' : '14px'
+          fontSize: isMobile ? '14px' : '18px'
         }}
       >
         {firstChar}
@@ -137,49 +137,45 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
 
   return (
     <div className="message-header">
-      {/* 群组基本信息 */}
-      <Card 
-        size="small" 
-        style={{ 
-          marginBottom: 6,
-          borderRadius: 4,
-          boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
-        }}
-        bodyStyle={{ padding: '8px 12px' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* 群组基本信息 - 无卡片包裹 */}
+      <div style={{ 
+        marginBottom: 8,
+        padding: '12px 16px',
+        background: 'transparent'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* 群组头像 */}
           {getGroupAvatar()}
           
           {/* 群组信息 */}
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 1 }}>
-              <Title level={5} style={{ margin: 0, fontSize: '14px', lineHeight: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <Title level={4} style={{ margin: 0, fontSize: '18px', lineHeight: '24px', color: '#262626' }}>
                 {group.title}
               </Title>
               <Tag 
                 color={group.is_active ? 'success' : 'error'} 
                 icon={group.is_active ? <CheckCircleOutlined /> : <PauseCircleOutlined />}
-                style={{ fontSize: '9px', padding: '1px 4px', lineHeight: '14px' }}
+                style={{ fontSize: '11px', padding: '2px 6px', lineHeight: '16px' }}
               >
                 {group.is_active ? '活跃' : '暂停'}
               </Tag>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Text type="secondary" style={{ fontSize: '11px', lineHeight: '16px' }}>
-                <TeamOutlined style={{ marginRight: 2, fontSize: '10px' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Text type="secondary" style={{ fontSize: '13px', lineHeight: '18px' }}>
+                <TeamOutlined style={{ marginRight: 4, fontSize: '12px' }} />
                 {group.member_count?.toLocaleString() || 0} 成员
               </Text>
               {group.username && (
-                <Text type="secondary" style={{ fontSize: '10px', lineHeight: '16px' }}>
+                <Text type="secondary" style={{ fontSize: '12px', lineHeight: '18px' }}>
                   @{group.username}
                 </Text>
               )}
             </div>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* 群组统计信息 - 紧凑布局 */}
       {groupStats && (

@@ -105,6 +105,45 @@ class WebSocketManager:
     def get_connected_clients(self) -> List[str]:
         """获取已连接的客户端列表"""
         return list(self.active_connections.keys())
+    
+    async def send_message(self, message_data: dict, client_id: str = None):
+        """发送实时消息"""
+        message = {
+            "type": "message",
+            "data": message_data,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        if client_id:
+            await self.send_personal_message(message, client_id)
+        else:
+            await self.broadcast(message)
+    
+    async def send_group_status(self, group_status_data: dict, client_id: str = None):
+        """发送群组状态更新"""
+        message = {
+            "type": "group_status",
+            "data": group_status_data,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        if client_id:
+            await self.send_personal_message(message, client_id)
+        else:
+            await self.broadcast(message)
+    
+    async def send_message_stats(self, stats_data: dict, client_id: str = None):
+        """发送消息统计更新"""
+        message = {
+            "type": "message_stats",
+            "data": stats_data,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        if client_id:
+            await self.send_personal_message(message, client_id)
+        else:
+            await self.broadcast(message)
 
 # 创建全局WebSocket管理器实例
 websocket_manager = WebSocketManager()
