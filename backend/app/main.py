@@ -128,8 +128,33 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting TgGod API...")
-    # 创建数据库表
-    Base.metadata.create_all(bind=engine)
+    
+    # 检查和修复数据库
+    try:
+        from pathlib import Path
+        import sys
+        
+        # 导入数据库检查器
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
+        
+        from check_database import DatabaseChecker
+        
+        logger.info("正在检查数据库结构...")
+        checker = DatabaseChecker()
+        success = checker.check_and_repair()
+        
+        if success:
+            logger.info("数据库检查和修复完成")
+        else:
+            logger.error("数据库检查和修复失败，但应用将继续启动")
+            
+    except Exception as e:
+        logger.error(f"数据库检查过程中发生错误: {e}")
+        logger.info("将使用传统方式创建表...")
+        
+        # 创建数据库表（传统方式）
+        Base.metadata.create_all(bind=engine)
     
     # 启动消息同步任务
     message_sync_task.start()

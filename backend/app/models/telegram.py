@@ -38,6 +38,7 @@ class TelegramMessage(Base):
     view_count = Column(Integer, default=0)
     is_forwarded = Column(Boolean, default=False)
     forwarded_from = Column(String(255), nullable=True)
+    is_own_message = Column(Boolean, default=False)  # 是否为当前用户发送的消息
     
     # 新增字段
     reply_to_message_id = Column(BigInteger, nullable=True)  # 回复的消息ID

@@ -44,6 +44,7 @@ class MessageResponse(BaseModel):
     view_count: int
     is_forwarded: bool
     forwarded_from: Optional[str]
+    is_own_message: bool
     reply_to_message_id: Optional[int]
     edit_date: Optional[datetime]
     is_pinned: bool
