@@ -275,15 +275,37 @@ async def sync_group_messages(
         raise HTTPException(status_code=404, detail="群组不存在")
     
     try:
+        # 决定使用哪个标识符来获取消息
+        group_identifier = None
+        
+        # 优先使用username
+        if group.username:
+            group_identifier = group.username
+            logger.info(f"使用群组用户名获取消息: {group.username}")
+        # 其次使用telegram_id
+        elif group.telegram_id:
+            group_identifier = group.telegram_id
+            logger.info(f"使用群组ID获取消息: {group.telegram_id}")
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail="群组缺少必要的标识符(username或telegram_id)"
+            )
+        
         # 获取消息
-        messages = await telegram_service.get_messages(group.username, limit=limit)
+        messages = await telegram_service.get_messages(group_identifier, limit=limit)
         
         # 保存到数据库
-        await telegram_service.save_messages_to_db(group_id, messages, db)
+        saved_count = await telegram_service.save_messages_to_db(group_id, messages, db)
         
-        return {"message": f"成功同步 {len(messages)} 条消息"}
+        return {
+            "message": f"成功同步 {saved_count} 条消息", 
+            "total_fetched": len(messages),
+            "total_saved": saved_count
+        }
     
     except Exception as e:
+        logger.error(f"同步群组消息失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/groups/{group_id}/stats")

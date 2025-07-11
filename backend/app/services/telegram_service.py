@@ -157,18 +157,46 @@ class TelegramService:
             db.rollback()
             return None
     
-    async def get_messages(self, group_username: str, limit: int = 100, offset_id: int = 0) -> List[Dict[str, Any]]:
-        """获取群组消息"""
+    async def get_messages(self, group_identifier, limit: int = 100, offset_id: int = 0) -> List[Dict[str, Any]]:
+        """获取群组消息 - 支持用户名、ID或实体对象"""
         try:
             await self.initialize()
             
-            entity = await self.client.get_entity(group_username)
-            messages = []
+            # 验证输入参数
+            if not group_identifier:
+                logger.error("群组标识符不能为空")
+                return []
             
-            async for message in self.client.iter_messages(entity, limit=limit, offset_id=offset_id):
-                message_data = await self._process_message(message)
-                if message_data:
-                    messages.append(message_data)
+            # 获取群组实体
+            try:
+                if hasattr(group_identifier, 'id'):
+                    # 如果传入的已经是实体对象，直接使用
+                    entity = group_identifier
+                    logger.info(f"使用实体对象: {getattr(entity, 'title', 'Unknown')}")
+                else:
+                    # 尝试通过用户名或ID获取实体
+                    logger.info(f"尝试获取实体: {group_identifier}")
+                    entity = await self.client.get_entity(group_identifier)
+                    logger.info(f"成功获取实体: {getattr(entity, 'title', 'Unknown')}")
+                    
+            except Exception as e:
+                logger.error(f"无法获取群组实体 {group_identifier}: {e}")
+                return []
+            
+            messages = []
+            message_count = 0
+            
+            try:
+                async for message in self.client.iter_messages(entity, limit=limit, offset_id=offset_id):
+                    message_data = await self._process_message(message)
+                    if message_data:
+                        messages.append(message_data)
+                        message_count += 1
+                
+                logger.info(f"成功获取 {message_count} 条消息")
+                
+            except Exception as e:
+                logger.error(f"获取消息时出错: {e}")
             
             return messages
             
@@ -348,9 +376,11 @@ class TelegramService:
             logger.error(f"下载媒体文件失败: {e}")
             return None
     
-    async def save_messages_to_db(self, group_id: int, messages: List[Dict[str, Any]], db: Session):
-        """保存消息到数据库"""
+    async def save_messages_to_db(self, group_id: int, messages: List[Dict[str, Any]], db: Session) -> int:
+        """保存消息到数据库，返回保存的消息数量"""
         try:
+            saved_count = 0
+            
             for message_data in messages:
                 # 检查消息是否已存在
                 existing_message = db.query(TelegramMessage).filter(
@@ -367,13 +397,16 @@ class TelegramService:
                     **message_data
                 )
                 db.add(message)
+                saved_count += 1
             
             db.commit()
-            logger.info(f"成功保存 {len(messages)} 条消息到数据库")
+            logger.info(f"成功保存 {saved_count} 条消息到数据库")
+            return saved_count
             
         except Exception as e:
             logger.error(f"保存消息到数据库失败: {e}")
             db.rollback()
+            return 0
     
     async def send_message(self, group_username: str, text: str, reply_to_message_id: Optional[int] = None) -> Optional[int]:
         """发送消息到群组"""
