@@ -54,8 +54,8 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
     
     setLoadingPinned(true);
     try {
-      // 这里暂时用空数组，因为后端可能还没有实现获取置顶消息的API
-      setPinnedMessages([]);
+      const pinnedMessages = await messageApi.getPinnedMessages(group.id);
+      setPinnedMessages(pinnedMessages || []);
       setCurrentPinnedIndex(0);
     } catch (error: any) {
       console.error('获取置顶消息失败:', error);
@@ -122,12 +122,12 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
     
     return (
       <Avatar 
-        size={isMobile ? 32 : 36} 
+        size={isMobile ? 28 : 32} 
         style={{ 
           backgroundColor: getAvatarColor(group.title),
           color: 'white',
           fontWeight: 'bold',
-          fontSize: isMobile ? '14px' : '16px'
+          fontSize: isMobile ? '12px' : '14px'
         }}
       >
         {firstChar}
@@ -141,38 +141,38 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
       <Card 
         size="small" 
         style={{ 
-          marginBottom: 8,
-          borderRadius: 6,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+          marginBottom: 6,
+          borderRadius: 4,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
         }}
-        bodyStyle={{ padding: '12px 16px' }}
+        bodyStyle={{ padding: '8px 12px' }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* 群组头像 */}
           {getGroupAvatar()}
           
           {/* 群组信息 */}
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              <Title level={5} style={{ margin: 0, fontSize: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 1 }}>
+              <Title level={5} style={{ margin: 0, fontSize: '14px', lineHeight: '20px' }}>
                 {group.title}
               </Title>
               <Tag 
                 color={group.is_active ? 'success' : 'error'} 
                 icon={group.is_active ? <CheckCircleOutlined /> : <PauseCircleOutlined />}
-                style={{ fontSize: '10px' }}
+                style={{ fontSize: '9px', padding: '1px 4px', lineHeight: '14px' }}
               >
                 {group.is_active ? '活跃' : '暂停'}
               </Tag>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                <TeamOutlined style={{ marginRight: 4 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Text type="secondary" style={{ fontSize: '11px', lineHeight: '16px' }}>
+                <TeamOutlined style={{ marginRight: 2, fontSize: '10px' }} />
                 {group.member_count?.toLocaleString() || 0} 成员
               </Text>
               {group.username && (
-                <Text type="secondary" style={{ fontSize: '11px' }}>
+                <Text type="secondary" style={{ fontSize: '10px', lineHeight: '16px' }}>
                   @{group.username}
                 </Text>
               )}
@@ -186,26 +186,27 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
         <Card 
           size="small" 
           title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <MessageOutlined />
-              <span style={{ fontSize: '14px' }}>消息统计</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <MessageOutlined style={{ fontSize: '12px' }} />
+              <span style={{ fontSize: '12px' }}>消息统计</span>
             </div>
           }
           style={{ 
-            marginBottom: 12,
-            borderRadius: 6,
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+            marginBottom: 6,
+            borderRadius: 4,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
           }}
-          bodyStyle={{ padding: '12px 16px' }}
+          bodyStyle={{ padding: '8px 12px' }}
+          headStyle={{ padding: '6px 12px', minHeight: '32px' }}
           loading={loadingStats}
         >
-          <Row gutter={[8, 8]}>
+          <Row gutter={[6, 6]}>
             {/* 第一行：主要统计 */}
             <Col span={isMobile ? 6 : 4}>
               <Statistic
                 title="总数"
                 value={groupStats.total_messages}
-                valueStyle={{ color: '#1890ff', fontSize: '16px' }}
+                valueStyle={{ color: '#1890ff', fontSize: '14px' }}
                 className="compact-statistic"
               />
             </Col>
@@ -213,7 +214,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
               <Statistic
                 title="文本"
                 value={groupStats.text_messages}
-                valueStyle={{ color: '#52c41a', fontSize: '16px' }}
+                valueStyle={{ color: '#52c41a', fontSize: '14px' }}
                 className="compact-statistic"
               />
             </Col>
@@ -221,7 +222,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
               <Statistic
                 title="媒体"
                 value={groupStats.media_messages}
-                valueStyle={{ color: '#faad14', fontSize: '16px' }}
+                valueStyle={{ color: '#faad14', fontSize: '14px' }}
                 className="compact-statistic"
               />
             </Col>
@@ -229,7 +230,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
               <Statistic
                 title="图片"
                 value={groupStats.photo_messages}
-                valueStyle={{ color: '#13c2c2', fontSize: '16px' }}
+                valueStyle={{ color: '#13c2c2', fontSize: '14px' }}
                 className="compact-statistic"
               />
             </Col>
@@ -239,7 +240,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                   <Statistic
                     title="视频"
                     value={groupStats.video_messages}
-                    valueStyle={{ color: '#722ed1', fontSize: '16px' }}
+                    valueStyle={{ color: '#722ed1', fontSize: '14px' }}
                     className="compact-statistic"
                   />
                 </Col>
@@ -247,7 +248,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                   <Statistic
                     title="转发"
                     value={groupStats.forwarded_messages}
-                    valueStyle={{ color: '#fa8c16', fontSize: '16px' }}
+                    valueStyle={{ color: '#fa8c16', fontSize: '14px' }}
                     className="compact-statistic"
                   />
                 </Col>
@@ -262,19 +263,19 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
         <Card 
           size="small"
           style={{ 
-            marginBottom: 8,
-            borderRadius: 6,
+            marginBottom: 6,
+            borderRadius: 4,
             borderColor: '#faad14',
             backgroundColor: '#fffbf0'
           }}
-          bodyStyle={{ padding: '8px 12px' }}
+          bodyStyle={{ padding: '6px 10px' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <PushpinOutlined style={{ color: '#faad14', fontSize: '14px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <PushpinOutlined style={{ color: '#faad14', fontSize: '12px' }} />
             <div style={{ flex: 1 }}>
-              <Text strong style={{ color: '#faad14', fontSize: '12px' }}>置顶消息</Text>
-              <div style={{ marginTop: 2 }}>
-                <Text ellipsis style={{ display: 'block', maxWidth: '200px', fontSize: '12px' }}>
+              <Text strong style={{ color: '#faad14', fontSize: '11px' }}>置顶消息</Text>
+              <div style={{ marginTop: 1 }}>
+                <Text ellipsis style={{ display: 'block', maxWidth: '200px', fontSize: '11px' }}>
                   {pinnedMessages[currentPinnedIndex]?.text || '媒体消息'}
                 </Text>
               </div>
@@ -288,9 +289,9 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                     size="small" 
                     icon={<LeftOutlined />} 
                     onClick={handlePinnedPrevious}
-                    style={{ fontSize: '10px' }}
+                    style={{ fontSize: '9px', padding: '2px 4px' }}
                   />
-                  <Text type="secondary" style={{ fontSize: '10px' }}>
+                  <Text type="secondary" style={{ fontSize: '9px' }}>
                     {currentPinnedIndex + 1}/{pinnedMessages.length}
                   </Text>
                   <Button 
@@ -298,7 +299,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                     size="small" 
                     icon={<RightOutlined />} 
                     onClick={handlePinnedNext}
-                    style={{ fontSize: '10px' }}
+                    style={{ fontSize: '9px', padding: '2px 4px' }}
                   />
                 </>
               )}
@@ -306,7 +307,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                 type="text" 
                 size="small" 
                 onClick={handleJumpToPinned}
-                style={{ fontSize: '10px' }}
+                style={{ fontSize: '9px', padding: '2px 6px' }}
               >
                 跳转
               </Button>

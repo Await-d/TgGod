@@ -201,11 +201,12 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       const response = await messageApi.getGroupMessages(groupId, params);
       
       if (append && pageNum > 1) {
-        // 如果是追加模式，需要将新消息添加到现有消息列表
+        // 分页加载：新获取的消息是更老的消息，也需要反转后插入到顶部
         const currentMessages = displayMessages;
-        setMessages([...currentMessages, ...response]);
+        setMessages([...response.reverse(), ...currentMessages]);
       } else {
-        setMessages(response);
+        // 首次加载：反转显示，让最新消息在底部
+        setMessages(response.reverse());
         // 新消息加载后滚动到底部
         setTimeout(scrollToBottom, 100);
       }
