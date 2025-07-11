@@ -79,6 +79,10 @@ app.include_router(task.router, prefix="/api/task", tags=["task"])
 app.include_router(config.router, prefix="/api/config", tags=["config"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
+# 媒体文件API
+from .api import media
+app.include_router(media.router, prefix="/api/media", tags=["media"])
+
 # 根路径
 @app.get("/")
 async def root():

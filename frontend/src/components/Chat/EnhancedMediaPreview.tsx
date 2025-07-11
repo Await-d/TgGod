@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Modal, Image, Button, Space, message, Spin, Progress, Tooltip } from 'antd';
+import React, { useState, useCallback, useRef } from 'react';
+import { Modal, Button, Space, message, Spin, Progress, Tooltip } from 'antd';
 import { 
   EyeOutlined, 
   DownloadOutlined, 
@@ -8,10 +8,6 @@ import {
   VideoCameraOutlined,
   FileTextOutlined,
   AudioOutlined,
-  FullscreenOutlined,
-  CloseOutlined,
-  LeftOutlined,
-  RightOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
   RotateLeftOutlined,
@@ -93,13 +89,16 @@ const getFileIcon = (mediaType: string, size: number = 16) => {
 
 interface EnhancedMediaPreviewProps {
   mediaType: string;
-  mediaPath: string;
+  mediaPath?: string;  // 本地文件路径（可能为空）
   filename?: string;
   size?: string | number;
   className?: string;
   thumbnail?: boolean;
   onGalleryOpen?: (mediaPath: string) => void;
   style?: React.CSSProperties;
+  messageId?: number;  // 新增：消息ID用于按需下载
+  fileId?: string;     // 新增：Telegram文件ID
+  downloaded?: boolean; // 新增：是否已下载
 }
 
 const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
@@ -110,28 +109,35 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
   className = '',
   thumbnail = false,
   onGalleryOpen,
-  style
+  style,
+  messageId,
+  fileId,
+  downloaded = false
 }) => {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
+  const [onDemandDownloading, setOnDemandDownloading] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [currentMediaPath, setCurrentMediaPath] = useState(mediaPath);
   
   const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
   
-  const mediaUrl = getMediaUrl(mediaPath);
+  const mediaUrl = getMediaUrl(currentMediaPath || '');
   
   // Debug logging
   console.log('MediaPreview Debug:', {
     mediaType,
-    mediaPath,
+    mediaPath: currentMediaPath,
     mediaUrl,
     filename,
-    size
+    size,
+    downloaded,
+    messageId,
+    fileId
   });
   const formattedSize = size ? formatFileSize(size) : undefined;
   const fileType = getFileType(filename || '', mediaType);
@@ -148,6 +154,73 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
     setLoading(false);
     setError(true);
   }, []);
+  
+  // 按需下载文件
+  const handleOnDemandDownload = useCallback(async () => {
+    if (!messageId || !fileId || onDemandDownloading) return;
+    
+    try {
+      setOnDemandDownloading(true);
+      
+      // 调用后端API开始下载
+      const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiBase}/api/media/download/${messageId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ force: false })
+      });
+      
+      if (!response.ok) {
+        throw new Error('下载请求失败');
+      }
+      
+      const result = await response.json();
+      
+      if (result.status === 'already_downloaded') {
+        // 文件已存在，更新本地路径
+        setCurrentMediaPath(result.file_path);
+        message.success('文件已存在');
+      } else if (result.status === 'download_started') {
+        // 下载已开始，显示提示
+        message.info('下载已开始，请稍后...');
+        
+        // 轮询检查下载状态
+        const checkStatus = async () => {
+          try {
+            const statusResponse = await fetch(`${apiBase}/api/media/download-status/${messageId}`);
+            const statusResult = await statusResponse.json();
+            
+            if (statusResult.status === 'downloaded') {
+              setCurrentMediaPath(statusResult.file_path);
+              message.success('文件下载完成');
+              setOnDemandDownloading(false);
+              return;
+            } else if (statusResult.status === 'download_failed') {
+              message.error(`下载失败: ${statusResult.error}`);
+              setOnDemandDownloading(false);
+              return;
+            }
+            
+            // 继续轮询
+            setTimeout(checkStatus, 1000);
+          } catch (error) {
+            console.error('检查下载状态失败:', error);
+            setOnDemandDownloading(false);
+          }
+        };
+        
+        setTimeout(checkStatus, 1000);
+      }
+      
+    } catch (error) {
+      console.error('按需下载失败:', error);
+      message.error('下载失败，请重试');
+    } finally {
+      // 不在这里设置false，让轮询来控制
+    }
+  }, [messageId, fileId, onDemandDownloading]);
   
   // 下载文件
   const handleDownload = useCallback(async () => {
@@ -204,12 +277,18 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
   
   // 打开预览
   const handlePreview = useCallback(() => {
-    if (onGalleryOpen) {
-      onGalleryOpen(mediaPath);
+    if (!currentMediaPath) {
+      // 如果没有媒体路径，触发下载
+      handleOnDemandDownload();
+      return;
+    }
+    
+    if (onGalleryOpen && currentMediaPath) {
+      onGalleryOpen(currentMediaPath);
     } else {
       setPreviewVisible(true);
     }
-  }, [onGalleryOpen, mediaPath]);
+  }, [onGalleryOpen, currentMediaPath, handleOnDemandDownload]);
   
   // 缩放控制
   const handleZoom = useCallback((delta: number) => {
@@ -229,6 +308,17 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
   
   // 渲染缩略图模式
   const renderThumbnail = () => {
+    // 如果没有媒体路径，显示占位符
+    if (!currentMediaPath) {
+      return (
+        <div className="file-thumbnail placeholder" onClick={handleOnDemandDownload}>
+          {getFileIcon(fileType, 32)}
+          <span className="file-type">{fileType.toUpperCase()}</span>
+          <div className="download-hint">点击下载</div>
+        </div>
+      );
+    }
+    
     if (fileType === 'photo') {
       return (
         <div className={`media-thumbnail ${error ? 'error' : ''} ${loading ? 'loading' : ''}`} onClick={handlePreview}>
@@ -257,6 +347,16 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
     }
     
     if (fileType === 'video') {
+      if (!currentMediaPath) {
+        return (
+          <div className="file-thumbnail placeholder" onClick={handleOnDemandDownload}>
+            {getFileIcon(fileType, 32)}
+            <span className="file-type">{fileType.toUpperCase()}</span>
+            <div className="download-hint">点击下载</div>
+          </div>
+        );
+      }
+      
       return (
         <div className={`media-thumbnail video-thumbnail`} onClick={handlePreview}>
           <video
@@ -387,30 +487,50 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
           {filename && <div className="media-filename">{filename}</div>}
           {formattedSize && <div className="media-size">{formattedSize}</div>}
           <Space size="small">
-            <Button 
-              type="text" 
-              icon={<EyeOutlined />} 
-              size="small"
-              onClick={handlePreview}
-            >
-              预览
-            </Button>
-            <Button 
-              type="text" 
-              icon={<DownloadOutlined />} 
-              size="small"
-              onClick={handleDownload}
-              loading={downloading}
-            >
-              下载
-            </Button>
+            {currentMediaPath ? (
+              <>
+                <Button 
+                  type="text" 
+                  icon={<EyeOutlined />} 
+                  size="small"
+                  onClick={handlePreview}
+                >
+                  预览
+                </Button>
+                <Button 
+                  type="text" 
+                  icon={<DownloadOutlined />} 
+                  size="small"
+                  onClick={handleDownload}
+                  loading={downloading}
+                >
+                  下载
+                </Button>
+              </>
+            ) : (
+              <Button 
+                type="primary" 
+                icon={<DownloadOutlined />} 
+                size="small"
+                onClick={handleOnDemandDownload}
+                loading={onDemandDownloading}
+              >
+                {onDemandDownloading ? '下载中...' : '点击下载'}
+              </Button>
+            )}
           </Space>
         </div>
       )}
       
-      {downloading && downloadProgress > 0 && (
+      {(downloading && downloadProgress > 0) && (
         <div className="download-progress">
           <Progress percent={Math.round(downloadProgress)} size="small" />
+        </div>
+      )}
+      
+      {onDemandDownloading && (
+        <div className="download-progress">
+          <Progress percent={0} size="small" status="active" />
         </div>
       )}
       
