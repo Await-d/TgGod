@@ -9,7 +9,9 @@ import {
   MessageSendRequest,
   MessageSearchRequest,
   GroupStats,
-  FilterRule
+  FilterRule,
+  DownloadTask,
+  PaginatedResponse
 } from '../types';
 
 // 创建axios实例
@@ -119,8 +121,13 @@ export const telegramApi = {
   },
 
   // 更新群组
-  updateGroup: (groupId: number, isActive: boolean): Promise<TelegramGroup> => {
-    return api.put(`/telegram/groups/${groupId}`, { is_active: isActive });
+  updateGroup: (groupId: number, data: Partial<TelegramGroup>): Promise<TelegramGroup> => {
+    return api.put(`/telegram/groups/${groupId}`, data);
+  },
+
+  // 同步群组信息
+  syncGroup: (groupId: number): Promise<TelegramGroup> => {
+    return api.post(`/telegram/groups/${groupId}/sync-info`);
   },
 
   // 删除群组
@@ -239,7 +246,7 @@ export const messageApi = {
     searchRequest: MessageSearchRequest,
     skip: number = 0,
     limit: number = 100
-  ): Promise<TelegramMessage[]> => {
+  ): Promise<PaginatedResponse<TelegramMessage>> => {
     return api.post(`/telegram/groups/${groupId}/messages/search`, searchRequest, {
       params: { skip, limit }
     });
@@ -284,6 +291,73 @@ export const ruleApi = {
     sample_messages: TelegramMessage[];
   }> => {
     return api.post('/rule/test', rule);
+  },
+};
+
+// 下载任务相关API
+export const downloadApi = {
+  // 获取下载任务列表
+  getDownloadTasks: (skip: number = 0, limit: number = 100): Promise<PaginatedResponse<DownloadTask>> => {
+    return api.get('/download', { params: { skip, limit } });
+  },
+
+  // 创建下载任务
+  createDownloadTask: (task: {
+    name: string;
+    group_id: number;
+    rule_id: number;
+    download_path: string;
+    start_immediately?: boolean;
+  }): Promise<DownloadTask> => {
+    return api.post('/download', task);
+  },
+
+  // 获取下载任务详情
+  getDownloadTask: (taskId: number): Promise<DownloadTask> => {
+    return api.get(`/download/${taskId}`);
+  },
+
+  // 暂停下载任务
+  pauseDownloadTask: (taskId: number): Promise<DownloadTask> => {
+    return api.post(`/download/${taskId}/pause`);
+  },
+
+  // 恢复下载任务
+  resumeDownloadTask: (taskId: number): Promise<DownloadTask> => {
+    return api.post(`/download/${taskId}/resume`);
+  },
+
+  // 停止下载任务
+  stopDownloadTask: (taskId: number): Promise<DownloadTask> => {
+    return api.post(`/download/${taskId}/stop`);
+  },
+
+  // 删除下载任务
+  deleteDownloadTask: (taskId: number): Promise<{ message: string }> => {
+    return api.delete(`/download/${taskId}`);
+  },
+
+  // 预估下载数量
+  estimateDownloadCount: (groupId: number, ruleId: number): Promise<number> => {
+    return api.post('/download/estimate', { group_id: groupId, rule_id: ruleId });
+  },
+};
+
+// 群组管理相关API
+export const groupApi = {
+  // 获取群组统计信息
+  getGroupStats: (groupId: number): Promise<GroupStats> => {
+    return api.get(`/telegram/groups/${groupId}/stats`);
+  },
+
+  // 同步群组信息
+  syncGroup: (groupId: number): Promise<TelegramGroup> => {
+    return api.post(`/telegram/groups/${groupId}/sync-info`);
+  },
+
+  // 更新群组设置
+  updateGroup: (groupId: number, data: Partial<TelegramGroup>): Promise<TelegramGroup> => {
+    return api.put(`/telegram/groups/${groupId}`, data);
   },
 };
 

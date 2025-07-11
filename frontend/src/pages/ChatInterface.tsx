@@ -16,6 +16,9 @@ import MessageArea from '../components/Chat/MessageArea';
 import MessageInput from '../components/Chat/MessageInput';
 import QuickActions from '../components/Chat/QuickActions';
 import MessageFilterDrawer from '../components/Chat/MessageFilterDrawer';
+import MessageSearchDrawer from '../components/Chat/MessageSearchDrawer';
+import MessageDownloadModal from '../components/Chat/MessageDownloadModal';
+import GroupSettingsModal from '../components/Chat/GroupSettingsModal';
 import QuickRuleModal from '../components/Chat/QuickRuleModal';
 import MessageHighlight from '../components/Chat/MessageHighlight';
 import MediaPreview from '../components/Chat/MediaPreview';
@@ -97,6 +100,9 @@ const ChatInterface: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [showSearchDrawer, setShowSearchDrawer] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [ruleBaseMessage, setRuleBaseMessage] = useState<TelegramMessage | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -307,15 +313,13 @@ const ChatInterface: React.FC = () => {
             setShowRuleModal(true);
           }}
           onSearch={() => {
-            setShowFilterDrawer(true);
+            setShowSearchDrawer(true);
           }}
           onDownload={() => {
-            // TODO: 实现下载功能
-            console.log('下载消息');
+            setShowDownloadModal(true);
           }}
           onSettings={() => {
-            // TODO: 实现设置功能
-            console.log('群组设置');
+            setShowGroupSettings(true);
           }}
           isMobile={isMobile}
         />
@@ -422,6 +426,42 @@ const ChatInterface: React.FC = () => {
         selectedGroup={chatState.selectedGroup}
         currentFilter={chatState.messageFilter}
         onApplyFilter={handleApplyFilter}
+        isMobile={isMobile}
+      />
+      
+      {/* 消息搜索抽屉 */}
+      <MessageSearchDrawer
+        visible={showSearchDrawer}
+        onClose={() => setShowSearchDrawer(false)}
+        selectedGroup={chatState.selectedGroup}
+        onMessageSelect={(message) => {
+          // 可以在这里添加跳转到消息的逻辑
+          console.log('选择消息:', message);
+        }}
+        isMobile={isMobile}
+      />
+      
+      {/* 消息下载模态框 */}
+      <MessageDownloadModal
+        visible={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        selectedGroup={chatState.selectedGroup}
+        onSuccess={(task) => {
+          console.log('下载任务创建成功:', task);
+        }}
+        isMobile={isMobile}
+      />
+      
+      {/* 群组设置模态框 */}
+      <GroupSettingsModal
+        visible={showGroupSettings}
+        onClose={() => setShowGroupSettings(false)}
+        selectedGroup={chatState.selectedGroup}
+        onGroupUpdate={(group) => {
+          // 更新群组信息
+          console.log('群组信息更新:', group);
+          // 可以在这里更新 store 中的群组信息
+        }}
         isMobile={isMobile}
       />
       

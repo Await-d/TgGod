@@ -1,11 +1,12 @@
 import React from 'react';
 import { Space, Typography } from 'antd';
+import { ReactionEmoji } from '../../types';
 import './MessageReactions.css';
 
 const { Text } = Typography;
 
 interface MessageReactionsProps {
-  reactions: Record<string, number>;
+  reactions: Record<string, number> | ReactionEmoji[];
   isMobile?: boolean;
 }
 
@@ -14,12 +15,30 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
   isMobile = false
 }) => {
   // 如果没有反应，不渲染组件
-  if (!reactions || Object.keys(reactions).length === 0) {
+  if (!reactions || (Array.isArray(reactions) && reactions.length === 0) || 
+      (!Array.isArray(reactions) && Object.keys(reactions).length === 0)) {
     return null;
   }
 
+  // 统一处理反应数据
+  const processReactions = () => {
+    if (Array.isArray(reactions)) {
+      // 处理 ReactionEmoji[] 格式
+      const reactionMap: Record<string, number> = {};
+      reactions.forEach(reaction => {
+        if (reaction.emoticon) {
+          reactionMap[reaction.emoticon] = (reactionMap[reaction.emoticon] || 0) + (reaction.count || 1);
+        }
+      });
+      return Object.entries(reactionMap);
+    } else {
+      // 处理 Record<string, number> 格式
+      return Object.entries(reactions);
+    }
+  };
+
   // 按反应数量排序
-  const sortedReactions = Object.entries(reactions)
+  const sortedReactions = processReactions()
     .filter(([emoji, count]) => count > 0)
     .sort(([, a], [, b]) => b - a);
 

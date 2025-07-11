@@ -118,6 +118,10 @@ const MessageInput: React.FC<ExtendedMessageInputProps> = ({
     }
   }, [replyTo]);
 
+  // 检查群组是否允许发送消息
+  const canSendMessages = selectedGroup?.can_send_messages !== false && 
+                         selectedGroup?.permissions?.can_send_messages !== false;
+
   // 如果没有选择群组，显示提示
   if (!selectedGroup) {
     return (
@@ -125,6 +129,18 @@ const MessageInput: React.FC<ExtendedMessageInputProps> = ({
         <div className="disabled-content">
           <MessageOutlined style={{ fontSize: 24, color: '#d9d9d9' }} />
           <Text type="secondary">请选择一个群组开始聊天</Text>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果群组不允许发送消息，显示禁用提示
+  if (!canSendMessages) {
+    return (
+      <div className="message-input-disabled">
+        <div className="disabled-content">
+          <MessageOutlined style={{ fontSize: 24, color: '#d9d9d9' }} />
+          <Text type="secondary">此群组不允许发送消息</Text>
         </div>
       </div>
     );

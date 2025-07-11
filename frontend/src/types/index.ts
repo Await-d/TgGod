@@ -44,6 +44,15 @@ export interface TelegramGroup {
   created_at: string;
   updated_at: string;
   is_active: boolean;
+  can_send_messages?: boolean;
+  permissions?: {
+    can_send_messages?: boolean;
+    can_send_media?: boolean;
+    can_send_stickers?: boolean;
+    can_send_gifs?: boolean;
+    can_send_games?: boolean;
+    can_use_inline_bots?: boolean;
+  };
 }
 
 export interface TelegramMessage {
@@ -64,13 +73,18 @@ export interface TelegramMessage {
   reply_to_message_id?: number;
   edit_date?: string;
   is_pinned: boolean;
-  reactions?: Record<string, number>;
+  reactions?: Record<string, number> | ReactionEmoji[];
   mentions?: string[];
   hashtags?: string[];
   urls?: string[];
   date: string;
   created_at: string;
   updated_at?: string;
+}
+
+export interface ReactionEmoji {
+  emoticon: string;
+  count?: number;
 }
 
 export interface MessageSendRequest {
