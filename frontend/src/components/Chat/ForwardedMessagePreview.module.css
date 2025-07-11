@@ -1,0 +1,190 @@
+.forwardedPreview {
+  margin: 8px 0;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.forwardedPreview:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+}
+
+.forwardedPreview.compact {
+  margin: 4px 0;
+  border-radius: 4px;
+}
+
+.forwardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #f5f5f5;
+  cursor: pointer;
+  user-select: none;
+}
+
+.forwardHeader:hover {
+  background: #f0f0f0;
+}
+
+.forwardBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #1890ff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.forwardBadge .icon {
+  font-size: 14px;
+}
+
+.forwardSource {
+  color: #666;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.forwardActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.expandButton {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.expandButton:hover {
+  color: #1890ff;
+  background: #e6f7ff;
+}
+
+.jumpButton {
+  background: #1890ff;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.jumpButton:hover {
+  background: #40a9ff;
+}
+
+.jumpButton:disabled {
+  background: #d9d9d9;
+  cursor: not-allowed;
+}
+
+.previewContent {
+  padding: 12px;
+  background: white;
+  border-radius: 0 0 8px 8px;
+}
+
+.previewContent.compact {
+  padding: 8px;
+}
+
+.originalMessage {
+  border-left: 3px solid #1890ff;
+  padding-left: 12px;
+  margin: 8px 0;
+}
+
+.originalMessage.compact {
+  padding-left: 8px;
+  margin: 4px 0;
+}
+
+.originalHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.originalSender {
+  font-weight: 500;
+  color: #1890ff;
+  font-size: 13px;
+}
+
+.originalTime {
+  color: #999;
+  font-size: 11px;
+}
+
+.originalContent {
+  color: #333;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.originalContent.compact {
+  font-size: 13px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #666;
+}
+
+.error {
+  color: #ff4d4f;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.unavailable {
+  color: #999;
+  font-style: italic;
+  padding: 8px 12px;
+  text-align: center;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .forwardHeader {
+    padding: 6px 8px;
+  }
+  
+  .forwardBadge {
+    font-size: 11px;
+  }
+  
+  .forwardSource {
+    font-size: 11px;
+  }
+  
+  .previewContent {
+    padding: 8px;
+  }
+  
+  .originalContent {
+    font-size: 13px;
+  }
+}

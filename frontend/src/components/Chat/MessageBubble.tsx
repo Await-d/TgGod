@@ -30,6 +30,7 @@ import EnhancedVoiceMessage from './EnhancedVoiceMessage';
 import MessageReactions from './MessageReactions';
 import LinkPreview, { parseLinks, renderTextWithLinks } from './LinkPreview';
 import MarkdownRenderer, { isMarkdownContent } from './MarkdownRenderer';
+import ForwardedMessagePreview from './ForwardedMessagePreview';
 import './EnhancedMediaPreview.css';
 import './EnhancedVoiceMessage.css';
 import './MessageReactions.css';
@@ -128,8 +129,20 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   const renderMessageContent = () => {
     return (
       <div className="message-content">
+        {/* 转发消息预览 */}
+        {message.is_forwarded && (
+          <ForwardedMessagePreview
+            message={message}
+            onJumpToOriginal={(messageId) => {
+              // TODO: 实现跳转到原始消息的逻辑
+              console.log('Jump to original message:', messageId);
+            }}
+            compact={isMobile}
+          />
+        )}
+
         {/* 回复信息 */}
-        {message.reply_to_message_id && (
+        {message.reply_to_message_id && !message.is_forwarded && (
           <div className="reply-info">
             <MessageOutlined style={{ marginRight: 4 }} />
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -202,12 +215,6 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {/* 消息标签 */}
         <div className="message-tags">
           <Space size={4} wrap>
-            {message.is_forwarded && (
-              <Tag color="orange">
-                <ShareAltOutlined /> 转发
-              </Tag>
-            )}
-            
             {message.is_pinned && (
               <Tag color="red">
                 <PushpinOutlined /> 置顶

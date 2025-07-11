@@ -242,6 +242,11 @@ export const messageApi = {
     return api.get(`/telegram/groups/${groupId}/messages/${messageId}`);
   },
 
+  // 根据消息ID获取消息（用于转发消息预览）
+  getMessageById: (groupId: number, messageId: number): Promise<TelegramMessage> => {
+    return api.get(`/telegram/groups/${groupId}/messages/${messageId}`);
+  },
+
   // 获取消息回复
   getMessageReplies: (
     groupId: number, 
