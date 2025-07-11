@@ -16,6 +16,52 @@ export interface User {
   last_login?: string;
 }
 
+// 按月同步相关类型
+export interface MonthInfo {
+  year: number;
+  month: number;
+}
+
+export interface MonthlySyncRequest {
+  months: MonthInfo[];
+}
+
+export interface MonthlySyncResponse {
+  success: boolean;
+  total_messages: number;
+  months_synced: number;
+  failed_months: Array<{
+    month: MonthInfo;
+    error: string;
+  }>;
+  monthly_stats: Array<{
+    year: number;
+    month: number;
+    total_messages: number;
+    saved_messages: number;
+    start_date: string;
+    end_date: string;
+  }>;
+  error?: string;
+}
+
+export interface BatchMonthlySyncResponse {
+  success: boolean;
+  total_groups: number;
+  synced_groups: number;
+  failed_groups: Array<{
+    group_id: number;
+    title: string;
+    error: string;
+  }>;
+  total_messages: number;
+  group_results: Array<{
+    group_id: number;
+    title: string;
+    result: MonthlySyncResponse;
+  }>;
+}
+
 export interface LoginRequest {
   username: string;
   password: string;

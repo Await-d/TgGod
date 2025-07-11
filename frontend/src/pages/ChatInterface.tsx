@@ -90,6 +90,7 @@ const ChatInterface: React.FC = () => {
   // 状态管理
   const [chatState, setChatState] = useState<ChatState>({
     selectedGroup: null,
+    groups: [],
     isGroupListCollapsed: false,
     isMobile: false,
     searchQuery: '',
@@ -121,6 +122,14 @@ const ChatInterface: React.FC = () => {
       isMobile: isMobile
     }));
   }, [selectedGroup, isMobile]);
+
+  // 同步群组列表到内部状态
+  useEffect(() => {
+    setChatState(prev => ({
+      ...prev,
+      groups: groups || []
+    }));
+  }, [groups]);
 
   // 监听消息加载完成，自动滚动到底部
   useEffect(() => {
@@ -366,6 +375,7 @@ const ChatInterface: React.FC = () => {
             setShowGroupSettings(true);
           }}
           isMobile={isMobile}
+          allGroups={chatState.groups}
         />
       )}
       

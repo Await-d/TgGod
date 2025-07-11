@@ -141,6 +141,21 @@ export const telegramApi = {
     return api.post(`/telegram/groups/${groupId}/sync`, { limit });
   },
 
+  // 按月同步群组消息
+  syncGroupMessagesMonthly: (groupId: number, months: Array<{year: number, month: number}>): Promise<any> => {
+    return api.post(`/telegram/groups/${groupId}/sync-monthly`, { months });
+  },
+
+  // 获取默认同步月份
+  getDefaultSyncMonths: (groupId: number, count: number = 3): Promise<{months: Array<{year: number, month: number}>}> => {
+    return api.get(`/telegram/groups/${groupId}/default-sync-months`, { params: { count } });
+  },
+
+  // 批量按月同步所有群组
+  syncAllGroupsMonthly: (months: Array<{year: number, month: number}>): Promise<any> => {
+    return api.post('/telegram/sync-all-groups-monthly', { months });
+  },
+
   // 从Telegram同步群组列表
   syncGroups: (): Promise<{
     success: boolean;

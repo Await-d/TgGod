@@ -26,6 +26,9 @@ importers:
       axios:
         specifier: ^1.6.2
         version: 1.10.0
+      dayjs:
+        specifier: ^1.11.13
+        version: 1.11.13
       highlight.js:
         specifier: ^11.11.1
         version: 11.11.1

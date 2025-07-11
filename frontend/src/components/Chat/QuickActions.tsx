@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Space, Button, Tooltip, Divider } from 'antd';
 import { 
   FilterOutlined,
@@ -7,11 +7,12 @@ import {
   SettingOutlined,
   SearchOutlined,
   DownloadOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  CalendarOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { QuickActionsProps } from '../../types/chat';
-// 移除不再需要的导入
+import MonthlySyncModal from '../MonthlySyncModal';
 
 interface ExtendedQuickActionsProps extends QuickActionsProps {
   isMobile?: boolean;
@@ -20,6 +21,7 @@ interface ExtendedQuickActionsProps extends QuickActionsProps {
   onSettings?: () => void;
   onRefresh?: () => void;
   loading?: boolean;
+  allGroups?: TelegramGroup[]; // 添加所有群组列表
 }
 
 const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
@@ -32,8 +34,18 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
   onDownload,
   onSettings,
   onRefresh,
-  loading = false
+  loading = false,
+  allGroups = []
 }) => {
+  const [monthlySyncVisible, setMonthlySyncVisible] = useState(false);
+
+  const handleMonthlySync = () => {
+    setMonthlySyncVisible(true);
+  };
+
+  const handleMonthlySyncClose = () => {
+    setMonthlySyncVisible(false);
+  };
   
   // 如果没有选择群组，不显示操作按钮
   if (!selectedGroup) {
@@ -48,16 +60,81 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
   // 移动端显示精简版按钮
   if (isMobile) {
     return (
-      <div className="quick-actions mobile">
-        <Space size="small" split={<Divider type="vertical" />}>
-          <Tooltip title="刷新消息">
+      <>
+        <div className="quick-actions mobile">
+          <Space size="small" split={<Divider type="vertical" />}>
+            <Tooltip title="刷新消息">
+              <Button
+                type="text"
+                icon={<ReloadOutlined />}
+                onClick={onRefresh}
+                loading={loading}
+                size="small"
+              />
+            </Tooltip>
+            
+            <Tooltip title="筛选消息">
+              <Button
+                type="text"
+                icon={<FilterOutlined />}
+                onClick={onFilter}
+                size="small"
+              />
+            </Tooltip>
+            
+            <Tooltip title="创建规则">
+              <Button
+                type="text"
+                icon={<PlusOutlined />}
+                onClick={onCreateRule}
+                size="small"
+              />
+            </Tooltip>
+            
+            <Tooltip title="同步消息">
+              <Button
+                type="text"
+                icon={<SyncOutlined />}
+                onClick={handleSync}
+                loading={loading}
+                size="small"
+              />
+            </Tooltip>
+
+            <Tooltip title="按月同步">
+              <Button
+                type="text"
+                icon={<CalendarOutlined />}
+                onClick={handleMonthlySync}
+                size="small"
+              />
+            </Tooltip>
+          </Space>
+        </div>
+
+        <MonthlySyncModal
+          visible={monthlySyncVisible}
+          onClose={handleMonthlySyncClose}
+          selectedGroup={selectedGroup}
+          groups={allGroups}
+        />
+      </>
+    );
+  }
+
+  // 桌面端显示完整版按钮
+  return (
+    <>
+      <div className="quick-actions desktop">
+        <Space split={<Divider type="vertical" />}>
+          <Tooltip title="搜索消息">
             <Button
               type="text"
-              icon={<ReloadOutlined />}
-              onClick={onRefresh}
-              loading={loading}
-              size="small"
-            />
+              icon={<SearchOutlined />}
+              onClick={onSearch}
+            >
+              搜索
+            </Button>
           </Tooltip>
           
           <Tooltip title="筛选消息">
@@ -65,8 +142,9 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
               type="text"
               icon={<FilterOutlined />}
               onClick={onFilter}
-              size="small"
-            />
+            >
+              筛选
+            </Button>
           </Tooltip>
           
           <Tooltip title="创建规则">
@@ -74,9 +152,9 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
               type="text"
               icon={<PlusOutlined />}
               onClick={onCreateRule}
-              size="small"
-              style={{ color: '#1890ff' }}
-            />
+            >
+              创建规则
+            </Button>
           </Tooltip>
           
           <Tooltip title="同步消息">
@@ -84,95 +162,58 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
               type="text"
               icon={<SyncOutlined />}
               onClick={handleSync}
-              size="small"
+              loading={loading}
+            >
+              同步
+            </Button>
+          </Tooltip>
+
+          <Tooltip title="按月同步">
+            <Button
+              type="text"
+              icon={<CalendarOutlined />}
+              onClick={handleMonthlySync}
+            >
+              按月同步
+            </Button>
+          </Tooltip>
+          
+          <Tooltip title="下载消息">
+            <Button
+              type="text"
+              icon={<DownloadOutlined />}
+              onClick={onDownload}
+            >
+              下载
+            </Button>
+          </Tooltip>
+          
+          <Tooltip title="设置">
+            <Button
+              type="text"
+              icon={<SettingOutlined />}
+              onClick={onSettings}
+            />
+          </Tooltip>
+
+          <Tooltip title="刷新">
+            <Button
+              type="text"
+              icon={<ReloadOutlined />}
+              onClick={onRefresh}
+              loading={loading}
             />
           </Tooltip>
         </Space>
       </div>
-    );
-  }
 
-  // 桌面端显示完整按钮
-  return (
-    <div className="quick-actions desktop">
-      <Space size="small" wrap>
-        <Tooltip title="刷新消息">
-          <Button
-            type="text"
-            icon={<ReloadOutlined />}
-            onClick={onRefresh}
-            loading={loading}
-          >
-            刷新
-          </Button>
-        </Tooltip>
-        
-        <Tooltip title="搜索消息">
-          <Button
-            type="text"
-            icon={<SearchOutlined />}
-            onClick={onSearch}
-          >
-            搜索
-          </Button>
-        </Tooltip>
-        
-        <Tooltip title="筛选消息">
-          <Button
-            type="text"
-            icon={<FilterOutlined />}
-            onClick={onFilter}
-          >
-            筛选
-          </Button>
-        </Tooltip>
-        
-        <Divider type="vertical" />
-        
-        <Tooltip title="创建下载规则">
-          <Button
-            type="text"
-            icon={<PlusOutlined />}
-            onClick={onCreateRule}
-            style={{ color: '#1890ff' }}
-          >
-            创建规则
-          </Button>
-        </Tooltip>
-        
-        <Tooltip title="下载消息">
-          <Button
-            type="text"
-            icon={<DownloadOutlined />}
-            onClick={onDownload}
-          >
-            下载
-          </Button>
-        </Tooltip>
-        
-        <Divider type="vertical" />
-        
-        <Tooltip title="同步消息">
-          <Button
-            type="text"
-            icon={<SyncOutlined />}
-            onClick={handleSync}
-          >
-            同步
-          </Button>
-        </Tooltip>
-        
-        <Tooltip title="群组设置">
-          <Button
-            type="text"
-            icon={<SettingOutlined />}
-            onClick={onSettings}
-          >
-            设置
-          </Button>
-        </Tooltip>
-      </Space>
-    </div>
+      <MonthlySyncModal
+        visible={monthlySyncVisible}
+        onClose={handleMonthlySyncClose}
+        selectedGroup={selectedGroup}
+        groups={allGroups}
+      />
+    </>
   );
 };
 

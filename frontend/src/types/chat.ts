@@ -3,6 +3,7 @@ import { TelegramGroup, TelegramMessage } from './index';
 // 聊天界面相关类型定义
 export interface ChatState {
   selectedGroup: TelegramGroup | null;
+  groups: TelegramGroup[];
   isGroupListCollapsed: boolean;
   isMobile: boolean;
   searchQuery: string;
