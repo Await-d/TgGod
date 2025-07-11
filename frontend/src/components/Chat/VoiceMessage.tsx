@@ -12,7 +12,7 @@ interface VoiceMessageProps {
   url: string;
   duration?: number;
   filename?: string;
-  size?: string;
+  size?: string | number;
   className?: string;
 }
 
@@ -27,6 +27,19 @@ const VoiceMessage: React.FC<VoiceMessageProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(duration);
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // 格式化文件大小
+  const formatFileSize = (bytes: number | string) => {
+    if (typeof bytes === 'string') {
+      return bytes; // 如果已经是字符串格式，直接返回
+    }
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+  
+  const formattedSize = size ? formatFileSize(size) : undefined;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -129,7 +142,7 @@ const VoiceMessage: React.FC<VoiceMessageProps> = ({
           )}
           
           {size && (
-            <div className="voice-size">{size}</div>
+            <div className="voice-size">{formattedSize}</div>
           )}
         </div>
         

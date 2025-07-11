@@ -1,0 +1,90 @@
+/* 链接预览样式 */
+.link-preview {
+  margin: 8px 0;
+  max-width: 100%;
+  background: #f9f9f9;
+  border: 1px solid #e8e8e8;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.link-preview:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+}
+
+.link-preview .ant-card-body {
+  padding: 12px;
+}
+
+/* 消息中的链接样式 */
+.message-link {
+  color: #1890ff;
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s ease;
+  word-break: break-all;
+}
+
+.message-link:hover {
+  color: #40a9ff;
+  border-bottom-color: #40a9ff;
+  text-decoration: none;
+}
+
+/* 在自己的消息气泡中的链接样式 */
+.own-bubble .message-link {
+  color: #cce7ff;
+  border-bottom-color: transparent;
+}
+
+.own-bubble .message-link:hover {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+/* 移动端链接预览优化 */
+@media (max-width: 768px) {
+  .link-preview {
+    margin: 6px 0;
+  }
+  
+  .link-preview .ant-card-body {
+    padding: 8px;
+  }
+  
+  .message-link {
+    font-size: 14px;
+  }
+}
+
+/* 链接预览动画 */
+.link-preview {
+  animation: linkPreviewFadeIn 0.3s ease-out;
+}
+
+@keyframes linkPreviewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 链接图标样式 */
+.link-preview .anticon {
+  font-size: 14px;
+}
+
+/* 链接预览文本样式 */
+.link-preview .ant-typography {
+  word-break: break-word;
+}
+
+.link-preview .ant-typography-ellipsis {
+  max-width: 100%;
+}

@@ -27,8 +27,10 @@ import { TelegramMessage } from '../../types';
 import { MessageBubbleProps } from '../../types/chat';
 import MediaPreview from './MediaPreview';
 import VoiceMessage from './VoiceMessage';
+import LinkPreview, { parseLinks, renderTextWithLinks } from './LinkPreview';
 import './MediaPreview.css';
 import './VoiceMessage.css';
+import './LinkPreview.css';
 import './MessageBubble.css';
 
 const { Text, Paragraph } = Typography;
@@ -64,18 +66,35 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   const getSenderAvatar = () => {
     if (!showAvatar) return null;
     
-    const firstChar = (message.sender_name || message.sender_username || 'U').charAt(0).toUpperCase();
+    const senderName = message.sender_name || message.sender_username || '未知用户';
+    const firstChar = senderName.charAt(0).toUpperCase();
+    
+    // 生成随机颜色基于用户名
+    const getAvatarColor = (name: string) => {
+      const colors = [
+        '#f56a00', '#7265e6', '#ffbf00', '#00a2ae', 
+        '#87d068', '#1890ff', '#722ed1', '#eb2f96',
+        '#52c41a', '#faad14', '#13c2c2', '#f5222d'
+      ];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    };
+    
     return (
       <Avatar 
         size={isMobile ? 32 : 36} 
         style={{ 
-          backgroundColor: '#87d068',
+          backgroundColor: getAvatarColor(senderName),
           color: 'white',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          fontSize: isMobile ? 14 : 16
         }}
-        icon={!message.sender_name && !message.sender_username ? <UserOutlined /> : undefined}
+        icon={!senderName || senderName === '未知用户' ? <UserOutlined /> : undefined}
       >
-        {(message.sender_name || message.sender_username) ? firstChar : undefined}
+        {senderName !== '未知用户' ? firstChar : undefined}
       </Avatar>
     );
   };
@@ -119,8 +138,17 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {message.text && (
           <div className="message-text">
             <Paragraph style={{ margin: 0, wordBreak: 'break-word' }}>
-              {message.text}
+              {renderTextWithLinks(message.text)}
             </Paragraph>
+            
+            {/* 链接预览 */}
+            {parseLinks(message.text).map((link, index) => (
+              <LinkPreview
+                key={index}
+                url={link}
+                className="message-link-preview"
+              />
+            ))}
           </div>
         )}
 
@@ -133,7 +161,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                 url={message.media_path || ''}
                 duration={0} // duration not available in the type
                 filename={message.media_filename}
-                size={message.media_size ? `${(message.media_size / (1024 * 1024)).toFixed(2)} MB` : undefined}
+                size={message.media_size}
                 className="message-voice"
               />
             )}
@@ -144,7 +172,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                 url={message.media_path}
                 type={message.media_type === 'photo' ? 'image' : 'video'}
                 filename={message.media_filename}
-                size={message.media_size ? `${(message.media_size / (1024 * 1024)).toFixed(2)} MB` : undefined}
+                size={message.media_size}
                 className="message-media-preview"
               />
             )}
@@ -159,7 +187,9 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                       <Text strong>{message.media_type.toUpperCase()}</Text>
                       {message.media_size && (
                         <Text type="secondary" style={{ marginLeft: 8 }}>
-                          {(message.media_size / (1024 * 1024)).toFixed(2)} MB
+                          {typeof message.media_size === 'number' 
+                            ? `${(message.media_size / (1024 * 1024)).toFixed(2)} MB`
+                            : message.media_size}
                         </Text>
                       )}
                     </div>

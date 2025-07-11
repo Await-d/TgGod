@@ -6,10 +6,50 @@
   margin: 8px 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .media-preview:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* 加载状态 */
+.media-preview.loading {
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+}
+
+.media-preview.loading::after {
+  content: '加载中...';
+  color: #999;
+  font-size: 14px;
+}
+
+/* 错误状态 */
+.media-preview.error {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  flex-direction: column;
+}
+
+.media-preview.error::after {
+  content: '加载失败';
+  color: #ff4d4f;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.media-preview.error .anticon {
+  color: #ff4d4f;
+  font-size: 32px;
 }
 
 .media-thumbnail,
@@ -61,16 +101,65 @@
   opacity: 0;
   transition: opacity 0.3s ease;
   border-radius: 12px;
+  backdrop-filter: blur(2px);
 }
 
 .video-preview .media-overlay {
   background: rgba(0, 0, 0, 0.6);
 }
 
+.media-overlay .anticon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* 文件类型图标样式 */
+.media-preview .media-type-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  backdrop-filter: blur(4px);
+  z-index: 2;
+}
+
+.media-preview .media-type-icon .anticon {
+  margin-right: 4px;
+}
+
+/* 文件大小指示器 */
+.media-preview .media-size-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  backdrop-filter: blur(4px);
+  z-index: 2;
+}
+
+/* 改进的媒体信息区域 */
 .media-info {
   padding: 12px 16px;
-  background: #fff;
+  background: #fafafa;
   border-top: 1px solid #f0f0f0;
+  position: relative;
+}
+
+.media-info::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
 }
 
 .media-filename {
@@ -82,6 +171,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+}
+
+.media-filename::before {
+  content: '📄';
+  margin-right: 6px;
+  font-size: 14px;
 }
 
 .media-size {
@@ -89,20 +186,32 @@
   color: #8c8c8c;
   margin-bottom: 8px;
   line-height: 1.2;
+  display: flex;
+  align-items: center;
+}
+
+.media-size::before {
+  content: '💾';
+  margin-right: 4px;
+  font-size: 11px;
 }
 
 .media-info .ant-btn {
-  padding: 0 4px;
+  padding: 2px 8px;
   height: auto;
-  border: none;
+  border: 1px solid #d9d9d9;
   box-shadow: none;
   font-size: 12px;
   line-height: 1.2;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 .media-info .ant-btn:hover {
   color: #1890ff;
   background: #f0f8ff;
+  border-color: #1890ff;
+  transform: translateY(-1px);
 }
 
 .media-info .ant-space {

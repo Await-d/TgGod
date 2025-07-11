@@ -36,13 +36,31 @@ const GroupItem: React.FC<GroupListItemProps> = ({
   const getGroupAvatar = () => {
     // 使用群组名称的首字母作为头像
     const firstChar = group.title.charAt(0).toUpperCase();
+    
+    // 生成随机颜色基于群组名称
+    const getAvatarColor = (name: string) => {
+      const colors = [
+        '#f56a00', '#7265e6', '#ffbf00', '#00a2ae', 
+        '#87d068', '#1890ff', '#722ed1', '#eb2f96',
+        '#52c41a', '#faad14', '#13c2c2', '#f5222d',
+        '#1890ff', '#722ed1', '#eb2f96', '#52c41a'
+      ];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    };
+    
     return (
       <Avatar 
         size={40} 
         style={{ 
-          backgroundColor: isSelected ? '#1890ff' : '#87d068',
+          backgroundColor: isSelected ? '#1890ff' : getAvatarColor(group.title),
           color: 'white',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          fontSize: 16,
+          border: isSelected ? '2px solid #40a9ff' : '1px solid #d9d9d9'
         }}
       >
         {firstChar}
