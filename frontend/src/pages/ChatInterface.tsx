@@ -256,37 +256,6 @@ const ChatInterface: React.FC = () => {
   }, []);
 
   // 渲染头部标题
-  const renderHeader = () => (
-    <div className="chat-header">
-      {isMobile && (
-        <Button
-          type="text"
-          icon={chatState.isGroupListCollapsed ? <MenuOutlined /> : <CloseOutlined />}
-          onClick={toggleGroupList}
-          className="mobile-menu-btn"
-        />
-      )}
-      <div className="header-title-section">
-        <Title level={3} style={{ margin: 0 }}>
-          {chatState.selectedGroup ? chatState.selectedGroup.title : '请选择群组'}
-        </Title>
-        {/* 连接状态指示器 */}
-        <div className={`connection-status ${connectionStatus}`}>
-          <span className="status-dot"></span>
-          <span className="status-text">
-            {connectionStatus === 'connected' ? '已连接' : 
-             connectionStatus === 'connecting' ? '连接中...' : '已断开'}
-          </span>
-        </div>
-      </div>
-      {globalError && (
-        <div className="global-error">
-          {globalError}
-        </div>
-      )}
-    </div>
-  );
-
   // 渲染群组列表
   const renderGroupList = () => (
     <GroupList
@@ -394,8 +363,6 @@ const ChatInterface: React.FC = () => {
         transition: 'padding-bottom 0.3s ease'
       }}
     >
-      {renderHeader()}
-      
       <div 
         className="chat-body"
         style={{
@@ -437,6 +404,23 @@ const ChatInterface: React.FC = () => {
                 transition: 'margin-bottom 0.3s ease'
               }}
             >
+              {/* 移动端头部 */}
+              <div className="mobile-header">
+                <Button
+                  type="text"
+                  icon={<MenuOutlined />}
+                  onClick={toggleGroupList}
+                  className="mobile-menu-btn"
+                />
+                <Title level={4} style={{ margin: 0, flex: 1, textAlign: 'center' }}>
+                  {chatState.selectedGroup ? chatState.selectedGroup.title : '请选择群组'}
+                </Title>
+                {/* 连接状态指示器 */}
+                <div className={`connection-status ${connectionStatus}`}>
+                  <span className="status-dot"></span>
+                </div>
+              </div>
+              
               {renderMessageArea()}
               {renderMessageInput()}
             </div>

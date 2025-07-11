@@ -33,25 +33,39 @@
   overflow: hidden;
 }
 
-/* 当在MainLayout中时，适应MainLayout的布局 */
-.ant-layout-content .chat-interface {
-  height: calc(100vh - 64px); /* 减去MainLayout的header高度 */
-  overflow: hidden; /* 防止整体滚动 */
-}
-
-/* 确保在MainLayout中时的完整布局 */
-.ant-layout-content {
+/* 当在MainLayout中时，适应MainLayout的布局 - 使用更安全的选择器 */
+.chat-interface-content {
   padding: 0 !important;
   height: calc(100vh - 64px) !important;
-  overflow: hidden !important; /* 防止父容器滚动 */
+  overflow: hidden !important;
 }
 
-.ant-layout-content > .chat-interface {
+.chat-interface-content .chat-interface {
   height: 100% !important;
-  overflow: hidden !important; /* 防止子容器滚动 */
+  overflow: hidden !important;
 }
 
-/* 头部区域 */
+/* 移动端头部 */
+.mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  position: relative;
+  z-index: 10;
+}
+
+.mobile-menu-btn {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #1890ff;
+}
+
+/* 头部区域 - 保留用于桌面端如果需要 */
 .chat-header {
   display: flex;
   align-items: center;
