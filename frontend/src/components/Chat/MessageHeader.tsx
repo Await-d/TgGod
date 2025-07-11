@@ -177,94 +177,95 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
         </div>
       </div>
 
-      {/* 群组统计信息 - 紧凑布局 */}
+      {/* 群组统计信息 - 无卡片包裹 */}
       {groupStats && (
-        <Card 
-          size="small" 
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <MessageOutlined style={{ fontSize: '12px' }} />
-              <span style={{ fontSize: '12px' }}>消息统计</span>
-            </div>
-          }
+        <div
           style={{ 
             marginBottom: 6,
-            borderRadius: 4,
-            boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+            padding: '8px 12px',
+            background: 'transparent',
+            border: '1px solid #f0f0f0',
+            borderRadius: 4
           }}
-          bodyStyle={{ padding: '8px 12px' }}
-          headStyle={{ padding: '6px 12px', minHeight: '32px' }}
-          loading={loadingStats}
         >
-          <Row gutter={[6, 6]}>
-            {/* 第一行：主要统计 */}
-            <Col span={isMobile ? 6 : 4}>
-              <Statistic
-                title="总数"
-                value={groupStats.total_messages}
-                valueStyle={{ color: '#1890ff', fontSize: '14px' }}
-                className="compact-statistic"
-              />
-            </Col>
-            <Col span={isMobile ? 6 : 4}>
-              <Statistic
-                title="文本"
-                value={groupStats.text_messages}
-                valueStyle={{ color: '#52c41a', fontSize: '14px' }}
-                className="compact-statistic"
-              />
-            </Col>
-            <Col span={isMobile ? 6 : 4}>
-              <Statistic
-                title="媒体"
-                value={groupStats.media_messages}
-                valueStyle={{ color: '#faad14', fontSize: '14px' }}
-                className="compact-statistic"
-              />
-            </Col>
-            <Col span={isMobile ? 6 : 4}>
-              <Statistic
-                title="图片"
-                value={groupStats.photo_messages}
-                valueStyle={{ color: '#13c2c2', fontSize: '14px' }}
-                className="compact-statistic"
-              />
-            </Col>
-            {!isMobile && (
-              <>
-                <Col span={4}>
-                  <Statistic
-                    title="视频"
-                    value={groupStats.video_messages}
-                    valueStyle={{ color: '#722ed1', fontSize: '14px' }}
-                    className="compact-statistic"
-                  />
-                </Col>
-                <Col span={4}>
-                  <Statistic
-                    title="转发"
-                    value={groupStats.forwarded_messages}
-                    valueStyle={{ color: '#fa8c16', fontSize: '14px' }}
-                    className="compact-statistic"
-                  />
-                </Col>
-              </>
-            )}
-          </Row>
-        </Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <MessageOutlined style={{ fontSize: '12px' }} />
+            <span style={{ fontSize: '12px', fontWeight: 500 }}>消息统计</span>
+          </div>
+          {loadingStats ? (
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <Spin size="small" />
+            </div>
+          ) : (
+            <Row gutter={[6, 6]}>
+              {/* 第一行：主要统计 */}
+              <Col span={isMobile ? 6 : 4}>
+                <Statistic
+                  title="总数"
+                  value={groupStats.total_messages}
+                  valueStyle={{ color: '#1890ff', fontSize: '14px' }}
+                  className="compact-statistic"
+                />
+              </Col>
+              <Col span={isMobile ? 6 : 4}>
+                <Statistic
+                  title="文本"
+                  value={groupStats.text_messages}
+                  valueStyle={{ color: '#52c41a', fontSize: '14px' }}
+                  className="compact-statistic"
+                />
+              </Col>
+              <Col span={isMobile ? 6 : 4}>
+                <Statistic
+                  title="媒体"
+                  value={groupStats.media_messages}
+                  valueStyle={{ color: '#faad14', fontSize: '14px' }}
+                  className="compact-statistic"
+                />
+              </Col>
+              <Col span={isMobile ? 6 : 4}>
+                <Statistic
+                  title="图片"
+                  value={groupStats.photo_messages}
+                  valueStyle={{ color: '#13c2c2', fontSize: '14px' }}
+                  className="compact-statistic"
+                />
+              </Col>
+              {!isMobile && (
+                <>
+                  <Col span={4}>
+                    <Statistic
+                      title="视频"
+                      value={groupStats.video_messages}
+                      valueStyle={{ color: '#722ed1', fontSize: '14px' }}
+                      className="compact-statistic"
+                    />
+                  </Col>
+                  <Col span={4}>
+                    <Statistic
+                      title="转发"
+                      value={groupStats.forwarded_messages}
+                      valueStyle={{ color: '#fa8c16', fontSize: '14px' }}
+                      className="compact-statistic"
+                    />
+                  </Col>
+                </>
+              )}
+            </Row>
+          )}
+        </div>
       )}
 
-      {/* 置顶消息 */}
+      {/* 置顶消息 - 无卡片包裹 */}
       {pinnedMessages.length > 0 && (
-        <Card 
-          size="small"
+        <div
           style={{ 
             marginBottom: 6,
+            padding: '6px 10px',
             borderRadius: 4,
-            borderColor: '#faad14',
+            border: '1px solid #faad14',
             backgroundColor: '#fffbf0'
           }}
-          bodyStyle={{ padding: '6px 10px' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <PushpinOutlined style={{ color: '#faad14', fontSize: '12px' }} />
@@ -309,7 +310,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
               </Button>
             </Space>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );
