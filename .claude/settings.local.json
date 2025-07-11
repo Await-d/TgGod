@@ -95,7 +95,9 @@
       "Bash(cp:*)",
       "mcp__serena__replace_lines",
       "Bash(npm run:*)",
-      "mcp__serena__insert_after_symbol"
+      "mcp__serena__insert_after_symbol",
+      "Bash(node:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": []
   }
