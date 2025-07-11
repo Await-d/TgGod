@@ -155,17 +155,17 @@ export const useRealTimeMessages = (
     }
   }, [setMessages]);
 
-  // 当选中群组变化时的处理
+  // 当选中群组变化时的处理 - 避免重复消息获取
   useEffect(() => {
     if (selectedGroup) {
       // 1. 取消之前群组的订阅
       // 这里我们简单地取消所有订阅，实际可能需要更精细的控制
       
-      // 2. 订阅新群组的消息
+      // 2. 订阅新群组的消息（只订阅，不获取历史消息）
       subscribeToGroupMessages(selectedGroup.id);
       
-      // 3. 自动获取最新消息
-      fetchLatestMessages(selectedGroup.id);
+      // 3. 不自动获取最新消息，让其他hook负责初始消息加载
+      console.log('useRealTimeMessages: 已订阅群组消息，等待实时消息推送');
     }
 
     // 清理函数：组件卸载或群组变化时取消订阅
@@ -174,7 +174,7 @@ export const useRealTimeMessages = (
         unsubscribeFromGroupMessages(selectedGroup.id);
       }
     };
-  }, [selectedGroup, subscribeToGroupMessages, unsubscribeFromGroupMessages, fetchLatestMessages]);
+  }, [selectedGroup, subscribeToGroupMessages, unsubscribeFromGroupMessages]); // 移除fetchLatestMessages依赖
 
   // WebSocket 消息订阅
   useEffect(() => {

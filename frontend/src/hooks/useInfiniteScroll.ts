@@ -59,14 +59,14 @@ export const useInfiniteScroll = (
     lastGroupId.current = selectedGroup?.id || null;
   }, [selectedGroup?.id]);
 
-  // 当群组变化时重置
+  // 当群组变化时重置 - 增加延迟避免与MessageArea冲突
   useEffect(() => {
     if (selectedGroup?.id !== lastGroupId.current) {
       reset();
-      // 新群组时，延迟一段时间再开始监听滚动，避免初始化时的误触发
+      // 新群组时，延迟更长时间再开始监听滚动，让MessageArea先完成初始消息加载
       const timer = setTimeout(() => {
         (window as any)._scrollReady = true;
-      }, 1000);
+      }, 2000); // 增加到2秒，确保MessageArea完成初始加载
       
       return () => clearTimeout(timer);
     }

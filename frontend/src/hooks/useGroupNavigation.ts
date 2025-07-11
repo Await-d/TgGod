@@ -89,16 +89,10 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     // 清空当前消息（避免显示错误的消息）
     setMessages([]);
     
-    // 如果启用自动加载消息且选择了群组
-    if (autoLoadMessages && group) {
-      try {
-        // 这里可以调用消息加载逻辑
-        console.log('自动加载群组消息:', group.id);
-        // TODO: 实际的消息加载逻辑将在后续实现
-      } catch (error) {
-        console.error('自动加载消息失败:', error);
-      }
-    }
+    // 注释掉自动加载消息，让其他hook负责消息获取
+    // if (autoLoadMessages && group) {
+    //   console.log('useGroupNavigation: 群组切换完成，等待其他hook处理消息加载');
+    // }
   }, [setSelectedGroup, syncGroupToUrl, setMessages, autoLoadMessages]);
 
   // 初始化时恢复URL状态 - 优先级最高
