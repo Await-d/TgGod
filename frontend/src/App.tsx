@@ -111,7 +111,7 @@ const App: React.FC = () => {
         <Route path="/chat" element={
           <ProtectedRoute>
             <MainLayout>
-              <Content className="chat-interface-content" style={{ padding: 0, height: '100%' }}>
+              <Content className="chat-interface-content">
                 <ChatInterface />
               </Content>
             </MainLayout>
