@@ -26,10 +26,14 @@ import {
 import { TelegramGroup } from '../types';
 import { useTelegramStore, useGlobalStore } from '../store';
 import { apiService } from '../services/api';
+import { useNormalPageScrollControl } from '../hooks/usePageScrollControl';
 
 const { Title } = Typography;
 
 const Groups: React.FC = () => {
+  // 恢复正常页面滚动
+  useNormalPageScrollControl();
+  
   const { groups, setGroups, addGroup, updateGroup, removeGroup } = useTelegramStore();
   const { setLoading, setError } = useGlobalStore();
   const [isModalVisible, setIsModalVisible] = React.useState(false);

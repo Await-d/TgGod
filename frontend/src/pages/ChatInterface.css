@@ -1,11 +1,10 @@
-/* 确保body和html不会出现滚动条 */
-html, body {
+/* 聊天界面专用的滚动控制 - 只在聊天页面生效 */
+.chat-page-active {
   overflow: hidden !important;
   height: 100% !important;
 }
 
-/* 确保App根容器不会出现滚动条 */
-#root {
+.chat-page-active #root {
   overflow: hidden !important;
   height: 100% !important;
 }

@@ -42,6 +42,7 @@ import {
 import { useAuthStore } from '../store';
 import { messageApi, telegramApi, ruleApi } from '../services/apiService';
 import { TelegramMessage, TelegramGroup, MessageSendRequest } from '../types';
+import { useNormalPageScrollControl } from '../hooks/usePageScrollControl';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -49,6 +50,9 @@ const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 
 const MessagesPage: React.FC = () => {
+  // 恢复正常页面滚动
+  useNormalPageScrollControl();
+  
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<TelegramMessage[]>([]);
   const [groups, setGroups] = useState<TelegramGroup[]>([]);

@@ -157,4 +157,19 @@ export const subscribeToNotification = (callback: (notification: any) => void) =
   return webSocketService.subscribe('notification', callback);
 };
 
+// 新增：订阅实时消息
+export const subscribeToMessages = (callback: (message: any) => void) => {
+  return webSocketService.subscribe('message', callback);
+};
+
+// 新增：订阅群组状态更新
+export const subscribeToGroupStatus = (callback: (status: any) => void) => {
+  return webSocketService.subscribe('group_status', callback);
+};
+
+// 新增：订阅消息统计更新
+export const subscribeToMessageStats = (callback: (stats: any) => void) => {
+  return webSocketService.subscribe('message_stats', callback);
+};
+
 export default webSocketService;

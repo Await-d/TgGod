@@ -25,6 +25,12 @@ interface MessageAreaProps {
   onQuote?: (message: TelegramMessage) => void;
   onForward?: (message: TelegramMessage, targets: string[], comment?: string) => void;
   contacts?: any[];
+  // 新增：无限滚动相关属性
+  messages?: TelegramMessage[];
+  isLoadingMore?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  containerRef?: React.RefObject<HTMLDivElement>;
 }
 
 const MessageArea: React.FC<MessageAreaProps> = ({
@@ -36,7 +42,13 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   searchQuery = '',
   onQuote,
   onForward,
-  contacts = []
+  contacts = [],
+  // 新增属性
+  messages: propMessages,
+  isLoadingMore: propIsLoadingMore = false,
+  hasMore: propHasMore = true,
+  onLoadMore,
+  containerRef: propContainerRef
 }) => {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -45,9 +57,16 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const internalContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = propContainerRef || internalContainerRef;
   
-  const { messages, setMessages, addMessage, removeMessage } = useTelegramStore();
+  // 使用传入的消息或store中的消息
+  const { messages: storeMessages, setMessages, addMessage, removeMessage } = useTelegramStore();
+  const displayMessages = propMessages || storeMessages;
+  
+  // 使用传入的加载状态或内部状态
+  const isLoadingMore = propIsLoadingMore || loadingMore;
+  const hasMoreMessages = propHasMore && hasMore;
   const { user } = useAuthStore();
   const { currentTelegramUser, setCurrentTelegramUser } = useTelegramUserStore();
   const PAGE_SIZE = 50;
@@ -109,7 +128,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       
       if (append && pageNum > 1) {
         // 如果是追加模式，需要将新消息添加到现有消息列表
-        const currentMessages = messages;
+        const currentMessages = displayMessages;
         setMessages([...currentMessages, ...response]);
       } else {
         setMessages(response);
@@ -248,21 +267,21 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         className="message-list" 
         ref={messagesContainerRef}
       >
-        {/* 加载更多指示器 */}
-        {loadingMore && (
+        {/* 加载更多指示器 - 显示在顶部 */}
+        {isLoadingMore && (
           <div className="load-more-indicator">
             <Spin size="small" />
-            <Text type="secondary">加载更多消息...</Text>
+            <Text type="secondary">正在加载历史消息...</Text>
           </div>
         )}
         
         {/* 消息列表 */}
-        {loading && messages.length === 0 ? (
+        {loading && displayMessages.length === 0 ? (
           <div className="message-loading">
             <Spin size="large" />
             <Text type="secondary">加载消息中...</Text>
           </div>
-        ) : messages.length === 0 ? (
+        ) : displayMessages.length === 0 ? (
           <div className="message-empty">
             <Empty
               description="暂无消息"
@@ -279,14 +298,14 @@ const MessageArea: React.FC<MessageAreaProps> = ({
           </div>
         ) : (
           <>
-            {!hasMore && (
+            {!hasMoreMessages && displayMessages.length > 0 && (
               <div className="no-more-messages">
                 <Text type="secondary">没有更多消息了</Text>
               </div>
             )}
             
-            {messages.map((message, index) => {
-              const prevMessage = index > 0 ? messages[index - 1] : null;
+            {displayMessages.map((message, index) => {
+              const prevMessage = index > 0 ? displayMessages[index - 1] : null;
               const showAvatar = !prevMessage || 
                 prevMessage.sender_id !== message.sender_id ||
                 (new Date(message.date).getTime() - new Date(prevMessage.date).getTime()) > 300000; // 5分钟

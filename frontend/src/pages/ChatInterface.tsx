@@ -7,6 +7,10 @@ import { useTelegramStore, useAuthStore } from '../store';
 import { webSocketService } from '../services/websocket';
 import { messageApi } from '../services/apiService';
 import { useMobileGestures, useIsMobile, useKeyboardHeight } from '../hooks/useMobileGestures';
+import { useChatPageScrollControl } from '../hooks/usePageScrollControl';
+import { useChatGroupNavigation } from '../hooks/useGroupNavigation';
+import { useRealTimeMessages } from '../hooks/useRealTimeMessages';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import GroupList from '../components/Chat/GroupList';
 import MessageArea from '../components/Chat/MessageArea';
 import MessageInput from '../components/Chat/MessageInput';
@@ -22,10 +26,60 @@ import './ChatInterface.css';
 const { Title } = Typography;
 
 const ChatInterface: React.FC = () => {
+  // 页面滚动控制 - 启用聊天界面专用滚动控制
+  useChatPageScrollControl();
+  
   // 移动端检测
   const isMobile = useIsMobile();
   const { keyboardHeight, isKeyboardVisible } = useKeyboardHeight();
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  // 群组导航和状态管理 - 新增
+  const {
+    selectedGroup,
+    groups,
+    messages,
+    selectGroup,
+    clearGroupSelection,
+    navigateToGroup,
+    setMessages
+  } = useChatGroupNavigation();
+  
+  // 实时消息管理 - 新增
+  const {
+    connectionStatus,
+    isConnected,
+    fetchLatestMessages,
+    reconnect
+  } = useRealTimeMessages(selectedGroup);
+  
+  // 无限滚动管理 - 新增
+  const {
+    isLoadingMore,
+    hasMore,
+    currentPage,
+    totalLoaded,
+    loadMore,
+    reset: resetInfiniteScroll,
+    scrollToTop,
+    scrollToBottom
+  } = useInfiniteScroll(
+    chatContainerRef,
+    selectedGroup,
+    messages,
+    (updatedMessages) => {
+      // 更新消息到store中
+      console.log('无限滚动更新消息:', updatedMessages.length);
+      setMessages(updatedMessages);
+    },
+    {
+      threshold: 100,
+      debounceDelay: 300,
+      pageSize: 50,
+      preloadThreshold: 3,
+      maxPages: 50
+    }
+  );
   
   // 状态管理
   const [chatState, setChatState] = useState<ChatState>({
@@ -45,10 +99,17 @@ const ChatInterface: React.FC = () => {
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [ruleBaseMessage, setRuleBaseMessage] = useState<TelegramMessage | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
   
-  // Store hooks
-  const { groups, messages, setGroups, setMessages, setSelectedGroup } = useTelegramStore();
+  // 同步选中群组到内部状态
+  useEffect(() => {
+    setChatState(prev => ({
+      ...prev,
+      selectedGroup: selectedGroup,
+      isMobile: isMobile
+    }));
+  }, [selectedGroup, isMobile]);
+
+  // Store hooks - 简化，只保留认证状态
   const { isAuthenticated } = useAuthStore();
 
   // 移动端手势支持
@@ -77,82 +138,20 @@ const ChatInterface: React.FC = () => {
     }
   }, [isMobile, chatState.selectedGroup]);
 
-  // 初始化WebSocket连接
+  // 初始化 - 移除旧的WebSocket逻辑，现在由useRealTimeMessages处理
   useEffect(() => {
-    if (isAuthenticated) {
-      try {
-        setConnectionStatus('connecting');
-        webSocketService.connect();
-        
-        // 监听连接状态
-        const handleConnectionOpen = () => {
-          setConnectionStatus('connected');
-          setGlobalError(null);
-          antMessage.success('实时连接已建立');
-        };
-        
-        const handleConnectionClose = () => {
-          setConnectionStatus('disconnected');
-          antMessage.warning('实时连接已断开');
-        };
-        
-        const handleConnectionError = (error: any) => {
-          setConnectionStatus('disconnected');
-          setGlobalError('连接失败，请检查网络');
-          antMessage.error('连接失败，请检查网络');
-        };
-        
-        // 订阅实时消息
-        const unsubscribeMessage = webSocketService.subscribe('message', (data) => {
-          console.log('收到新消息:', data);
-          // TODO: 将新消息添加到当前群组的消息列表
-          if (chatState.selectedGroup && data.group_id === chatState.selectedGroup.id) {
-            // 这里可以添加新消息到消息列表
-            // setMessages(prev => [...prev, data.message]);
-          }
-        });
-        
-        // 订阅消息状态更新
-        const unsubscribeStatus = webSocketService.subscribe('status', (data) => {
-          console.log('消息状态更新:', data);
-        });
-        
-        // 订阅通知
-        const unsubscribeNotification = webSocketService.subscribe('notification', (data) => {
-          console.log('收到通知:', data);
-          if (data.type === 'error') {
-            antMessage.error(data.message);
-          } else if (data.type === 'success') {
-            antMessage.success(data.message);
-          } else if (data.type === 'info') {
-            antMessage.info(data.message);
-          }
-        });
-        
-        return () => {
-          unsubscribeMessage();
-          unsubscribeStatus();
-          unsubscribeNotification();
-          webSocketService.disconnect();
-        };
-      } catch (error) {
-        console.error('WebSocket连接失败:', error);
-        setConnectionStatus('disconnected');
-        setGlobalError('无法建立实时连接');
-      }
-    }
-  }, [isAuthenticated, chatState.selectedGroup]);
+    console.log('聊天界面已加载，认证状态:', isAuthenticated);
+  }, [isAuthenticated]);
 
-  // 处理群组选择
+  // 处理群组选择 - 现在使用新的selectGroup方法
   const handleGroupSelect = useCallback((group: TelegramGroup) => {
-    setChatState(prev => ({ ...prev, selectedGroup: group }));
-    setSelectedGroup(group);
+    selectGroup(group);
     
     // 在移动端选择群组后关闭侧边栏
     if (isMobile) {
       setChatState(prev => ({ ...prev, isGroupListCollapsed: true }));
     }
-  }, [isMobile, setSelectedGroup]);
+  }, [isMobile, selectGroup]);
 
   // 处理消息回复
   const handleReply = useCallback((message: TelegramMessage) => {
@@ -273,7 +272,7 @@ const ChatInterface: React.FC = () => {
   // 渲染消息区域
   const renderMessageArea = () => (
     <MessageArea
-      selectedGroup={chatState.selectedGroup}
+      selectedGroup={selectedGroup}
       onReply={handleReply}
       onCreateRule={handleCreateQuickRule}
       searchFilter={chatState.messageFilter}
@@ -282,6 +281,12 @@ const ChatInterface: React.FC = () => {
       onQuote={handleQuote}
       onForward={handleForward}
       contacts={contacts}
+      // 无限滚动属性
+      messages={messages}
+      isLoadingMore={isLoadingMore}
+      hasMore={hasMore}
+      onLoadMore={loadMore}
+      containerRef={chatContainerRef}
     />
   );
 
