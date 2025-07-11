@@ -28,10 +28,14 @@ import { MessageBubbleProps } from '../../types/chat';
 import MediaPreview from './MediaPreview';
 import VoiceMessage from './VoiceMessage';
 import LinkPreview, { parseLinks, renderTextWithLinks } from './LinkPreview';
+import MarkdownRenderer, { isMarkdownContent } from './MarkdownRenderer';
 import './MediaPreview.css';
 import './VoiceMessage.css';
 import './LinkPreview.css';
+import './MarkdownRenderer.css';
 import './MessageBubble.css';
+// 引入 highlight.js 样式
+import 'highlight.js/styles/github.css';
 
 const { Text, Paragraph } = Typography;
 
@@ -137,18 +141,28 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {/* 消息文本 */}
         {message.text && (
           <div className="message-text">
-            <Paragraph style={{ margin: 0, wordBreak: 'break-word' }}>
-              {renderTextWithLinks(message.text)}
-            </Paragraph>
-            
-            {/* 链接预览 */}
-            {parseLinks(message.text).map((link, index) => (
-              <LinkPreview
-                key={index}
-                url={link}
-                className="message-link-preview"
+            {isMarkdownContent(message.text) ? (
+              <MarkdownRenderer 
+                content={message.text} 
+                isOwn={isOwn}
+                className="message-markdown"
               />
-            ))}
+            ) : (
+              <>
+                <Paragraph style={{ margin: 0, wordBreak: 'break-word' }}>
+                  {renderTextWithLinks(message.text)}
+                </Paragraph>
+                
+                {/* 链接预览 */}
+                {parseLinks(message.text).map((link, index) => (
+                  <LinkPreview
+                    key={index}
+                    url={link}
+                    className="message-link-preview"
+                  />
+                ))}
+              </>
+            )}
           </div>
         )}
 

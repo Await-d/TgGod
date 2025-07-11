@@ -107,6 +107,8 @@
 /* 消息文本 */
 .message-text {
   margin-bottom: 8px;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 .message-text p {
@@ -121,6 +123,113 @@
 
 .other-bubble .message-text p {
   color: #262626;
+}
+
+/* Markdown 消息样式 */
+.message-markdown {
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.message-markdown .markdown-paragraph {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+}
+
+.message-markdown .markdown-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+/* 在消息气泡中的 Markdown 标题样式 */
+.message-markdown .markdown-h1,
+.message-markdown .markdown-h2,
+.message-markdown .markdown-h3 {
+  margin: 8px 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.message-markdown .markdown-h4,
+.message-markdown .markdown-h5,
+.message-markdown .markdown-h6 {
+  margin: 6px 0 4px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 在消息气泡中的代码块样式 */
+.message-markdown .markdown-inline-code {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.other-bubble .message-markdown .markdown-inline-code {
+  background: rgba(24, 144, 255, 0.1);
+  color: #1890ff;
+}
+
+.message-markdown .markdown-code-block {
+  margin: 6px 0;
+  font-size: 13px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.message-markdown .markdown-blockquote {
+  margin: 6px 0;
+  padding: 6px 10px;
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0 6px 6px 0;
+}
+
+.other-bubble .message-markdown .markdown-blockquote {
+  border-left-color: #1890ff;
+  background: rgba(24, 144, 255, 0.05);
+}
+
+/* 在消息气泡中的列表样式 */
+.message-markdown .markdown-ul,
+.message-markdown .markdown-ol {
+  margin: 6px 0;
+  padding-left: 16px;
+}
+
+.message-markdown .markdown-li {
+  margin: 2px 0;
+  font-size: 14px;
+}
+
+/* 在消息气泡中的表格样式 */
+.message-markdown .markdown-table {
+  font-size: 12px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.message-markdown .markdown-th,
+.message-markdown .markdown-td {
+  padding: 4px 8px;
+}
+
+/* 链接预览在消息中的样式 */
+.message-link-preview {
+  margin: 6px 0;
+  max-width: 100%;
+}
+
+.own-bubble .message-link-preview {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.other-bubble .message-link-preview {
+  background: rgba(24, 144, 255, 0.05);
+  border-color: rgba(24, 144, 255, 0.1);
 }
 
 /* 媒体内容 */
