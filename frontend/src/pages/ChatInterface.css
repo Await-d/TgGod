@@ -28,7 +28,8 @@
 .chat-body {
   flex: 1;
   display: flex;
-  min-height: 0;
+  min-height: 0;  /* 关键：允许flex子元素收缩 */
+  height: 100%;   /* 确保有确定的高度 */
   background: #f5f7fa;
   position: relative;
   padding: 16px;
@@ -46,6 +47,7 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   overflow: hidden;
   border: 1px solid #e1e8ed;
+  min-height: 0;  /* 关键：允许flex子元素收缩 */
 }
 
 /* 群组列表面板 - 现代化渐变设计 */
@@ -214,7 +216,7 @@
   backdrop-filter: blur(10px);
 }
 
-/* 消息面板 - 现代化设计 */
+/* 消息面板 - 修复高度溢出 */
 .message-panel {
   flex: 1;
   display: flex;
@@ -222,9 +224,11 @@
   background: #ffffff;
   position: relative;
   min-width: 0;
+  min-height: 0;  /* 关键：允许flex子元素收缩 */
+  height: 100%;   /* 确保有确定的高度 */
 }
 
-/* 消息区域容器 */
+/* 消息区域容器 - 修复滚动 */
 .message-area-container {
   flex: 1;
   display: flex;
@@ -232,9 +236,10 @@
   position: relative;
   background: #ffffff;
   overflow: hidden;
+  min-height: 0;  /* 关键：允许flex子元素收缩 */
 }
 
-/* 消息区域 - 允许滚动 */
+/* 消息区域 - 正确的滚动设置 */
 .message-area-container .message-area {
   flex: 1;
   overflow-y: auto;
@@ -242,6 +247,8 @@
   padding: 16px;
   background: #ffffff;
   scroll-behavior: smooth;
+  min-height: 0;     /* 关键：允许收缩 */
+  max-height: 100%;  /* 防止超出容器 */
 }
 
 /* 自定义滚动条 */
