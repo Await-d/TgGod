@@ -28,7 +28,19 @@ const getMediaUrl = (path: string): string => {
   }
   
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8001';
-  return `${apiBase}/${path.startsWith('/') ? path.slice(1) : path}`;
+  
+  // 处理相对路径
+  if (path.startsWith('/')) {
+    return `${apiBase}${path}`;
+  }
+  
+  // 处理media路径
+  if (path.startsWith('media/')) {
+    return `${apiBase}/${path}`;
+  }
+  
+  // 默认处理
+  return `${apiBase}/${path}`;
 };
 
 // 格式化文件大小
@@ -112,6 +124,15 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
   const audioRef = useRef<HTMLAudioElement>(null);
   
   const mediaUrl = getMediaUrl(mediaPath);
+  
+  // Debug logging
+  console.log('MediaPreview Debug:', {
+    mediaType,
+    mediaPath,
+    mediaUrl,
+    filename,
+    size
+  });
   const formattedSize = size ? formatFileSize(size) : undefined;
   const fileType = getFileType(filename || '', mediaType);
   

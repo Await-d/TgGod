@@ -100,7 +100,7 @@ class MessageSearchRequest(BaseModel):
 @router.get("/groups", response_model=List[GroupResponse])
 async def get_groups(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(1000, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
     """获取群组列表"""
@@ -1138,6 +1138,40 @@ async def test_telegram_connection():
             "message": f"连接测试失败: {str(e)}",
             "connection_status": "error"
         }
+
+@router.get("/media-info")
+async def get_media_info():
+    """获取媒体文件信息"""
+    try:
+        from ..config import settings
+        import os
+        
+        media_root = settings.media_root
+        
+        info = {
+            "media_root": media_root,
+            "media_exists": os.path.exists(media_root),
+            "directories": {}
+        }
+        
+        if os.path.exists(media_root):
+            for subdir in ["photos", "videos", "audios", "documents"]:
+                subdir_path = os.path.join(media_root, subdir)
+                info["directories"][subdir] = {
+                    "exists": os.path.exists(subdir_path),
+                    "path": subdir_path,
+                    "files": []
+                }
+                
+                if os.path.exists(subdir_path):
+                    files = os.listdir(subdir_path)
+                    info["directories"][subdir]["files"] = files[:5]  # 只显示前5个文件
+                    info["directories"][subdir]["count"] = len(files)
+        
+        return info
+        
+    except Exception as e:
+        return {"error": str(e)}
 
 @router.get("/me", response_model=TelegramUserResponse)
 async def get_current_telegram_user():

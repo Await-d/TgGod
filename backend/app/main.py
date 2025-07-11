@@ -39,6 +39,13 @@ app.add_middleware(
 )
 
 # 静态文件服务
+# 确保媒体目录存在
+os.makedirs(settings.media_root, exist_ok=True)
+os.makedirs(os.path.join(settings.media_root, "photos"), exist_ok=True)
+os.makedirs(os.path.join(settings.media_root, "videos"), exist_ok=True)
+os.makedirs(os.path.join(settings.media_root, "audios"), exist_ok=True)
+os.makedirs(os.path.join(settings.media_root, "documents"), exist_ok=True)
+
 if os.path.exists(settings.media_root):
     app.mount("/media", StaticFiles(directory=settings.media_root), name="media")
 

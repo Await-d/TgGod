@@ -319,6 +319,24 @@ class TelegramService:
             if isinstance(message.media, MessageMediaPhoto):
                 media_info["media_type"] = "photo"
                 media_info["media_size"] = getattr(message.media.photo, 'size', 0)
+                media_info["media_filename"] = f"photo_{message.id}.jpg"
+                
+                # 下载图片文件
+                try:
+                    from ..config import settings
+                    media_dir = os.path.join(settings.media_root, "photos")
+                    os.makedirs(media_dir, exist_ok=True)
+                    
+                    file_path = os.path.join(media_dir, media_info["media_filename"])
+                    await self.client.download_media(message.media, file_path)
+                    
+                    # 保存相对路径
+                    media_info["media_path"] = f"media/photos/{media_info['media_filename']}"
+                    logger.info(f"图片下载成功: {file_path}")
+                    
+                except Exception as e:
+                    logger.error(f"图片下载失败: {e}")
+                    # 即使下载失败，也保留媒体信息
                 
             elif isinstance(message.media, MessageMediaDocument):
                 doc = message.media.document
@@ -331,15 +349,59 @@ class TelegramService:
                     elif doc.mime_type.startswith('video/'):
                         media_info["media_type"] = "video"
                     elif doc.mime_type.startswith('audio/'):
-                        media_info["media_type"] = "audio"
+                        # 检查是否是语音消息
+                        is_voice = False
+                        for attribute in doc.attributes:
+                            if hasattr(attribute, 'voice') and attribute.voice:
+                                is_voice = True
+                                break
+                        media_info["media_type"] = "voice" if is_voice else "audio"
                     else:
                         media_info["media_type"] = "document"
+                else:
+                    media_info["media_type"] = "document"
                 
                 # 获取文件名
+                original_filename = None
                 for attribute in doc.attributes:
                     if hasattr(attribute, 'file_name'):
-                        media_info["media_filename"] = attribute.file_name
+                        original_filename = attribute.file_name
                         break
+                
+                if not original_filename:
+                    # 根据mime_type生成文件名
+                    if doc.mime_type:
+                        ext = doc.mime_type.split('/')[-1]
+                        if ext in ['jpeg', 'jpg', 'png', 'gif', 'webp']:
+                            original_filename = f"image_{message.id}.{ext}"
+                        elif ext in ['mp4', 'avi', 'mov', 'webm']:
+                            original_filename = f"video_{message.id}.{ext}"
+                        elif ext in ['mp3', 'wav', 'ogg', 'aac']:
+                            original_filename = f"audio_{message.id}.{ext}"
+                        else:
+                            original_filename = f"document_{message.id}.{ext}"
+                    else:
+                        original_filename = f"document_{message.id}"
+                
+                media_info["media_filename"] = original_filename
+                
+                # 下载文件
+                try:
+                    from ..config import settings
+                    media_type = media_info["media_type"]
+                    media_dir = os.path.join(settings.media_root, f"{media_type}s")
+                    os.makedirs(media_dir, exist_ok=True)
+                    
+                    file_path = os.path.join(media_dir, original_filename)
+                    await self.client.download_media(message.media, file_path)
+                    
+                    # 保存相对路径
+                    media_info["media_path"] = f"media/{media_type}s/{original_filename}"
+                    logger.info(f"{media_type}文件下载成功: {file_path}")
+                    
+                except Exception as e:
+                    logger.error(f"文件下载失败: {e}")
+                    # 即使下载失败，也保留媒体信息
                 
             return media_info
             

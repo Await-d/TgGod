@@ -69,8 +69,8 @@
 
 /* 统计信息区域 */
 .stats-section {
-  margin-bottom: 6px;
-  padding: 8px 16px;
+  margin-bottom: 4px;
+  padding: 4px 16px 6px 16px;
   background: #fafafa;
   border-top: 1px solid #f0f0f0;
   border-bottom: 1px solid #f0f0f0;
@@ -79,8 +79,8 @@
 .stats-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 .stats-icon {
@@ -102,25 +102,28 @@
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 12px;
+  gap: 4px;
+  margin-bottom: 2px;
 }
 
 .stat-item {
   text-align: center;
   min-width: 60px;
+  padding: 0 2px;
 }
 
 .stat-value {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 1.2;
-  margin-bottom: 2px;
+  line-height: 1.1;
+  margin-bottom: 1px;
 }
 
 .stat-label {
-  font-size: 11px;
+  font-size: 10px;
   color: #8c8c8c;
   font-weight: 500;
+  line-height: 1.2;
 }
 
 /* 置顶消息区域 */
@@ -245,21 +248,31 @@
   }
   
   .stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-  }
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 4px;
+  margin-bottom: 2px;
+}
   
   .stat-item {
-    min-width: 50px;
-  }
+  text-align: center;
+  min-width: 60px;
+  padding: 0 2px;
+}
   
   .stat-value {
-    font-size: 14px;
-  }
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin-bottom: 1px;
+}
   
   .stat-label {
-    font-size: 10px;
-  }
+  font-size: 10px;
+  color: #8c8c8c;
+  font-weight: 500;
+  line-height: 1.2;
+}
   
   .pinned-section {
     padding: 6px 12px;
@@ -292,30 +305,47 @@
 /* 响应式网格调整 */
 @media (max-width: 1200px) {
   .stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 4px;
+  margin-bottom: 2px;
+}
 }
 
 @media (max-width: 768px) {
   .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 4px;
+  margin-bottom: 2px;
+}
 }
 
 @media (max-width: 480px) {
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 4px;
+  margin-bottom: 2px;
+}
   
   .stat-item {
-    min-width: 40px;
-  }
+  text-align: center;
+  min-width: 60px;
+  padding: 0 2px;
+}
   
   .stat-value {
-    font-size: 12px;
-  }
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin-bottom: 1px;
+}
   
   .stat-label {
-    font-size: 9px;
-  }
+  font-size: 10px;
+  color: #8c8c8c;
+  font-weight: 500;
+  line-height: 1.2;
+}
 }
