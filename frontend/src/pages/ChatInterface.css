@@ -1,12 +1,13 @@
 /* 聊天界面新设计 - 修复MainLayout兼容问题 */
 
-/* 基础布局重置 - 完全适配MainLayout */
+/* 基础布局重置 - 完全适配MainLayout，固定高度 */
 .chat-interface {
   height: 100%;  /* 使用100%而不是100vh，适配MainLayout提供的高度 */
   display: flex;
   flex-direction: column;
   background: #f5f7fa;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  overflow: hidden; /* 阻止ChatInterface本身滚动 */
 }
 
 /* 聊天界面在MainLayout中的容器设置 - 铺满整个屏幕 */

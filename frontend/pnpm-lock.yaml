@@ -60,6 +60,12 @@ importers:
         specifier: ^4.4.7
         version: 4.5.7(@types/react@18.3.23)(immer@9.0.21)(react@18.3.1)
     devDependencies:
+      '@stagewise-plugins/react':
+        specifier: ^0.5.1
+        version: 0.5.1(@stagewise/toolbar@0.5.1)
+      '@stagewise/toolbar-react':
+        specifier: ^0.5.1
+        version: 0.5.1(@types/react@18.3.23)(react@18.3.1)
       '@types/jest':
         specifier: ^27.5.2
         version: 27.5.2
@@ -1221,6 +1227,20 @@ packages:
 
   '@sinonjs/fake-timers@8.1.0':
     resolution: {integrity: sha512-OAPJUAtgeINhh/TAlUID4QTs53Njm7xzddaVlEs/SXwgtiD1tW22zAB/W1wdqfrpmikgaWQ9Fw6Ws+hsiRm5Vg==}
+
+  '@stagewise-plugins/react@0.5.1':
+    resolution: {integrity: sha512-8OeM/nF8qyn8zBQxTtupG49sXBm9sCxugTl6KTkjgQacg7mP7zN/F5iHKFHwE4HnyZMoC0UjWt/HeRyxnQsYiQ==}
+    peerDependencies:
+      '@stagewise/toolbar': 0.5.1
+
+  '@stagewise/toolbar-react@0.5.1':
+    resolution: {integrity: sha512-R25kkgU22ueO+jcb5Uc47NrxQVnKxmoepJzjs2bROUiVeU5wIb1MNiioKzN5IA2TucY75Sq8Q7TjHGYyHuFOpQ==}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      react: '>=18.0.0'
+
+  '@stagewise/toolbar@0.5.1':
+    resolution: {integrity: sha512-4B7g5fuFAs30Di0J9Lb1rt7uSWx/WcnXB+WGlyB7VbVhBEqkpnKPlytDl+yQIgnrHobcfwr0BTmzmmAXb/kc8A==}
 
   '@surma/rollup-plugin-off-main-thread@2.2.3':
     resolution: {integrity: sha512-lR8q/9W7hZpMWweNiAKU7NQerBnzQQLvi8qnTDU/fxItPhtZVMbPV3lbCwjhIlNBe9Bbr5V+KHshvWmVSG9cxQ==}
@@ -7685,6 +7705,18 @@ snapshots:
   '@sinonjs/fake-timers@8.1.0':
     dependencies:
       '@sinonjs/commons': 1.8.6
+
+  '@stagewise-plugins/react@0.5.1(@stagewise/toolbar@0.5.1)':
+    dependencies:
+      '@stagewise/toolbar': 0.5.1
+
+  '@stagewise/toolbar-react@0.5.1(@types/react@18.3.23)(react@18.3.1)':
+    dependencies:
+      '@stagewise/toolbar': 0.5.1
+      '@types/react': 18.3.23
+      react: 18.3.1
+
+  '@stagewise/toolbar@0.5.1': {}
 
   '@surma/rollup-plugin-off-main-thread@2.2.3':
     dependencies:

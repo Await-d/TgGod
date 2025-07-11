@@ -32,6 +32,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { error, clearError } = useGlobalStore();
   const { user, logout } = useAuthStore();
   
+  // 检查是否为聊天界面
+  const isChatInterface = location.pathname === '/chat';
+  
   const [collapsed, setCollapsed] = React.useState(false);
   const [wsConnected, setWsConnected] = React.useState(false);
   const [mobileMenuVisible, setMobileMenuVisible] = React.useState(false);
@@ -147,7 +150,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ 
+      minHeight: isChatInterface ? '100vh' : '100vh',
+      height: isChatInterface ? '100vh' : 'auto',
+      overflow: isChatInterface ? 'hidden' : 'auto'
+    }}>
       {/* 桌面端侧边栏 */}
       {!isMobile && (
         <Sider 
@@ -296,12 +303,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </Header>
         
         <Content style={{ 
-          margin: isMobile ? '16px 8px' : '24px 16px',
-          padding: isMobile ? 16 : 24,
-          background: '#fff',
-          borderRadius: '8px',
-          minHeight: 280,
-          overflow: 'auto'
+          margin: isChatInterface ? 0 : (isMobile ? '16px 8px' : '24px 16px'),
+          padding: isChatInterface ? 0 : (isMobile ? 16 : 24),
+          background: isChatInterface ? 'transparent' : '#fff',
+          borderRadius: isChatInterface ? 0 : '8px',
+          minHeight: isChatInterface ? 0 : 280,
+          overflow: isChatInterface ? 'hidden' : 'auto',
+          height: isChatInterface ? '100%' : 'auto'
         }}>
           {children}
         </Content>

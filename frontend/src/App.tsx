@@ -14,6 +14,9 @@ import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
 import { webSocketService } from './services/websocket';
 import { useGlobalStore, useAuthStore } from './store';
+// 导入StagewiseToolbar和ReactPlugin
+import { StagewiseToolbar } from '@stagewise/toolbar-react';
+import reactPlugin from '@stagewise-plugins/react';
 
 const { Content } = Layout;
 
@@ -43,6 +46,8 @@ const App: React.FC = () => {
 
   return (
     <div className="app-container">
+      {/* 集成StagewiseToolbar组件 - 只在开发环境下显示 */}
+      <StagewiseToolbar config={{ plugins: [reactPlugin] }} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={
