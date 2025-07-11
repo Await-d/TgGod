@@ -395,28 +395,17 @@ const MessageArea: React.FC<MessageAreaProps> = ({
                 (new Date(message.date).getTime() - new Date(prevMessage.date).getTime()) > 180000; // 减少到3分钟
               
               // 判断消息是否为当前用户发送的
-              // 优先使用 Telegram 用户信息，如果没有则回退到系统用户信息
+              // 优先使用 sender_id 进行判断，这是最可靠的方式
               const isOwn = currentTelegramUser ? (
-                // 使用 Telegram 用户信息进行判断
-                (message.sender_id && message.sender_id === currentTelegramUser.id) ||
-                (message.sender_username && currentTelegramUser.username && 
-                 message.sender_username.toLowerCase() === currentTelegramUser.username.toLowerCase()) ||
-                (message.sender_name && currentTelegramUser.full_name && 
-                 message.sender_name === currentTelegramUser.full_name)
+                // 使用当前 Telegram 用户的 ID 进行判断
+                message.sender_id === currentTelegramUser.id
               ) : user ? (
                 // 回退到系统用户信息进行判断
-                (message.sender_username && message.sender_username === user.username) ||
-                (message.sender_id && message.sender_id === user.id) ||
-                (message.sender_name && user.full_name && message.sender_name === user.full_name) ||
-                (message.sender_username && user.username && 
-                 message.sender_username.toLowerCase() === user.username.toLowerCase())
+                message.sender_id === user.id
               ) : (
-                // 如果都没有，临时通过消息特征判断（比如消息是否标记为"已发送"等）
-                false // 暂时设为false，确保不会错误显示
+                // 如果都没有用户信息，检查后端标记的字段
+                message.is_own_message === true
               );
-              
-              // 调试用：每隔几条消息显示一条作为"自己的"消息，用于测试样式
-              const debugIsOwn = isOwn || (index % 5 === 0); // 每5条消息中有1条显示为自己的
               
               // 检查是否为高亮消息
               const isHighlighted = highlightedMessageId === message.message_id;
@@ -433,7 +422,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
                 >
                   <MessageBubble
                     message={message}
-                    isOwn={debugIsOwn}
+                    isOwn={isOwn}
                     showAvatar={showAvatar}
                     onReply={onReply}
                     onCreateRule={onCreateRule}

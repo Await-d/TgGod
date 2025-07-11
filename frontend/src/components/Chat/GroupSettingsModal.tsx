@@ -33,7 +33,7 @@ import {
   SyncOutlined
 } from '@ant-design/icons';
 import { TelegramGroup, GroupStats } from '../../types';
-import { groupApi, messageApi } from '../../services/apiService';
+import { telegramApi, messageApi } from '../../services/apiService';
 
 const { Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -64,7 +64,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
     if (!selectedGroup) return;
     
     try {
-      const stats = await groupApi.getGroupStats(selectedGroup.id);
+      const stats = await telegramApi.getGroupStats(selectedGroup.id);
       setGroupStats(stats);
     } catch (error: any) {
       console.error('获取群组统计失败:', error);
@@ -77,7 +77,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
     
     setSyncing(true);
     try {
-      const updatedGroup = await groupApi.syncGroup(selectedGroup.id);
+      const updatedGroup = await telegramApi.syncGroup(selectedGroup.id);
       message.success('群组信息同步成功！');
       onGroupUpdate?.(updatedGroup);
       fetchGroupStats();
@@ -95,7 +95,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
     
     setLoading(true);
     try {
-      const updatedGroup = await groupApi.updateGroup(selectedGroup.id, {
+      const updatedGroup = await telegramApi.updateGroup(selectedGroup.id, {
         is_active: values.is_active,
         description: values.description,
       });

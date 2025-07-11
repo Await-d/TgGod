@@ -80,6 +80,7 @@ export interface TelegramMessage {
   date: string;
   created_at: string;
   updated_at?: string;
+  is_own_message?: boolean; // 新增：标记是否为当前用户发送的消息
 }
 
 export interface ReactionEmoji {

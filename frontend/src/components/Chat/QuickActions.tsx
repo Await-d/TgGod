@@ -6,16 +6,21 @@ import {
   PlusOutlined,
   SettingOutlined,
   SearchOutlined,
-  DownloadOutlined 
+  DownloadOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { QuickActionsProps } from '../../types/chat';
+import { telegramApi } from '../../services/apiService';
+import { message } from 'antd';
 
 interface ExtendedQuickActionsProps extends QuickActionsProps {
   isMobile?: boolean;
   onSearch?: () => void;
   onDownload?: () => void;
   onSettings?: () => void;
+  onRefresh?: () => void;
+  loading?: boolean;
 }
 
 const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
@@ -26,7 +31,9 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
   isMobile = false,
   onSearch,
   onDownload,
-  onSettings
+  onSettings,
+  onRefresh,
+  loading = false
 }) => {
   
   // 如果没有选择群组，不显示操作按钮
@@ -34,11 +41,35 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
     return null;
   }
 
+  // 处理同步消息
+  const handleSync = async () => {
+    if (!selectedGroup) return;
+    
+    try {
+      await telegramApi.syncGroupMessages(selectedGroup.id, 100);
+      message.success('消息同步成功！');
+      onSync?.();
+    } catch (error: any) {
+      message.error('同步消息失败: ' + error.message);
+      console.error('同步消息失败:', error);
+    }
+  };
+
   // 移动端显示精简版按钮
   if (isMobile) {
     return (
       <div className="quick-actions mobile">
         <Space size="small" split={<Divider type="vertical" />}>
+          <Tooltip title="刷新消息">
+            <Button
+              type="text"
+              icon={<ReloadOutlined />}
+              onClick={onRefresh}
+              loading={loading}
+              size="small"
+            />
+          </Tooltip>
+          
           <Tooltip title="筛选消息">
             <Button
               type="text"
@@ -61,7 +92,7 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
             <Button
               type="text"
               icon={<SyncOutlined />}
-              onClick={onSync}
+              onClick={handleSync}
               size="small"
             />
           </Tooltip>
@@ -74,6 +105,17 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
   return (
     <div className="quick-actions desktop">
       <Space size="small" wrap>
+        <Tooltip title="刷新消息">
+          <Button
+            type="text"
+            icon={<ReloadOutlined />}
+            onClick={onRefresh}
+            loading={loading}
+          >
+            刷新
+          </Button>
+        </Tooltip>
+        
         <Tooltip title="搜索消息">
           <Button
             type="text"
@@ -123,7 +165,7 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
           <Button
             type="text"
             icon={<SyncOutlined />}
-            onClick={onSync}
+            onClick={handleSync}
           >
             同步
           </Button>

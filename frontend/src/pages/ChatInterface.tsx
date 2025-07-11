@@ -304,10 +304,15 @@ const ChatInterface: React.FC = () => {
         <QuickActions
           selectedGroup={chatState.selectedGroup}
           onFilter={() => setShowFilterDrawer(true)}
+          onRefresh={() => {
+            // TODO: 实现刷新功能
+            console.log('刷新消息');
+          }}
           onSync={() => {
             // TODO: 实现同步功能
             console.log('同步消息');
           }}
+          loading={loading}
           onCreateRule={() => {
             setRuleBaseMessage(null);
             setShowRuleModal(true);

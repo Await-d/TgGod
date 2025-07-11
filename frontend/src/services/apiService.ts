@@ -135,10 +135,6 @@ export const telegramApi = {
     return api.delete(`/telegram/groups/${groupId}`);
   },
 
-  // 获取群组统计
-  getGroupStats: (groupId: number): Promise<GroupStats> => {
-    return api.get(`/telegram/groups/${groupId}/stats`);
-  },
 
   // 同步群组消息
   syncGroupMessages: (groupId: number, limit: number = 100): Promise<{ message: string }> => {
@@ -166,6 +162,51 @@ export const telegramApi = {
     is_self: boolean;
   }> => {
     return api.get('/telegram/me');
+  },
+
+  // 获取同步状态
+  getSyncStatus: (): Promise<{
+    success: boolean;
+    data: {
+      is_running: boolean;
+      active_groups: number[];
+      total_groups: number;
+    };
+  }> => {
+    return api.get('/telegram/sync-status');
+  },
+
+  // 控制同步任务
+  controlSync: (action: 'start' | 'stop'): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    return api.post('/telegram/sync-control', { action });
+  },
+
+  // 启用/禁用群组实时同步
+  enableRealtimeSync: (groupId: number, enabled: boolean): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    return api.post(`/telegram/groups/${groupId}/enable-realtime`, { enabled });
+  },
+
+  // 获取群组统计信息
+  getGroupStats: (groupId: number): Promise<{
+    total_messages: number;
+    media_messages: number;
+    text_messages: number;
+    photo_messages: number;
+    video_messages: number;
+    document_messages: number;
+    audio_messages: number;
+    forwarded_messages: number;
+    pinned_messages: number;
+    messages_with_reactions: number;
+    member_count: number;
+  }> => {
+    return api.get(`/telegram/groups/${groupId}/stats`);
   },
 };
 
@@ -345,11 +386,6 @@ export const downloadApi = {
 
 // 群组管理相关API
 export const groupApi = {
-  // 获取群组统计信息
-  getGroupStats: (groupId: number): Promise<GroupStats> => {
-    return api.get(`/telegram/groups/${groupId}/stats`);
-  },
-
   // 同步群组信息
   syncGroup: (groupId: number): Promise<TelegramGroup> => {
     return api.post(`/telegram/groups/${groupId}/sync-info`);
