@@ -267,11 +267,19 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         className="message-list" 
         ref={messagesContainerRef}
       >
-        {/* 加载更多指示器 - 显示在顶部 */}
+        {/* 加载更多指示器 - 显示在顶部，优化版本 */}
         {isLoadingMore && (
           <div className="load-more-indicator">
-            <Spin size="small" />
-            <Text type="secondary">正在加载历史消息...</Text>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Spin size="small" />
+              <Text type="secondary">正在加载历史消息...</Text>
+            </div>
+            {/* 骨架屏效果 */}
+            <div className="loading-skeleton">
+              <div className="loading-skeleton-item"></div>
+              <div className="loading-skeleton-item"></div>
+              <div className="loading-skeleton-item"></div>
+            </div>
           </div>
         )}
         

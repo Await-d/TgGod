@@ -33,11 +33,11 @@ export const useInfiniteScroll = (
   options: InfiniteScrollOptions = {}
 ): InfiniteScrollResult => {
   const {
-    threshold = 100, // 距离顶部多少像素时开始加载
-    debounceDelay = 300, // 防抖延迟
-    pageSize = 50, // 每页消息数量
-    preloadThreshold = 3, // 预加载阈值（页数）
-    maxPages = 50 // 最大页数限制
+    threshold = 50, // 减少触发距离，提升响应
+    debounceDelay = 500, // 增加防抖延迟，减少频繁触发
+    pageSize = 30, // 减少每页数量，加快加载速度
+    preloadThreshold = 2, // 减少预加载阈值
+    maxPages = 20 // 减少最大页数，避免过多内存占用
   } = options;
 
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -88,15 +88,29 @@ export const useInfiniteScroll = (
     }
   }, [containerRef]);
 
-  // 保持滚动位置（加载新消息后）
-  const maintainScrollPosition = useCallback((previousScrollHeight: number) => {
+  // 保持滚动位置（加载新消息后）- 优化版本
+  const maintainScrollPosition = useCallback((previousScrollHeight: number, previousScrollTop: number) => {
     if (containerRef.current) {
       const container = containerRef.current;
       const newScrollHeight = container.scrollHeight;
       const scrollDiff = newScrollHeight - previousScrollHeight;
       
-      // 调整滚动位置以保持用户当前的查看位置
-      container.scrollTop = container.scrollTop + scrollDiff;
+      // 更精确的滚动位置计算
+      const newScrollTop = previousScrollTop + scrollDiff;
+      
+      // 禁用滚动平滑，避免影响用户体验
+      container.style.scrollBehavior = 'auto';
+      container.scrollTop = newScrollTop;
+      
+      // 标记滚动调整时间，防止触发额外的加载
+      (window as any)._lastScrollAdjust = Date.now();
+      
+      // 恢复滚动平滑
+      setTimeout(() => {
+        container.style.scrollBehavior = '';
+      }, 0);
+      
+      console.log(`滚动位置调整: ${previousScrollTop} → ${newScrollTop} (差值: ${scrollDiff})`);
     }
   }, [containerRef]);
 
@@ -112,9 +126,12 @@ export const useInfiniteScroll = (
     try {
       console.log(`加载第 ${currentPage + 1} 页历史消息...`);
       
-      // 保存当前滚动高度
-      const previousScrollHeight = containerRef.current?.scrollHeight || 0;
-      setLastScrollHeight(previousScrollHeight);
+      // 保存当前滚动位置和高度
+      const container = containerRef.current;
+      const previousScrollHeight = container?.scrollHeight || 0;
+      const previousScrollTop = container?.scrollTop || 0;
+      
+      console.log(`加载前状态: scrollTop=${previousScrollTop}, scrollHeight=${previousScrollHeight}`);
 
       // 调用API获取历史消息
       const response = await messageApi.getGroupMessages(selectedGroup.id, {
@@ -130,18 +147,20 @@ export const useInfiniteScroll = (
         if (newMessages.length > 0) {
           // 将新消息添加到现有消息的前面（因为是历史消息）
           const updatedMessages = [...newMessages.reverse(), ...messages];
+          
+          // 先更新消息列表
           onMessagesUpdate(updatedMessages);
+          
+          // 等待DOM更新后再调整滚动位置
+          setTimeout(() => {
+            maintainScrollPosition(previousScrollHeight, previousScrollTop);
+          }, 50); // 减少延迟，提升响应速度
           
           setCurrentPage(prev => prev + 1);
           setTotalLoaded(prev => prev + newMessages.length);
 
           // 检查是否还有更多消息
           setHasMore(newMessages.length === pageSize);
-
-          // 维持滚动位置
-          setTimeout(() => {
-            maintainScrollPosition(previousScrollHeight);
-          }, 100);
         } else {
           // 没有更多消息了
           setHasMore(false);
@@ -169,7 +188,7 @@ export const useInfiniteScroll = (
     maintainScrollPosition
   ]);
 
-  // 滚动事件处理器
+  // 滚动事件处理器 - 优化版本
   const handleScroll = useCallback(() => {
     if (!containerRef.current || !selectedGroup || isLoadingRef.current || !hasMore) {
       return;
@@ -178,9 +197,14 @@ export const useInfiniteScroll = (
     const container = containerRef.current;
     const scrollTop = container.scrollTop;
     
+    // 防止在滚动调整期间触发加载
+    if (Date.now() - ((window as any)._lastScrollAdjust || 0) < 1000) {
+      return;
+    }
+    
     // 当滚动到接近顶部时，触发加载更多
     if (scrollTop <= threshold) {
-      console.log('滚动到顶部，准备加载历史消息...');
+      console.log('滚动到顶部，准备加载历史消息...', { scrollTop, threshold });
       
       // 防抖处理
       if (debounceTimer.current) {
@@ -188,7 +212,10 @@ export const useInfiniteScroll = (
       }
       
       debounceTimer.current = setTimeout(() => {
-        loadMore();
+        // 再次检查条件，避免重复触发
+        if (containerRef.current && containerRef.current.scrollTop <= threshold && !isLoadingRef.current) {
+          loadMore();
+        }
       }, debounceDelay);
     }
   }, [containerRef, selectedGroup, hasMore, threshold, debounceDelay, loadMore]);

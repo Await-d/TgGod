@@ -95,6 +95,63 @@
 .load-more-indicator {
   padding: 16px;
   border-bottom: 1px solid #f0f0f0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(5px);
+  animation: loadMoreFadeIn 0.3s ease-in-out;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* 加载指示器动画 */
+@keyframes loadMoreFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 平滑的骨架屏效果 */
+.loading-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.loading-skeleton-item {
+  height: 20px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.loading-skeleton-item:nth-child(1) { width: 70%; }
+.loading-skeleton-item:nth-child(2) { width: 90%; }
+.loading-skeleton-item:nth-child(3) { width: 60%; }
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 /* 消息空状态 */
