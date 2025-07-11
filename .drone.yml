@@ -41,14 +41,13 @@ steps:
       - docker run -d --name tggod --network 1panel-network -p 10200:80 -v /volume1/docker/1panel/apps/local/tggod/data:/app/data -v /volume1/docker/1panel/apps/local/tggod/media:/app/media -v /volume1/docker/1panel/apps/local/tggod/logs:/app/logs -v /volume1/docker/1panel/apps/local/tggod/telegram_sessions:/app/telegram_sessions --restart unless-stopped -e TZ=Asia/Shanghai -e DATABASE_URL=sqlite:///./data/tggod.db -e MEDIA_ROOT=/app/media -e LOG_FILE=/app/logs/app.log -e PYTHONUNBUFFERED=1 -e TELEGRAM_API_ID="$${TELEGRAM_API_ID}" -e TELEGRAM_API_HASH="$${TELEGRAM_API_HASH}" -e TELEGRAM_BOT_TOKEN="$${TELEGRAM_BOT_TOKEN}" -e SECRET_KEY="$${SECRET_KEY}" tggod:latest
       
       - echo "等待服务启动..."
-      - sleep 15
+      - sleep 5
       
       - echo "验证容器状态..."
       - docker ps | grep tggod
       
       - echo "健康检查..."
       - curl -f http://localhost:10200/health || echo "健康检查失败，正在重试..."
-      - sleep 5
       - curl -f http://localhost:10200/health || echo "健康检查仍然失败"
       
       - echo "检查容器日志..."
