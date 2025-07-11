@@ -3,6 +3,23 @@
   transition: all 0.3s ease;
 }
 
+/* 紧凑统计样式 */
+.compact-statistic .ant-statistic-title {
+  font-size: 11px !important;
+  margin-bottom: 2px !important;
+  color: #8c8c8c !important;
+  font-weight: 500 !important;
+}
+
+.compact-statistic .ant-statistic-content {
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+}
+
+.compact-statistic .ant-statistic-content-value {
+  font-weight: 600 !important;
+}
+
 /* 高亮消息 */
 .message-wrapper.highlighted {
   background: linear-gradient(135deg, #fff8e1 0%, #fff3c4 100%);

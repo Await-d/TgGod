@@ -17,6 +17,7 @@ import {
 } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../../types';
 import { messageApi, telegramApi } from '../../services/apiService';
+import './MessageArea.css'; // 导入CSS样式
 
 const { Title, Text } = Typography;
 
@@ -121,11 +122,12 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
     
     return (
       <Avatar 
-        size={isMobile ? 40 : 48} 
+        size={isMobile ? 32 : 36} 
         style={{ 
           backgroundColor: getAvatarColor(group.title),
           color: 'white',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          fontSize: isMobile ? '14px' : '16px'
         }}
       >
         {firstChar}
@@ -139,36 +141,38 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
       <Card 
         size="small" 
         style={{ 
-          marginBottom: 16,
-          borderRadius: 8,
+          marginBottom: 8,
+          borderRadius: 6,
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
         }}
+        bodyStyle={{ padding: '12px 16px' }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* 群组头像 */}
           {getGroupAvatar()}
           
           {/* 群组信息 */}
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <Title level={4} style={{ margin: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <Title level={5} style={{ margin: 0, fontSize: '16px' }}>
                 {group.title}
               </Title>
               <Tag 
                 color={group.is_active ? 'success' : 'error'} 
                 icon={group.is_active ? <CheckCircleOutlined /> : <PauseCircleOutlined />}
+                style={{ fontSize: '10px' }}
               >
                 {group.is_active ? '活跃' : '暂停'}
               </Tag>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <Text type="secondary">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
                 <TeamOutlined style={{ marginRight: 4 }} />
                 {group.member_count?.toLocaleString() || 0} 成员
               </Text>
               {group.username && (
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: '11px' }}>
                   @{group.username}
                 </Text>
               )}
@@ -177,104 +181,74 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
         </div>
       </Card>
 
-      {/* 群组统计信息 */}
+      {/* 群组统计信息 - 紧凑布局 */}
       {groupStats && (
         <Card 
           size="small" 
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <MessageOutlined />
-              <span>消息统计</span>
+              <span style={{ fontSize: '14px' }}>消息统计</span>
             </div>
           }
           style={{ 
-            marginBottom: 16,
-            borderRadius: 8,
+            marginBottom: 12,
+            borderRadius: 6,
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
           }}
+          bodyStyle={{ padding: '12px 16px' }}
           loading={loadingStats}
         >
-          <Row gutter={[16, 16]}>
-            <Col span={isMobile ? 8 : 6}>
+          <Row gutter={[8, 8]}>
+            {/* 第一行：主要统计 */}
+            <Col span={isMobile ? 6 : 4}>
               <Statistic
-                title="总消息数"
+                title="总数"
                 value={groupStats.total_messages}
-                prefix={<MessageOutlined />}
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ color: '#1890ff', fontSize: '16px' }}
+                className="compact-statistic"
               />
             </Col>
-            <Col span={isMobile ? 8 : 6}>
+            <Col span={isMobile ? 6 : 4}>
               <Statistic
-                title="文本消息"
+                title="文本"
                 value={groupStats.text_messages}
-                prefix={<MessageOutlined />}
-                valueStyle={{ color: '#52c41a' }}
+                valueStyle={{ color: '#52c41a', fontSize: '16px' }}
+                className="compact-statistic"
               />
             </Col>
-            <Col span={isMobile ? 8 : 6}>
+            <Col span={isMobile ? 6 : 4}>
               <Statistic
-                title="媒体消息"
+                title="媒体"
                 value={groupStats.media_messages}
-                prefix={<FileImageOutlined />}
-                valueStyle={{ color: '#faad14' }}
+                valueStyle={{ color: '#faad14', fontSize: '16px' }}
+                className="compact-statistic"
               />
             </Col>
-            <Col span={isMobile ? 8 : 6}>
+            <Col span={isMobile ? 6 : 4}>
               <Statistic
-                title="图片消息"
+                title="图片"
                 value={groupStats.photo_messages}
-                prefix={<FileImageOutlined />}
-                valueStyle={{ color: '#13c2c2' }}
-              />
-            </Col>
-            <Col span={isMobile ? 8 : 6}>
-              <Statistic
-                title="视频消息"
-                value={groupStats.video_messages}
-                prefix={<VideoCameraOutlined />}
-                valueStyle={{ color: '#722ed1' }}
-              />
-            </Col>
-            <Col span={isMobile ? 8 : 6}>
-              <Statistic
-                title="文档消息"
-                value={groupStats.document_messages}
-                prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#eb2f96' }}
-              />
-            </Col>
-            <Col span={isMobile ? 8 : 6}>
-              <Statistic
-                title="音频消息"
-                value={groupStats.audio_messages}
-                prefix={<AudioOutlined />}
-                valueStyle={{ color: '#f5222d' }}
-              />
-            </Col>
-            <Col span={isMobile ? 8 : 6}>
-              <Statistic
-                title="转发消息"
-                value={groupStats.forwarded_messages}
-                prefix={<ShareAltOutlined />}
-                valueStyle={{ color: '#fa8c16' }}
+                valueStyle={{ color: '#13c2c2', fontSize: '16px' }}
+                className="compact-statistic"
               />
             </Col>
             {!isMobile && (
               <>
-                <Col span={6}>
+                <Col span={4}>
                   <Statistic
-                    title="置顶消息"
-                    value={groupStats.pinned_messages}
-                    prefix={<PushpinOutlined />}
-                    valueStyle={{ color: '#a0d911' }}
+                    title="视频"
+                    value={groupStats.video_messages}
+                    valueStyle={{ color: '#722ed1', fontSize: '16px' }}
+                    className="compact-statistic"
                   />
                 </Col>
-                <Col span={6}>
+                <Col span={4}>
                   <Statistic
-                    title="有反应消息"
-                    value={groupStats.messages_with_reactions}
-                    prefix={<HeartOutlined />}
-                    valueStyle={{ color: '#ff4d4f' }}
+                    title="转发"
+                    value={groupStats.forwarded_messages}
+                    valueStyle={{ color: '#fa8c16', fontSize: '16px' }}
+                    className="compact-statistic"
                   />
                 </Col>
               </>
@@ -288,24 +262,25 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
         <Card 
           size="small"
           style={{ 
-            marginBottom: 16,
-            borderRadius: 8,
+            marginBottom: 8,
+            borderRadius: 6,
             borderColor: '#faad14',
             backgroundColor: '#fffbf0'
           }}
+          bodyStyle={{ padding: '8px 12px' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <PushpinOutlined style={{ color: '#faad14' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <PushpinOutlined style={{ color: '#faad14', fontSize: '14px' }} />
             <div style={{ flex: 1 }}>
-              <Text strong style={{ color: '#faad14' }}>置顶消息</Text>
-              <div style={{ marginTop: 4 }}>
-                <Text ellipsis style={{ display: 'block', maxWidth: '200px' }}>
+              <Text strong style={{ color: '#faad14', fontSize: '12px' }}>置顶消息</Text>
+              <div style={{ marginTop: 2 }}>
+                <Text ellipsis style={{ display: 'block', maxWidth: '200px', fontSize: '12px' }}>
                   {pinnedMessages[currentPinnedIndex]?.text || '媒体消息'}
                 </Text>
               </div>
             </div>
             
-            <Space>
+            <Space size="small">
               {pinnedMessages.length > 1 && (
                 <>
                   <Button 
@@ -313,8 +288,9 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                     size="small" 
                     icon={<LeftOutlined />} 
                     onClick={handlePinnedPrevious}
+                    style={{ fontSize: '10px' }}
                   />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+                  <Text type="secondary" style={{ fontSize: '10px' }}>
                     {currentPinnedIndex + 1}/{pinnedMessages.length}
                   </Text>
                   <Button 
@@ -322,6 +298,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                     size="small" 
                     icon={<RightOutlined />} 
                     onClick={handlePinnedNext}
+                    style={{ fontSize: '10px' }}
                   />
                 </>
               )}
@@ -329,6 +306,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                 type="text" 
                 size="small" 
                 onClick={handleJumpToPinned}
+                style={{ fontSize: '10px' }}
               >
                 跳转
               </Button>
