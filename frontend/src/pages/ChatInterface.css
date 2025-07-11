@@ -19,6 +19,20 @@
   overflow: hidden !important; /* 防止整体滚动 */
 }
 
+/* 消息区域容器 */
+.message-area-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.message-area-container .message-area {
+  flex: 1;
+  overflow: hidden;
+}
+
 /* 当在MainLayout中时，适应MainLayout的布局 */
 .ant-layout-content .chat-interface {
   height: calc(100vh - 64px); /* 减去MainLayout的header高度 */

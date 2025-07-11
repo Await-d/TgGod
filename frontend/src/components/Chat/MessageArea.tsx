@@ -31,6 +31,9 @@ interface MessageAreaProps {
   hasMore?: boolean;
   onLoadMore?: () => void;
   containerRef?: React.RefObject<HTMLDivElement>;
+  // 新增：跳转到消息功能
+  jumpToMessageId?: number;
+  onJumpComplete?: () => void;
 }
 
 const MessageArea: React.FC<MessageAreaProps> = ({
@@ -48,17 +51,24 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   isLoadingMore: propIsLoadingMore = false,
   hasMore: propHasMore = true,
   onLoadMore,
-  containerRef: propContainerRef
+  containerRef: propContainerRef,
+  // 跳转功能
+  jumpToMessageId,
+  onJumpComplete
 }) => {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const internalContainerRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = propContainerRef || internalContainerRef;
+  
+  // 消息引用映射 - 用于跳转到特定消息
+  const messageRefs = useRef<Record<number, HTMLDivElement>>({});
   
   // 使用传入的消息或store中的消息
   const { messages: storeMessages, setMessages, addMessage, removeMessage } = useTelegramStore();
@@ -88,6 +98,43 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   useEffect(() => {
     fetchCurrentTelegramUser();
   }, [fetchCurrentTelegramUser]);
+
+  // 跳转到特定消息
+  const jumpToMessage = useCallback((messageId: number) => {
+    const messageElement = messageRefs.current[messageId];
+    if (messageElement && messagesContainerRef.current) {
+      // 滚动到消息位置
+      messageElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      
+      // 高亮显示消息
+      setHighlightedMessageId(messageId);
+      
+      // 3秒后取消高亮
+      setTimeout(() => {
+        setHighlightedMessageId(null);
+      }, 3000);
+      
+      // 调用完成回调
+      if (onJumpComplete) {
+        onJumpComplete();
+      }
+    }
+  }, [messagesContainerRef, onJumpComplete]);
+
+  // 监听跳转请求
+  useEffect(() => {
+    if (jumpToMessageId) {
+      // 延迟执行，确保消息已渲染
+      const timer = setTimeout(() => {
+        jumpToMessage(jumpToMessageId);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [jumpToMessageId, jumpToMessage]);
 
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
@@ -342,17 +389,29 @@ const MessageArea: React.FC<MessageAreaProps> = ({
               // 调试用：每隔几条消息显示一条作为"自己的"消息，用于测试样式
               const debugIsOwn = isOwn || (index % 5 === 0); // 每5条消息中有1条显示为自己的
               
+              // 检查是否为高亮消息
+              const isHighlighted = highlightedMessageId === message.message_id;
+              
               return (
-                <MessageBubble
+                <div
                   key={message.id}
-                  message={message}
-                  isOwn={debugIsOwn}
-                  showAvatar={showAvatar}
-                  onReply={onReply}
-                  onCreateRule={onCreateRule}
-                  onDelete={handleDeleteMessage}
-                  isMobile={isMobile}
-                />
+                  ref={el => {
+                    if (el) {
+                      messageRefs.current[message.message_id] = el;
+                    }
+                  }}
+                  className={`message-wrapper ${isHighlighted ? 'highlighted' : ''}`}
+                >
+                  <MessageBubble
+                    message={message}
+                    isOwn={debugIsOwn}
+                    showAvatar={showAvatar}
+                    onReply={onReply}
+                    onCreateRule={onCreateRule}
+                    onDelete={handleDeleteMessage}
+                    isMobile={isMobile}
+                  />
+                </div>
               );
             })}
           </>

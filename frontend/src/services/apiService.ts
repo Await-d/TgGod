@@ -182,6 +182,13 @@ export const messageApi = {
     return api.get(`/telegram/groups/${groupId}/messages`, { params });
   },
 
+  // 获取群组置顶消息
+  getPinnedMessages: (groupId: number): Promise<TelegramMessage[]> => {
+    return api.get(`/telegram/groups/${groupId}/messages`, { 
+      params: { is_pinned: true, limit: 100 } 
+    });
+  },
+
   // 获取消息详情
   getMessageDetail: (groupId: number, messageId: number): Promise<TelegramMessage> => {
     return api.get(`/telegram/groups/${groupId}/messages/${messageId}`);

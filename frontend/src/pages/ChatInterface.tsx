@@ -21,6 +21,7 @@ import MessageHighlight from '../components/Chat/MessageHighlight';
 import MediaPreview from '../components/Chat/MediaPreview';
 import VoiceMessage from '../components/Chat/VoiceMessage';
 import MessageQuoteForward, { QuotedMessage } from '../components/Chat/MessageQuoteForward';
+import PinnedMessages from '../components/Chat/PinnedMessages';
 import './ChatInterface.css';
 
 const { Title } = Typography;
@@ -101,6 +102,10 @@ const ChatInterface: React.FC = () => {
   const [ruleBaseMessage, setRuleBaseMessage] = useState<TelegramMessage | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
   
+  // 置顶消息状态
+  const [showPinnedMessages, setShowPinnedMessages] = useState(true);
+  const [jumpToMessageId, setJumpToMessageId] = useState<number | null>(null);
+  
   // 同步选中群组到内部状态
   useEffect(() => {
     setChatState(prev => ({
@@ -162,6 +167,20 @@ const ChatInterface: React.FC = () => {
       setChatState(prev => ({ ...prev, isGroupListCollapsed: true }));
     }
   }, [isMobile, selectGroup]);
+
+  // 处理跳转到消息
+  const handleJumpToMessage = useCallback((messageId: number) => {
+    setJumpToMessageId(messageId);
+    // 如果是移动端，收起置顶消息
+    if (isMobile) {
+      setShowPinnedMessages(false);
+    }
+  }, [isMobile]);
+
+  // 处理跳转完成
+  const handleJumpComplete = useCallback(() => {
+    setJumpToMessageId(null);
+  }, []);
 
   // 处理消息回复
   const handleReply = useCallback((message: TelegramMessage) => {
@@ -281,23 +300,38 @@ const ChatInterface: React.FC = () => {
 
   // 渲染消息区域
   const renderMessageArea = () => (
-    <MessageArea
-      selectedGroup={selectedGroup}
-      onReply={handleReply}
-      onCreateRule={handleCreateQuickRule}
-      searchFilter={chatState.messageFilter}
-      isMobile={isMobile}
-      searchQuery={chatState.searchQuery}
-      onQuote={handleQuote}
-      onForward={handleForward}
-      contacts={contacts}
-      // 无限滚动属性
-      messages={messages}
-      isLoadingMore={isLoadingMore}
-      hasMore={hasMore}
-      onLoadMore={loadMore}
-      containerRef={chatContainerRef}
-    />
+    <div className="message-area-container">
+      {/* 置顶消息 */}
+      <PinnedMessages
+        selectedGroup={selectedGroup}
+        onJumpToMessage={handleJumpToMessage}
+        onClose={() => setShowPinnedMessages(false)}
+        visible={showPinnedMessages}
+        isMobile={isMobile}
+      />
+      
+      {/* 消息区域 */}
+      <MessageArea
+        selectedGroup={selectedGroup}
+        onReply={handleReply}
+        onCreateRule={handleCreateQuickRule}
+        searchFilter={chatState.messageFilter}
+        isMobile={isMobile}
+        searchQuery={chatState.searchQuery}
+        onQuote={handleQuote}
+        onForward={handleForward}
+        contacts={contacts}
+        // 无限滚动属性
+        messages={messages}
+        isLoadingMore={isLoadingMore}
+        hasMore={hasMore}
+        onLoadMore={loadMore}
+        containerRef={chatContainerRef}
+        // 跳转功能
+        jumpToMessageId={jumpToMessageId}
+        onJumpComplete={handleJumpComplete}
+      />
+    </div>
   );
 
   // 渲染消息输入区域

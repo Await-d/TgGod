@@ -1,0 +1,267 @@
+/* 置顶消息容器 */
+.pinned-messages-container {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin-bottom: 12px;
+  animation: pinnedSlideIn 0.3s ease-out;
+}
+
+.pinned-messages-container.mobile {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* 置顶消息卡片 */
+.pinned-messages-card {
+  background: linear-gradient(135deg, #fff8e1 0%, #fff3c4 100%);
+  border: 1px solid #faad14;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(250, 173, 20, 0.15);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.pinned-messages-card:hover {
+  box-shadow: 0 4px 12px rgba(250, 173, 20, 0.25);
+  transform: translateY(-1px);
+}
+
+.pinned-messages-card.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: #f9f9f9;
+  border-color: #d9d9d9;
+}
+
+/* 置顶消息头部 */
+.pinned-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(250, 173, 20, 0.1);
+  border-bottom: 1px solid rgba(250, 173, 20, 0.2);
+}
+
+.pinned-icon {
+  color: #faad14;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.pinned-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pinned-count {
+  font-size: 12px;
+  background: rgba(250, 173, 20, 0.2);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.pinned-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 置顶消息内容 */
+.pinned-content {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.pinned-content.visible {
+  max-height: 200px;
+  opacity: 1;
+}
+
+.pinned-content.hidden {
+  max-height: 0;
+  opacity: 0;
+}
+
+.pinned-message-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 发送者信息 */
+.pinned-sender {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.pinned-date {
+  font-size: 12px;
+}
+
+/* 消息文本 */
+.pinned-text {
+  color: #262626;
+  line-height: 1.5;
+}
+
+.pinned-text .ant-typography {
+  color: inherit;
+}
+
+/* 媒体信息 */
+.pinned-media {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 跳转按钮 */
+.pinned-jump {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.pinned-jump .ant-btn {
+  border-radius: 16px;
+  font-size: 12px;
+  height: 28px;
+  padding: 0 12px;
+}
+
+/* 展开状态 */
+.pinned-messages-card.expanded {
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 0;
+}
+
+/* 动画效果 */
+@keyframes pinnedSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .pinned-messages-container {
+    margin-bottom: 8px;
+  }
+  
+  .pinned-messages-card {
+    border-radius: 6px;
+  }
+  
+  .pinned-header {
+    padding: 6px 12px;
+  }
+  
+  .pinned-message-content {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+  
+  .pinned-text {
+    font-size: 14px;
+  }
+  
+  .pinned-jump .ant-btn {
+    font-size: 11px;
+    height: 24px;
+    padding: 0 8px;
+  }
+}
+
+/* 置顶消息空状态 */
+.pinned-empty {
+  text-align: center;
+  padding: 16px;
+  color: #8c8c8c;
+}
+
+/* 置顶消息指示器 */
+.pinned-indicator {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #faad14;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  animation: pinnedPulse 2s infinite;
+}
+
+@keyframes pinnedPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* 置顶消息导航按钮 */
+.pinned-nav-btn {
+  border: none;
+  background: rgba(250, 173, 20, 0.1);
+  color: #faad14;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.pinned-nav-btn:hover {
+  background: rgba(250, 173, 20, 0.2);
+  color: #d48806;
+}
+
+/* 置顶消息关闭按钮 */
+.pinned-close-btn {
+  border: none;
+  background: transparent;
+  color: #8c8c8c;
+  transition: all 0.2s ease;
+}
+
+.pinned-close-btn:hover {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff4d4f;
+}
+
+/* 置顶消息滚动条 */
+.pinned-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pinned-content::-webkit-scrollbar-track {
+  background: rgba(250, 173, 20, 0.1);
+}
+
+.pinned-content::-webkit-scrollbar-thumb {
+  background: rgba(250, 173, 20, 0.3);
+  border-radius: 2px;
+}
+
+.pinned-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(250, 173, 20, 0.5);
+}
