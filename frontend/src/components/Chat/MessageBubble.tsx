@@ -68,10 +68,8 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
     }
   };
 
-  // 获取发送者头像
+  // 获取发送者头像 - 简化逻辑，总是显示头像
   const getSenderAvatar = () => {
-    if (!showAvatar) return null;
-    
     const senderName = message.sender_name || message.sender_username || '未知用户';
     const firstChar = senderName.charAt(0).toUpperCase();
     
@@ -284,14 +282,19 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
       {/* 发送者头像 */}
       {!isOwn && (
         <div className="message-avatar">
-          {showAvatar ? getSenderAvatar() : <div className="avatar-placeholder" />}
+          {showAvatar ? getSenderAvatar() : (
+            <div className="avatar-placeholder">
+              {/* 在连续消息中显示一个更小的指示器 */}
+              <div className="avatar-indicator" />
+            </div>
+          )}
         </div>
       )}
 
       {/* 消息主体 */}
       <div className="message-body">
-        {/* 发送者信息 - 总是显示用户名（对于非自己的消息） */}
-        {!isOwn && (
+        {/* 发送者信息 - 只在显示头像时显示用户名 */}
+        {!isOwn && showAvatar && (
           <div className="message-sender-info">
             <Space>
               <Text strong style={{ color: '#1890ff' }}>
