@@ -27,10 +27,12 @@ import { TelegramMessage } from '../../types';
 import { MessageBubbleProps } from '../../types/chat';
 import MediaPreview from './MediaPreview';
 import VoiceMessage from './VoiceMessage';
+import MessageReactions from './MessageReactions';
 import LinkPreview, { parseLinks, renderTextWithLinks } from './LinkPreview';
 import MarkdownRenderer, { isMarkdownContent } from './MarkdownRenderer';
 import './MediaPreview.css';
 import './VoiceMessage.css';
+import './MessageReactions.css';
 import './LinkPreview.css';
 import './MarkdownRenderer.css';
 import './MessageBubble.css';
@@ -307,6 +309,14 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {/* 消息气泡 */}
         <div className={`message-bubble-content ${isOwn ? 'own-bubble' : 'other-bubble'}`}>
           {renderMessageContent()}
+          
+          {/* 表情反应 */}
+          {message.reactions && (
+            <MessageReactions 
+              reactions={message.reactions} 
+              isMobile={isMobile}
+            />
+          )}
           
           {/* 消息时间和操作 */}
           <div className="message-footer">

@@ -1,0 +1,87 @@
+/* 消息表情反应样式 */
+.message-reactions {
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.message-reactions.mobile {
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+.reaction-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.reaction-item:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
+  transform: scale(1.05);
+}
+
+.reaction-emoji {
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reaction-count {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.65) !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+}
+
+/* 移动端适配 */
+.message-reactions.mobile .reaction-item {
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.message-reactions.mobile .reaction-emoji {
+  font-size: 12px;
+}
+
+.message-reactions.mobile .reaction-count {
+  font-size: 10px !important;
+}
+
+/* 深色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .reaction-item {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  
+  .reaction-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+  
+  .reaction-count {
+    color: rgba(255, 255, 255, 0.85) !important;
+  }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+  .reaction-item {
+    border-width: 2px;
+  }
+  
+  .reaction-count {
+    font-weight: 700 !important;
+  }
+}
