@@ -201,12 +201,12 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       const response = await messageApi.getGroupMessages(groupId, params);
       
       if (append && pageNum > 1) {
-        // 分页加载：新获取的消息是更老的消息，也需要反转后插入到顶部
+        // 分页加载：新获取的消息是更老的消息，插入到顶部
         const currentMessages = displayMessages;
-        setMessages([...response.reverse(), ...currentMessages]);
+        setMessages([...response, ...currentMessages]);
       } else {
-        // 首次加载：反转显示，让最新消息在底部
-        setMessages(response.reverse());
+        // 首次加载：后端已返回正确顺序（最老消息在前，最新消息在后）
+        setMessages(response);
         // 新消息加载后滚动到底部
         setTimeout(scrollToBottom, 100);
       }
