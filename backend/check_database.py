@@ -152,6 +152,8 @@ class DatabaseChecker:
     def get_latest_revision(self) -> str:
         """获取最新的revision"""
         try:
+            # 设置正确的数据库URL
+            self.alembic_cfg.set_main_option('sqlalchemy.url', settings.database_url)
             return self.script_dir.get_current_head()
         except Exception as e:
             logger.error(f"获取最新revision失败: {e}")
@@ -166,6 +168,9 @@ class DatabaseChecker:
             current_revision = self.get_current_revision()
             if current_revision == "None":
                 logger.info("初始化alembic版本表...")
+                # 先创建所有表
+                self.create_tables()
+                # 然后标记为最新版本
                 command.stamp(self.alembic_cfg, "head")
             
             # 运行升级
@@ -215,6 +220,42 @@ class DatabaseChecker:
             
             if missing_tables:
                 logger.info(f"缺少表: {', '.join(missing_tables)}")
+                
+                # 如果缺少所有表，说明是全新数据库，直接创建所有表
+                if len(missing_tables) == len(table_status):
+                    logger.info("检测到全新数据库，直接创建所有表...")
+                    success = self.create_tables()
+                    if success:
+                        # 初始化 Alembic 版本
+                        try:
+                            from alembic import command
+                            # 设置正确的数据库URL
+                            self.alembic_cfg.set_main_option('sqlalchemy.url', settings.database_url)
+                            command.stamp(self.alembic_cfg, "head")
+                            logger.info("Alembic 版本表初始化完成")
+                        except Exception as e:
+                            logger.error(f"Alembic 版本表初始化失败: {e}")
+                            # 手动创建 alembic_version 表
+                            try:
+                                with self.engine.connect() as conn:
+                                    conn.execute(text("""
+                                        CREATE TABLE IF NOT EXISTS alembic_version (
+                                            version_num VARCHAR(32) NOT NULL,
+                                            CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+                                        )
+                                    """))
+                                    # 获取最新版本号
+                                    latest_revision = self.get_latest_revision()
+                                    if latest_revision != "None":
+                                        conn.execute(text(
+                                            "INSERT INTO alembic_version (version_num) VALUES (?)"
+                                        ), (latest_revision,))
+                                    conn.commit()
+                                    logger.info("手动创建 Alembic 版本表成功")
+                            except Exception as e2:
+                                logger.error(f"手动创建 Alembic 版本表也失败: {e2}")
+                                return False
+                    return success
             
             if missing_columns:
                 for table, cols in missing_columns.items():
