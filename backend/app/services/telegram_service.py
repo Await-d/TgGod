@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
 import aiofiles
 from ..config import settings
@@ -415,6 +415,222 @@ class TelegramService:
             logger.error(f"保存消息到数据库失败: {e}")
             db.rollback()
             return 0
+    
+    async def sync_messages_by_month(self, group_identifier, months: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """按月同步群组消息
+        
+        Args:
+            group_identifier: 群组标识符（用户名、ID或实体对象）
+            months: 月份列表，每个月份包含 year 和 month 字段
+            
+        Returns:
+            同步结果统计
+        """
+        try:
+            await self.initialize()
+            
+            # 验证输入参数
+            if not group_identifier:
+                logger.error("群组标识符不能为空")
+                return {"success": False, "error": "群组标识符不能为空"}
+            
+            if not months:
+                logger.error("月份列表不能为空")
+                return {"success": False, "error": "月份列表不能为空"}
+            
+            # 获取群组实体
+            try:
+                if hasattr(group_identifier, 'id'):
+                    entity = group_identifier
+                    logger.info(f"使用实体对象: {getattr(entity, 'title', 'Unknown')}")
+                else:
+                    logger.info(f"尝试获取实体: {group_identifier}")
+                    entity = await self.client.get_entity(group_identifier)
+            except Exception as e:
+                logger.error(f"获取群组实体失败: {e}")
+                return {"success": False, "error": f"获取群组实体失败: {e}"}
+            
+            # 同步结果统计
+            sync_result = {
+                "success": True,
+                "total_messages": 0,
+                "months_synced": 0,
+                "failed_months": [],
+                "monthly_stats": []
+            }
+            
+            # 按月同步消息
+            for month_info in months:
+                try:
+                    year = month_info.get("year")
+                    month = month_info.get("month")
+                    
+                    if not year or not month:
+                        logger.error(f"月份信息不完整: {month_info}")
+                        sync_result["failed_months"].append({
+                            "month": month_info,
+                            "error": "月份信息不完整"
+                        })
+                        continue
+                    
+                    logger.info(f"开始同步 {year}-{month:02d} 的消息...")
+                    
+                    # 计算时间范围
+                    start_date = datetime(year, month, 1, tzinfo=timezone.utc)
+                    if month == 12:
+                        end_date = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+                    else:
+                        end_date = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+                    
+                    # 获取该月的消息
+                    month_messages = await self._get_messages_by_time_range(
+                        entity, start_date, end_date
+                    )
+                    
+                    # 保存消息到数据库
+                    from ..database import SessionLocal
+                    db = SessionLocal()
+                    try:
+                        # 获取群组ID
+                        group_record = db.query(TelegramGroup).filter_by(
+                            telegram_id=entity.id
+                        ).first()
+                        
+                        if not group_record:
+                            logger.error(f"未找到群组记录: {entity.id}")
+                            sync_result["failed_months"].append({
+                                "month": month_info,
+                                "error": "未找到群组记录"
+                            })
+                            continue
+                        
+                        saved_count = await self.save_messages_to_db(
+                            group_record.id, month_messages, db
+                        )
+                        
+                        # 统计结果
+                        month_stat = {
+                            "year": year,
+                            "month": month,
+                            "total_messages": len(month_messages),
+                            "saved_messages": saved_count,
+                            "start_date": start_date.isoformat(),
+                            "end_date": end_date.isoformat()
+                        }
+                        
+                        sync_result["monthly_stats"].append(month_stat)
+                        sync_result["total_messages"] += saved_count
+                        sync_result["months_synced"] += 1
+                        
+                        logger.info(f"✓ {year}-{month:02d} 同步完成: {saved_count}/{len(month_messages)} 条消息")
+                        
+                    finally:
+                        db.close()
+                        
+                except Exception as e:
+                    logger.error(f"同步 {year}-{month:02d} 失败: {e}")
+                    sync_result["failed_months"].append({
+                        "month": month_info,
+                        "error": str(e)
+                    })
+                    
+                # 添加延迟以避免API限制
+                await asyncio.sleep(2)
+            
+            logger.info(f"按月同步完成: 总计 {sync_result['total_messages']} 条消息")
+            return sync_result
+            
+        except Exception as e:
+            logger.error(f"按月同步失败: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _get_messages_by_time_range(self, entity, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
+        """根据时间范围获取消息"""
+        try:
+            messages = []
+            offset_id = 0
+            batch_size = 100
+            max_messages = 10000  # 单月最大消息数限制
+            
+            while len(messages) < max_messages:
+                try:
+                    # 获取消息历史
+                    history = await self.client(GetHistoryRequest(
+                        peer=entity,
+                        limit=batch_size,
+                        offset_id=offset_id,
+                        offset_date=None,
+                        add_offset=0,
+                        max_id=0,
+                        min_id=0,
+                        hash=0
+                    ))
+                    
+                    if not history.messages:
+                        break
+                    
+                    batch_messages = []
+                    for msg in history.messages:
+                        # 检查消息时间是否在范围内
+                        if msg.date < start_date:
+                            # 已经超出时间范围，停止获取
+                            return messages
+                        
+                        if msg.date >= end_date:
+                            # 还没到时间范围，继续获取
+                            offset_id = msg.id
+                            continue
+                        
+                        # 在时间范围内，处理消息
+                        message_data = await self._process_message(msg)
+                        if message_data:
+                            batch_messages.append(message_data)
+                    
+                    messages.extend(batch_messages)
+                    
+                    # 如果这批消息少于请求的数量，说明已经到达历史消息的末尾
+                    if len(history.messages) < batch_size:
+                        break
+                    
+                    # 更新offset_id为最后一条消息的ID
+                    offset_id = history.messages[-1].id
+                    
+                    # 添加短暂延迟以避免API限制
+                    await asyncio.sleep(0.5)
+                    
+                except FloodWaitError as e:
+                    logger.warning(f"遇到频率限制，等待 {e.seconds} 秒...")
+                    await asyncio.sleep(e.seconds)
+                except Exception as e:
+                    logger.error(f"获取消息批次失败: {e}")
+                    break
+            
+            logger.info(f"获取到 {len(messages)} 条消息 ({start_date.strftime('%Y-%m')})")
+            return messages
+            
+        except Exception as e:
+            logger.error(f"根据时间范围获取消息失败: {e}")
+            return []
+    
+    async def get_default_sync_months(self, count: int = 3) -> List[Dict[str, Any]]:
+        """获取默认的同步月份（最近N个月）"""
+        try:
+            months = []
+            current_date = datetime.now()
+            
+            for i in range(count):
+                # 计算目标月份
+                target_date = current_date - timedelta(days=30 * i)
+                months.append({
+                    "year": target_date.year,
+                    "month": target_date.month
+                })
+            
+            return months
+            
+        except Exception as e:
+            logger.error(f"获取默认同步月份失败: {e}")
+            return []
     
     async def send_message(self, group_username: str, text: str, reply_to_message_id: Optional[int] = None) -> Optional[int]:
         """发送消息到群组"""

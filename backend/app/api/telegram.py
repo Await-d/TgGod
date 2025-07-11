@@ -29,6 +29,21 @@ class GroupResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime]
 
+class MonthInfo(BaseModel):
+    year: int
+    month: int
+
+class MonthlySyncRequest(BaseModel):
+    months: List[MonthInfo]
+
+class MonthlySyncResponse(BaseModel):
+    success: bool
+    total_messages: int
+    months_synced: int
+    failed_months: List[dict]
+    monthly_stats: List[dict]
+    error: Optional[str] = None
+
 class MessageResponse(BaseModel):
     id: int
     group_id: int
@@ -336,6 +351,169 @@ async def sync_group_messages(
     except Exception as e:
         logger.error(f"同步群组消息失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/groups/{group_id}/sync-monthly", response_model=MonthlySyncResponse)
+async def sync_group_messages_monthly(
+    group_id: int,
+    request: MonthlySyncRequest,
+    db: Session = Depends(get_db)
+):
+    """按月同步群组消息"""
+    # 检查群组是否存在
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+    
+    try:
+        # 决定使用哪个标识符来获取消息
+        group_identifier = None
+        
+        # 优先使用username
+        if group.username:
+            group_identifier = group.username
+            logger.info(f"使用群组用户名按月同步: {group.username}")
+        # 其次使用telegram_id
+        elif group.telegram_id:
+            group_identifier = group.telegram_id
+            logger.info(f"使用群组ID按月同步: {group.telegram_id}")
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail="群组缺少必要的标识符(username或telegram_id)"
+            )
+        
+        # 转换月份数据
+        months_data = [{"year": month.year, "month": month.month} for month in request.months]
+        
+        # 执行按月同步
+        result = await telegram_service.sync_messages_by_month(group_identifier, months_data)
+        
+        # 通过WebSocket推送更新
+        try:
+            from ..websocket import websocket_manager
+            await websocket_manager.send_message(
+                f"group_{group_id}",
+                {
+                    "type": "monthly_sync_complete",
+                    "data": result
+                }
+            )
+        except Exception as ws_e:
+            logger.warning(f"WebSocket推送失败: {ws_e}")
+        
+        return MonthlySyncResponse(**result)
+    
+    except Exception as e:
+        logger.error(f"按月同步群组消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"按月同步失败: {str(e)}")
+
+@router.get("/groups/{group_id}/default-sync-months")
+async def get_default_sync_months(
+    group_id: int,
+    count: int = Query(3, ge=1, le=12),
+    db: Session = Depends(get_db)
+):
+    """获取默认的同步月份（最近N个月）"""
+    # 检查群组是否存在
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+    
+    try:
+        months = await telegram_service.get_default_sync_months(count)
+        return {"months": months}
+    
+    except Exception as e:
+        logger.error(f"获取默认同步月份失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取默认同步月份失败: {str(e)}")
+
+@router.post("/sync-all-groups-monthly", response_model=dict)
+async def sync_all_groups_monthly(
+    request: MonthlySyncRequest,
+    db: Session = Depends(get_db)
+):
+    """对所有活跃群组执行按月同步"""
+    try:
+        # 获取所有活跃群组
+        active_groups = db.query(TelegramGroup).filter(
+            TelegramGroup.is_active == True
+        ).all()
+        
+        if not active_groups:
+            return {"message": "没有活跃群组", "synced_groups": 0}
+        
+        # 转换月份数据
+        months_data = [{"year": month.year, "month": month.month} for month in request.months]
+        
+        # 批量同步结果
+        batch_result = {
+            "success": True,
+            "total_groups": len(active_groups),
+            "synced_groups": 0,
+            "failed_groups": [],
+            "total_messages": 0,
+            "group_results": []
+        }
+        
+        # 逐个群组同步
+        for group in active_groups:
+            try:
+                # 决定使用哪个标识符
+                group_identifier = group.username if group.username else group.telegram_id
+                
+                if not group_identifier:
+                    logger.warning(f"群组 {group.title} 缺少标识符，跳过")
+                    batch_result["failed_groups"].append({
+                        "group_id": group.id,
+                        "title": group.title,
+                        "error": "缺少标识符"
+                    })
+                    continue
+                
+                # 执行同步
+                result = await telegram_service.sync_messages_by_month(group_identifier, months_data)
+                
+                if result["success"]:
+                    batch_result["synced_groups"] += 1
+                    batch_result["total_messages"] += result["total_messages"]
+                    batch_result["group_results"].append({
+                        "group_id": group.id,
+                        "title": group.title,
+                        "result": result
+                    })
+                else:
+                    batch_result["failed_groups"].append({
+                        "group_id": group.id,
+                        "title": group.title,
+                        "error": result.get("error", "同步失败")
+                    })
+                
+                # 添加延迟以避免API限制
+                await asyncio.sleep(5)
+                
+            except Exception as e:
+                logger.error(f"群组 {group.title} 同步失败: {e}")
+                batch_result["failed_groups"].append({
+                    "group_id": group.id,
+                    "title": group.title,
+                    "error": str(e)
+                })
+        
+        # 通过WebSocket推送更新
+        try:
+            from ..websocket import websocket_manager
+            await websocket_manager.broadcast({
+                "type": "batch_monthly_sync_complete",
+                "data": batch_result
+            })
+        except Exception as ws_e:
+            logger.warning(f"WebSocket推送失败: {ws_e}")
+        
+        return batch_result
+        
+    except Exception as e:
+        logger.error(f"批量按月同步失败: {e}")
+        raise HTTPException(status_code=500, detail=f"批量按月同步失败: {str(e)}")
 
 @router.get("/groups/{group_id}/stats")
 async def get_group_stats(
