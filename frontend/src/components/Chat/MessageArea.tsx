@@ -389,9 +389,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
             
             {displayMessages.map((message, index) => {
               const prevMessage = index > 0 ? displayMessages[index - 1] : null;
+              // 简化头像显示逻辑：相同发送者的连续消息只在第一条显示头像
               const showAvatar = !prevMessage || 
                 prevMessage.sender_id !== message.sender_id ||
-                (new Date(message.date).getTime() - new Date(prevMessage.date).getTime()) > 300000; // 5分钟
+                (new Date(message.date).getTime() - new Date(prevMessage.date).getTime()) > 180000; // 减少到3分钟
               
               // 判断消息是否为当前用户发送的
               // 优先使用 Telegram 用户信息，如果没有则回退到系统用户信息

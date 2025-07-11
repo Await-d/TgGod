@@ -282,14 +282,14 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
       {/* 发送者头像 */}
       {!isOwn && (
         <div className="message-avatar">
-          {getSenderAvatar()}
+          {showAvatar ? getSenderAvatar() : <div className="avatar-placeholder" />}
         </div>
       )}
 
       {/* 消息主体 */}
       <div className="message-body">
-        {/* 发送者信息 */}
-        {!isOwn && showAvatar && (
+        {/* 发送者信息 - 总是显示用户名（对于非自己的消息） */}
+        {!isOwn && (
           <div className="message-sender-info">
             <Space>
               <Text strong style={{ color: '#1890ff' }}>

@@ -34,6 +34,21 @@
   margin-top: 4px;
 }
 
+/* 头像占位符 - 为连续消息保持对齐 */
+.avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  display: inline-block;
+}
+
+/* 移动端头像尺寸 */
+@media (max-width: 768px) {
+  .avatar-placeholder {
+    width: 32px;
+    height: 32px;
+  }
+}
+
 /* 消息主体 */
 .message-body {
   flex: 1;
