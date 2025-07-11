@@ -21,7 +21,6 @@ import MessageHighlight from '../components/Chat/MessageHighlight';
 import MediaPreview from '../components/Chat/MediaPreview';
 import VoiceMessage from '../components/Chat/VoiceMessage';
 import MessageQuoteForward, { QuotedMessage } from '../components/Chat/MessageQuoteForward';
-import PinnedMessages from '../components/Chat/PinnedMessages';
 import './ChatInterface.css';
 
 const { Title } = Typography;
@@ -102,8 +101,8 @@ const ChatInterface: React.FC = () => {
   const [ruleBaseMessage, setRuleBaseMessage] = useState<TelegramMessage | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
   
-  // 置顶消息状态
-  const [showPinnedMessages, setShowPinnedMessages] = useState(true);
+  // 置顶消息状态 - 移除，不再需要单独的置顶消息组件
+  // const [showPinnedMessages, setShowPinnedMessages] = useState(true);
   const [jumpToMessageId, setJumpToMessageId] = useState<number | null>(null);
   
   // 同步选中群组到内部状态
@@ -171,11 +170,8 @@ const ChatInterface: React.FC = () => {
   // 处理跳转到消息
   const handleJumpToMessage = useCallback((messageId: number) => {
     setJumpToMessageId(messageId);
-    // 如果是移动端，收起置顶消息
-    if (isMobile) {
-      setShowPinnedMessages(false);
-    }
-  }, [isMobile]);
+    // 移除置顶消息相关逻辑
+  }, []);
 
   // 处理跳转完成
   const handleJumpComplete = useCallback(() => {
@@ -270,15 +266,6 @@ const ChatInterface: React.FC = () => {
   // 渲染消息区域
   const renderMessageArea = () => (
     <div className="message-area-container">
-      {/* 置顶消息 */}
-      <PinnedMessages
-        selectedGroup={selectedGroup}
-        onJumpToMessage={handleJumpToMessage}
-        onClose={() => setShowPinnedMessages(false)}
-        visible={showPinnedMessages}
-        isMobile={isMobile}
-      />
-      
       {/* 消息区域 */}
       <MessageArea
         selectedGroup={selectedGroup}

@@ -538,18 +538,4 @@
   100% { background-position: -200% 0; }
 }
 
-/* 置顶消息样式优化 */
-.pinned-messages-container {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  margin-bottom: 16px;
-}
-
-.pinned-messages-card {
-  background: linear-gradient(135deg, #fff9c4 0%, #fff8e1 100%);
-  border: 1px solid #ffd54f;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(255, 193, 7, 0.15);
-  backdrop-filter: blur(10px);
-}
+/* 移除置顶消息样式 - 已改为内联显示 */
