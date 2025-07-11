@@ -1,3 +1,15 @@
+/* 确保body和html不会出现滚动条 */
+html, body {
+  overflow: hidden !important;
+  height: 100% !important;
+}
+
+/* 确保App根容器不会出现滚动条 */
+#root {
+  overflow: hidden !important;
+  height: 100% !important;
+}
+
 /* 聊天界面主容器 */
 .chat-interface {
   height: 100vh;
@@ -5,22 +17,25 @@
   flex-direction: column;
   background: #fff;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  overflow: hidden; /* 防止整体滚动 */
+  overflow: hidden !important; /* 防止整体滚动 */
 }
 
 /* 当在MainLayout中时，适应MainLayout的布局 */
 .ant-layout-content .chat-interface {
   height: calc(100vh - 64px); /* 减去MainLayout的header高度 */
+  overflow: hidden; /* 防止整体滚动 */
 }
 
 /* 确保在MainLayout中时的完整布局 */
 .ant-layout-content {
   padding: 0 !important;
   height: calc(100vh - 64px) !important;
+  overflow: hidden !important; /* 防止父容器滚动 */
 }
 
 .ant-layout-content > .chat-interface {
   height: 100% !important;
+  overflow: hidden !important; /* 防止子容器滚动 */
 }
 
 /* 头部区域 */
@@ -509,12 +524,12 @@
 @media (max-width: 768px) {
   .chat-interface {
     background: #fff;
-    position: fixed; /* 固定定位防止滚动 */
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
+    position: fixed !important; /* 固定定位防止滚动 */
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
   }
   
   .chat-header {
@@ -567,12 +582,12 @@
   
   /* 移动端触摸优化 */
   .chat-interface {
-    overflow: hidden;
-    height: 100vh;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    left: 0;
+    overflow: hidden !important;
+    height: 100vh !important;
+    position: fixed !important;
+    width: 100% !important;
+    top: 0 !important;
+    left: 0 !important;
   }
   
   /* 移动端按钮优化 */
