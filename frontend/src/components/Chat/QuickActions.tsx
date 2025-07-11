@@ -11,8 +11,7 @@ import {
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { QuickActionsProps } from '../../types/chat';
-import { telegramApi } from '../../services/apiService';
-import { message } from 'antd';
+// 移除不再需要的导入
 
 interface ExtendedQuickActionsProps extends QuickActionsProps {
   isMobile?: boolean;
@@ -41,18 +40,9 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
     return null;
   }
 
-  // 处理同步消息
-  const handleSync = async () => {
-    if (!selectedGroup) return;
-    
-    try {
-      await telegramApi.syncGroupMessages(selectedGroup.id, 100);
-      message.success('消息同步成功！');
-      onSync?.();
-    } catch (error: any) {
-      message.error('同步消息失败: ' + error.message);
-      console.error('同步消息失败:', error);
-    }
+  // 处理同步消息 - 现在由父组件管理
+  const handleSync = () => {
+    onSync?.();
   };
 
   // 移动端显示精简版按钮

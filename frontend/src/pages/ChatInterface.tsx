@@ -5,7 +5,7 @@ import { TelegramGroup, TelegramMessage } from '../types';
 import { ChatState, MessageFilter } from '../types/chat';
 import { useTelegramStore, useAuthStore } from '../store';
 import { webSocketService } from '../services/websocket';
-import { messageApi } from '../services/apiService';
+import { messageApi, telegramApi } from '../services/apiService';
 import { useMobileGestures, useIsMobile, useKeyboardHeight } from '../hooks/useMobileGestures';
 // import { useChatPageScrollControl } from '../hooks/usePageScrollControl';
 import { useChatGroupNavigation } from '../hooks/useGroupNavigation';
@@ -249,6 +249,49 @@ const ChatInterface: React.FC = () => {
     }
   }, [chatState.selectedGroup, replyTo]);
 
+  // 处理消息刷新
+  const handleRefreshMessages = useCallback(async () => {
+    if (!selectedGroup) return;
+    
+    try {
+      setLoading(true);
+      
+      // 重置状态并获取最新消息
+      resetInfiniteScroll();
+      await fetchLatestMessages(selectedGroup.id, 50);
+      
+      antMessage.success('消息刷新成功！');
+    } catch (error: any) {
+      antMessage.error('刷新消息失败: ' + error.message);
+      console.error('刷新消息失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedGroup, resetInfiniteScroll, fetchLatestMessages]);
+
+  // 处理消息同步
+  const handleSyncMessages = useCallback(async () => {
+    if (!selectedGroup) return;
+    
+    try {
+      setLoading(true);
+      
+      // 调用同步API
+      await telegramApi.syncGroupMessages(selectedGroup.id, 100);
+      
+      // 同步完成后刷新消息列表
+      resetInfiniteScroll();
+      await fetchLatestMessages(selectedGroup.id, 50);
+      
+      antMessage.success('消息同步成功！');
+    } catch (error: any) {
+      antMessage.error('同步消息失败: ' + error.message);
+      console.error('同步消息失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedGroup, resetInfiniteScroll, fetchLatestMessages]);
+
   // 切换群组列表显示/隐藏
   const toggleGroupList = useCallback(() => {
     setChatState(prev => ({ 
@@ -304,14 +347,8 @@ const ChatInterface: React.FC = () => {
         <QuickActions
           selectedGroup={chatState.selectedGroup}
           onFilter={() => setShowFilterDrawer(true)}
-          onRefresh={() => {
-            // TODO: 实现刷新功能
-            console.log('刷新消息');
-          }}
-          onSync={() => {
-            // TODO: 实现同步功能
-            console.log('同步消息');
-          }}
+          onRefresh={handleRefreshMessages}
+          onSync={handleSyncMessages}
           loading={loading}
           onCreateRule={() => {
             setRuleBaseMessage(null);
