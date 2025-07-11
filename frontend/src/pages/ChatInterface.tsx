@@ -7,7 +7,7 @@ import { useTelegramStore, useAuthStore } from '../store';
 import { webSocketService } from '../services/websocket';
 import { messageApi } from '../services/apiService';
 import { useMobileGestures, useIsMobile, useKeyboardHeight } from '../hooks/useMobileGestures';
-import { useChatPageScrollControl } from '../hooks/usePageScrollControl';
+// import { useChatPageScrollControl } from '../hooks/usePageScrollControl';
 import { useChatGroupNavigation } from '../hooks/useGroupNavigation';
 import { useRealTimeMessages } from '../hooks/useRealTimeMessages';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
@@ -27,8 +27,8 @@ import './ChatInterface.css';
 const { Title } = Typography;
 
 const ChatInterface: React.FC = () => {
-  // 页面滚动控制 - 启用聊天界面专用滚动控制
-  useChatPageScrollControl();
+  // 页面滚动控制 - 移除，允许正常滚动
+  // useChatPageScrollControl();
   
   // 移动端检测
   const isMobile = useIsMobile();
