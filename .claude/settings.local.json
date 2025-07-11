@@ -88,7 +88,9 @@
       "Bash(rm:*)",
       "mcp__serena__think_about_task_adherence",
       "mcp__serena__find_file",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "mcp__serena__insert_at_line",
+      "mcp__serena__think_about_collected_information"
     ],
     "deny": []
   }

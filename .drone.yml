@@ -27,18 +27,18 @@ steps:
       - docker build -t tggod:latest . --no-cache
       
       - echo "创建必要的目录..."
-      - mkdir -p /volume1/docker/apps/tggod/data
-      - mkdir -p /volume1/docker/apps/tggod/media
-      - mkdir -p /volume1/docker/apps/tggod/logs
-      - mkdir -p /volume1/docker/apps/tggod/telegram_sessions
-      - mkdir -p /volume1/docker/apps/tggod/config
+      - mkdir -p /volume1/docker/1panel/apps/local/tggod/data
+      - mkdir -p /volume1/docker/1panel/apps/local/tggod/media
+      - mkdir -p /volume1/docker/1panel/apps/local/tggod/logs
+      - mkdir -p /volume1/docker/1panel/apps/local/tggod/telegram_sessions
+      - mkdir -p /volume1/docker/1panel/apps/local/tggod/config
       
       - echo "设置目录权限..."
-      - chmod -R 755 /volume1/docker/apps/tggod
-      - chown -R 1000:1000 /volume1/docker/apps/tggod
+      - chmod -R 755 /volume1/docker/1panel/apps/local/tggod
+      - chown -R root:root /volume1/docker/1panel/apps/local/tggod
       
       - echo "启动TgGod单服务容器..."
-      - docker run -d --name tggod --network 1panel-network -p 10200:80 -v /volume1/docker/apps/tggod/data:/app/data -v /volume1/docker/apps/tggod/media:/app/media -v /volume1/docker/apps/tggod/logs:/app/logs -v /volume1/docker/apps/tggod/telegram_sessions:/app/telegram_sessions --restart unless-stopped -e TZ=Asia/Shanghai -e DATABASE_URL=sqlite:///./data/tggod.db -e MEDIA_ROOT=/app/media -e LOG_FILE=/app/logs/app.log -e PYTHONUNBUFFERED=1 -e TELEGRAM_API_ID="$${TELEGRAM_API_ID}" -e TELEGRAM_API_HASH="$${TELEGRAM_API_HASH}" -e TELEGRAM_BOT_TOKEN="$${TELEGRAM_BOT_TOKEN}" -e SECRET_KEY="$${SECRET_KEY}" tggod:latest
+      - docker run -d --name tggod --network 1panel-network -p 10200:80 -v /volume1/docker/1panel/apps/local/tggod/data:/app/data -v /volume1/docker/1panel/apps/local/tggod/media:/app/media -v /volume1/docker/1panel/apps/local/tggod/logs:/app/logs -v /volume1/docker/1panel/apps/local/tggod/telegram_sessions:/app/telegram_sessions --restart unless-stopped -e TZ=Asia/Shanghai -e DATABASE_URL=sqlite:///./data/tggod.db -e MEDIA_ROOT=/app/media -e LOG_FILE=/app/logs/app.log -e PYTHONUNBUFFERED=1 -e TELEGRAM_API_ID="$${TELEGRAM_API_ID}" -e TELEGRAM_API_HASH="$${TELEGRAM_API_HASH}" -e TELEGRAM_BOT_TOKEN="$${TELEGRAM_BOT_TOKEN}" -e SECRET_KEY="$${SECRET_KEY}" tggod:latest
       
       - echo "等待服务启动..."
       - sleep 15

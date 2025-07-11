@@ -26,6 +26,7 @@ pnpm test          # 运行测试
 ```
 frontend/src/
 ├── components/     # 通用组件
+│   └── Chat/      # 聊天界面组件
 ├── pages/         # 页面组件
 ├── services/      # API和WebSocket服务
 ├── store/         # Zustand状态管理
@@ -39,3 +40,28 @@ frontend/src/
 - 状态管理架构
 - 基础路由配置
 - API服务封装
+
+## 聊天界面功能
+- **消息展示**: 完整的消息气泡界面
+- **媒体支持**: 图片、视频、语音消息预览
+- **Markdown支持**: 智能检测和渲染 (react-markdown + remark-gfm)
+- **链接预览**: 自动识别和预览链接
+- **布局优化**: 防止整体滚动条问题
+- **移动端适配**: 完整的移动端手势和布局支持
+
+## 打包信息
+- **当前大小**: 551.29 kB (gzipped)
+- **构建状态**: 成功，无编译错误
+- **代码质量**: ESLint配置完整，只有警告无错误
+
+## 依赖包
+### Markdown相关
+- react-markdown: Markdown渲染
+- remark-gfm: GitHub Flavored Markdown支持
+- rehype-highlight: 代码高亮
+- highlight.js: 语法高亮库
+
+### 布局相关
+- 响应式设计完整
+- 移动端手势支持
+- 防滚动条优化
