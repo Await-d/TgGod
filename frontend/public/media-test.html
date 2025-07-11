@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>媒体预览测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .media-item {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        .media-item h3 {
+            margin-top: 0;
+            color: #1890ff;
+        }
+        .media-preview {
+            margin: 10px 0;
+        }
+        .media-preview img {
+            max-width: 300px;
+            max-height: 200px;
+            border-radius: 4px;
+            border: 1px solid #d9d9d9;
+        }
+        .media-preview video {
+            max-width: 400px;
+            max-height: 300px;
+            border-radius: 4px;
+            border: 1px solid #d9d9d9;
+        }
+        .media-preview audio {
+            width: 100%;
+            max-width: 400px;
+        }
+        .media-info {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .test-status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .test-success {
+            background-color: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .test-error {
+            background-color: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>媒体预览测试页面</h1>
+        <p>这个页面用于测试各种媒体类型的预览功能，包括图片、视频、音频和文档。</p>
+        
+        <div class="media-item">
+            <h3>📸 图片预览测试</h3>
+            <div class="media-preview">
+                <img src="http://localhost:8000/media/photos/test.jpg" alt="测试图片" 
+                     onload="showStatus('img-status', true, '图片加载成功')" 
+                     onerror="showStatus('img-status', false, '图片加载失败')">
+            </div>
+            <div id="img-status" class="test-status" style="display:none;"></div>
+            <div class="media-info">
+                <p><strong>文件名:</strong> test.jpg</p>
+                <p><strong>文件路径:</strong> media/photos/test.jpg</p>
+                <p><strong>文件大小:</strong> ~1.6KB</p>
+            </div>
+        </div>
+        
+        <div class="media-item">
+            <h3>🎥 视频预览测试</h3>
+            <div class="media-preview">
+                <video controls onloadeddata="showStatus('video-status', true, '视频加载成功')" 
+                       onerror="showStatus('video-status', false, '视频加载失败')">
+                    <source src="http://localhost:8000/media/videos/test.mp4" type="video/mp4">
+                    您的浏览器不支持视频播放。
+                </video>
+            </div>
+            <div id="video-status" class="test-status" style="display:none;"></div>
+            <div class="media-info">
+                <p><strong>文件名:</strong> test.mp4</p>
+                <p><strong>文件路径:</strong> media/videos/test.mp4</p>
+                <p><strong>文件大小:</strong> ~25B</p>
+            </div>
+        </div>
+        
+        <div class="media-item">
+            <h3>🎵 音频预览测试</h3>
+            <div class="media-preview">
+                <audio controls onloadeddata="showStatus('audio-status', true, '音频加载成功')" 
+                       onerror="showStatus('audio-status', false, '音频加载失败')">
+                    <source src="http://localhost:8000/media/audios/test.mp3" type="audio/mpeg">
+                    您的浏览器不支持音频播放。
+                </audio>
+            </div>
+            <div id="audio-status" class="test-status" style="display:none;"></div>
+            <div class="media-info">
+                <p><strong>文件名:</strong> test.mp3</p>
+                <p><strong>文件路径:</strong> media/audios/test.mp3</p>
+                <p><strong>文件大小:</strong> ~26B</p>
+            </div>
+        </div>
+        
+        <div class="media-item">
+            <h3>📄 文档预览测试</h3>
+            <div class="media-preview">
+                <iframe src="http://localhost:8000/media/documents/test.txt" 
+                        width="100%" height="200" 
+                        style="border: 1px solid #d9d9d9; border-radius: 4px;"
+                        onload="showStatus('doc-status', true, '文档加载成功')" 
+                        onerror="showStatus('doc-status', false, '文档加载失败')"></iframe>
+            </div>
+            <div id="doc-status" class="test-status" style="display:none;"></div>
+            <div class="media-info">
+                <p><strong>文件名:</strong> test.txt</p>
+                <p><strong>文件路径:</strong> media/documents/test.txt</p>
+                <p><strong>文件大小:</strong> ~42B</p>
+            </div>
+        </div>
+        
+        <div class="media-item">
+            <h3>🔗 API 连接测试</h3>
+            <div class="media-info">
+                <p><strong>后端 API:</strong> <span id="api-url">http://localhost:8000</span></p>
+                <p><strong>前端应用:</strong> <span id="frontend-url">http://localhost:3000</span></p>
+                <p><strong>媒体文件服务:</strong> <span id="media-url">http://localhost:8000/media/</span></p>
+            </div>
+            <button onclick="testAPIConnection()">测试 API 连接</button>
+            <div id="api-status" class="test-status" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function showStatus(elementId, success, message) {
+            const statusEl = document.getElementById(elementId);
+            statusEl.style.display = 'block';
+            statusEl.className = 'test-status ' + (success ? 'test-success' : 'test-error');
+            statusEl.innerHTML = (success ? '✅ ' : '❌ ') + message;
+        }
+
+        async function testAPIConnection() {
+            try {
+                const response = await fetch('http://localhost:8000/health');
+                const data = await response.json();
+                if (data.status === 'healthy') {
+                    showStatus('api-status', true, 'API 连接成功: ' + data.status);
+                } else {
+                    showStatus('api-status', false, 'API 状态异常: ' + JSON.stringify(data));
+                }
+            } catch (error) {
+                showStatus('api-status', false, 'API 连接失败: ' + error.message);
+            }
+        }
+
+        // 页面加载时自动测试 API 连接
+        window.onload = function() {
+            testAPIConnection();
+        };
+    </script>
+</body>
+</html>

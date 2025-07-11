@@ -12,6 +12,7 @@ import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
+import MediaTestPage from './pages/MediaTestPage';
 import { webSocketService } from './services/websocket';
 import { useGlobalStore, useAuthStore } from './store';
 // 导入StagewiseToolbar和ReactPlugin
@@ -118,6 +119,15 @@ const App: React.FC = () => {
             <MainLayout>
               <Content className="chat-interface-content">
                 <ChatInterface />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/media-test" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <MediaTestPage />
               </Content>
             </MainLayout>
           </ProtectedRoute>

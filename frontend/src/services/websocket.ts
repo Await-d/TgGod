@@ -25,9 +25,13 @@ class WebSocketService {
     }
 
     // 获取WebSocket URL
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/${this.clientId}`;
+    const wsUrl = process.env.REACT_APP_WS_URL 
+      ? `${process.env.REACT_APP_WS_URL}/ws/${this.clientId}`
+      : (() => {
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const host = window.location.host;
+          return `${protocol}//${host}/ws/${this.clientId}`;
+        })();
     
     try {
       this.socket = new WebSocket(wsUrl);
