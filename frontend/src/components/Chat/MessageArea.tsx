@@ -65,6 +65,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [currentTelegramUser, setCurrentTelegramUser]);
 
+  // 组件初始化时获取当前 Telegram 用户信息
+  useEffect(() => {
+    fetchCurrentTelegramUser();
+  }, [fetchCurrentTelegramUser]);
+
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -302,13 +307,19 @@ const MessageArea: React.FC<MessageAreaProps> = ({
                 (message.sender_name && user.full_name && message.sender_name === user.full_name) ||
                 (message.sender_username && user.username && 
                  message.sender_username.toLowerCase() === user.username.toLowerCase())
-              ) : false;
+              ) : (
+                // 如果都没有，临时通过消息特征判断（比如消息是否标记为"已发送"等）
+                false // 暂时设为false，确保不会错误显示
+              );
+              
+              // 调试用：每隔几条消息显示一条作为"自己的"消息，用于测试样式
+              const debugIsOwn = isOwn || (index % 5 === 0); // 每5条消息中有1条显示为自己的
               
               return (
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  isOwn={!!isOwn}
+                  isOwn={debugIsOwn}
                   showAvatar={showAvatar}
                   onReply={onReply}
                   onCreateRule={onCreateRule}

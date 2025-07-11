@@ -3,7 +3,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: transparent;
+  background: #fafafa;
+  min-height: 0; /* 防止flex子项溢出 */
 }
 
 /* 群组列表头部 */
@@ -12,9 +13,9 @@
   flex-direction: column;
   gap: 12px;
   padding: 20px 24px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-  backdrop-filter: blur(5px);
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  flex-shrink: 0; /* 防止头部被压缩 */
 }
 
 .header-title {

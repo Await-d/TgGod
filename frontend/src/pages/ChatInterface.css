@@ -8,6 +8,21 @@
   overflow: hidden; /* 防止整体滚动 */
 }
 
+/* 当在MainLayout中时，适应MainLayout的布局 */
+.ant-layout-content .chat-interface {
+  height: calc(100vh - 64px); /* 减去MainLayout的header高度 */
+}
+
+/* 确保在MainLayout中时的完整布局 */
+.ant-layout-content {
+  padding: 0 !important;
+  height: calc(100vh - 64px) !important;
+}
+
+.ant-layout-content > .chat-interface {
+  height: 100% !important;
+}
+
 /* 头部区域 */
 .chat-header {
   display: flex;
