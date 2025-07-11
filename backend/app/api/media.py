@@ -7,7 +7,6 @@ import logging
 from ..database import get_db
 from ..models import TelegramMessage
 from ..services.telegram_service import TelegramService
-from ..schemas import MessageResponse
 import asyncio
 
 router = APIRouter()
