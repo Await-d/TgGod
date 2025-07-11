@@ -62,7 +62,8 @@ const ChatInterface: React.FC = () => {
     loadMore,
     reset: resetInfiniteScroll,
     scrollToTop,
-    scrollToBottom
+    scrollToBottom,
+    autoScrollToBottom
   } = useInfiniteScroll(
     chatContainerRef,
     selectedGroup,
@@ -108,6 +109,15 @@ const ChatInterface: React.FC = () => {
       isMobile: isMobile
     }));
   }, [selectedGroup, isMobile]);
+
+  // 监听消息加载完成，自动滚动到底部
+  useEffect(() => {
+    if ((window as any)._shouldScrollToBottom && messages.length > 0) {
+      console.log('自动滚动到底部');
+      autoScrollToBottom();
+      (window as any)._shouldScrollToBottom = false;
+    }
+  }, [messages, autoScrollToBottom]);
 
   // Store hooks - 简化，只保留认证状态
   const { isAuthenticated } = useAuthStore();

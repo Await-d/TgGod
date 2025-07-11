@@ -65,6 +65,12 @@ export const useInfiniteScroll = (
   useEffect(() => {
     if (selectedGroup?.id !== lastGroupId.current) {
       reset();
+      // 新群组时，延迟一段时间再开始监听滚动，避免初始化时的误触发
+      const timer = setTimeout(() => {
+        (window as any)._scrollReady = true;
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
   }, [selectedGroup?.id, reset]);
 
@@ -95,8 +101,8 @@ export const useInfiniteScroll = (
       const newScrollHeight = container.scrollHeight;
       const scrollDiff = newScrollHeight - previousScrollHeight;
       
-      // 更精确的滚动位置计算
-      const newScrollTop = previousScrollTop + scrollDiff;
+      // 更精确的滚动位置计算，确保不会出现负数
+      const newScrollTop = Math.max(0, previousScrollTop + scrollDiff);
       
       // 禁用滚动平滑，避免影响用户体验
       container.style.scrollBehavior = 'auto';
@@ -194,6 +200,11 @@ export const useInfiniteScroll = (
       return;
     }
 
+    // 检查是否已经准备好处理滚动事件
+    if (!(window as any)._scrollReady) {
+      return;
+    }
+
     const container = containerRef.current;
     const scrollTop = container.scrollTop;
     
@@ -226,20 +237,31 @@ export const useInfiniteScroll = (
       return;
     }
 
+    // 检查是否已经准备好处理滚动事件
+    if (!(window as any)._scrollReady) {
+      return;
+    }
+
     const container = containerRef.current;
     const scrollTop = container.scrollTop;
     const clientHeight = container.clientHeight;
     const scrollHeight = container.scrollHeight;
     
-    // 计算预加载触发点
-    const preloadTriggerPoint = scrollHeight * (preloadThreshold / 10);
+    // 提高预加载触发点，避免过度触发
+    const preloadTriggerPoint = Math.min(scrollHeight * 0.1, 300); // 最多300px或10%的高度
     
     // 当用户滚动到预加载点时，预先加载下一页
     if (scrollTop <= preloadTriggerPoint && currentPage < maxPages) {
-      console.log('触发预加载...');
+      // 增加额外的防抖检查
+      if (Date.now() - ((window as any)._lastPreload || 0) < 2000) {
+        return;
+      }
+      
+      console.log('触发预加载...', { scrollTop, preloadTriggerPoint, currentPage });
+      (window as any)._lastPreload = Date.now();
       loadMore();
     }
-  }, [containerRef, hasMore, preloadThreshold, maxPages, currentPage, loadMore]);
+  }, [containerRef, hasMore, maxPages, currentPage, loadMore]);
 
   // 绑定滚动事件
   useEffect(() => {
@@ -274,6 +296,14 @@ export const useInfiniteScroll = (
     loadMore,
     reset,
     scrollToTop,
-    scrollToBottom
+    scrollToBottom,
+    // 新增：自动滚动到底部方法
+    autoScrollToBottom: useCallback(() => {
+      if (containerRef.current) {
+        setTimeout(() => {
+          containerRef.current!.scrollTop = containerRef.current!.scrollHeight;
+        }, 100);
+      }
+    }, [containerRef])
   };
 };

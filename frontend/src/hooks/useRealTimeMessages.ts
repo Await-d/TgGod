@@ -146,6 +146,9 @@ export const useRealTimeMessages = (
       if (response && Array.isArray(response)) {
         setMessages(response);
         console.log(`成功加载 ${response.length} 条消息`);
+        
+        // 标记需要滚动到底部
+        (window as any)._shouldScrollToBottom = true;
       }
     } catch (error) {
       console.error('获取最新消息失败:', error);
