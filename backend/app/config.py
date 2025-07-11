@@ -10,7 +10,15 @@ class Settings:
     
     def get_db(self) -> Session:
         if self._db is None:
-            from .database import SessionLocal
+            from sqlalchemy import create_engine
+            from sqlalchemy.orm import sessionmaker
+            # 直接使用环境变量避免循环导入
+            database_url = os.environ.get("DATABASE_URL", "sqlite:////app/data/tggod.db")
+            engine = create_engine(
+                database_url,
+                connect_args={"check_same_thread": False} if "sqlite" in database_url else {}
+            )
+            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
             self._db = SessionLocal()
         return self._db
     
