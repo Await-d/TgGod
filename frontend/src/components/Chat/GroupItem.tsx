@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Avatar, Badge, Tag, Tooltip, Spin } from 'antd';
+import { Avatar, Badge, Tag, Tooltip } from 'antd';
 import { 
   TeamOutlined, 
   CheckCircleOutlined, 
@@ -63,12 +63,12 @@ const GroupItem: React.FC<GroupListItemProps> = ({
     }
   };
 
-  // 获取统计信息摘要 - 简化版本
+  // 获取精简的统计信息显示
   const getStatsDisplay = () => {
     if (loadingStats) {
       return (
         <span className="stats-summary loading">
-          <Spin size="small" />
+          ···
         </span>
       );
     }
@@ -77,32 +77,26 @@ const GroupItem: React.FC<GroupListItemProps> = ({
       return null;
     }
 
-    const items = [];
+    const stats = [];
     
-    // 总消息数 - 简化显示
+    // 总消息数 - 简化显示，超过1k显示为k
     if (groupStats.total_messages > 0) {
-      items.push(`${groupStats.total_messages.toLocaleString()}条`);
+      const count = groupStats.total_messages;
+      if (count >= 1000) {
+        stats.push(`${Math.floor(count / 1000)}k`);
+      } else {
+        stats.push(count.toString());
+      }
     }
 
-    // 媒体消息统计 - 简化显示
-    const mediaCount = (groupStats.photo_messages || 0) + 
-                      (groupStats.video_messages || 0) + 
-                      (groupStats.document_messages || 0) + 
-                      (groupStats.audio_messages || 0);
-    
-    if (mediaCount > 0) {
-      items.push(`${mediaCount.toLocaleString()}媒体`);
-    }
-
-    // 置顶消息 - 简化显示
+    // 置顶消息数 - 只在有置顶时显示
     if (groupStats.pinned_messages > 0) {
-      items.push(`${groupStats.pinned_messages}置顶`);
+      stats.push(`📌${groupStats.pinned_messages}`);
     }
 
-    // 只显示最多2个统计项，用分隔符连接
-    return items.length > 0 ? (
+    return stats.length > 0 ? (
       <span className="stats-summary">
-        {items.slice(0, 2).join(' · ')}
+        {stats.join(' · ')}
       </span>
     ) : null;
   };
