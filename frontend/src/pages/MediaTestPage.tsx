@@ -152,6 +152,11 @@ const MediaTestPage: React.FC = () => {
     console.log('Delete message:', messageId);
   };
 
+  const handleJumpToGroup = (groupId: number) => {
+    console.log('跳转到群组:', groupId);
+    message.info(`模拟跳转到群组 ID: ${groupId}`);
+  };
+
   return (
     <div style={{ padding: '20px' }}>
       <Card>
@@ -182,6 +187,7 @@ const MediaTestPage: React.FC = () => {
                   onReply={handleReply}
                   onCreateRule={handleCreateRule}
                   onDelete={handleDelete}
+                  onJumpToGroup={handleJumpToGroup}
                 />
               </div>
             </List.Item>

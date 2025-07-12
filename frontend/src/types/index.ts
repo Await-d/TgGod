@@ -119,6 +119,9 @@ export interface TelegramMessage {
   view_count?: number;
   is_forwarded: boolean;
   forwarded_from?: string;
+  forwarded_from_id?: number;
+  forwarded_from_type?: 'user' | 'group' | 'channel';
+  forwarded_date?: string;
   reply_to_message_id?: number;
   edit_date?: string;
   is_pinned: boolean;

@@ -1,76 +1,100 @@
 import React, { useState, useCallback } from 'react';
-import { Space, Button, Tag, Tooltip, message as antMessage, Spin } from 'antd';
+import { Space, Tag, Button, Tooltip, message as antMessage } from 'antd';
 import {
   ShareAltOutlined,
   MessageOutlined,
   UserOutlined,
   ClockCircleOutlined,
-  EyeOutlined,
-  RightOutlined
+  RightOutlined,
+  TeamOutlined,
+  SoundOutlined
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
-import { messageApi } from '../../services/apiService';
+import { telegramApi } from '../../services/apiService';
 import styles from './ForwardedMessagePreview.module.css';
 
 interface ForwardedMessagePreviewProps {
   message: TelegramMessage;
   onJumpToOriginal?: (messageId: number) => void;
+  onJumpToGroup?: (groupId: number) => void;
   className?: string;
   compact?: boolean;
+  showOriginalContent?: boolean;
 }
 
 const ForwardedMessagePreview: React.FC<ForwardedMessagePreviewProps> = ({
   message,
   onJumpToOriginal,
+  onJumpToGroup,
   className = '',
-  compact = false
+  compact = false,
+  showOriginalContent = true
 }) => {
-  const [originalMessage, setOriginalMessage] = useState<TelegramMessage | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // 获取原始消息详情
-  const fetchOriginalMessage = useCallback(async () => {
-    if (!message.reply_to_message_id || originalMessage || loading) return;
+  // 跳转到转发来源群组
+  const handleJumpToSourceGroup = useCallback(async () => {
+    if (!message.forwarded_from_id || message.forwarded_from_type === 'user') {
+      antMessage.info('无法跳转到用户私聊');
+      return;
+    }
+
+    if (!onJumpToGroup) {
+      antMessage.warning('跳转功能不可用');
+      return;
+    }
 
     setLoading(true);
-    setError(null);
-
     try {
-      // 假设有API可以根据消息ID获取原始消息
-      const response = await messageApi.getMessageById(message.group_id, message.reply_to_message_id);
-      setOriginalMessage(response);
-      setExpanded(true);
+      // 查找对应的群组
+      const group = await telegramApi.searchGroupByTelegramId(message.forwarded_from_id);
+      if (group) {
+        onJumpToGroup(group.id);
+        antMessage.success(`跳转到${message.forwarded_from_type === 'channel' ? '频道' : '群组'}：${group.title}`);
+      } else {
+        antMessage.warning('未找到对应的群组，可能未加入该群组');
+      }
     } catch (error: any) {
-      console.error('获取原始消息失败:', error);
-      setError('原始消息不可用');
-      antMessage.error('无法获取原始消息');
+      console.error('跳转群组失败:', error);
+      antMessage.error('跳转失败');
     } finally {
       setLoading(false);
     }
-  }, [message.reply_to_message_id, message.group_id, originalMessage, loading]);
+  }, [message.forwarded_from_id, message.forwarded_from_type, onJumpToGroup]);
 
-  // 跳转到原始消息
-  const handleJumpToOriginal = useCallback(() => {
-    if (message.reply_to_message_id && onJumpToOriginal) {
-      onJumpToOriginal(message.reply_to_message_id);
-    } else if (originalMessage) {
-      // 如果有原始消息数据，也可以跳转
-      onJumpToOriginal?.(originalMessage.message_id);
-    } else {
-      antMessage.warning('无法跳转到原始消息');
+  // 获取转发来源类型图标
+  const getForwardSourceIcon = () => {
+    switch (message.forwarded_from_type) {
+      case 'channel':
+        return <SoundOutlined style={{ color: '#1890ff' }} />;
+      case 'group':
+        return <TeamOutlined style={{ color: '#52c41a' }} />;
+      case 'user':
+        return <UserOutlined style={{ color: '#8c8c8c' }} />;
+      default:
+        return <UserOutlined style={{ color: '#8c8c8c' }} />;
     }
-  }, [message.reply_to_message_id, originalMessage, onJumpToOriginal]);
+  };
+
+  // 获取转发来源类型名称
+  const getForwardSourceTypeName = () => {
+    switch (message.forwarded_from_type) {
+      case 'channel':
+        return '频道';
+      case 'group':
+        return '群组';
+      case 'user':
+        return '用户';
+      default:
+        return '未知来源';
+    }
+  };
 
   // 切换展开/收起
-  const toggleExpanded = useCallback(async () => {
-    if (!expanded && !originalMessage && !error) {
-      await fetchOriginalMessage();
-    } else {
-      setExpanded(!expanded);
-    }
-  }, [expanded, originalMessage, error, fetchOriginalMessage]);
+  const toggleExpanded = useCallback(() => {
+    setExpanded(!expanded);
+  }, [expanded]);
 
   // 格式化时间
   const formatTime = (dateString: string) => {
@@ -95,79 +119,86 @@ const ForwardedMessagePreview: React.FC<ForwardedMessagePreviewProps> = ({
   const renderForwardSource = () => (
     <div className={styles.forwardSource}>
       <Space size="small">
-        <UserOutlined style={{ color: '#8c8c8c' }} />
+        {getForwardSourceIcon()}
         <span>
-          转发自：{message.forwarded_from || '未知来源'}
+          转发自{getForwardSourceTypeName()}：{message.forwarded_from || '未知来源'}
         </span>
-        {message.reply_to_message_id && (
+        {message.forwarded_date && (
           <Tag color="blue">
-            原消息 #{message.reply_to_message_id}
+            <ClockCircleOutlined style={{ marginRight: 4 }} />
+            {formatTime(message.forwarded_date)}
           </Tag>
+        )}
+        {message.forwarded_from_id && message.forwarded_from_type !== 'user' && (
+          <Tooltip title={`跳转到${getForwardSourceTypeName()}`}>
+            <Button
+              type="text"
+              size="small"
+              icon={<RightOutlined />}
+              onClick={handleJumpToSourceGroup}
+              loading={loading}
+              className={styles.jumpButton}
+            >
+              跳转
+            </Button>
+          </Tooltip>
+        )}
+        {showOriginalContent && (message.text || message.media_type) && (
+          <Tooltip title={expanded ? "收起内容" : "展开内容"}>
+            <Button
+              type="text"
+              size="small"
+              icon={<MessageOutlined />}
+              onClick={toggleExpanded}
+              className={styles.expandButton}
+            >
+              {expanded ? '收起' : '预览'}
+            </Button>
+          </Tooltip>
         )}
       </Space>
     </div>
   );
 
-  // 渲染原始消息预览
-  const renderOriginalPreview = () => {
-    if (loading) {
-      return (
-        <div className={styles.loading}>
-          <Spin size="small" />
-          <span>加载原始消息...</span>
-        </div>
-      );
-    }
-
-    if (error) {
-      return (
-        <div className={styles.error}>
-          <span>{error}</span>
-        </div>
-      );
-    }
-
-    if (!originalMessage || !expanded) {
-      return null;
-    }
+  // 渲染转发消息内容
+  const renderForwardedContent = () => {
+    if (!showOriginalContent || !expanded) return null;
 
     return (
-      <div className={styles.originalMessage}>
-        <div className={styles.originalHeader}>
+      <div className={styles.forwardedContent}>
+        <div className={styles.contentHeader}>
           <Space size="small">
             <MessageOutlined style={{ color: '#1890ff' }} />
-            <span className={styles.originalSender}>原始消息</span>
-            <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
-            <span className={styles.originalTime}>{formatTime(originalMessage.date)}</span>
+            <span className={styles.contentLabel}>转发内容</span>
           </Space>
         </div>
         
-        <div className={`${styles.originalContent} ${compact ? styles.compact : ''}`}>
-          {originalMessage.text && (
-            <div>
-              {originalMessage.text.length > 200 && !compact
-                ? `${originalMessage.text.substring(0, 200)}...`
-                : originalMessage.text}
+        <div className={`${styles.contentBody} ${compact ? styles.compact : ''}`}>
+          {message.text && (
+            <div className={styles.textContent}>
+              {message.text.length > 200 && compact
+                ? `${message.text.substring(0, 200)}...`
+                : message.text}
             </div>
           )}
           
-          {originalMessage.media_type && (
-            <div style={{ marginTop: '8px' }}>
+          {message.media_type && (
+            <div className={styles.mediaInfo}>
               <Tag color="green">
-                {originalMessage.media_type.toUpperCase()}
+                {message.media_type.toUpperCase()}
               </Tag>
-              {originalMessage.media_filename && (
-                <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>
-                  {originalMessage.media_filename}
+              {message.media_filename && (
+                <span className={styles.filename}>
+                  {message.media_filename}
                 </span>
               )}
             </div>
           )}
           
-          {originalMessage.sender_name && (
-            <div style={{ marginTop: '4px', fontSize: '12px', color: '#666' }}>
+          {message.sender_name && (
+            <div className={styles.senderInfo}>
               <UserOutlined style={{ marginRight: 4 }} />
-              {originalMessage.sender_name}
+              原发送者：{message.sender_name}
             </div>
           )}
         </div>
@@ -185,18 +216,8 @@ const ForwardedMessagePreview: React.FC<ForwardedMessagePreviewProps> = ({
         <div className={styles.forwardHeader}>
           {renderForwardBadge()}
           {renderForwardSource()}
-          {message.reply_to_message_id && (
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={handleJumpToOriginal}
-              className={styles.jumpButton}
-            >
-              查看原消息
-            </Button>
-          )}
         </div>
+        {showOriginalContent && renderForwardedContent()}
       </div>
     );
   }
@@ -206,44 +227,11 @@ const ForwardedMessagePreview: React.FC<ForwardedMessagePreviewProps> = ({
       <div className={styles.forwardHeader}>
         {renderForwardBadge()}
         {renderForwardSource()}
-        
-        <div className={styles.forwardActions}>
-          <Space size="small">
-            {message.reply_to_message_id && (
-              <>
-                <Tooltip title={expanded ? "收起预览" : "展开预览"}>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<MessageOutlined />}
-                    onClick={toggleExpanded}
-                    loading={loading}
-                    className={styles.expandButton}
-                  >
-                    {expanded ? '收起' : '预览'}
-                  </Button>
-                </Tooltip>
-                
-                <Tooltip title="跳转到原消息">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<RightOutlined />}
-                    onClick={handleJumpToOriginal}
-                    className={styles.jumpButton}
-                  >
-                    跳转
-                  </Button>
-                </Tooltip>
-              </>
-            )}
-          </Space>
-        </div>
       </div>
       
-      {expanded && (
-        <div className={`${styles.previewContent} ${compact ? styles.compact : ''}`}>
-          {renderOriginalPreview()}
+      {showOriginalContent && (
+        <div className={styles.contentContainer}>
+          {renderForwardedContent()}
         </div>
       )}
     </div>

@@ -19,6 +19,7 @@ interface MessageAreaProps {
   selectedGroup: TelegramGroup | null;
   onReply: (message: TelegramMessage) => void;
   onCreateRule: (message: TelegramMessage) => void;
+  onJumpToGroup?: (groupId: number) => void;
   searchFilter?: any;
   isMobile?: boolean;
   searchQuery?: string;
@@ -40,6 +41,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   selectedGroup,
   onReply,
   onCreateRule,
+  onJumpToGroup,
   searchFilter = {},
   isMobile = false,
   searchQuery = '',
@@ -444,6 +446,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
                     onReply={onReply}
                     onCreateRule={onCreateRule}
                     onDelete={handleDeleteMessage}
+                    onJumpToGroup={onJumpToGroup}
                     isMobile={isMobile}
                   />
                 </div>

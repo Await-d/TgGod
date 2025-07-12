@@ -84,11 +84,13 @@
 
 .jumpButton:hover {
   background: #40a9ff;
+  transform: translateY(-1px);
 }
 
 .jumpButton:disabled {
   background: #d9d9d9;
   cursor: not-allowed;
+  transform: none;
 }
 
 .previewContent {
@@ -167,6 +169,72 @@
   border-radius: 4px;
 }
 
+/* 转发消息内容样式 */
+.forwardedContent {
+  background: white;
+  border-radius: 0 0 8px 8px;
+}
+
+.contentContainer {
+  padding: 12px;
+}
+
+.contentHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.contentLabel {
+  font-weight: 500;
+  color: #1890ff;
+  font-size: 13px;
+}
+
+.contentBody {
+  padding: 8px 0;
+}
+
+.contentBody.compact {
+  padding: 4px 0;
+}
+
+.textContent {
+  color: #333;
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  margin-bottom: 8px;
+}
+
+.mediaInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.filename {
+  color: #666;
+  font-size: 12px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.senderInfo {
+  color: #666;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+/* 响应式样式 */
 @media (max-width: 768px) {
   .forwardHeader {
     padding: 6px 8px;
@@ -180,11 +248,15 @@
     font-size: 11px;
   }
   
-  .previewContent {
+  .contentContainer {
     padding: 8px;
   }
   
-  .originalContent {
+  .textContent {
     font-size: 13px;
+  }
+  
+  .filename {
+    max-width: 150px;
   }
 }

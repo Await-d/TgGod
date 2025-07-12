@@ -43,7 +43,10 @@ class TelegramMessage(Base):
     media_thumbnail_path = Column(String(500), nullable=True)  # 缩略图路径
     view_count = Column(Integer, default=0)
     is_forwarded = Column(Boolean, default=False)
-    forwarded_from = Column(String(255), nullable=True)
+    forwarded_from = Column(String(255), nullable=True)  # 转发来源名称
+    forwarded_from_id = Column(BigInteger, nullable=True)  # 转发来源ID（用户ID或群组ID）
+    forwarded_from_type = Column(String(20), nullable=True)  # 转发来源类型：user, group, channel
+    forwarded_date = Column(DateTime(timezone=True), nullable=True)  # 原消息发送时间
     is_own_message = Column(Boolean, default=False)  # 是否为当前用户发送的消息
     
     # 新增字段

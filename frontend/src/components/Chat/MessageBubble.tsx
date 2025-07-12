@@ -53,6 +53,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   onReply,
   onCreateRule,
   onDelete,
+  onJumpToGroup,
   isMobile = false
 }) => {
   
@@ -137,6 +138,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
               // TODO: 实现跳转到原始消息的逻辑
               console.log('Jump to original message:', messageId);
             }}
+            onJumpToGroup={onJumpToGroup}
             compact={isMobile}
           />
         )}

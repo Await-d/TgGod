@@ -157,6 +157,11 @@ export const telegramApi = {
     return api.post(`/telegram/groups/${groupId}/sync-info`);
   },
 
+  // 根据Telegram ID查找群组
+  searchGroupByTelegramId: (telegramId: number): Promise<TelegramGroup | null> => {
+    return api.get(`/telegram/groups/search-by-id/${telegramId}`);
+  },
+
   // 删除群组
   deleteGroup: (groupId: number): Promise<{ message: string }> => {
     return api.delete(`/telegram/groups/${groupId}`);

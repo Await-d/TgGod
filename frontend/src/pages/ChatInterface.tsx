@@ -184,6 +184,18 @@ const ChatInterface: React.FC = () => {
     }
   }, [isMobile, selectGroup]);
 
+  // 处理跳转到群组
+  const handleJumpToGroup = useCallback((groupId: number) => {
+    const targetGroup = groups.find(group => group.id === groupId);
+    if (targetGroup) {
+      // 使用群组导航逻辑跳转到目标群组
+      selectGroup(targetGroup);
+      antMessage.success(`已跳转到${targetGroup.title}`);
+    } else {
+      antMessage.warning('未找到目标群组');
+    }
+  }, [groups, selectGroup]);
+
   // 处理跳转到消息
   const handleJumpToMessage = useCallback((messageId: number) => {
     setJumpToMessageId(messageId);
@@ -346,6 +358,7 @@ const ChatInterface: React.FC = () => {
         // 跳转功能
         jumpToMessageId={jumpToMessageId}
         onJumpComplete={handleJumpComplete}
+        onJumpToGroup={handleJumpToGroup}
       />
     </div>
   );

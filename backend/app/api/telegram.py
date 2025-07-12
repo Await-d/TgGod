@@ -59,6 +59,9 @@ class MessageResponse(BaseModel):
     view_count: int
     is_forwarded: bool
     forwarded_from: Optional[str]
+    forwarded_from_id: Optional[int]
+    forwarded_from_type: Optional[str]
+    forwarded_date: Optional[datetime]
     is_own_message: bool
     reply_to_message_id: Optional[int]
     edit_date: Optional[datetime]
@@ -270,6 +273,21 @@ async def get_message_detail(
         raise HTTPException(status_code=404, detail="消息不存在")
     
     return message
+
+
+@router.get("/groups/search-by-id/{telegram_id}", response_model=Optional[GroupResponse])
+async def search_group_by_telegram_id(
+    telegram_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """根据Telegram ID查找群组"""
+    
+    group = db.query(TelegramGroup).filter(
+        TelegramGroup.telegram_id == telegram_id
+    ).first()
+    
+    return group
 
 
 @router.get("/groups/{group_id}/messages/{message_id}/replies", response_model=List[MessageResponse])

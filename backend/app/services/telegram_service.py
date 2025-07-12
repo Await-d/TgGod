@@ -218,6 +218,9 @@ class TelegramService:
                 "view_count": message.views or 0,
                 "is_forwarded": message.forward is not None,
                 "forwarded_from": None,
+                "forwarded_from_id": None,
+                "forwarded_from_type": None,
+                "forwarded_date": None,
                 "reply_to_message_id": message.reply_to_msg_id,
                 "edit_date": message.edit_date,
                 "is_pinned": message.pinned or False,
@@ -249,10 +252,39 @@ class TelegramService:
             
             # 转发信息
             if message.forward:
+                # 设置转发日期
+                message_data["forwarded_date"] = message.forward.date
+                
+                # 处理转发来源
                 if message.forward.from_name:
+                    # 从用户名转发（隐私设置导致无法获取用户对象）
                     message_data["forwarded_from"] = message.forward.from_name
+                    message_data["forwarded_from_type"] = "user"
+                elif message.forward.from_id:
+                    # 从用户ID转发
+                    try:
+                        user = await self.client.get_entity(message.forward.from_id)
+                        if isinstance(user, User):
+                            message_data["forwarded_from"] = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                            message_data["forwarded_from_id"] = user.id
+                            message_data["forwarded_from_type"] = "user"
+                    except Exception as e:
+                        logger.warning(f"无法获取转发用户信息: {e}")
+                        message_data["forwarded_from_id"] = message.forward.from_id
+                        message_data["forwarded_from_type"] = "user"
                 elif message.forward.chat:
-                    message_data["forwarded_from"] = message.forward.chat.title
+                    # 从群组/频道转发
+                    chat = message.forward.chat
+                    message_data["forwarded_from"] = chat.title
+                    message_data["forwarded_from_id"] = chat.id
+                    
+                    if isinstance(chat, Channel):
+                        if chat.broadcast:
+                            message_data["forwarded_from_type"] = "channel"
+                        else:
+                            message_data["forwarded_from_type"] = "group"
+                    elif isinstance(chat, Chat):
+                        message_data["forwarded_from_type"] = "group"
             
             # 处理消息文本中的特殊元素
             if message.text:

@@ -34,6 +34,7 @@ export interface MessageBubbleProps {
   onReply: (message: TelegramMessage) => void;
   onCreateRule: (message: TelegramMessage) => void;
   onDelete: (messageId: number) => void;
+  onJumpToGroup?: (groupId: number) => void;
 }
 
 export interface MessageInputProps {
