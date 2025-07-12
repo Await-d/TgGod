@@ -197,15 +197,15 @@ const GroupItem: React.FC<GroupListItemProps> = ({
               <span className="name-text">{group.title}</span>
               {getStatusIcon()}
             </div>
-            {/* 统计信息 - 单独在右侧 */}
-            <div className="stats-section">
-              {getStatsDisplay()}
-            </div>
           </div>
-          
-          <div className="group-username">
-            @{group.username || 'unknown'}
+          {/* 统计信息 - 移到外层，与group-name并行 */}
+          <div className="stats-section">
+            {getStatsDisplay()}
           </div>
+        </div>
+        
+        <div className="group-username">
+          @{group.username || 'unknown'}
         </div>
 
         {/* 群组描述 */}

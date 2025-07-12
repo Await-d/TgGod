@@ -271,25 +271,25 @@
 
 .group-main-info {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row; /* 改为水平布局 */
+  align-items: center; /* 垂直居中 */
+  justify-content: space-between; /* 左右分布 */
+  gap: 8px;
 }
 
 .group-name {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 8px;
-  margin-bottom: 4px;
-  flex-wrap: nowrap; /* 确保不换行 */
+  gap: 6px;
+  flex: 1; /* 占据可用空间 */
+  min-width: 0;
 }
 
 .name-section {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 0 1 auto; /* 不主动扩展，只根据内容占用空间 */
+  flex: 1;
   min-width: 0;
   overflow: hidden;
 }
@@ -306,7 +306,6 @@
 
 .stats-section {
   flex-shrink: 0;
-  margin-left: 8px;
   display: flex;
   align-items: center;
 }
