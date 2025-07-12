@@ -103,6 +103,7 @@ class DatabaseChecker:
                 'is_own_message',  # 新增字段
                 'media_file_id', 'media_file_unique_id', 'media_downloaded',  # 媒体文件按需下载字段
                 'media_download_url', 'media_download_error', 'media_thumbnail_path',  # 媒体文件按需下载字段
+                'forwarded_from_id', 'forwarded_from_type', 'forwarded_date',  # 转发消息详细字段
                 'reply_to_message_id', 'edit_date', 'is_pinned', 'reactions',
                 'mentions', 'hashtags', 'urls', 'date', 'created_at', 'updated_at'
             ],

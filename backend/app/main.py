@@ -177,7 +177,52 @@ async def startup_event():
         if success:
             logger.info("数据库检查和修复完成")
         else:
-            logger.error("数据库检查和修复失败，但应用将继续启动")
+            logger.error("数据库检查和修复失败，尝试强制修复转发消息字段...")
+            
+            # 尝试强制修复转发消息字段
+            try:
+                from sqlalchemy import create_engine, text, inspect
+                engine = create_engine(settings.database_url)
+                inspector = inspect(engine)
+                
+                if inspector.has_table('telegram_messages'):
+                    columns = inspector.get_columns('telegram_messages')
+                    existing_columns = {col['name'] for col in columns}
+                    
+                    forwarded_columns = {
+                        'forwarded_from_id': 'BIGINT',
+                        'forwarded_from_type': 'VARCHAR(20)',
+                        'forwarded_date': 'DATETIME'
+                    }
+                    
+                    missing_columns = []
+                    for col_name in forwarded_columns:
+                        if col_name not in existing_columns:
+                            missing_columns.append(col_name)
+                    
+                    if missing_columns:
+                        logger.warning(f"发现缺失的转发消息字段: {', '.join(missing_columns)}")
+                        
+                        with engine.connect() as conn:
+                            trans = conn.begin()
+                            try:
+                                for col_name, col_type in forwarded_columns.items():
+                                    if col_name in missing_columns:
+                                        sql = f"ALTER TABLE telegram_messages ADD COLUMN {col_name} {col_type}"
+                                        conn.execute(text(sql))
+                                        logger.info(f"强制添加字段: {col_name}")
+                                trans.commit()
+                                logger.info("转发消息字段强制修复完成")
+                            except Exception as e:
+                                trans.rollback()
+                                logger.error(f"强制修复失败: {e}")
+                    else:
+                        logger.info("转发消息字段检查通过")
+                else:
+                    logger.error("telegram_messages表不存在")
+                    
+            except Exception as e:
+                logger.error(f"强制修复过程中发生错误: {e}")
             
     except Exception as e:
         logger.error(f"数据库检查过程中发生错误: {e}")
