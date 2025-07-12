@@ -269,7 +269,8 @@
   gap: 4px;
 }
 
-.group-main-info {
+/* 群组项特定的布局 - 使用更高优先级选择器 */
+.group-item .group-info .group-main-info {
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
@@ -279,7 +280,7 @@
   flex-wrap: nowrap !important;
 }
 
-.group-name {
+.group-item .group-info .group-name {
   display: flex !important;
   align-items: center !important;
   gap: 6px !important;
@@ -307,7 +308,7 @@
   white-space: nowrap;
 }
 
-.stats-section {
+.group-item .group-info .stats-section {
   flex-shrink: 0 !important;
   display: flex !important;
   align-items: center !important;
