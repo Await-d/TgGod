@@ -270,19 +270,22 @@
 }
 
 .group-main-info {
-  display: flex;
-  flex-direction: row; /* 改为水平布局 */
-  align-items: center; /* 垂直居中 */
-  justify-content: space-between; /* 左右分布 */
-  gap: 8px;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+  flex-wrap: nowrap !important;
 }
 
 .group-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1; /* 占据可用空间 */
-  min-width: 0;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+  max-width: none !important;
 }
 
 .name-section {
@@ -305,9 +308,11 @@
 }
 
 .stats-section {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  margin-left: 0 !important;
+  white-space: nowrap !important;
 }
 
 /* 统计信息样式 - 精简版本 */
