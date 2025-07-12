@@ -524,10 +524,13 @@ class TelegramService:
                 if existing_message:
                     continue
                 
+                # 清理数据，确保没有 Telethon 对象
+                cleaned_data = self._clean_message_data(message_data)
+                
                 # 创建消息记录
                 message = TelegramMessage(
                     group_id=group_id,
-                    **message_data
+                    **cleaned_data
                 )
                 db.add(message)
                 saved_count += 1
@@ -540,6 +543,69 @@ class TelegramService:
             logger.error(f"保存消息到数据库失败: {e}")
             db.rollback()
             return 0
+    
+    def _clean_message_data(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
+        """清理消息数据，移除或转换不兼容的对象"""
+        cleaned_data = {}
+        
+        # 定义允许的字段和其类型转换规则
+        allowed_fields = {
+            'message_id', 'sender_id', 'sender_username', 'sender_name', 'text',
+            'media_type', 'media_path', 'media_size', 'media_filename', 
+            'media_file_id', 'media_file_unique_id', 'media_downloaded',
+            'media_download_url', 'media_download_error', 'media_thumbnail_path',
+            'view_count', 'is_forwarded', 'forwarded_from', 'forwarded_from_id',
+            'forwarded_from_type', 'forwarded_date', 'is_own_message',
+            'reply_to_message_id', 'edit_date', 'is_pinned', 'reactions',
+            'mentions', 'hashtags', 'urls', 'date'
+        }
+        
+        for key, value in message_data.items():
+            if key not in allowed_fields:
+                logger.warning(f"跳过未知字段: {key}")
+                continue
+                
+            # 跳过 None 值
+            if value is None:
+                cleaned_data[key] = None
+                continue
+                
+            # 检查并跳过 Telethon 对象
+            if hasattr(value, '__class__'):
+                type_str = str(type(value))
+                if 'telethon' in type_str.lower() or 'peer' in type_str.lower():
+                    logger.warning(f"跳过 Telethon 对象字段 {key}: {type(value)}")
+                    continue
+            
+            # 转换特殊类型
+            if key in ['reactions', 'mentions', 'hashtags', 'urls']:
+                if isinstance(value, (list, dict)):
+                    import json
+                    try:
+                        cleaned_data[key] = json.dumps(value, ensure_ascii=False)
+                    except (TypeError, ValueError) as e:
+                        logger.warning(f"JSON序列化失败 {key}: {e}")
+                        cleaned_data[key] = str(value)
+                else:
+                    cleaned_data[key] = str(value) if value is not None else None
+            elif key in ['forwarded_date', 'edit_date', 'date']:
+                # 确保日期字段是正确的格式
+                if hasattr(value, 'isoformat'):
+                    cleaned_data[key] = value
+                elif isinstance(value, str):
+                    cleaned_data[key] = value
+                else:
+                    logger.warning(f"日期字段 {key} 格式异常: {type(value)}")
+                    cleaned_data[key] = None
+            else:
+                # 其他字段直接赋值，但确保不是对象
+                if isinstance(value, (str, int, float, bool)) or value is None:
+                    cleaned_data[key] = value
+                else:
+                    logger.warning(f"字段 {key} 类型异常: {type(value)}, 转换为字符串")
+                    cleaned_data[key] = str(value)
+        
+        return cleaned_data
     
     async def sync_messages_by_month(self, group_identifier, months: List[Dict[str, Any]]) -> Dict[str, Any]:
         """按月同步群组消息
