@@ -245,28 +245,40 @@ async def download_media_background(message_id: int, force: bool = False):
             
             # 下载文件
             from ..services.media_downloader import get_media_downloader
-            downloader = await get_media_downloader()
             
-            success = await downloader.download_file(
-                file_id=message.media_file_id,
-                file_path=file_path,
-                chat_id=message.group.telegram_id if message.group else None,
-                message_id=message.message_id
-            )
-            
-            if success:
-                # 更新数据库记录
-                message.media_downloaded = True
-                message.media_path = file_path
+            try:
+                downloader = await get_media_downloader()
                 
-                # 获取实际文件大小
-                if os.path.exists(file_path):
-                    message.media_size = os.path.getsize(file_path)
+                success = await downloader.download_file(
+                    file_id=message.media_file_id,
+                    file_path=file_path,
+                    chat_id=message.group.telegram_id if message.group else None,
+                    message_id=message.message_id
+                )
                 
-                logger.info(f"媒体文件下载成功: {file_path}")
-            else:
-                message.media_download_error = "Telegram API下载失败"
-                logger.error(f"媒体文件下载失败: 消息 {message_id}")
+                if success:
+                    # 更新数据库记录
+                    message.media_downloaded = True
+                    message.media_path = file_path
+                    
+                    # 获取实际文件大小
+                    if os.path.exists(file_path):
+                        message.media_size = os.path.getsize(file_path)
+                    
+                    logger.info(f"媒体文件下载成功: {file_path}")
+                else:
+                    message.media_download_error = "Telegram API下载失败"
+                    logger.error(f"媒体文件下载失败: 消息 {message_id}")
+                    
+            except Exception as download_error:
+                error_msg = f"下载器错误: {str(download_error)}"
+                message.media_download_error = error_msg
+                logger.error(f"媒体下载器异常: {error_msg}")
+                
+                # 如果是认证错误，提供更详细的信息
+                if "EOF when reading a line" in str(download_error) or "AuthKeyUnregisteredError" in str(download_error):
+                    message.media_download_error = "Telegram认证失败，请检查API配置和session状态"
+                    logger.error("Telegram认证失败，可能需要重新登录或检查API配置")
                 
         except Exception as e:
             error_msg = f"下载过程中发生错误: {str(e)}"
