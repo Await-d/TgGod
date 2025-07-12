@@ -279,16 +279,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  width: 100%;
+  gap: 8px;
   margin-bottom: 4px;
+  flex-wrap: nowrap; /* 确保不换行 */
 }
 
 .name-section {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1;
+  flex: 0 1 auto; /* 不主动扩展，只根据内容占用空间 */
   min-width: 0;
+  overflow: hidden;
 }
 
 .group-name .name-text {
@@ -299,13 +302,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  min-width: 0;
 }
 
 .stats-section {
   flex-shrink: 0;
   margin-left: 8px;
+  display: flex;
+  align-items: center;
 }
 
 /* 统计信息样式 - 精简版本 */
