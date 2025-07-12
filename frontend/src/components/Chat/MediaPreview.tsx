@@ -12,8 +12,8 @@ const getMediaUrl = (path: string) => {
     return path;
   }
   
-  // 如果是相对路径，添加API基础URL
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  // 如果是相对路径，使用当前域名
+  const apiBase = process.env.REACT_APP_API_URL || '';
   return `${apiBase}/${path.startsWith('/') ? path.slice(1) : path}`;
 };
 

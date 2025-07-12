@@ -23,7 +23,7 @@ const getMediaUrl = (path: string): string => {
     return path;
   }
   
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  const apiBase = process.env.REACT_APP_API_URL || '';
   
   // 处理相对路径
   if (path.startsWith('/')) {
@@ -163,7 +163,7 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
       setOnDemandDownloading(true);
       
       // 调用后端API开始下载
-      const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8001';
+      const apiBase = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${apiBase}/api/media/download/${messageId}`, {
         method: 'POST',
         headers: {

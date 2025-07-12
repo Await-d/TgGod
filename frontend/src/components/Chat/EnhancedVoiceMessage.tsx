@@ -20,7 +20,7 @@ const getMediaUrl = (path: string): string => {
     return path;
   }
   
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  const apiBase = process.env.REACT_APP_API_URL || '';
   return `${apiBase}/${path.startsWith('/') ? path.slice(1) : path}`;
 };
 
