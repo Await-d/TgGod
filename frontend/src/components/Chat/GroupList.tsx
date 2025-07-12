@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Input, Button, Space, message, Modal, Form, Badge, Spin } from 'antd';
 import { PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined, SyncOutlined } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
@@ -123,14 +123,47 @@ const GroupList: React.FC<GroupListProps> = ({
     onSearchChange?.(value);
   }, [onSearchChange]);
 
-  // 过滤群组
-  const filteredGroups = groups.filter(group => {
+  // 过滤和排序群组
+  const filteredGroups = useMemo(() => {
     const query = (onSearchChange ? searchQuery : localSearchQuery).toLowerCase();
-    return (
-      group.title.toLowerCase().includes(query) ||
-      (group.username && group.username.toLowerCase().includes(query))
-    );
-  });
+    
+    let filtered = groups;
+    
+    // 搜索过滤
+    if (query) {
+      filtered = groups.filter(group => 
+        group.title.toLowerCase().includes(query) ||
+        (group.username && group.username.toLowerCase().includes(query)) ||
+        (group.description && group.description.toLowerCase().includes(query))
+      );
+    }
+    
+    // 排序：置顶群组在前，然后按活跃状态，最后按更新时间
+    return filtered.sort((a, b) => {
+      // 置顶优先
+      if (a.is_pinned !== b.is_pinned) {
+        return b.is_pinned ? 1 : -1;
+      }
+      
+      // 置顶群组内部按置顶顺序排序
+      if (a.is_pinned && b.is_pinned) {
+        if (a.pin_order !== undefined && b.pin_order !== undefined) {
+          return a.pin_order - b.pin_order;
+        }
+        if (a.pinned_at && b.pinned_at) {
+          return new Date(b.pinned_at).getTime() - new Date(a.pinned_at).getTime();
+        }
+      }
+      
+      // 活跃状态排序
+      if (a.is_active !== b.is_active) {
+        return b.is_active ? 1 : -1;
+      }
+      
+      // 按更新时间排序
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    });
+  }, [groups, searchQuery, localSearchQuery, onSearchChange]);
 
   // 组件挂载时获取群组列表
   useEffect(() => {

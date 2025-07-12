@@ -1,7 +1,17 @@
-import React from 'react';
-import { Avatar, Badge, Tag, Tooltip } from 'antd';
-import { TeamOutlined, CheckCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Avatar, Badge, Tag, Tooltip, Spin } from 'antd';
+import { 
+  TeamOutlined, 
+  CheckCircleOutlined, 
+  PauseCircleOutlined,
+  PushpinOutlined,
+  MessageOutlined,
+  FileImageOutlined,
+  VideoCameraOutlined,
+  FileTextOutlined
+} from '@ant-design/icons';
 import { GroupListItemProps } from '../../types/chat';
+import { telegramApi } from '../../services/apiService';
 
 const GroupItem: React.FC<GroupListItemProps> = ({
   group,
@@ -10,6 +20,31 @@ const GroupItem: React.FC<GroupListItemProps> = ({
   unreadCount = 0,
   lastMessageTime
 }) => {
+  const [groupStats, setGroupStats] = useState<any>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  
+  // 获取群组统计信息
+  useEffect(() => {
+    const fetchGroupStats = async () => {
+      if (!group.id) return;
+      
+      setLoadingStats(true);
+      try {
+        const stats = await telegramApi.getGroupStats(group.id);
+        setGroupStats(stats);
+      } catch (error) {
+        // 静默失败，不影响基本功能
+        console.warn('获取群组统计失败:', error);
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    // 只在选中状态或者首次加载时获取统计
+    if (isSelected || !groupStats) {
+      fetchGroupStats();
+    }
+  }, [group.id, isSelected, groupStats]);
   
   // 格式化时间
   const formatTime = (dateString: string) => {
@@ -30,6 +65,61 @@ const GroupItem: React.FC<GroupListItemProps> = ({
     } catch {
       return '未知时间';
     }
+  };
+
+  // 获取统计信息摘要
+  const getStatsDisplay = () => {
+    if (loadingStats) {
+      return <Spin size="small" />;
+    }
+    
+    if (!groupStats) {
+      return (
+        <div className="stats-item">
+          <MessageOutlined style={{ marginRight: 4, color: '#999' }} />
+          <span style={{ color: '#999' }}>统计加载中...</span>
+        </div>
+      );
+    }
+
+    const items = [];
+    
+    // 总消息数
+    if (groupStats.total_messages > 0) {
+      items.push(
+        <div key="total" className="stats-item">
+          <MessageOutlined style={{ marginRight: 4 }} />
+          <span>{groupStats.total_messages.toLocaleString()} 消息</span>
+        </div>
+      );
+    }
+
+    // 媒体消息统计
+    const mediaCount = (groupStats.photo_messages || 0) + 
+                      (groupStats.video_messages || 0) + 
+                      (groupStats.document_messages || 0) + 
+                      (groupStats.audio_messages || 0);
+    
+    if (mediaCount > 0) {
+      items.push(
+        <div key="media" className="stats-item">
+          <FileImageOutlined style={{ marginRight: 4 }} />
+          <span>{mediaCount.toLocaleString()} 媒体</span>
+        </div>
+      );
+    }
+
+    // 置顶消息
+    if (groupStats.pinned_messages > 0) {
+      items.push(
+        <div key="pinned" className="stats-item">
+          <PushpinOutlined style={{ marginRight: 4, color: '#1890ff' }} />
+          <span style={{ color: '#1890ff' }}>{groupStats.pinned_messages} 置顶</span>
+        </div>
+      );
+    }
+
+    return items.slice(0, 2); // 最多显示2个统计项
   };
 
   // 获取群组头像
@@ -87,7 +177,7 @@ const GroupItem: React.FC<GroupListItemProps> = ({
 
   return (
     <div
-      className={`group-item ${isSelected ? 'selected' : ''}`}
+      className={`group-item ${isSelected ? 'selected' : ''} ${group.is_pinned ? 'pinned' : ''}`}
       onClick={() => onClick(group)}
     >
       {/* 群组头像 */}
@@ -111,6 +201,19 @@ const GroupItem: React.FC<GroupListItemProps> = ({
       <div className="group-info">
         <div className="group-main-info">
           <div className="group-name">
+            {/* 置顶图标 */}
+            {group.is_pinned && (
+              <Tooltip title="已置顶群组">
+                <PushpinOutlined 
+                  style={{ 
+                    marginRight: 6, 
+                    color: '#1890ff', 
+                    fontSize: 14,
+                    transform: 'rotate(45deg)' 
+                  }} 
+                />
+              </Tooltip>
+            )}
             <span className="name-text">{group.title}</span>
             {getStatusIcon()}
           </div>
@@ -126,6 +229,11 @@ const GroupItem: React.FC<GroupListItemProps> = ({
             {group.description}
           </div>
         )}
+
+        {/* 群组统计信息 - 新设计 */}
+        <div className="group-stats">
+          {getStatsDisplay()}
+        </div>
 
         {/* 群组元数据 */}
         <div className="group-metadata">
@@ -146,6 +254,16 @@ const GroupItem: React.FC<GroupListItemProps> = ({
 
       {/* 群组状态标签 */}
       <div className="group-status">
+        {group.is_pinned && (
+          <Tag 
+            icon={<PushpinOutlined />}
+            color="blue"
+            style={{ marginBottom: 4 }}
+          >
+            置顶
+          </Tag>
+        )}
+        
         <Tag 
           color={group.is_active ? 'success' : 'error'}
         >

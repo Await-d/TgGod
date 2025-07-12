@@ -90,6 +90,9 @@ export interface TelegramGroup {
   created_at: string;
   updated_at: string;
   is_active: boolean;
+  is_pinned?: boolean; // 新增：群组置顶状态
+  pinned_at?: string;  // 新增：置顶时间
+  pin_order?: number;  // 新增：置顶排序
   can_send_messages?: boolean;
   permissions?: {
     can_send_messages?: boolean;
