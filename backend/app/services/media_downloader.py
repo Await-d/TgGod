@@ -71,27 +71,27 @@ class TelegramMediaDownloader:
             # 确保目标目录存在
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             
-            # 根据file_id下载文件
-            # 注意：这里需要根据实际的Telegram API实现
-            # 由于file_id的复杂性，这里提供一个基础框架
-            
             if chat_id and message_id:
                 # 通过聊天和消息ID获取文件
-                message = await self.client.get_messages(chat_id, ids=message_id)
-                if message and message.media:
-                    await self.client.download_media(message.media, file_path)
-                    logger.info(f"通过消息下载文件成功: {file_path}")
-                    return True
+                try:
+                    chat = await self.client.get_entity(chat_id)
+                    messages = await self.client.get_messages(chat, ids=message_id)
+                    message = messages[0] if messages and len(messages) > 0 else None
+                    
+                    if message and message.media:
+                        await self.client.download_media(message.media, file_path)
+                        logger.info(f"通过消息下载文件成功: {file_path}")
+                        return True
+                    else:
+                        logger.warning(f"消息 {message_id} 不存在或无媒体内容")
+                        return False
+                        
+                except Exception as e:
+                    logger.error(f"通过消息ID下载失败: {e}")
+                    return False
             else:
-                # 直接通过file_id下载（需要更复杂的实现）
-                # 这里是简化版本，实际使用时可能需要更多处理
-                logger.warning(f"文件ID下载暂未完全实现: {file_id}")
-                
-                # 创建一个占位符文件用于测试
-                with open(file_path, 'wb') as f:
-                    f.write(b'placeholder media content for testing')
-                logger.info(f"创建占位符文件: {file_path}")
-                return True
+                logger.warning(f"缺少chat_id或message_id，无法下载文件: {file_id}")
+                return False
             
         except Exception as e:
             logger.error(f"下载文件失败 {file_id}: {str(e)}")

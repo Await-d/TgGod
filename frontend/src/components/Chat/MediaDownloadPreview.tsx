@@ -1,0 +1,372 @@
+import React, { useState, useEffect } from 'react';
+import { Button, Spin, Progress, message as notification, Modal, Card } from 'antd';
+import { 
+  DownloadOutlined, 
+  PlayCircleOutlined, 
+  FileImageOutlined,
+  FileTextOutlined,
+  VideoCameraOutlined,
+  AudioOutlined,
+  EyeOutlined,
+  LoadingOutlined
+} from '@ant-design/icons';
+import { TelegramMessage } from '../../types';
+import apiService, { mediaApi } from '../../services/apiService';
+import './MediaDownloadPreview.css';
+
+interface MediaDownloadPreviewProps {
+  message: TelegramMessage;
+  className?: string;
+  onPreview?: (mediaPath: string) => void;
+}
+
+interface DownloadState {
+  status: 'not_downloaded' | 'downloading' | 'downloaded' | 'error';
+  progress?: number;
+  error?: string;
+  downloadUrl?: string;
+  downloadedSize?: number;
+  totalSize?: number;
+}
+
+const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
+  message,
+  className = '',
+  onPreview
+}) => {
+  const [downloadState, setDownloadState] = useState<DownloadState>({
+    status: message.media_downloaded ? 'downloaded' : 'not_downloaded',
+    downloadUrl: message.media_path
+  });
+  
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  // 获取媒体类型图标
+  const getMediaIcon = (mediaType: string) => {
+    const iconProps = { size: 48 };
+    switch (mediaType) {
+      case 'photo':
+        return <FileImageOutlined style={{ color: '#52c41a', fontSize: '48px' }} />;
+      case 'video':
+        return <VideoCameraOutlined style={{ color: '#1890ff', fontSize: '48px' }} />;
+      case 'document':
+        return <FileTextOutlined style={{ color: '#faad14', fontSize: '48px' }} />;
+      case 'audio':
+      case 'voice':
+        return <AudioOutlined style={{ color: '#722ed1', fontSize: '48px' }} />;
+      default:
+        return <FileTextOutlined style={{ color: '#8c8c8c', fontSize: '48px' }} />;
+    }
+  };
+
+  // 格式化文件大小
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '未知大小';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
+  };
+
+  // 下载媒体文件
+  const handleDownload = async () => {
+    if (downloadState.status === 'downloading') return;
+    
+    setDownloadState({ status: 'downloading', progress: 0 });
+    
+    try {
+      // 启动下载任务
+      const response = await mediaApi.downloadMedia(message.id);
+      
+      if (response.status === 'already_downloaded') {
+        setDownloadState({
+          status: 'downloaded',
+          downloadUrl: response.download_url
+        });
+        notification.success('文件已存在');
+        return;
+      }
+      
+      // 开始轮询下载状态
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await mediaApi.getDownloadStatus(message.id);
+          
+          if (statusResponse.status === 'downloaded') {
+            setDownloadState({
+              status: 'downloaded',
+              downloadUrl: statusResponse.download_url
+            });
+            notification.success('文件下载完成');
+            clearInterval(pollInterval);
+          } else if (statusResponse.status === 'download_failed') {
+            setDownloadState({
+              status: 'error',
+              error: statusResponse.error || '下载失败'
+            });
+            notification.error('下载失败: ' + (statusResponse.error || '未知错误'));
+            clearInterval(pollInterval);
+          }
+          // 继续轮询其他状态
+        } catch (error) {
+          console.error('轮询下载状态失败:', error);
+          setDownloadState({
+            status: 'error',
+            error: '获取下载状态失败'
+          });
+          clearInterval(pollInterval);
+        }
+      }, 2000); // 每2秒轮询一次
+      
+      // 设置超时
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        if (downloadState.status === 'downloading') {
+          setDownloadState({
+            status: 'error',
+            error: '下载超时'
+          });
+          notification.error('下载超时，请重试');
+        }
+      }, 60000); // 60秒超时
+      
+    } catch (error: any) {
+      console.error('下载请求失败:', error);
+      setDownloadState({
+        status: 'error',
+        error: error.response?.data?.detail || '下载请求失败'
+      });
+      notification.error('下载失败: ' + (error.response?.data?.detail || '网络错误'));
+    }
+  };
+
+  // 预览媒体
+  const handlePreview = () => {
+    if (downloadState.status === 'downloaded' && downloadState.downloadUrl) {
+      if (onPreview) {
+        onPreview(downloadState.downloadUrl);
+      } else {
+        // 打开预览模态框
+        setShowPreviewModal(true);
+      }
+    } else {
+      // 需要先下载
+      handleDownload();
+    }
+  };
+
+  // 渲染预览内容
+  const renderPreviewContent = () => {
+    if (!downloadState.downloadUrl) return null;
+    
+    const fullUrl = downloadState.downloadUrl.startsWith('http') 
+      ? downloadState.downloadUrl 
+      : `${process.env.REACT_APP_API_URL || 'http://localhost:8001'}/${downloadState.downloadUrl}`;
+    
+    switch (message.media_type) {
+      case 'photo':
+        return (
+          <img 
+            src={fullUrl} 
+            alt={message.media_filename || '图片'} 
+            style={{ maxWidth: '100%', maxHeight: '70vh' }}
+          />
+        );
+      case 'video':
+        return (
+          <video 
+            controls 
+            style={{ maxWidth: '100%', maxHeight: '70vh' }}
+            preload="metadata"
+          >
+            <source src={fullUrl} />
+            您的浏览器不支持视频播放
+          </video>
+        );
+      case 'audio':
+      case 'voice':
+        return (
+          <audio controls style={{ width: '100%' }}>
+            <source src={fullUrl} />
+            您的浏览器不支持音频播放
+          </audio>
+        );
+      default:
+        return (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <FileTextOutlined style={{ fontSize: '64px', color: '#8c8c8c' }} />
+            <div style={{ marginTop: '16px' }}>
+              <a href={fullUrl} download={message.media_filename} target="_blank" rel="noopener noreferrer">
+                <Button type="primary" icon={<DownloadOutlined />}>
+                  下载文件
+                </Button>
+              </a>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  // 渲染下载状态
+  const renderDownloadStatus = () => {
+    switch (downloadState.status) {
+      case 'downloading':
+        return (
+          <div className="download-progress">
+            <Card size="small" style={{ width: '100%', textAlign: 'center' }}>
+              <Spin 
+                indicator={<LoadingOutlined style={{ fontSize: 18 }} spin />}
+                tip={
+                  <div>
+                    <div>下载中...</div>
+                    {downloadState.downloadedSize && downloadState.totalSize && (
+                      <div style={{ fontSize: '11px', color: '#8c8c8c', marginTop: 4 }}>
+                        {formatFileSize(downloadState.downloadedSize)} / {formatFileSize(downloadState.totalSize)}
+                      </div>
+                    )}
+                  </div>
+                }
+              >
+                <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {downloadState.progress !== undefined && (
+                    <Progress
+                      percent={downloadState.progress}
+                      size="small"
+                      style={{ width: '120px' }}
+                      strokeColor={{
+                        '0%': '#108ee9',
+                        '100%': '#87d068',
+                      }}
+                    />
+                  )}
+                </div>
+              </Spin>
+            </Card>
+          </div>
+        );
+        
+      case 'downloaded':
+        return (
+          <div className="download-actions">
+            <Button 
+              type="primary" 
+              icon={<EyeOutlined />}
+              onClick={handlePreview}
+              style={{ marginRight: 8 }}
+              size="small"
+            >
+              预览
+            </Button>
+            {downloadState.downloadUrl && (
+              <Button 
+                icon={<DownloadOutlined />}
+                href={downloadState.downloadUrl.startsWith('http') 
+                  ? downloadState.downloadUrl 
+                  : `${process.env.REACT_APP_API_URL || 'http://localhost:8001'}/${downloadState.downloadUrl}`
+                }
+                download={message.media_filename}
+                target="_blank"
+                size="small"
+              >
+                下载
+              </Button>
+            )}
+          </div>
+        );
+        
+      case 'error':
+        return (
+          <div className="download-error">
+            <Card size="small" style={{ backgroundColor: '#fff2f0', borderColor: '#ffccc7' }}>
+              <div style={{ color: '#ff4d4f', marginBottom: 8, fontSize: '12px', textAlign: 'center' }}>
+                ❌ {downloadState.error}
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <Button 
+                  size="small" 
+                  type="primary" 
+                  danger 
+                  onClick={handleDownload}
+                  icon={<DownloadOutlined />}
+                >
+                  重试下载
+                </Button>
+              </div>
+            </Card>
+          </div>
+        );
+        
+      default:
+        return (
+          <div className="download-placeholder">
+            <Button 
+              type="primary" 
+              icon={<DownloadOutlined />}
+              onClick={handleDownload}
+              size="small"
+              style={{
+                background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+                border: 'none',
+                boxShadow: '0 2px 4px rgba(24, 144, 255, 0.2)'
+              }}
+            >
+              下载查看
+            </Button>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <>
+      <div className={`media-download-preview ${className}`}>
+        {/* 媒体信息 */}
+        <div className="media-info">
+          <div className="media-icon">
+            {getMediaIcon(message.media_type || 'document')}
+          </div>
+          
+          <div className="media-details">
+            <div className="media-filename">
+              {message.media_filename || `${message.media_type}_${message.id}`}
+            </div>
+            <div className="media-meta">
+              <span className="media-size">{formatFileSize(message.media_size)}</span>
+              {message.media_type && (
+                <span className="media-type">
+                  {message.media_type.toUpperCase()}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* 下载状态和操作 */}
+        <div className="media-actions">
+          {renderDownloadStatus()}
+        </div>
+      </div>
+
+      {/* 预览模态框 */}
+      <Modal
+        title={message.media_filename || '媒体预览'}
+        open={showPreviewModal}
+        onCancel={() => setShowPreviewModal(false)}
+        footer={null}
+        width="90%"
+        style={{ maxWidth: '800px' }}
+        centered
+      >
+        {renderPreviewContent()}
+      </Modal>
+    </>
+  );
+};
+
+export default MediaDownloadPreview;

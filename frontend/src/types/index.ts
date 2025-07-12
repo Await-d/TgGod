@@ -116,6 +116,12 @@ export interface TelegramMessage {
   media_path?: string;
   media_size?: number;
   media_filename?: string;
+  media_file_id?: string;
+  media_file_unique_id?: string;
+  media_downloaded?: boolean;
+  media_download_url?: string;
+  media_download_error?: string;
+  media_thumbnail_path?: string;
   view_count?: number;
   is_forwarded: boolean;
   forwarded_from?: string;

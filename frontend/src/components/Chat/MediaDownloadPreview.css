@@ -1,0 +1,236 @@
+.media-download-preview {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fafafa;
+  margin: 4px 0;
+  max-width: 300px;
+}
+
+.media-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.media-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+.media-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.media-filename {
+  font-weight: 500;
+  font-size: 14px;
+  color: #262626;
+  margin-bottom: 4px;
+  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.media-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.media-size {
+  background: #e6f7ff;
+  color: #1890ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.media-type {
+  background: #f6ffed;
+  color: #52c41a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.media-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 32px;
+}
+
+.download-progress {
+  margin: 8px 0;
+}
+
+.download-progress .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.download-progress .ant-spin {
+  width: 100%;
+}
+
+.download-progress .ant-spin-text {
+  font-size: 12px;
+  color: #1890ff;
+  margin-top: 8px;
+}
+
+.download-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.download-actions .ant-btn {
+  font-size: 12px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.download-actions .ant-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+}
+
+.download-placeholder {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.download-placeholder .ant-btn {
+  font-size: 12px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.download-placeholder .ant-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
+}
+
+.download-error {
+  margin: 8px 0;
+}
+
+.download-error .ant-card {
+  border-radius: 8px;
+  border: 1px solid #ffccc7;
+}
+
+.download-error .ant-btn {
+  font-size: 11px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .media-download-preview {
+    max-width: 100%;
+    padding: 8px;
+  }
+  
+  .media-icon {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .media-icon .anticon {
+    font-size: 36px !important;
+  }
+  
+  .media-filename {
+    font-size: 13px;
+  }
+  
+  .media-meta {
+    font-size: 11px;
+  }
+  
+  .download-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .download-actions .ant-btn {
+    width: 100%;
+    font-size: 11px;
+  }
+}
+
+/* 加载动画 */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.download-progress .ant-spin {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* 悬浮效果 */
+.media-download-preview:hover {
+  border-color: #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.download-actions .ant-btn:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease;
+}
+
+/* 进度条自定义样式 */
+.download-progress .ant-progress-circle .ant-progress-text {
+  color: #1890ff;
+  font-size: 12px;
+}
+
+/* 错误状态样式 */
+.download-error {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+/* 成功状态指示 */
+.download-actions .ant-btn-primary {
+  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  border: none;
+}
+
+.download-actions .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+}

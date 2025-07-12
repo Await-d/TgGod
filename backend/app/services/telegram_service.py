@@ -255,23 +255,26 @@ class TelegramService:
                 # 设置转发日期
                 message_data["forwarded_date"] = message.forward.date
                 
-                # 处理转发来源
+                # 处理转发来源 - 简化逻辑，避免过度查询导致权限错误
                 if message.forward.from_name:
                     # 从用户名转发（隐私设置导致无法获取用户对象）
                     message_data["forwarded_from"] = message.forward.from_name
                     message_data["forwarded_from_type"] = "user"
                 elif message.forward.from_id:
-                    # 从用户ID转发
+                    # 从用户ID转发 - 简化处理，避免权限问题
+                    message_data["forwarded_from_id"] = message.forward.from_id
+                    message_data["forwarded_from_type"] = "user"
+                    
+                    # 尝试获取用户信息，但不强制要求成功
                     try:
                         user = await self.client.get_entity(message.forward.from_id)
                         if isinstance(user, User):
-                            message_data["forwarded_from"] = f"{user.first_name or ''} {user.last_name or ''}".strip()
-                            message_data["forwarded_from_id"] = user.id
-                            message_data["forwarded_from_type"] = "user"
+                            full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                            message_data["forwarded_from"] = full_name or user.username or f"用户{user.id}"
                     except Exception as e:
-                        logger.warning(f"无法获取转发用户信息: {e}")
-                        message_data["forwarded_from_id"] = message.forward.from_id
-                        message_data["forwarded_from_type"] = "user"
+                        logger.debug(f"无法获取转发用户详细信息，使用ID: {e}")
+                        message_data["forwarded_from"] = f"用户{message.forward.from_id}"
+                        
                 elif message.forward.chat:
                     # 从群组/频道转发
                     chat = message.forward.chat
@@ -296,9 +299,9 @@ class TelegramService:
             if hasattr(message, 'reactions') and message.reactions:
                 message_data["reactions"] = self._process_reactions(message.reactions)
             
-            # 媒体信息
+            # 媒体信息 - 默认不下载，只收集元数据
             if message.media:
-                media_info = await self._process_media(message)
+                media_info = await self._process_media(message, download=False)
                 message_data.update(media_info)
             
             return message_data
@@ -338,13 +341,21 @@ class TelegramService:
             logger.error(f"处理消息反应失败: {e}")
             return {}
     
-    async def _process_media(self, message: Message) -> Dict[str, Any]:
-        """处理媒体文件"""
+    async def _process_media(self, message: Message, download: bool = True) -> Dict[str, Any]:
+        """处理媒体文件
+        
+        Args:
+            message: Telegram消息对象
+            download: 是否下载媒体文件（转发消息设为False）
+        """
         media_info = {
             "media_type": None,
             "media_path": None,
             "media_size": None,
-            "media_filename": None
+            "media_filename": None,
+            "media_file_id": None,
+            "media_file_unique_id": None,
+            "media_downloaded": False
         }
         
         try:
@@ -353,26 +364,42 @@ class TelegramService:
                 media_info["media_size"] = getattr(message.media.photo, 'size', 0)
                 media_info["media_filename"] = f"photo_{message.id}.jpg"
                 
-                # 下载图片文件
-                try:
-                    from ..config import settings
-                    media_dir = os.path.join(settings.media_root, "photos")
-                    os.makedirs(media_dir, exist_ok=True)
-                    
-                    file_path = os.path.join(media_dir, media_info["media_filename"])
-                    await self.client.download_media(message.media, file_path)
-                    
-                    # 保存相对路径
-                    media_info["media_path"] = f"media/photos/{media_info['media_filename']}"
-                    logger.info(f"图片下载成功: {file_path}")
-                    
-                except Exception as e:
-                    logger.error(f"图片下载失败: {e}")
-                    # 即使下载失败，也保留媒体信息
+                # 设置文件ID信息（用于后续下载）
+                if hasattr(message.media.photo, 'id'):
+                    media_info["media_file_id"] = str(message.media.photo.id)
+                if hasattr(message.media.photo, 'file_reference'):
+                    media_info["media_file_unique_id"] = str(message.media.photo.file_reference)
+                
+                # 只有在download=True时才下载文件
+                if download:
+                    try:
+                        from ..config import settings
+                        media_dir = os.path.join(settings.media_root, "photos")
+                        os.makedirs(media_dir, exist_ok=True)
+                        
+                        file_path = os.path.join(media_dir, media_info["media_filename"])
+                        await self.client.download_media(message.media, file_path)
+                        
+                        # 保存相对路径
+                        media_info["media_path"] = f"media/photos/{media_info['media_filename']}"
+                        media_info["media_downloaded"] = True
+                        logger.info(f"图片下载成功: {file_path}")
+                        
+                    except Exception as e:
+                        logger.error(f"图片下载失败: {e}")
+                        # 即使下载失败，也保留媒体信息
+                else:
+                    logger.debug(f"跳过转发图片下载: {media_info['media_filename']}")
                 
             elif isinstance(message.media, MessageMediaDocument):
                 doc = message.media.document
                 media_info["media_size"] = doc.size
+                
+                # 设置文件ID信息
+                if hasattr(doc, 'id'):
+                    media_info["media_file_id"] = str(doc.id)
+                if hasattr(doc, 'file_reference'):
+                    media_info["media_file_unique_id"] = str(doc.file_reference)
                 
                 # 判断媒体类型
                 if doc.mime_type:
@@ -417,23 +444,27 @@ class TelegramService:
                 
                 media_info["media_filename"] = original_filename
                 
-                # 下载文件
-                try:
-                    from ..config import settings
-                    media_type = media_info["media_type"]
-                    media_dir = os.path.join(settings.media_root, f"{media_type}s")
-                    os.makedirs(media_dir, exist_ok=True)
-                    
-                    file_path = os.path.join(media_dir, original_filename)
-                    await self.client.download_media(message.media, file_path)
-                    
-                    # 保存相对路径
-                    media_info["media_path"] = f"media/{media_type}s/{original_filename}"
-                    logger.info(f"{media_type}文件下载成功: {file_path}")
-                    
-                except Exception as e:
-                    logger.error(f"文件下载失败: {e}")
-                    # 即使下载失败，也保留媒体信息
+                # 只有在download=True时才下载文件
+                if download:
+                    try:
+                        from ..config import settings
+                        media_type = media_info["media_type"]
+                        media_dir = os.path.join(settings.media_root, f"{media_type}s")
+                        os.makedirs(media_dir, exist_ok=True)
+                        
+                        file_path = os.path.join(media_dir, original_filename)
+                        await self.client.download_media(message.media, file_path)
+                        
+                        # 保存相对路径
+                        media_info["media_path"] = f"media/{media_type}s/{original_filename}"
+                        media_info["media_downloaded"] = True
+                        logger.info(f"{media_type}文件下载成功: {file_path}")
+                        
+                    except Exception as e:
+                        logger.error(f"文件下载失败: {e}")
+                        # 即使下载失败，也保留媒体信息
+                else:
+                    logger.debug(f"跳过转发{media_info['media_type']}文件下载: {original_filename}")
                 
             return media_info
             

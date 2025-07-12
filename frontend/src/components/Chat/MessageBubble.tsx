@@ -25,7 +25,7 @@ import {
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
 import { MessageBubbleProps } from '../../types/chat';
-import EnhancedMediaPreview from './EnhancedMediaPreview';
+import MediaDownloadPreview from './MediaDownloadPreview';
 import EnhancedVoiceMessage from './EnhancedVoiceMessage';
 import MessageReactions from './MessageReactions';
 import LinkPreview, { parseLinks, renderTextWithLinks } from './LinkPreview';
@@ -181,11 +181,11 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
           </div>
         )}
 
-        {/* 媒体内容 - 使用增强组件 */}
-        {message.media_type && message.media_path && (
+        {/* 媒体内容 - 显示所有媒体类型，支持按需下载 */}
+        {message.media_type && (
           <div className="message-media">
-            {/* 语音和音频消息 */}
-            {(message.media_type === 'voice' || message.media_type === 'audio') && (
+            {/* 语音和音频消息 - 如果已下载则使用现有组件 */}
+            {(message.media_type === 'voice' || message.media_type === 'audio') && message.media_downloaded && message.media_path ? (
               <EnhancedVoiceMessage
                 url={message.media_path}
                 duration={0} // duration not available in the type
@@ -194,18 +194,12 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                 className="message-voice"
                 compact={isMobile}
               />
-            )}
-            
-            {/* 所有其他媒体类型使用增强预览组件 */}
-            {!['voice', 'audio'].includes(message.media_type) && (
-              <EnhancedMediaPreview
-                mediaType={message.media_type}
-                mediaPath={message.media_path}
-                filename={message.media_filename}
-                size={message.media_size}
+            ) : (
+              /* 所有媒体类型使用按需下载预览组件 */
+              <MediaDownloadPreview
+                message={message}
                 className="message-media-preview"
-                thumbnail={true}
-                onGalleryOpen={(mediaPath) => {
+                onPreview={(mediaPath) => {
                   // TODO: 打开画廊模式
                   console.log('Open gallery for:', mediaPath);
                 }}

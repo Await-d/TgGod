@@ -436,6 +436,46 @@ export const downloadApi = {
   },
 };
 
+// 媒体下载相关API
+export const mediaApi = {
+  // 下载媒体文件
+  downloadMedia: (messageId: number, force: boolean = false): Promise<{
+    status: string;
+    message: string;
+    file_path?: string;
+    file_size?: number;
+    download_url?: string;
+    message_id?: number;
+    media_type?: string;
+    estimated_size?: number;
+  }> => {
+    return api.post(`/media/download/${messageId}`, {}, { params: { force } });
+  },
+
+  // 获取媒体下载状态
+  getDownloadStatus: (messageId: number): Promise<{
+    status: string;
+    message: string;
+    file_path?: string;
+    file_size?: number;
+    download_url?: string;
+    media_type?: string;
+    file_id?: string;
+    error?: string;
+  }> => {
+    return api.get(`/media/download-status/${messageId}`);
+  },
+
+  // 删除本地媒体文件
+  deleteMediaFile: (messageId: number): Promise<{
+    status: string;
+    message: string;
+    message_id?: number;
+  }> => {
+    return api.delete(`/media/media/${messageId}`);
+  },
+};
+
 // 群组管理相关API
 export const groupApi = {
   // 同步群组信息
