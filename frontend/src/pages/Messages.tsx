@@ -89,8 +89,10 @@ const MessagesPage: React.FC = () => {
   // 获取群组列表
   const fetchGroups = async () => {
     try {
-      const response = await telegramApi.getGroups();
+      // 使用getAllGroups获取所有群组，避免分页限制
+      const response = await telegramApi.getAllGroups();
       setGroups(response);
+      console.log(`成功获取 ${response.length} 个群组`);
       if (response.length > 0 && !selectedGroup) {
         setSelectedGroup(response[0]);
       }

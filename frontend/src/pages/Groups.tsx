@@ -25,7 +25,7 @@ import {
 } from '@ant-design/icons';
 import { TelegramGroup } from '../types';
 import { useTelegramStore, useGlobalStore } from '../store';
-import { apiService } from '../services/api';
+import { telegramApi } from '../services/apiService';
 import { useNormalPageScrollControl } from '../hooks/usePageScrollControl';
 
 const { Title } = Typography;
@@ -42,10 +42,10 @@ const Groups: React.FC = () => {
   const loadGroups = React.useCallback(async () => {
     setLoading(true);
     try {
-      const response = await apiService.get<TelegramGroup[]>('/telegram/groups');
-      if (response.success && response.data) {
-        setGroups(response.data);
-      }
+      // 使用getAllGroups获取所有群组，避免分页限制
+      const response = await telegramApi.getAllGroups();
+      setGroups(response);
+      console.log(`成功加载 ${response.length} 个群组`);
     } catch (error) {
       setError('加载群组列表失败');
       console.error('加载群组失败:', error);
@@ -60,13 +60,11 @@ const Groups: React.FC = () => {
 
   const handleAddGroup = async (values: { username: string }) => {
     try {
-      const response = await apiService.post<TelegramGroup>('/telegram/groups', values);
-      if (response.success && response.data) {
-        addGroup(response.data);
-        setIsModalVisible(false);
-        form.resetFields();
-        message.success('群组添加成功');
-      }
+      const response = await telegramApi.addGroup(values.username);
+      addGroup(response);
+      setIsModalVisible(false);
+      form.resetFields();
+      message.success('群组添加成功');
     } catch (error) {
       message.error('添加群组失败');
       console.error('添加群组失败:', error);
@@ -75,10 +73,8 @@ const Groups: React.FC = () => {
 
   const handleSyncMessages = async (groupId: number) => {
     try {
-      const response = await apiService.post(`/telegram/groups/${groupId}/sync`);
-      if (response.success) {
-        message.success('消息同步成功');
-      }
+      const response = await telegramApi.syncGroupMessages(groupId);
+      message.success('消息同步成功');
     } catch (error) {
       message.error('消息同步失败');
       console.error('消息同步失败:', error);
@@ -87,13 +83,11 @@ const Groups: React.FC = () => {
 
   const handleToggleStatus = async (groupId: number, currentStatus: boolean) => {
     try {
-      const response = await apiService.put<TelegramGroup>(`/telegram/groups/${groupId}`, {
+      const response = await telegramApi.updateGroup(groupId, {
         is_active: !currentStatus
       });
-      if (response.success && response.data) {
-        updateGroup(groupId, { is_active: !currentStatus });
-        message.success('状态更新成功');
-      }
+      updateGroup(groupId, { is_active: !currentStatus });
+      message.success('状态更新成功');
     } catch (error) {
       message.error('状态更新失败');
       console.error('状态更新失败:', error);
@@ -102,11 +96,9 @@ const Groups: React.FC = () => {
 
   const handleDeleteGroup = async (groupId: number) => {
     try {
-      const response = await apiService.delete(`/telegram/groups/${groupId}`);
-      if (response.success) {
-        removeGroup(groupId);
-        message.success('群组删除成功');
-      }
+      const response = await telegramApi.deleteGroup(groupId);
+      removeGroup(groupId);
+      message.success('群组删除成功');
     } catch (error) {
       message.error('删除群组失败');
       console.error('删除群组失败:', error);

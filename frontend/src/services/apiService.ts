@@ -110,6 +110,33 @@ export const telegramApi = {
     return api.get('/telegram/groups', { params: { skip, limit } });
   },
 
+  // 获取所有群组（自动分页处理）
+  getAllGroups: async (): Promise<TelegramGroup[]> => {
+    const allGroups: TelegramGroup[] = [];
+    let skip = 0;
+    const limit = 1000; // 使用最大限制
+    
+    while (true) {
+      const response = await api.get('/telegram/groups', { params: { skip, limit } });
+      const groups = response.data || response; // 处理可能的响应格式差异
+      
+      if (!groups || groups.length === 0) {
+        break;
+      }
+      
+      allGroups.push(...groups);
+      
+      // 如果返回的群组数量小于limit，说明已经获取完所有数据
+      if (groups.length < limit) {
+        break;
+      }
+      
+      skip += limit;
+    }
+    
+    return allGroups;
+  },
+
   // 添加群组
   addGroup: (username: string): Promise<TelegramGroup> => {
     return api.post('/telegram/groups', { username });

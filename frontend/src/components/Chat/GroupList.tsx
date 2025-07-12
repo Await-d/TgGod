@@ -37,8 +37,11 @@ const GroupList: React.FC<GroupListProps> = ({
   const fetchGroups = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await telegramApi.getGroups();
+      // 使用getAllGroups获取所有群组，避免分页限制
+      const response = await telegramApi.getAllGroups();
       setGroups(response);
+      
+      console.log(`成功获取 ${response.length} 个群组`);
       
       // 如果群组列表为空，尝试从Telegram同步
       if (response.length === 0) {
@@ -48,7 +51,7 @@ const GroupList: React.FC<GroupListProps> = ({
           if (syncResult.success && syncResult.synced_count > 0) {
             message.success(`成功同步 ${syncResult.synced_count} 个群组`);
             // 重新获取群组列表
-            const updatedResponse = await telegramApi.getGroups();
+            const updatedResponse = await telegramApi.getAllGroups();
             setGroups(updatedResponse);
           } else if (syncResult.success && syncResult.synced_count === 0) {
             message.info('未发现新的群组');
@@ -80,7 +83,7 @@ const GroupList: React.FC<GroupListProps> = ({
         if (syncResult.synced_count > 0) {
           message.success(`成功同步 ${syncResult.synced_count} 个群组`);
           // 重新获取群组列表
-          const updatedResponse = await telegramApi.getGroups();
+          const updatedResponse = await telegramApi.getAllGroups();
           setGroups(updatedResponse);
         } else {
           message.info('未发现新的群组');
