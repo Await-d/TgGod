@@ -1,16 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Button, Typography, Tag, Avatar, Spin } from 'antd';
+import { Typography, Tag, Avatar, Spin } from 'antd';
 import { 
   TeamOutlined,
   CheckCircleOutlined,
   PauseCircleOutlined,
-  PushpinOutlined,
-  LeftOutlined,
-  RightOutlined,
   MessageOutlined
 } from '@ant-design/icons';
-import { TelegramGroup, TelegramMessage } from '../../types';
-import { messageApi, telegramApi } from '../../services/apiService';
+import { TelegramGroup } from '../../types';
+import { telegramApi } from '../../services/apiService';
 import './MessageHeader.css';
 
 const { Title, Text } = Typography;
@@ -33,27 +30,9 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   isMobile = false
 }) => {
   
-  // 置顶消息状态
-  const [pinnedMessages, setPinnedMessages] = useState<TelegramMessage[]>([]);
-  const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
-  
   // 群组统计信息状态
   const [groupStats, setGroupStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
-
-  // 获取置顶消息
-  const fetchPinnedMessages = useCallback(async () => {
-    if (!group) return;
-    
-    try {
-      const pinnedMessages = await messageApi.getPinnedMessages(group.id);
-      setPinnedMessages(pinnedMessages || []);
-      setCurrentPinnedIndex(0);
-    } catch (error: any) {
-      console.error('获取置顶消息失败:', error);
-      setPinnedMessages([]);
-    }
-  }, [group]);
 
   // 获取群组统计信息
   const fetchGroupStats = useCallback(async () => {
@@ -74,26 +53,9 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   // 当群组变化时获取信息
   useEffect(() => {
     if (group) {
-      fetchPinnedMessages();
       fetchGroupStats();
     }
-  }, [group, fetchPinnedMessages, fetchGroupStats]);
-
-  // 切换置顶消息
-  const handlePinnedPrevious = () => {
-    setCurrentPinnedIndex(prev => prev > 0 ? prev - 1 : pinnedMessages.length - 1);
-  };
-
-  const handlePinnedNext = () => {
-    setCurrentPinnedIndex(prev => prev < pinnedMessages.length - 1 ? prev + 1 : 0);
-  };
-
-  // 跳转到置顶消息
-  const handleJumpToPinned = () => {
-    if (pinnedMessages.length > 0 && onJumpToMessage) {
-      onJumpToMessage(pinnedMessages[currentPinnedIndex].message_id);
-    }
-  };
+  }, [group, fetchGroupStats]);
 
   // 获取群组头像
   const getGroupAvatar = () => {
@@ -218,55 +180,6 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {/* 置顶消息 */}
-      {pinnedMessages.length > 0 && (
-        <div className="pinned-section">
-          <div className="pinned-content">
-            <PushpinOutlined className="pinned-icon" />
-            <div className="pinned-message">
-              <Text strong className="pinned-label">置顶消息</Text>
-              <div className="pinned-text">
-                <Text ellipsis>
-                  {pinnedMessages[currentPinnedIndex]?.text || '媒体消息'}
-                </Text>
-              </div>
-            </div>
-            
-            <div className="pinned-actions">
-              {pinnedMessages.length > 1 && (
-                <>
-                  <Button 
-                    type="text" 
-                    size="small" 
-                    icon={<LeftOutlined />} 
-                    onClick={handlePinnedPrevious}
-                    className="pinned-nav-btn"
-                  />
-                  <Text type="secondary" className="pinned-counter">
-                    {currentPinnedIndex + 1}/{pinnedMessages.length}
-                  </Text>
-                  <Button 
-                    type="text" 
-                    size="small" 
-                    icon={<RightOutlined />} 
-                    onClick={handlePinnedNext}
-                    className="pinned-nav-btn"
-                  />
-                </>
-              )}
-              <Button 
-                type="text" 
-                size="small" 
-                onClick={handleJumpToPinned}
-                className="pinned-jump-btn"
-              >
-                跳转
-              </Button>
-            </div>
-          </div>
         </div>
       )}
     </div>
