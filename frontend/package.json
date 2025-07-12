@@ -53,5 +53,5 @@
     "@stagewise/toolbar-react": "^0.5.1",
     "@types/jest": "^27.5.2"
   },
-  "proxy": "http://localhost:8000"
+  "proxy": "http://localhost:8001"
 }

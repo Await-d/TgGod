@@ -47,7 +47,9 @@ steps:
       - docker ps | grep tggod
       
       - echo "健康检查..."
+      - sleep 10
       - curl -f http://localhost:10200/health || echo "健康检查失败，正在重试..."
+      - sleep 5
       - curl -f http://localhost:10200/health || echo "健康检查仍然失败"
       
       - echo "检查容器日志..."
