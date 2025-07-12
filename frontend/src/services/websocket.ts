@@ -26,11 +26,39 @@ class WebSocketService {
 
     // 获取WebSocket URL
     const wsUrl = process.env.REACT_APP_WS_URL 
-      ? `${process.env.REACT_APP_WS_URL}/ws/${this.clientId}`
+      ? (() => {
+          const wsBaseUrl = process.env.REACT_APP_WS_URL;
+          let finalUrl: string;
+          
+          // 如果是完整URL（包含协议），直接使用
+          if (wsBaseUrl.startsWith('ws://') || wsBaseUrl.startsWith('wss://')) {
+            finalUrl = `${wsBaseUrl}/ws/${this.clientId}`;
+          } else {
+            // 如果是相对路径，构建完整URL
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            finalUrl = `${protocol}//${host}${wsBaseUrl}/${this.clientId}`;
+          }
+          
+          console.log('WebSocket连接配置:', {
+            baseUrl: wsBaseUrl,
+            clientId: this.clientId,
+            finalUrl: finalUrl
+          });
+          
+          return finalUrl;
+        })()
       : (() => {
           const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
           const host = window.location.host;
-          return `${protocol}//${host}/ws/${this.clientId}`;
+          const finalUrl = `${protocol}//${host}/ws/${this.clientId}`;
+          
+          console.log('WebSocket连接配置 (默认):', {
+            clientId: this.clientId,
+            finalUrl: finalUrl
+          });
+          
+          return finalUrl;
         })();
     
     try {

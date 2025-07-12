@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket连接测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .log { max-height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket连接测试</h1>
+    
+    <div id="status" class="status info">准备连接...</div>
+    
+    <button onclick="connect()">连接WebSocket</button>
+    <button onclick="disconnect()">断开连接</button>
+    <button onclick="sendTestMessage()">发送测试消息</button>
+    <button onclick="clearLog()">清空日志</button>
+    
+    <h3>连接日志:</h3>
+    <div id="log" class="log"></div>
+    
+    <script>
+        let socket = null;
+        let clientId = `test_client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${time}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function connect() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                log('WebSocket已连接');
+                return;
+            }
+            
+            // 模拟生产环境的URL构建逻辑
+            const wsBaseUrl = '/ws'; // 生产环境配置
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}${wsBaseUrl}/${clientId}`;
+            
+            log(`尝试连接: ${wsUrl}`);
+            updateStatus('正在连接...', 'info');
+            
+            try {
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = function(event) {
+                    log('WebSocket连接成功');
+                    updateStatus('已连接', 'success');
+                };
+                
+                socket.onmessage = function(event) {
+                    log(`收到消息: ${event.data}`);
+                };
+                
+                socket.onclose = function(event) {
+                    log(`连接关闭: ${event.code} ${event.reason}`);
+                    updateStatus('连接已关闭', 'error');
+                };
+                
+                socket.onerror = function(error) {
+                    log(`连接错误: ${error}`);
+                    updateStatus('连接错误', 'error');
+                };
+                
+            } catch (error) {
+                log(`连接异常: ${error}`);
+                updateStatus('连接失败', 'error');
+            }
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.close();
+                socket = null;
+                log('主动断开连接');
+            }
+        }
+        
+        function sendTestMessage() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const testMessage = {
+                    type: 'test',
+                    data: 'Hello WebSocket!',
+                    timestamp: Date.now()
+                };
+                socket.send(JSON.stringify(testMessage));
+                log(`发送测试消息: ${JSON.stringify(testMessage)}`);
+            } else {
+                log('WebSocket未连接，无法发送消息');
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        // 页面加载时显示配置信息
+        window.onload = function() {
+            log(`客户端ID: ${clientId}`);
+            log(`当前协议: ${window.location.protocol}`);
+            log(`当前主机: ${window.location.host}`);
+            
+            const wsBaseUrl = '/ws';
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}${wsBaseUrl}/${clientId}`;
+            log(`将要连接的URL: ${wsUrl}`);
+        };
+    </script>
+</body>
+</html>
