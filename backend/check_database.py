@@ -101,6 +101,8 @@ class DatabaseChecker:
                 'sender_name', 'text', 'media_type', 'media_path', 'media_size',
                 'media_filename', 'view_count', 'is_forwarded', 'forwarded_from',
                 'is_own_message',  # 新增字段
+                'media_file_id', 'media_file_unique_id', 'media_downloaded',  # 媒体文件按需下载字段
+                'media_download_url', 'media_download_error', 'media_thumbnail_path',  # 媒体文件按需下载字段
                 'reply_to_message_id', 'edit_date', 'is_pinned', 'reactions',
                 'mentions', 'hashtags', 'urls', 'date', 'created_at', 'updated_at'
             ],
@@ -193,6 +195,47 @@ class DatabaseChecker:
             logger.error(f"创建数据库表失败: {e}")
             return False
     
+    def add_missing_columns(self) -> bool:
+        """添加缺失的列"""
+        try:
+            # 定义媒体文件按需下载相关字段的SQL
+            media_columns = {
+                'media_file_id': 'VARCHAR(255)',
+                'media_file_unique_id': 'VARCHAR(255)', 
+                'media_downloaded': 'BOOLEAN',
+                'media_download_url': 'VARCHAR(500)',
+                'media_download_error': 'TEXT',
+                'media_thumbnail_path': 'VARCHAR(500)'
+            }
+            
+            # 检查telegram_messages表的现有列
+            current_columns = self.get_table_columns('telegram_messages')
+            added_columns = []
+            
+            with self.engine.connect() as conn:
+                for column_name, column_type in media_columns.items():
+                    if column_name not in current_columns:
+                        try:
+                            sql = f"ALTER TABLE telegram_messages ADD COLUMN {column_name} {column_type}"
+                            conn.execute(text(sql))
+                            added_columns.append(column_name)
+                            logger.info(f"已添加列: {column_name}")
+                        except Exception as e:
+                            logger.error(f"添加列 {column_name} 失败: {e}")
+                            return False
+                
+                if added_columns:
+                    conn.commit()
+                    logger.info(f"成功添加 {len(added_columns)} 个缺失列: {', '.join(added_columns)}")
+                else:
+                    logger.info("所有必需列已存在，无需添加")
+                    
+            return True
+            
+        except Exception as e:
+            logger.error(f"添加缺失列失败: {e}")
+            return False
+    
     def check_and_repair(self) -> bool:
         """检查并修复数据库"""
         logger.info("开始数据库检查...")
@@ -260,8 +303,15 @@ class DatabaseChecker:
             if missing_columns:
                 for table, cols in missing_columns.items():
                     logger.info(f"表 {table} 缺少列: {', '.join(cols)}")
+                    
+                # 先尝试添加缺失的列
+                logger.info("尝试自动添加缺失的媒体文件相关列...")
+                if not self.add_missing_columns():
+                    logger.error("自动添加列失败，尝试运行完整迁移...")
+                else:
+                    logger.info("缺失列添加成功")
             
-            # 运行迁移
+            # 运行迁移确保所有更新都应用
             success = self.run_migrations()
             if not success:
                 logger.error("数据库迁移失败")
