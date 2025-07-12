@@ -57,6 +57,12 @@
 .pinned-info {
   flex: 1;
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pinned-pagination {
+  display: flex;
   align-items: center;
   gap: 8px;
 }
@@ -66,6 +72,31 @@
   background: rgba(250, 173, 20, 0.2);
   padding: 2px 6px;
   border-radius: 10px;
+  white-space: nowrap;
+}
+
+.pinned-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.pinned-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(250, 173, 20, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pinned-dot:hover {
+  background: rgba(250, 173, 20, 0.6);
+  transform: scale(1.2);
+}
+
+.pinned-dot.active {
+  background: #faad14;
+  transform: scale(1.3);
 }
 
 .pinned-actions {
@@ -219,6 +250,42 @@
   0% { transform: scale(1); }
   50% { transform: scale(1.1); }
   100% { transform: scale(1); }
+}
+
+/* 自动播放进度条 */
+.pinned-autoplay-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: #faad14;
+  transition: width 0.1s linear;
+  border-radius: 0 0 8px 8px;
+}
+
+.pinned-messages-card.autoplay {
+  position: relative;
+  overflow: hidden;
+}
+
+/* 自动播放指示器 */
+.pinned-autoplay-indicator {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: rgba(250, 173, 20, 0.9);
+  color: white;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: bold;
+  animation: autoplayPulse 2s infinite;
+}
+
+@keyframes autoplayPulse {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
 }
 
 /* 置顶消息导航按钮 */

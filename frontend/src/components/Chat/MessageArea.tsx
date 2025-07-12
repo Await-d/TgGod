@@ -9,6 +9,7 @@ import {
 import { TelegramGroup, TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
 import MessageHeader from './MessageHeader';
+import PinnedMessages from './PinnedMessages';
 import { messageApi, telegramApi } from '../../services/apiService';
 import { useTelegramStore, useAuthStore, useTelegramUserStore } from '../../store';
 import './MessageArea.css';
@@ -353,6 +354,14 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         onSync={syncMessages}
         onJumpToMessage={jumpToMessage}
         loading={loading}
+        isMobile={isMobile}
+      />
+
+      {/* 置顶消息 */}
+      <PinnedMessages
+        selectedGroup={selectedGroup}
+        onJumpToMessage={jumpToMessage}
+        visible={true}
         isMobile={isMobile}
       />
 

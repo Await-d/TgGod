@@ -236,10 +236,9 @@ async def get_group_messages(
     # 3. 这样前端就不需要做任何排序操作
     
     if is_pinned is True:
-        # 置顶消息按照消息ID降序排列（最新置顶的在前）
-        messages_desc = query.order_by(TelegramMessage.id.desc()).offset(skip).limit(limit).all()
-        # 反转为正序（最早置顶的在前，最新置顶的在后）
-        messages = list(reversed(messages_desc))
+        # 置顶消息按照消息日期降序排列（最新置顶的在前）
+        # 使用date字段而不是id，因为date更准确反映消息的时间
+        messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
     else:
         # 获取消息（降序获取最新的）
         messages_desc = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()

@@ -5,7 +5,9 @@ import {
   CloseOutlined, 
   LeftOutlined, 
   RightOutlined,
-  ArrowDownOutlined 
+  ArrowDownOutlined,
+  PlayCircleOutlined,
+  PauseCircleOutlined
 } from '@ant-design/icons';
 import { TelegramMessage, TelegramGroup } from '../../types';
 import { messageApi } from '../../services/apiService';
@@ -32,6 +34,8 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   const [loading, setLoading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(false);
+  const [autoPlayInterval, setAutoPlayInterval] = useState<NodeJS.Timeout | null>(null);
 
   // 获取置顶消息
   const fetchPinnedMessages = useCallback(async () => {
@@ -66,6 +70,64 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   const handleNext = useCallback(() => {
     setCurrentIndex(prev => prev < pinnedMessages.length - 1 ? prev + 1 : 0);
   }, [pinnedMessages.length]);
+
+  // 自动播放功能
+  const startAutoPlay = useCallback(() => {
+    if (pinnedMessages.length <= 1) return;
+    
+    setAutoPlay(true);
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => prev < pinnedMessages.length - 1 ? prev + 1 : 0);
+    }, 5000); // 每5秒切换一次
+    
+    setAutoPlayInterval(interval);
+  }, [pinnedMessages.length]);
+
+  const stopAutoPlay = useCallback(() => {
+    setAutoPlay(false);
+    if (autoPlayInterval) {
+      clearInterval(autoPlayInterval);
+      setAutoPlayInterval(null);
+    }
+  }, [autoPlayInterval]);
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (autoPlayInterval) {
+        clearInterval(autoPlayInterval);
+      }
+    };
+  }, [autoPlayInterval]);
+
+  // 当置顶消息变化时停止自动播放
+  useEffect(() => {
+    stopAutoPlay();
+  }, [pinnedMessages, stopAutoPlay]);
+
+  // 键盘导航支持
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (pinnedMessages.length <= 1) return;
+      
+      // 只在没有焦点在输入框时响应
+      if (document.activeElement?.tagName === 'INPUT' || 
+          document.activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      if (event.key === 'ArrowLeft' && event.ctrlKey) {
+        event.preventDefault();
+        handlePrevious();
+      } else if (event.key === 'ArrowRight' && event.ctrlKey) {
+        event.preventDefault();
+        handleNext();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlePrevious, handleNext, pinnedMessages.length]);
 
   // 跳转到消息位置
   const handleJumpToMessage = useCallback((messageId: number) => {
@@ -122,9 +184,15 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   return (
     <div className={`pinned-messages-container ${isMobile ? 'mobile' : ''}`}>
       <Card 
-        className={`pinned-messages-card ${isExpanded ? 'expanded' : ''}`}
+        className={`pinned-messages-card ${isExpanded ? 'expanded' : ''} ${autoPlay ? 'autoplay' : ''}`}
         size="small"
       >
+        {/* 自动播放指示器 */}
+        {autoPlay && (
+          <div className="pinned-autoplay-indicator">
+            AUTO
+          </div>
+        )}
         {/* 头部信息 */}
         <div className="pinned-header">
           <div className="pinned-icon">
@@ -133,9 +201,22 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
           <div className="pinned-info">
             <Text strong>置顶消息</Text>
             {pinnedMessages.length > 1 && (
-              <Text type="secondary" className="pinned-count">
-                {currentIndex + 1} / {pinnedMessages.length}
-              </Text>
+              <div className="pinned-pagination">
+                <Text type="secondary" className="pinned-count">
+                  {currentIndex + 1} / {pinnedMessages.length}
+                </Text>
+                {/* 页面指示器 */}
+                <div className="pinned-dots">
+                  {pinnedMessages.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`pinned-dot ${index === currentIndex ? 'active' : ''}`}
+                      onClick={() => setCurrentIndex(index)}
+                      title={`跳转到第 ${index + 1} 条置顶消息`}
+                    />
+                  ))}
+                </div>
+              </div>
             )}
           </div>
           <div className="pinned-actions">
@@ -148,6 +229,17 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                 onClick={() => setIsExpanded(!isExpanded)}
               />
             )}
+            {/* 自动播放按钮 */}
+            {pinnedMessages.length > 1 && !isMobile && (
+              <Button
+                type="text"
+                size="small"
+                icon={autoPlay ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                onClick={autoPlay ? stopAutoPlay : startAutoPlay}
+                className="pinned-nav-btn"
+                title={autoPlay ? "停止自动播放" : "开始自动播放"}
+              />
+            )}
             {/* 导航按钮 */}
             {pinnedMessages.length > 1 && (
               <Space size="small">
@@ -156,12 +248,16 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                   size="small"
                   icon={<LeftOutlined />}
                   onClick={handlePrevious}
+                  className="pinned-nav-btn"
+                  title="上一条置顶消息 (Ctrl+←)"
                 />
                 <Button
                   type="text"
                   size="small"
                   icon={<RightOutlined />}
                   onClick={handleNext}
+                  className="pinned-nav-btn"
+                  title="下一条置顶消息 (Ctrl+→)"
                 />
               </Space>
             )}
