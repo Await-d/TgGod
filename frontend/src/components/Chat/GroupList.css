@@ -278,11 +278,12 @@
 .group-name {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   margin-bottom: 4px;
 }
 
-.name-text {
+.group-name .name-text {
   font-weight: 600;
   color: #262626;
   font-size: 15px;
@@ -290,6 +291,35 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 统计信息样式 - 简化版本 */
+.stats-summary {
+  font-size: 11px;
+  color: #999;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.stats-summary.loading {
+  display: flex;
+  align-items: center;
+}
+
+.group-item.selected .stats-summary {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.group-item:hover .stats-summary {
+  color: #666;
+}
+
+.group-item.selected:hover .stats-summary {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .group-username {
@@ -309,45 +339,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-top: 2px;
-}
-
-/* 群组统计信息 - 新样式 */
-.group-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 6px;
-  align-items: center;
-}
-
-.stats-item {
-  display: flex;
-  align-items: center;
-  font-size: 11px;
-  color: #666;
-  background: rgba(0, 0, 0, 0.05);
-  padding: 2px 6px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.stats-item:hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: #333;
-}
-
-.group-item.selected .stats-item {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.group-item.selected .stats-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.stats-item .anticon {
-  font-size: 10px;
 }
 
 .group-metadata {

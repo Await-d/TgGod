@@ -4,11 +4,7 @@ import {
   TeamOutlined, 
   CheckCircleOutlined, 
   PauseCircleOutlined,
-  PushpinOutlined,
-  MessageOutlined,
-  FileImageOutlined,
-  VideoCameraOutlined,
-  FileTextOutlined
+  PushpinOutlined
 } from '@ant-design/icons';
 import { GroupListItemProps } from '../../types/chat';
 import { telegramApi } from '../../services/apiService';
@@ -67,59 +63,48 @@ const GroupItem: React.FC<GroupListItemProps> = ({
     }
   };
 
-  // 获取统计信息摘要
+  // 获取统计信息摘要 - 简化版本
   const getStatsDisplay = () => {
     if (loadingStats) {
-      return <Spin size="small" />;
+      return (
+        <span className="stats-summary loading">
+          <Spin size="small" />
+        </span>
+      );
     }
     
     if (!groupStats) {
-      return (
-        <div className="stats-item">
-          <MessageOutlined style={{ marginRight: 4, color: '#999' }} />
-          <span style={{ color: '#999' }}>统计加载中...</span>
-        </div>
-      );
+      return null;
     }
 
     const items = [];
     
-    // 总消息数
+    // 总消息数 - 简化显示
     if (groupStats.total_messages > 0) {
-      items.push(
-        <div key="total" className="stats-item">
-          <MessageOutlined style={{ marginRight: 4 }} />
-          <span>{groupStats.total_messages.toLocaleString()} 消息</span>
-        </div>
-      );
+      items.push(`${groupStats.total_messages.toLocaleString()}条`);
     }
 
-    // 媒体消息统计
+    // 媒体消息统计 - 简化显示
     const mediaCount = (groupStats.photo_messages || 0) + 
                       (groupStats.video_messages || 0) + 
                       (groupStats.document_messages || 0) + 
                       (groupStats.audio_messages || 0);
     
     if (mediaCount > 0) {
-      items.push(
-        <div key="media" className="stats-item">
-          <FileImageOutlined style={{ marginRight: 4 }} />
-          <span>{mediaCount.toLocaleString()} 媒体</span>
-        </div>
-      );
+      items.push(`${mediaCount.toLocaleString()}媒体`);
     }
 
-    // 置顶消息
+    // 置顶消息 - 简化显示
     if (groupStats.pinned_messages > 0) {
-      items.push(
-        <div key="pinned" className="stats-item">
-          <PushpinOutlined style={{ marginRight: 4, color: '#1890ff' }} />
-          <span style={{ color: '#1890ff' }}>{groupStats.pinned_messages} 置顶</span>
-        </div>
-      );
+      items.push(`${groupStats.pinned_messages}置顶`);
     }
 
-    return items.slice(0, 2); // 最多显示2个统计项
+    // 只显示最多2个统计项，用分隔符连接
+    return items.length > 0 ? (
+      <span className="stats-summary">
+        {items.slice(0, 2).join(' · ')}
+      </span>
+    ) : null;
   };
 
   // 获取群组头像
@@ -216,6 +201,8 @@ const GroupItem: React.FC<GroupListItemProps> = ({
             )}
             <span className="name-text">{group.title}</span>
             {getStatusIcon()}
+            {/* 统计信息 - 放在群组名同一行右侧 */}
+            {getStatsDisplay()}
           </div>
           
           <div className="group-username">
@@ -229,11 +216,6 @@ const GroupItem: React.FC<GroupListItemProps> = ({
             {group.description}
           </div>
         )}
-
-        {/* 群组统计信息 - 新设计 */}
-        <div className="group-stats">
-          {getStatsDisplay()}
-        </div>
 
         {/* 群组元数据 */}
         <div className="group-metadata">
