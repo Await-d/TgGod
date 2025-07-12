@@ -28,6 +28,11 @@ const getMediaUrl = (path: string): string => {
     return path;
   }
   
+  // 如果路径以 media/ 开头，直接使用 /media/ 前缀（静态文件服务）
+  if (path.startsWith('media/')) {
+    return `/${path}`;
+  }
+  
   const apiBase = process.env.REACT_APP_API_URL || '';
   return `${apiBase}/${path.startsWith('/') ? path.slice(1) : path}`;
 };

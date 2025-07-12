@@ -23,16 +23,16 @@ const getMediaUrl = (path: string): string => {
     return path;
   }
   
+  // 处理media路径 - 静态文件直接使用 /media/ 前缀
+  if (path.startsWith('media/')) {
+    return `/${path}`;
+  }
+  
   const apiBase = process.env.REACT_APP_API_URL || '';
   
   // 处理相对路径
   if (path.startsWith('/')) {
     return `${apiBase}${path}`;
-  }
-  
-  // 处理media路径
-  if (path.startsWith('media/')) {
-    return `${apiBase}/${path}`;
   }
   
   // 默认处理

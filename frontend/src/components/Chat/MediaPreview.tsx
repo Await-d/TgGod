@@ -12,7 +12,12 @@ const getMediaUrl = (path: string) => {
     return path;
   }
   
-  // 如果是相对路径，使用当前域名
+  // 如果路径以 media/ 开头，直接使用 /media/ 前缀（静态文件服务）
+  if (path.startsWith('media/')) {
+    return `/${path}`;
+  }
+  
+  // 如果是其他相对路径，使用API基础URL
   const apiBase = process.env.REACT_APP_API_URL || '';
   return `${apiBase}/${path.startsWith('/') ? path.slice(1) : path}`;
 };
