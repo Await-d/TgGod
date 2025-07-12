@@ -13,6 +13,7 @@ import Settings from './pages/Settings';
 import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
 import MediaTestPage from './pages/MediaTestPage';
+import MediaDownloadTestPage from './pages/MediaDownloadTestPage';
 import { webSocketService } from './services/websocket';
 import { useGlobalStore, useAuthStore } from './store';
 // 导入StagewiseToolbar和ReactPlugin
@@ -128,6 +129,15 @@ const App: React.FC = () => {
             <MainLayout>
               <Content>
                 <MediaTestPage />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/media-download-test" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <MediaDownloadTestPage />
               </Content>
             </MainLayout>
           </ProtectedRoute>

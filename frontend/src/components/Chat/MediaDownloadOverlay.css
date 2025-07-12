@@ -1,0 +1,280 @@
+/* 媒体下载遮罩层样式 */
+.media-download-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.media-download-overlay:hover {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+/* 下载内容容器 */
+.download-overlay-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  color: white;
+  max-width: 200px;
+}
+
+/* 媒体图标 */
+.media-icon {
+  font-size: 48px;
+  color: #1890ff;
+  margin-bottom: 12px;
+  opacity: 0.9;
+}
+
+.download-overlay-content.failed .error-icon,
+.download-overlay-content.missing .error-icon {
+  font-size: 48px;
+  color: #ff4d4f;
+  margin-bottom: 12px;
+}
+
+/* 媒体信息 */
+.media-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 4px;
+}
+
+.media-info .media-type {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.media-info .file-name {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-info .file-size {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* 下载按钮 */
+.download-button {
+  min-width: 120px;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+}
+
+.download-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
+}
+
+/* 下载中状态 */
+.download-overlay-content.downloading {
+  gap: 16px;
+}
+
+.progress-container {
+  margin-bottom: 8px;
+}
+
+.download-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.download-info .download-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+}
+
+.download-info .file-name {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-info .file-size {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.cancel-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  border: none;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cancel-button:hover {
+  color: white;
+  background: rgba(255, 77, 79, 0.8);
+}
+
+/* 失败状态 */
+.download-overlay-content.failed,
+.download-overlay-content.missing {
+  gap: 12px;
+}
+
+.error-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.error-info .error-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ff4d4f;
+}
+
+.error-info .error-message {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  max-width: 180px;
+  line-height: 1.4;
+}
+
+.error-info .file-name {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 重试和重新下载按钮 */
+.retry-button,
+.redownload-button {
+  min-width: 100px;
+  height: 36px;
+  font-size: 13px;
+  border-radius: 18px;
+}
+
+.retry-button {
+  background: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+.retry-button:hover {
+  background: #ff7875;
+  border-color: #ff7875;
+  transform: translateY(-1px);
+}
+
+.redownload-button {
+  background: #1890ff;
+  border-color: #1890ff;
+}
+
+.redownload-button:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
+  transform: translateY(-1px);
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+  .download-overlay-content {
+    padding: 16px;
+    max-width: 160px;
+  }
+  
+  .media-icon,
+  .error-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+  
+  .media-info .media-type {
+    font-size: 14px;
+  }
+  
+  .media-info .file-name {
+    font-size: 12px;
+    max-width: 120px;
+  }
+  
+  .download-button {
+    min-width: 100px;
+    height: 36px;
+    font-size: 13px;
+  }
+  
+  .download-info .download-text {
+    font-size: 13px;
+  }
+  
+  .error-info .error-message {
+    max-width: 140px;
+    font-size: 11px;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.media-download-overlay {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 自定义进度条颜色 */
+.ant-progress-circle .ant-progress-text {
+  font-size: 12px !important;
+  font-weight: 600;
+  color: white !important;
+}
+
+.download-overlay-content.downloading .ant-progress-circle {
+  filter: drop-shadow(0 2px 8px rgba(24, 144, 255, 0.3));
+}

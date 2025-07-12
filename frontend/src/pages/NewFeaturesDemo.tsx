@@ -82,19 +82,23 @@ const NewFeaturesDemo: React.FC = () => {
             <div>
               <Text strong>图片预览：</Text>
               <MediaPreview
+                messageId={1}
                 url="https://via.placeholder.com/300x200/4A90E2/ffffff?text=Sample+Image"
                 type="image"
                 filename="sample-image.jpg"
                 size="245 KB"
+                downloaded={true}
               />
             </div>
             <div>
               <Text strong>视频预览：</Text>
               <MediaPreview
+                messageId={2}
                 url="https://www.w3schools.com/html/mov_bbb.mp4"
                 type="video"
                 filename="sample-video.mp4"
                 size="2.1 MB"
+                downloaded={true}
               />
             </div>
           </Space>
