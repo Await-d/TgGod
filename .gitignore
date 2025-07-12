@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 */node_modules/
+**/data/**
+**/media/**
+**/logs/**
+**/telegram_sessions/**
 
 # Build outputs
 build/

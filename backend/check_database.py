@@ -236,6 +236,124 @@ class DatabaseChecker:
             logger.error(f"添加缺失列失败: {e}")
             return False
     
+    def create_sample_data(self) -> bool:
+        """创建示例数据"""
+        try:
+            from sqlalchemy.orm import sessionmaker
+            from app.models.telegram import TelegramGroup, TelegramMessage
+            from datetime import datetime
+            
+            Session = sessionmaker(bind=self.engine)
+            session = Session()
+            
+            try:
+                # 检查是否已有数据
+                existing_groups = session.query(TelegramGroup).count()
+                if existing_groups > 0:
+                    logger.info("数据库中已存在群组数据，跳过示例数据创建")
+                    return True
+                
+                logger.info("创建示例数据...")
+                
+                # 创建示例群组
+                sample_group = TelegramGroup(
+                    telegram_id=1001,
+                    title="测试群组",
+                    username="test_group",
+                    description="这是一个测试群组",
+                    member_count=10,
+                    is_active=True,
+                    created_at=datetime.now()
+                )
+                session.add(sample_group)
+                session.flush()  # 获取ID
+                
+                # 创建示例消息
+                sample_messages = [
+                    TelegramMessage(
+                        group_id=sample_group.id,
+                        message_id=1001,
+                        sender_id=1001,
+                        sender_username="test_user",
+                        sender_name="测试用户",
+                        text="这是一条测试消息",
+                        view_count=5,
+                        is_forwarded=False,
+                        is_own_message=False,
+                        is_pinned=False,
+                        date=datetime.now(),
+                        created_at=datetime.now()
+                    ),
+                    TelegramMessage(
+                        group_id=sample_group.id,
+                        message_id=1002,
+                        sender_id=1002,
+                        sender_username="test_user2",
+                        sender_name="测试用户2",
+                        text="这是一条置顶消息",
+                        view_count=10,
+                        is_forwarded=False,
+                        is_own_message=False,
+                        is_pinned=True,
+                        date=datetime.now(),
+                        created_at=datetime.now()
+                    ),
+                    TelegramMessage(
+                        group_id=sample_group.id,
+                        message_id=1003,
+                        sender_id=1003,
+                        sender_username="media_user",
+                        sender_name="媒体用户",
+                        text="这是一条包含图片的消息",
+                        media_type="photo",
+                        media_path="media/photos/test.jpg",
+                        media_size=1024,
+                        media_filename="test.jpg",
+                        view_count=3,
+                        is_forwarded=False,
+                        is_own_message=False,
+                        is_pinned=False,
+                        date=datetime.now(),
+                        created_at=datetime.now()
+                    ),
+                    TelegramMessage(
+                        group_id=sample_group.id,
+                        message_id=1004,
+                        sender_id=1004,
+                        sender_username="doc_user",
+                        sender_name="文档用户",
+                        text="这是一个测试文档",
+                        media_type="document",
+                        media_path="media/documents/test.txt",
+                        media_size=21,
+                        media_filename="test.txt",
+                        view_count=2,
+                        is_forwarded=False,
+                        is_own_message=False,
+                        is_pinned=True,
+                        date=datetime.now(),
+                        created_at=datetime.now()
+                    )
+                ]
+                
+                for message in sample_messages:
+                    session.add(message)
+                
+                session.commit()
+                logger.info(f"成功创建示例数据：1个群组，{len(sample_messages)}条消息")
+                return True
+                
+            except Exception as e:
+                session.rollback()
+                logger.error(f"创建示例数据失败: {e}")
+                return False
+            finally:
+                session.close()
+                
+        except Exception as e:
+            logger.error(f"示例数据创建过程错误: {e}")
+            return False
+
     def check_and_repair(self) -> bool:
         """检查并修复数据库"""
         logger.info("开始数据库检查...")
@@ -355,6 +473,11 @@ class DatabaseChecker:
             if not self.run_migrations():
                 logger.error("数据库升级失败")
                 return False
+        
+        # 创建示例数据（如果数据库为空）
+        logger.info("检查是否需要创建示例数据...")
+        if not self.create_sample_data():
+            logger.warning("示例数据创建失败，但不影响系统运行")
         
         logger.info("数据库检查和修复完成")
         return True
