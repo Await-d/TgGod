@@ -208,12 +208,22 @@ class DatabaseChecker:
                 'media_thumbnail_path': 'VARCHAR(500)'
             }
             
+            # 定义转发消息相关字段的SQL
+            forwarded_columns = {
+                'forwarded_from_id': 'BIGINT',
+                'forwarded_from_type': 'VARCHAR(20)',
+                'forwarded_date': 'DATETIME'
+            }
+            
+            # 合并所有需要检查的列
+            all_columns = {**media_columns, **forwarded_columns}
+            
             # 检查telegram_messages表的现有列
             current_columns = self.get_table_columns('telegram_messages')
             added_columns = []
             
             with self.engine.connect() as conn:
-                for column_name, column_type in media_columns.items():
+                for column_name, column_type in all_columns.items():
                     if column_name not in current_columns:
                         try:
                             sql = f"ALTER TABLE telegram_messages ADD COLUMN {column_name} {column_type}"
@@ -281,6 +291,7 @@ class DatabaseChecker:
                         is_forwarded=False,
                         is_own_message=False,
                         is_pinned=False,
+                        media_downloaded=False,  # 明确设置为False
                         date=datetime.now(),
                         created_at=datetime.now()
                     ),
@@ -295,6 +306,7 @@ class DatabaseChecker:
                         is_forwarded=False,
                         is_own_message=False,
                         is_pinned=True,
+                        media_downloaded=False,  # 明确设置为False
                         date=datetime.now(),
                         created_at=datetime.now()
                     ),
@@ -307,8 +319,9 @@ class DatabaseChecker:
                         text="这是一条包含图片的消息",
                         media_type="photo",
                         media_path="media/photos/test.jpg",
-                        media_size=1024,
+                        media_size=1616,  # 实际文件大小
                         media_filename="test.jpg",
+                        media_downloaded=True,  # 设置为已下载
                         view_count=3,
                         is_forwarded=False,
                         is_own_message=False,
@@ -327,6 +340,7 @@ class DatabaseChecker:
                         media_path="media/documents/test.txt",
                         media_size=21,
                         media_filename="test.txt",
+                        media_downloaded=True,  # 设置为已下载
                         view_count=2,
                         is_forwarded=False,
                         is_own_message=False,
