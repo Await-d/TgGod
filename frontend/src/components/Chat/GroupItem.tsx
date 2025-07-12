@@ -40,7 +40,7 @@ const GroupItem: React.FC<GroupListItemProps> = ({
     if (isSelected || !groupStats) {
       fetchGroupStats();
     }
-  }, [group.id, isSelected, groupStats]);
+  }, [group.id, isSelected]); // 移除 groupStats 避免无限循环
   
   // 格式化时间
   const formatTime = (dateString: string) => {
