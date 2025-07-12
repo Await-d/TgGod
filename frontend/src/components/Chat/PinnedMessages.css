@@ -81,22 +81,52 @@
 }
 
 .pinned-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: rgba(250, 173, 20, 0.3);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
 }
 
 .pinned-dot:hover {
   background: rgba(250, 173, 20, 0.6);
-  transform: scale(1.2);
+  transform: scale(1.3);
+  box-shadow: 0 2px 4px rgba(250, 173, 20, 0.3);
 }
 
 .pinned-dot.active {
   background: #faad14;
-  transform: scale(1.3);
+  transform: scale(1.4);
+  box-shadow: 0 2px 6px rgba(250, 173, 20, 0.4);
+}
+
+.pinned-dot.active::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 1px solid rgba(250, 173, 20, 0.4);
+  border-radius: 50%;
+  animation: dotPulse 2s infinite;
+}
+
+@keyframes dotPulse {
+  0% { 
+    opacity: 1;
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.7;
+    transform: scale(1.1); 
+  }
+  100% { 
+    opacity: 1;
+    transform: scale(1); 
+  }
 }
 
 .pinned-actions {
@@ -107,18 +137,20 @@
 
 /* 置顶消息内容 */
 .pinned-content {
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
 .pinned-content.visible {
-  max-height: 200px;
+  max-height: 250px;
   opacity: 1;
+  transform: translateY(0);
 }
 
 .pinned-content.hidden {
   max-height: 0;
   opacity: 0;
+  transform: translateY(-10px);
 }
 
 .pinned-message-content {
@@ -126,6 +158,18 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  animation: contentSlideIn 0.3s ease-out;
+}
+
+@keyframes contentSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* 发送者信息 */
@@ -293,13 +337,37 @@
   border: none;
   background: rgba(250, 173, 20, 0.1);
   color: #faad14;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  border-radius: 6px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .pinned-nav-btn:hover {
   background: rgba(250, 173, 20, 0.2);
   color: #d48806;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(250, 173, 20, 0.2);
+}
+
+.pinned-nav-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(250, 173, 20, 0.3);
+}
+
+.pinned-nav-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.pinned-nav-btn:hover::before {
+  left: 100%;
 }
 
 /* 置顶消息关闭按钮 */

@@ -25,7 +25,7 @@
 }
 
 .message-bubble.other {
-  flex-direction: row;
+  flex-direction: row-reverse;
 }
 
 /* 消息头像 */
@@ -80,6 +80,11 @@
   max-width: 75%;
 }
 
+.message-bubble.other .message-body {
+  max-width: 75%;
+  text-align: left;
+}
+
 /* 发送者信息 */
 .message-sender-info {
   margin-bottom: 4px;
@@ -110,7 +115,7 @@
 .message-bubble-content.other-bubble {
   background: rgba(255, 255, 255, 0.95);
   color: #262626;
-  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 

@@ -95,7 +95,8 @@
       "Bash(DATABASE_URL=\"sqlite:///data/test_empty.db\" python check_database.py)",
       "Bash(systemctl:*)",
       "Bash(DATABASE_URL=\"sqlite:////app/data/tggod.db\" python -c \"\nimport sqlite3\nconn = sqlite3.connect(''/app/data/tggod.db'')\ncursor = conn.cursor()\n\n# 手动执行数据库迁移，确保字段存在\ntry:\n    cursor.execute(''ALTER TABLE telegram_messages ADD COLUMN test_column TEXT'')\n    print(''可以添加列'')\n    cursor.execute(''ALTER TABLE telegram_messages DROP COLUMN test_column'')\n    print(''可以删除列'')\nexcept Exception as e:\n    print(f''数据库操作权限测试: {e}'')\n\n# 验证所有字段\ncursor.execute(''PRAGMA table_info(telegram_messages)'')\ncolumns = cursor.fetchall()\ncolumn_names = [col[1] for col in columns]\nrequired_fields = [''media_file_id'', ''media_file_unique_id'', ''media_downloaded'', ''media_download_url'', ''media_download_error'', ''media_thumbnail_path'']\nfor field in required_fields:\n    if field in column_names:\n        print(f''✓ {field} 存在'')\n    else:\n        print(f''✗ {field} 缺失'')\n\nconn.close()\n\")",
-      "Bash(./pre_deploy_fix.sh:*)"
+      "Bash(./pre_deploy_fix.sh:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

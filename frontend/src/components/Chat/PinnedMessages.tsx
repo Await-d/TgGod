@@ -36,6 +36,9 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [autoPlay, setAutoPlay] = useState(false);
   const [autoPlayInterval, setAutoPlayInterval] = useState<NodeJS.Timeout | null>(null);
+  const [autoPlayProgress, setAutoPlayProgress] = useState(0);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
 
   // 获取置顶消息
   const fetchPinnedMessages = useCallback(async () => {
@@ -61,35 +64,72 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
     }
   }, [selectedGroup, visible, fetchPinnedMessages]);
 
+  // 自动播放控制函数
+  const stopAutoPlay = useCallback(() => {
+    setAutoPlay(false);
+    setAutoPlayProgress(0);
+    if (autoPlayInterval) {
+      clearInterval(autoPlayInterval);
+      setAutoPlayInterval(null);
+    }
+  }, [autoPlayInterval]);
+
   // 切换到上一条置顶消息
   const handlePrevious = useCallback(() => {
-    setCurrentIndex(prev => prev > 0 ? prev - 1 : pinnedMessages.length - 1);
-  }, [pinnedMessages.length]);
+    if (pinnedMessages.length <= 1) return;
+    
+    stopAutoPlay(); // 停止自动播放
+    setCurrentIndex(prev => {
+      const newIndex = prev > 0 ? prev - 1 : pinnedMessages.length - 1;
+      return newIndex;
+    });
+  }, [pinnedMessages.length, stopAutoPlay]);
 
   // 切换到下一条置顶消息
   const handleNext = useCallback(() => {
-    setCurrentIndex(prev => prev < pinnedMessages.length - 1 ? prev + 1 : 0);
-  }, [pinnedMessages.length]);
+    if (pinnedMessages.length <= 1) return;
+    
+    stopAutoPlay(); // 停止自动播放
+    setCurrentIndex(prev => {
+      const newIndex = prev < pinnedMessages.length - 1 ? prev + 1 : 0;
+      return newIndex;
+    });
+  }, [pinnedMessages.length, stopAutoPlay]);
 
   // 自动播放功能
   const startAutoPlay = useCallback(() => {
     if (pinnedMessages.length <= 1) return;
     
     setAutoPlay(true);
+    setAutoPlayProgress(0);
+    
+    // 进度条更新
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += 2.5; // 每100ms增加2.5%，4秒内完成
+      if (progress >= 100) {
+        progress = 0;
+      }
+      setAutoPlayProgress(progress);
+    }, 100);
+    
+    // 主切换间隔
     const interval = setInterval(() => {
-      setCurrentIndex(prev => prev < pinnedMessages.length - 1 ? prev + 1 : 0);
-    }, 5000); // 每5秒切换一次
+      setCurrentIndex(prev => {
+        const newIndex = prev < pinnedMessages.length - 1 ? prev + 1 : 0;
+        setAutoPlayProgress(0); // 重置进度
+        return newIndex;
+      });
+    }, 4000); // 每4秒切换一次，更快一些
     
     setAutoPlayInterval(interval);
+    
+    // 清理函数
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(interval);
+    };
   }, [pinnedMessages.length]);
-
-  const stopAutoPlay = useCallback(() => {
-    setAutoPlay(false);
-    if (autoPlayInterval) {
-      clearInterval(autoPlayInterval);
-      setAutoPlayInterval(null);
-    }
-  }, [autoPlayInterval]);
 
   // 清理定时器
   useEffect(() => {
@@ -122,14 +162,60 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
       } else if (event.key === 'ArrowRight' && event.ctrlKey) {
         event.preventDefault();
         handleNext();
+      } else if (event.key === 'Space' && event.ctrlKey) {
+        // Ctrl+Space 切换自动播放
+        event.preventDefault();
+        if (autoPlay) {
+          stopAutoPlay();
+        } else {
+          startAutoPlay();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePrevious, handleNext, pinnedMessages.length]);
+  }, [handlePrevious, handleNext, pinnedMessages.length, autoPlay, stopAutoPlay, startAutoPlay]);
 
-  // 跳转到消息位置
+  // 跳转到特定索引的置顶消息
+  const handleJumpToIndex = useCallback((index: number) => {
+    if (index >= 0 && index < pinnedMessages.length && index !== currentIndex) {
+      stopAutoPlay(); // 停止自动播放
+      setCurrentIndex(index);
+    }
+  }, [pinnedMessages.length, currentIndex, stopAutoPlay]);
+
+  // 触摸手势支持
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setTouchEnd({ x: touch.clientX, y: touch.clientY });
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!touchStart || !touchEnd || pinnedMessages.length <= 1) return;
+    
+    const deltaX = touchEnd.x - touchStart.x;
+    const deltaY = Math.abs(touchEnd.y - touchStart.y);
+    
+    // 只在水平滑动距离超过50px且垂直滑动小于30px时触发切换
+    if (Math.abs(deltaX) > 50 && deltaY < 30) {
+      if (deltaX > 0) {
+        // 右滑：上一个
+        handlePrevious();
+      } else {
+        // 左滑：下一个
+        handleNext();
+      }
+    }
+    
+    setTouchStart(null);
+    setTouchEnd(null);
+  }, [touchStart, touchEnd, pinnedMessages.length, handlePrevious, handleNext]);
   const handleJumpToMessage = useCallback((messageId: number) => {
     try {
       onJumpToMessage(messageId);
@@ -187,6 +273,13 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
         className={`pinned-messages-card ${isExpanded ? 'expanded' : ''} ${autoPlay ? 'autoplay' : ''}`}
         size="small"
       >
+        {/* 自动播放进度条 */}
+        {autoPlay && (
+          <div 
+            className="pinned-autoplay-progress" 
+            style={{ width: `${autoPlayProgress}%` }}
+          />
+        )}
         {/* 自动播放指示器 */}
         {autoPlay && (
           <div className="pinned-autoplay-indicator">
@@ -211,8 +304,12 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                     <div
                       key={index}
                       className={`pinned-dot ${index === currentIndex ? 'active' : ''}`}
-                      onClick={() => setCurrentIndex(index)}
+                      onClick={() => handleJumpToIndex(index)}
                       title={`跳转到第 ${index + 1} 条置顶消息`}
+                      style={{
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
                     />
                   ))}
                 </div>
@@ -237,7 +334,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                 icon={autoPlay ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
                 onClick={autoPlay ? stopAutoPlay : startAutoPlay}
                 className="pinned-nav-btn"
-                title={autoPlay ? "停止自动播放" : "开始自动播放"}
+                title={autoPlay ? "停止自动播放 (Ctrl+Space)" : "开始自动播放 (Ctrl+Space)"}
               />
             )}
             {/* 导航按钮 */}
@@ -274,7 +371,13 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
         </div>
 
         {/* 消息内容 */}
-        <div className={`pinned-content ${isExpanded || !isMobile ? 'visible' : 'hidden'}`}>
+        <div 
+          className={`pinned-content ${isExpanded || !isMobile ? 'visible' : 'hidden'}`}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{ touchAction: 'pan-y' }} // 允许垂直滚动，禁止水平滚动
+        >
           <div className="pinned-message-content">
             {/* 发送者信息 */}
             <div className="pinned-sender">

@@ -167,7 +167,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     
     const fullUrl = downloadState.downloadUrl.startsWith('http') 
       ? downloadState.downloadUrl 
-      : `${process.env.REACT_APP_API_URL || 'http://localhost:8001'}/${downloadState.downloadUrl}`;
+      : `${process.env.REACT_APP_API_URL || 'http://localhost:8001'}${downloadState.downloadUrl}`;
     
     switch (message.media_type) {
       case 'photo':
@@ -268,7 +268,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                 icon={<DownloadOutlined />}
                 href={downloadState.downloadUrl.startsWith('http') 
                   ? downloadState.downloadUrl 
-                  : `${process.env.REACT_APP_API_URL || 'http://localhost:8001'}/${downloadState.downloadUrl}`
+                  : `${process.env.REACT_APP_API_URL || 'http://localhost:8001'}${downloadState.downloadUrl}`
                 }
                 download={message.media_filename}
                 target="_blank"
