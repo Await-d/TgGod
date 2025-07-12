@@ -10,6 +10,8 @@ import {
   FastBackwardOutlined,
   MutedOutlined
 } from '@ant-design/icons';
+import { useMediaDownload } from '../../hooks/useMediaDownload';
+import MediaDownloadOverlay from './MediaDownloadOverlay';
 import './EnhancedVoiceMessage.css';
 
 // 获取完整的媒体URL
@@ -44,20 +46,24 @@ const formatFileSize = (bytes: number | string): string => {
 };
 
 interface EnhancedVoiceMessageProps {
+  messageId?: number; // 新增：消息ID用于下载状态追踪
   url: string;
   duration?: number;
   filename?: string;
   size?: string | number;
+  downloaded?: boolean; // 新增：是否已下载
   className?: string;
   compact?: boolean;
   waveformData?: number[];
 }
 
 const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
+  messageId,
   url,
   duration = 0,
   filename,
   size,
+  downloaded = false,
   className = '',
   compact = false,
   waveformData
@@ -79,8 +85,28 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   
+  // 下载状态管理
+  const {
+    downloadStatus,
+    isLoading: isDownloadLoading,
+    startDownload,
+    retryDownload
+  } = useMediaDownload({
+    messageId: messageId || 0,
+    autoRefresh: messageId ? !downloaded : false,
+    onDownloadComplete: (filePath) => {
+      antMessage.success('语音文件下载完成');
+    },
+    onDownloadError: (error) => {
+      antMessage.error(`下载失败: ${error}`);
+    }
+  });
+  
   const mediaUrl = getMediaUrl(url);
   const formattedSize = size ? formatFileSize(size) : undefined;
+  
+  // 判断是否应该显示音频控件
+  const shouldShowAudio = downloaded || downloadStatus.status === 'downloaded';
   
   // 初始化音频上下文和分析器
   useEffect(() => {

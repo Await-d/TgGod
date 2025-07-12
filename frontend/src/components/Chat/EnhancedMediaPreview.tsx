@@ -13,6 +13,8 @@ import {
   RotateLeftOutlined,
   RotateRightOutlined
 } from '@ant-design/icons';
+import { useMediaDownload } from '../../hooks/useMediaDownload';
+import MediaDownloadOverlay from './MediaDownloadOverlay';
 import './EnhancedMediaPreview.css';
 
 // 获取完整的媒体URL
@@ -125,6 +127,39 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
   const [currentMediaPath, setCurrentMediaPath] = useState(mediaPath);
   
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // 下载状态管理 - 只有在需要时才启用
+  const {
+    downloadStatus,
+    isLoading: isDownloadLoading,
+    startDownload,
+    retryDownload
+  } = useMediaDownload({
+    messageId: messageId || 0,
+    autoRefresh: messageId ? !downloaded : false, // 只有提供messageId且未下载时才自动刷新
+    onDownloadComplete: (filePath) => {
+      message.success('文件下载完成');
+      setCurrentMediaPath(filePath);
+    },
+    onDownloadError: (error) => {
+      message.error(`下载失败: ${error}`);
+    }
+  });
+
+  // 判断是否应该显示媒体内容
+  const shouldShowMedia = downloaded || downloadStatus.status === 'downloaded' || !!currentMediaPath;
+  
+  // 将媒体类型转换为下载组件需要的格式
+  const getDownloadMediaType = (type: string) => {
+    switch (type) {
+      case 'photo': return 'photo';
+      case 'video': return 'video';
+      case 'audio': 
+      case 'voice': return 'audio';
+      case 'document': return 'document';
+      default: return 'document';
+    }
+  };
   
   const mediaUrl = getMediaUrl(currentMediaPath || '');
   
@@ -308,20 +343,54 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
   
   // 渲染缩略图模式
   const renderThumbnail = () => {
-    // 如果没有媒体路径，显示占位符
-    if (!currentMediaPath) {
+    const containerStyle = {
+      position: 'relative' as const,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    };
+
+    // 如果没有媒体路径且需要下载，显示占位符和下载遮罩
+    if (!shouldShowMedia) {
       return (
-        <div className="file-thumbnail placeholder" onClick={handleOnDemandDownload}>
-          {getFileIcon(fileType, 32)}
-          <span className="file-type">{fileType.toUpperCase()}</span>
-          <div className="download-hint">点击下载</div>
+        <div className="file-thumbnail placeholder" style={containerStyle}>
+          {/* 占位符内容 */}
+          <div style={{ 
+            width: thumbnail ? 120 : 200, 
+            height: thumbnail ? 80 : 150,
+            background: '#f5f5f5',
+            borderRadius: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8
+          }}>
+            {getFileIcon(fileType, thumbnail ? 24 : 32)}
+            <span className="file-type" style={{ fontSize: thumbnail ? 10 : 12, color: '#999' }}>
+              {fileType.toUpperCase()}
+            </span>
+          </div>
+          
+          {/* 下载遮罩层 */}
+          {messageId && (
+            <MediaDownloadOverlay
+              mediaType={getDownloadMediaType(mediaType)}
+              downloadStatus={downloadStatus}
+              fileName={filename}
+              fileSize={typeof size === 'number' ? size : undefined}
+              isLoading={isDownloadLoading}
+              onDownload={startDownload}
+              onRetry={retryDownload}
+            />
+          )}
         </div>
       );
     }
     
     if (fileType === 'photo') {
       return (
-        <div className={`media-thumbnail ${error ? 'error' : ''} ${loading ? 'loading' : ''}`} onClick={handlePreview}>
+        <div className={`media-thumbnail ${error ? 'error' : ''} ${loading ? 'loading' : ''}`} onClick={handlePreview} style={containerStyle}>
           {loading && <Spin size="small" />}
           {error ? (
             <div className="error-placeholder">
@@ -347,37 +416,71 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
     }
     
     if (fileType === 'video') {
-      if (!currentMediaPath) {
-        return (
-          <div className="file-thumbnail placeholder" onClick={handleOnDemandDownload}>
-            {getFileIcon(fileType, 32)}
-            <span className="file-type">{fileType.toUpperCase()}</span>
-            <div className="download-hint">点击下载</div>
-          </div>
-        );
-      }
-      
       return (
-        <div className={`media-thumbnail video-thumbnail`} onClick={handlePreview}>
-          <video
-            ref={videoRef}
-            src={mediaUrl}
-            muted
-            onLoadedData={handleMediaLoad}
-            onError={handleMediaError}
-          />
-          <div className="media-overlay">
-            <PlayCircleOutlined style={{ fontSize: 32, color: 'white' }} />
-          </div>
+        <div className="video-thumbnail" onClick={handlePreview} style={containerStyle}>
+          {loading && <Spin size="small" />}
+          {error ? (
+            <div className="error-placeholder">
+              {getFileIcon(fileType, 24)}
+              <span>加载失败</span>
+            </div>
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                src={mediaUrl}
+                onLoadedData={handleMediaLoad}
+                onError={handleMediaError}
+                muted
+                style={{ 
+                  opacity: loading ? 0 : 1,
+                  maxWidth: thumbnail ? 120 : 200,
+                  maxHeight: thumbnail ? 80 : 150,
+                  borderRadius: 8
+                }}
+              />
+              <div className="media-overlay">
+                <PlayCircleOutlined style={{ fontSize: 24, color: 'white' }} />
+              </div>
+            </>
+          )}
         </div>
       );
     }
     
-    // 其他文件类型的缩略图
+    // 其他文件类型的缩略图（音频、文档等）
     return (
-      <div className="file-thumbnail" onClick={handlePreview}>
-        {getFileIcon(fileType, 32)}
-        <span className="file-type">{fileType.toUpperCase()}</span>
+      <div className="file-thumbnail" onClick={shouldShowMedia ? handlePreview : undefined} style={containerStyle}>
+        <div style={{ 
+          width: thumbnail ? 120 : 200, 
+          height: thumbnail ? 80 : 150,
+          background: '#f5f5f5',
+          borderRadius: 8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          cursor: shouldShowMedia ? 'pointer' : 'default'
+        }}>
+          {getFileIcon(fileType, thumbnail ? 24 : 32)}
+          <span className="file-type" style={{ fontSize: thumbnail ? 10 : 12, color: '#999' }}>
+            {fileType.toUpperCase()}
+          </span>
+        </div>
+        
+        {/* 下载遮罩层 */}
+        {!shouldShowMedia && messageId && (
+          <MediaDownloadOverlay
+            mediaType={getDownloadMediaType(mediaType)}
+            downloadStatus={downloadStatus}
+            fileName={filename}
+            fileSize={typeof size === 'number' ? size : undefined}
+            isLoading={isDownloadLoading}
+            onDownload={startDownload}
+            onRetry={retryDownload}
+          />
+        )}
       </div>
     );
   };
