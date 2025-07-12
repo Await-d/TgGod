@@ -279,8 +279,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 12px;
   margin-bottom: 4px;
+}
+
+.name-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
 .group-name .name-text {
@@ -295,14 +303,16 @@
   min-width: 0;
 }
 
+.stats-section {
+  flex-shrink: 0;
+}
+
 /* 统计信息样式 - 简化版本 */
 .stats-summary {
   font-size: 11px;
   color: #999;
   font-weight: 500;
   white-space: nowrap;
-  flex-shrink: 0;
-  margin-left: 8px;
 }
 
 .stats-summary.loading {

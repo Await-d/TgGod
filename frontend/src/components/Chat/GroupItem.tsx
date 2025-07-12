@@ -186,23 +186,27 @@ const GroupItem: React.FC<GroupListItemProps> = ({
       <div className="group-info">
         <div className="group-main-info">
           <div className="group-name">
-            {/* 置顶图标 */}
-            {group.is_pinned && (
-              <Tooltip title="已置顶群组">
-                <PushpinOutlined 
-                  style={{ 
-                    marginRight: 6, 
-                    color: '#1890ff', 
-                    fontSize: 14,
-                    transform: 'rotate(45deg)' 
-                  }} 
-                />
-              </Tooltip>
-            )}
-            <span className="name-text">{group.title}</span>
-            {getStatusIcon()}
-            {/* 统计信息 - 放在群组名同一行右侧 */}
-            {getStatsDisplay()}
+            <div className="name-section">
+              {/* 置顶图标 */}
+              {group.is_pinned && (
+                <Tooltip title="已置顶群组">
+                  <PushpinOutlined 
+                    style={{ 
+                      marginRight: 6, 
+                      color: '#1890ff', 
+                      fontSize: 14,
+                      transform: 'rotate(45deg)' 
+                    }} 
+                  />
+                </Tooltip>
+              )}
+              <span className="name-text">{group.title}</span>
+              {getStatusIcon()}
+            </div>
+            {/* 统计信息 - 单独在右侧 */}
+            <div className="stats-section">
+              {getStatsDisplay()}
+            </div>
           </div>
           
           <div className="group-username">
