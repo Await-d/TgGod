@@ -193,17 +193,34 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
         failed: 0
       });
 
-      let result: MonthlySyncResponse;
-
       if (syncMode === 'single' && selectedGroup) {
-        // 单个群组同步
-        result = await telegramApi.syncGroupMessagesMonthly(
+        // 单个群组同步 - 启动异步任务
+        const response = await telegramApi.syncGroupMessagesMonthly(
           selectedGroup.id,
           selectedMonths
         );
+        
+        if (response.success) {
+          message.success(response.message);
+          setSyncProgress({
+            currentMonth: '等待开始...',
+            progress: 0,
+            total: selectedMonths.length,
+            completed: 0,
+            failed: 0
+          });
+        } else {
+          throw new Error('启动同步任务失败');
+        }
       } else if (syncMode === 'batch' && selectedGroups.length > 0) {
         // 批量群组同步
-        result = await telegramApi.syncAllGroupsMonthly(selectedMonths);
+        const result = await telegramApi.syncAllGroupsMonthly(selectedMonths);
+        
+        if (result.success) {
+          message.success(`批量同步任务已启动`);
+        } else {
+          throw new Error('启动批量同步失败');
+        }
       } else {
         message.error('请选择要同步的群组');
         setLoading(false);
@@ -211,25 +228,23 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
         return;
       }
 
-      // 如果没有通过WebSocket获取到结果，使用API返回的结果
-      if (!syncResult) {
-        setSyncResult(result);
-        setSyncProgress(null);
-        setLoading(false);
-        
-        if (result.success) {
-          message.success(`同步完成！共同步 ${result.total_messages} 条消息`);
-        } else {
-          message.error('同步失败：' + result.error);
-        }
-      }
+      // API调用成功，现在等待WebSocket消息
+      // loading状态会在收到完成消息时被重置
 
     } catch (error) {
-      console.error('同步失败:', error);
-      message.error('同步失败，请重试');
+      console.error('启动同步失败:', error);
+      message.error('启动同步任务失败，请重试');
       setLoading(false);
       setSyncProgress(null);
     }
+  };
+
+  // 取消同步
+  const handleCancelSync = () => {
+    setLoading(false);
+    setSyncProgress(null);
+    setSyncResult(null);
+    message.info('已取消同步任务');
   };
 
   // 格式化月份显示
@@ -491,15 +506,25 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
         {/* 操作按钮 */}
         <Form.Item>
           <Space>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={loading}
-              disabled={selectedMonths.length === 0}
-              icon={<SyncOutlined />}
-            >
-              {loading ? '同步中...' : '开始同步'}
-            </Button>
+            {!loading ? (
+              <Button
+                type="primary"
+                htmlType="submit"
+                disabled={selectedMonths.length === 0}
+                icon={<SyncOutlined />}
+              >
+                开始同步
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                danger
+                onClick={handleCancelSync}
+                icon={<SyncOutlined />}
+              >
+                取消同步
+              </Button>
+            )}
             <Button onClick={handleReset} disabled={loading}>
               重置
             </Button>

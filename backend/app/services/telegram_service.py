@@ -683,9 +683,9 @@ class TelegramService:
                     if group_id:
                         try:
                             from ..websocket import websocket_manager
-                            await websocket_manager.send_message(
-                                f"group_{group_id}",
-                                {
+                            # 向所有连接的客户端发送进度更新
+                            for client_id in websocket_manager.get_connected_clients():
+                                await websocket_manager.send_message(client_id, {
                                     "type": "monthly_sync_progress",
                                     "data": {
                                         "currentMonth": f"{year}-{month:02d}",
@@ -693,9 +693,9 @@ class TelegramService:
                                         "total": total_months,
                                         "completed": sync_result["months_synced"],
                                         "failed": len(sync_result["failed_months"])
-                                    }
-                                }
-                            )
+                                    },
+                                    "timestamp": datetime.now().isoformat()
+                                })
                         except Exception as ws_e:
                             logger.warning(f"WebSocket进度推送失败: {ws_e}")
                     

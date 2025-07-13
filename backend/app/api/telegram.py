@@ -436,13 +436,13 @@ async def sync_group_messages(
         logger.error(f"同步群组消息失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/groups/{group_id}/sync-monthly", response_model=MonthlySyncResponse)
+@router.post("/groups/{group_id}/sync-monthly")
 async def sync_group_messages_monthly(
     group_id: int,
     request: MonthlySyncRequest,
     db: Session = Depends(get_db)
 ):
-    """按月同步群组消息"""
+    """按月同步群组消息（异步任务）"""
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
@@ -469,27 +469,62 @@ async def sync_group_messages_monthly(
         # 转换月份数据
         months_data = [{"year": month.year, "month": month.month} for month in request.months]
         
+        # 启动异步同步任务（不等待完成）
+        import asyncio
+        asyncio.create_task(
+            sync_monthly_task(group_identifier, months_data, group_id)
+        )
+        
+        # 立即返回成功响应
+        return {
+            "success": True,
+            "message": f"月度同步任务已启动，将同步 {len(months_data)} 个月的数据",
+            "total_months": len(months_data)
+        }
+
+    except Exception as e:
+        logger.error(f"启动按月同步任务失败: {e}")
+        raise HTTPException(status_code=500, detail=f"启动同步任务失败: {str(e)}")
+
+async def sync_monthly_task(group_identifier, months_data, group_id):
+    """异步执行按月同步任务"""
+    try:
         # 执行按月同步
         result = await telegram_service.sync_messages_by_month(group_identifier, months_data)
         
-        # 通过WebSocket推送更新
+        # 通过WebSocket推送最终结果
         try:
             from ..websocket import websocket_manager
-            await websocket_manager.send_message(
-                f"group_{group_id}",
-                {
+            # 找到所有连接的客户端并发送完成消息
+            for client_id in websocket_manager.get_connected_clients():
+                await websocket_manager.send_message(client_id, {
                     "type": "monthly_sync_complete",
-                    "data": result
-                }
-            )
+                    "data": result,
+                    "timestamp": datetime.now().isoformat()
+                })
         except Exception as ws_e:
-            logger.warning(f"WebSocket推送失败: {ws_e}")
+            logger.warning(f"WebSocket推送完成消息失败: {ws_e}")
         
-        return MonthlySyncResponse(**result)
-    
     except Exception as e:
-        logger.error(f"按月同步群组消息失败: {e}")
-        raise HTTPException(status_code=500, detail=f"按月同步失败: {str(e)}")
+        logger.error(f"异步月度同步任务执行失败: {e}")
+        # 推送错误消息
+        try:
+            from ..websocket import websocket_manager
+            for client_id in websocket_manager.get_connected_clients():
+                await websocket_manager.send_message(client_id, {
+                    "type": "monthly_sync_complete",
+                    "data": {
+                        "success": False,
+                        "error": str(e),
+                        "total_messages": 0,
+                        "months_synced": 0,
+                        "failed_months": [],
+                        "monthly_stats": []
+                    },
+                    "timestamp": datetime.now().isoformat()
+                })
+        except Exception as ws_e:
+            logger.warning(f"WebSocket推送错误消息失败: {ws_e}")
 
 @router.get("/groups/{group_id}/default-sync-months")
 async def get_default_sync_months(

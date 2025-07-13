@@ -173,8 +173,8 @@ export const telegramApi = {
     return api.post(`/telegram/groups/${groupId}/sync`, { limit });
   },
 
-  // 按月同步群组消息
-  syncGroupMessagesMonthly: (groupId: number, months: Array<{year: number, month: number}>): Promise<any> => {
+  // 按月同步群组消息（异步任务，不等待完成）
+  syncGroupMessagesMonthly: (groupId: number, months: Array<{year: number, month: number}>): Promise<{success: boolean, message: string, task_id?: string}> => {
     return api.post(`/telegram/groups/${groupId}/sync-monthly`, { months });
   },
 

@@ -106,8 +106,20 @@ class WebSocketManager:
         """获取已连接的客户端列表"""
         return list(self.active_connections.keys())
     
-    async def send_message(self, message_data: dict, client_id: str = None):
-        """发送实时消息"""
+    async def send_message(self, client_id: str, message_data: dict):
+        """发送消息到特定客户端，支持自定义消息类型"""
+        if client_id in self.active_connections:
+            try:
+                await self.active_connections[client_id].send_text(json.dumps(message_data))
+                logger.debug(f"Message sent to {client_id}: {message_data.get('type', 'unknown')}")
+            except Exception as e:
+                logger.error(f"Error sending message to {client_id}: {e}")
+                self.disconnect(client_id)
+        else:
+            logger.warning(f"Client {client_id} not found in active connections")
+    
+    async def send_realtime_message(self, message_data: dict, client_id: str = None):
+        """发送实时消息（保持原有方法兼容性）"""
         message = {
             "type": "message",
             "data": message_data,
