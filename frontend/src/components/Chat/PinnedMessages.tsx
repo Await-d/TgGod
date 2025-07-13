@@ -47,6 +47,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
     setLoading(true);
     try {
       const messages = await messageApi.getPinnedMessages(selectedGroup.id);
+      console.log('获取到的置顶消息:', messages.map(m => ({ id: m.id, date: m.date, text: m.text?.substring(0, 50) })));
       setPinnedMessages(messages);
       setCurrentIndex(0);
     } catch (error: any) {
@@ -298,7 +299,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                 <Text type="secondary" className="pinned-count">
                   {currentIndex + 1} / {pinnedMessages.length}
                 </Text>
-                {/* 页面指示器 */}
+                {/* 页面指示器 - 始终显示当前位置 */}
                 <div className="pinned-dots">
                   {pinnedMessages.map((_, index) => (
                     <div
@@ -307,7 +308,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                       onClick={() => handleJumpToIndex(index)}
                       title={`跳转到第 ${index + 1} 条置顶消息`}
                       style={{
-                        cursor: 'pointer',
+                        cursor: pinnedMessages.length > 1 ? 'pointer' : 'default',
                         transition: 'all 0.2s ease'
                       }}
                     />
@@ -337,8 +338,8 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                 title={autoPlay ? "停止自动播放 (Ctrl+Space)" : "开始自动播放 (Ctrl+Space)"}
               />
             )}
-            {/* 导航按钮 */}
-            {pinnedMessages.length > 1 && (
+            {/* 导航按钮 - 桌面端总是显示，即使只有一条消息 */}
+            {!isMobile && (
               <Space size="small">
                 <Button
                   type="text"
@@ -347,6 +348,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                   onClick={handlePrevious}
                   className="pinned-nav-btn"
                   title="上一条置顶消息 (Ctrl+←)"
+                  disabled={pinnedMessages.length <= 1}
                 />
                 <Button
                   type="text"
@@ -355,6 +357,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                   onClick={handleNext}
                   className="pinned-nav-btn"
                   title="下一条置顶消息 (Ctrl+→)"
+                  disabled={pinnedMessages.length <= 1}
                 />
               </Space>
             )}
