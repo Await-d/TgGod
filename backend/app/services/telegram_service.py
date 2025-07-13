@@ -607,12 +607,13 @@ class TelegramService:
         
         return cleaned_data
     
-    async def sync_messages_by_month(self, group_identifier, months: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def sync_messages_by_month(self, group_identifier, months: List[Dict[str, Any]], group_id: int = None) -> Dict[str, Any]:
         """按月同步群组消息
         
         Args:
             group_identifier: 群组标识符（用户名、ID或实体对象）
             months: 月份列表，每个月份包含 year 和 month 字段
+            group_id: 数据库中的群组ID，用于WebSocket进度推送
             
         Returns:
             同步结果统计
@@ -651,15 +652,21 @@ class TelegramService:
             }
             
             # 获取群组ID用于进度推送
-            from ..database import SessionLocal
-            db = SessionLocal()
-            try:
-                group_record = db.query(TelegramGroup).filter_by(
-                    telegram_id=entity.id
-                ).first()
-                group_id = group_record.id if group_record else None
-            finally:
-                db.close()
+            # 如果传入了group_id参数，直接使用；否则从数据库查询
+            if group_id is not None:
+                logger.info(f"使用传入的群组ID: {group_id}")
+            else:
+                logger.info("未传入群组ID，尝试从数据库查询...")
+                from ..database import SessionLocal
+                db = SessionLocal()
+                try:
+                    group_record = db.query(TelegramGroup).filter_by(
+                        telegram_id=entity.id
+                    ).first()
+                    group_id = group_record.id if group_record else None
+                    logger.info(f"从数据库查询到群组ID: {group_id}")
+                finally:
+                    db.close()
             
             total_months = len(months)
             

@@ -4,7 +4,6 @@ from fastapi.staticfiles import StaticFiles
 from .config import settings, init_settings
 from .database import engine, Base
 from .api import telegram, rule, log, task, config, auth
-from .websocket.manager import WebSocketManager
 from .tasks.message_sync import message_sync_task
 import logging
 import os
@@ -68,8 +67,8 @@ os.makedirs(os.path.join(settings.media_root, "documents"), exist_ok=True)
 if os.path.exists(settings.media_root):
     app.mount("/media", StaticFiles(directory=settings.media_root), name="media")
 
-# WebSocket管理器
-websocket_manager = WebSocketManager()
+# 导入WebSocket管理器（使用全局单例）
+from .websocket.manager import websocket_manager
 
 # 注册API路由
 app.include_router(telegram.router, prefix="/api/telegram", tags=["telegram"])

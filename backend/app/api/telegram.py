@@ -489,8 +489,8 @@ async def sync_group_messages_monthly(
 async def sync_monthly_task(group_identifier, months_data, group_id):
     """异步执行按月同步任务"""
     try:
-        # 执行按月同步
-        result = await telegram_service.sync_messages_by_month(group_identifier, months_data)
+        # 执行按月同步，传递group_id用于WebSocket进度推送
+        result = await telegram_service.sync_messages_by_month(group_identifier, months_data, group_id)
         
         # 通过WebSocket推送最终结果
         try:
