@@ -33,6 +33,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { telegramApi } from '../services/apiService';
 import { MonthInfo, MonthlySyncResponse, TelegramGroup } from '../types';
+import { webSocketService } from '../services/websocket';
 
 // 扩展dayjs功能
 dayjs.extend(isSameOrBefore);
@@ -74,6 +75,43 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
   useEffect(() => {
     if (visible && selectedGroup) {
       loadDefaultMonths();
+      
+      // 订阅WebSocket进度更新
+      const unsubscribe = webSocketService.subscribe('monthly_sync_progress', (progressData) => {
+        console.log('收到进度更新:', progressData);
+        setSyncProgress({
+          currentMonth: progressData.currentMonth,
+          progress: progressData.progress + 1, // 显示当前正在处理的月份
+          total: progressData.total,
+          completed: progressData.completed,
+          failed: progressData.failed
+        });
+      });
+
+      // 订阅同步完成事件
+      const unsubscribeComplete = webSocketService.subscribe('monthly_sync_complete', (result) => {
+        console.log('收到同步完成:', result);
+        setSyncResult(result);
+        setSyncProgress(null);
+        setLoading(false);
+        
+        if (result.success) {
+          message.success(`同步完成！共同步 ${result.total_messages} 条消息`);
+        } else {
+          message.error('同步失败：' + result.error);
+        }
+      });
+
+      // 确保WebSocket已连接
+      if (!webSocketService.isConnected()) {
+        console.log('WebSocket未连接，尝试连接...');
+        webSocketService.connect();
+      }
+
+      return () => {
+        unsubscribe();
+        unsubscribeComplete();
+      };
     }
   }, [visible, selectedGroup]);
 
@@ -146,8 +184,9 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
     try {
       const values = await form.validateFields();
       setLoading(true);
+      setSyncResult(null);
       setSyncProgress({
-        currentMonth: '',
+        currentMonth: '准备开始...',
         progress: 0,
         total: selectedMonths.length,
         completed: 0,
@@ -167,21 +206,27 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
         result = await telegramApi.syncAllGroupsMonthly(selectedMonths);
       } else {
         message.error('请选择要同步的群组');
+        setLoading(false);
+        setSyncProgress(null);
         return;
       }
 
-      setSyncResult(result);
-      
-      if (result.success) {
-        message.success(`同步完成！共同步 ${result.total_messages} 条消息`);
-      } else {
-        message.error('同步失败：' + result.error);
+      // 如果没有通过WebSocket获取到结果，使用API返回的结果
+      if (!syncResult) {
+        setSyncResult(result);
+        setSyncProgress(null);
+        setLoading(false);
+        
+        if (result.success) {
+          message.success(`同步完成！共同步 ${result.total_messages} 条消息`);
+        } else {
+          message.error('同步失败：' + result.error);
+        }
       }
 
     } catch (error) {
       console.error('同步失败:', error);
       message.error('同步失败，请重试');
-    } finally {
       setLoading(false);
       setSyncProgress(null);
     }

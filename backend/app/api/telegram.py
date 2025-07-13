@@ -14,6 +14,53 @@ import asyncio
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+def process_message_json_fields(message):
+    """处理消息对象的JSON字段，确保类型正确"""
+    try:
+        # 处理mentions字段
+        if message.mentions:
+            if isinstance(message.mentions, str):
+                message.mentions = json.loads(message.mentions)
+            elif not isinstance(message.mentions, list):
+                message.mentions = []
+        else:
+            message.mentions = []
+        
+        # 处理hashtags字段
+        if message.hashtags:
+            if isinstance(message.hashtags, str):
+                message.hashtags = json.loads(message.hashtags)
+            elif not isinstance(message.hashtags, list):
+                message.hashtags = []
+        else:
+            message.hashtags = []
+        
+        # 处理urls字段
+        if message.urls:
+            if isinstance(message.urls, str):
+                message.urls = json.loads(message.urls)
+            elif not isinstance(message.urls, list):
+                message.urls = []
+        else:
+            message.urls = []
+            
+        # 处理reactions字段
+        if message.reactions:
+            if isinstance(message.reactions, str):
+                message.reactions = json.loads(message.reactions)
+            elif not isinstance(message.reactions, dict):
+                message.reactions = {}
+        else:
+            message.reactions = {}
+            
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning(f"处理消息 {message.id} 的JSON字段失败: {e}")
+        # 设置默认值
+        message.mentions = []
+        message.hashtags = []
+        message.urls = []
+        message.reactions = {}
+
 # Pydantic模型
 class GroupCreate(BaseModel):
     username: str
@@ -245,6 +292,10 @@ async def get_group_messages(
         # 反转为正序（最老消息在前，最新消息在后）
         messages = list(reversed(messages_desc))
     
+    # 处理JSON字段的数据类型转换
+    for message in messages:
+        process_message_json_fields(message)
+    
     return messages
 
 
@@ -270,6 +321,9 @@ async def get_message_detail(
     
     if not message:
         raise HTTPException(status_code=404, detail="消息不存在")
+    
+    # 处理JSON字段的数据类型转换
+    process_message_json_fields(message)
     
     return message
 
@@ -310,6 +364,10 @@ async def get_message_replies(
         TelegramMessage.group_id == group_id,
         TelegramMessage.reply_to_message_id == message_id
     ).order_by(TelegramMessage.date.asc()).offset(skip).limit(limit).all()
+    
+    # 处理JSON字段的数据类型转换
+    for reply in replies:
+        process_message_json_fields(reply)
     
     return replies
 

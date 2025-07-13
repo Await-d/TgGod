@@ -650,8 +650,21 @@ class TelegramService:
                 "monthly_stats": []
             }
             
+            # 获取群组ID用于进度推送
+            from ..database import SessionLocal
+            db = SessionLocal()
+            try:
+                group_record = db.query(TelegramGroup).filter_by(
+                    telegram_id=entity.id
+                ).first()
+                group_id = group_record.id if group_record else None
+            finally:
+                db.close()
+            
+            total_months = len(months)
+            
             # 按月同步消息
-            for month_info in months:
+            for i, month_info in enumerate(months):
                 try:
                     year = month_info.get("year")
                     month = month_info.get("month")
@@ -665,6 +678,26 @@ class TelegramService:
                         continue
                     
                     logger.info(f"开始同步 {year}-{month:02d} 的消息...")
+                    
+                    # 发送进度更新
+                    if group_id:
+                        try:
+                            from ..websocket import websocket_manager
+                            await websocket_manager.send_message(
+                                f"group_{group_id}",
+                                {
+                                    "type": "monthly_sync_progress",
+                                    "data": {
+                                        "currentMonth": f"{year}-{month:02d}",
+                                        "progress": i,
+                                        "total": total_months,
+                                        "completed": sync_result["months_synced"],
+                                        "failed": len(sync_result["failed_months"])
+                                    }
+                                }
+                            )
+                        except Exception as ws_e:
+                            logger.warning(f"WebSocket进度推送失败: {ws_e}")
                     
                     # 计算时间范围
                     start_date = datetime(year, month, 1, tzinfo=timezone.utc)
