@@ -333,6 +333,93 @@ export const messageApi = {
     return api.delete(`/telegram/groups/${groupId}/messages/${messageId}`);
   },
 
+  // 清空群组所有消息（通过批量调用单个删除API实现）
+  clearGroupMessages: async (groupId: number, onProgress?: (progress: { current: number; total: number; }) => void): Promise<{
+    success: boolean;
+    deletedCount: number;
+    failedCount: number;
+    message: string;
+  }> => {
+    try {
+      // 首先获取群组的所有消息
+      const allMessages: TelegramMessage[] = [];
+      let page = 0;
+      const pageSize = 100;
+      let hasMore = true;
+
+      // 分页获取所有消息
+      while (hasMore) {
+        const response = await messageApi.getGroupMessages(groupId, {
+          skip: page * pageSize,
+          limit: pageSize
+        });
+        
+        if (response.length === 0) {
+          hasMore = false;
+        } else {
+          allMessages.push(...response);
+          page++;
+          // 避免获取过多消息，设置上限
+          if (allMessages.length >= 10000) {
+            hasMore = false;
+          }
+        }
+      }
+
+      if (allMessages.length === 0) {
+        return {
+          success: true,
+          deletedCount: 0,
+          failedCount: 0,
+          message: '群组中没有消息需要删除'
+        };
+      }
+
+      // 批量删除消息
+      let deletedCount = 0;
+      let failedCount = 0;
+      const total = allMessages.length;
+
+      // 并发删除，但限制并发数避免API压力过大
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < allMessages.length; i += BATCH_SIZE) {
+        const batch = allMessages.slice(i, i + BATCH_SIZE);
+        
+        const deletePromises = batch.map(async (message) => {
+          try {
+            await messageApi.deleteMessage(groupId, message.message_id);
+            deletedCount++;
+          } catch (error) {
+            failedCount++;
+            console.error(`删除消息 ${message.message_id} 失败:`, error);
+          }
+        });
+
+        await Promise.all(deletePromises);
+
+        // 报告进度
+        if (onProgress) {
+          onProgress({
+            current: deletedCount + failedCount,
+            total: total
+          });
+        }
+      }
+
+      return {
+        success: deletedCount > 0,
+        deletedCount,
+        failedCount,
+        message: failedCount === 0 
+          ? `成功删除 ${deletedCount} 条消息` 
+          : `删除完成：成功 ${deletedCount} 条，失败 ${failedCount} 条`
+      };
+
+    } catch (error: any) {
+      throw new Error(`清空群组消息失败: ${error.message}`);
+    }
+  },
+
   // 搜索消息
   searchMessages: (
     groupId: number,

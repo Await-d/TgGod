@@ -21,6 +21,7 @@ import {
   Divider,
   Switch,
   Drawer,
+  Progress,
 } from 'antd';
 import {
   SendOutlined,
@@ -38,6 +39,8 @@ import {
   FilterOutlined,
   SyncOutlined,
   PlusOutlined,
+  ClearOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../store';
 import { messageApi, telegramApi, ruleApi } from '../services/apiService';
@@ -76,6 +79,10 @@ const MessagesPage: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [selectedRows, setSelectedRows] = useState<TelegramMessage[]>([]);
   const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
+  
+  // 清空群组消息相关状态
+  const [clearGroupLoading, setClearGroupLoading] = useState(false);
+  const [clearGroupProgress, setClearGroupProgress] = useState<{current: number; total: number} | null>(null);
   
   const { user } = useAuthStore();
 
@@ -263,6 +270,46 @@ const MessagesPage: React.FC = () => {
   const handleClearSelection = () => {
     setSelectedRowKeys([]);
     setSelectedRows([]);
+  };
+
+  // 清空群组所有消息
+  const handleClearGroupMessages = async () => {
+    if (!selectedGroup) return;
+    
+    setClearGroupLoading(true);
+    setClearGroupProgress(null);
+    
+    try {
+      const result = await messageApi.clearGroupMessages(
+        selectedGroup.id,
+        (progress) => {
+          setClearGroupProgress(progress);
+        }
+      );
+      
+      // 显示结果
+      if (result.success && result.failedCount === 0) {
+        message.success(result.message);
+      } else if (result.success && result.failedCount > 0) {
+        message.warning(result.message);
+      } else {
+        message.error(result.message);
+      }
+      
+      // 清空选择状态
+      setSelectedRowKeys([]);
+      setSelectedRows([]);
+      
+      // 刷新消息列表
+      await fetchMessages(selectedGroup.id, 1, filters);
+      setPagination(prev => ({ ...prev, current: 1 }));
+      
+    } catch (error: any) {
+      message.error('清空群组消息失败: ' + error.message);
+    } finally {
+      setClearGroupLoading(false);
+      setClearGroupProgress(null);
+    }
   };
 
   // 同步消息
@@ -696,6 +743,39 @@ const MessagesPage: React.FC = () => {
                 >
                   刷新
                 </Button>
+                
+                {/* 清空群组消息按钮 */}
+                <Popconfirm
+                  title="清空群组所有消息"
+                  description={
+                    <div>
+                      <p>⚠️ 此操作将删除该群组的所有消息</p>
+                      <p>• 包括文本、图片、视频等所有类型消息</p>
+                      <p>• 此操作不可撤销，请谨慎操作</p>
+                      {selectedGroup && (
+                        <p><strong>群组：{selectedGroup.title}</strong></p>
+                      )}
+                    </div>
+                  }
+                  onConfirm={handleClearGroupMessages}
+                  okText="确认清空"
+                  cancelText="取消"
+                  okButtonProps={{ 
+                    danger: true,
+                    loading: clearGroupLoading
+                  }}
+                  icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+                >
+                  <Button 
+                    danger
+                    icon={<ClearOutlined />}
+                    disabled={!selectedGroup || clearGroupLoading}
+                    loading={clearGroupLoading}
+                    size={isMobile ? 'small' : 'middle'}
+                  >
+                    {clearGroupLoading ? '清空中...' : (isMobile ? '清空' : '清空群组')}
+                  </Button>
+                </Popconfirm>
               </Space>
             }
           >
@@ -1254,6 +1334,48 @@ const MessagesPage: React.FC = () => {
             </Form>
           </>
         )}
+      </Modal>
+      
+      {/* 清空群组消息进度模态框 */}
+      <Modal
+        title="清空群组消息"
+        open={clearGroupLoading}
+        closable={false}
+        maskClosable={false}
+        footer={null}
+        centered
+      >
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ marginBottom: 16 }}>
+            <ClearOutlined style={{ fontSize: 48, color: '#ff4d4f', marginBottom: 16 }} />
+            <p style={{ fontSize: 16, marginBottom: 8 }}>正在清空群组消息...</p>
+            {selectedGroup && (
+              <p style={{ color: '#666' }}>群组：{selectedGroup.title}</p>
+            )}
+          </div>
+          
+          {clearGroupProgress && (
+            <div style={{ margin: '20px 0' }}>
+              <Progress
+                percent={Math.round((clearGroupProgress.current / clearGroupProgress.total) * 100)}
+                status="active"
+                strokeColor={{
+                  '0%': '#ff7875',
+                  '100%': '#ff4d4f',
+                }}
+              />
+              <p style={{ marginTop: 8, color: '#666' }}>
+                已处理 {clearGroupProgress.current} / {clearGroupProgress.total} 条消息
+              </p>
+            </div>
+          )}
+          
+          <div style={{ marginTop: 16, padding: 12, background: '#fff2f0', borderRadius: 6 }}>
+            <p style={{ margin: 0, color: '#cf1322', fontSize: 12 }}>
+              ⚠️ 正在执行删除操作，请勿关闭页面
+            </p>
+          </div>
+        </div>
       </Modal>
     </div>
   );
