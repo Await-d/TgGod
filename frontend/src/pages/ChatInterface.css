@@ -38,7 +38,7 @@
   padding: 0;     /* 移除padding，铺满整个区域 */
 }
 
-/* 桌面端布局 - 铺满整个屏幕 */
+/* 桌面端布局 - 铺满整个屏幕，支持平板模式 */
 .desktop-layout {
   display: flex;
   width: 100%;
@@ -53,7 +53,24 @@
   min-height: 0;      /* 关键：允许flex子元素收缩 */
 }
 
-/* 群组列表面板 - 现代化渐变设计 */
+/* 平板模式布局优化 */
+.desktop-layout.tablet-mode {
+  background: #f8f9fa;
+}
+
+.desktop-layout.tablet-mode .group-list-panel {
+  border-radius: 8px 0 0 8px;
+  margin: 8px 0 8px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.desktop-layout.tablet-mode .message-panel {
+  border-radius: 0 8px 8px 0;
+  margin: 8px 8px 8px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* 群组列表面板 - 现代化渐变设计，支持动态宽度 */
 .group-list-panel {
   width: 380px;
   min-width: 320px;
@@ -64,12 +81,82 @@
   position: relative;
   flex-shrink: 0;
   transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  resize: horizontal; /* 允许水平拖拽调整宽度 */
+  overflow: hidden;
 }
 
 .group-list-panel.collapsed {
   width: 0;
   min-width: 0;
   overflow: hidden;
+}
+
+/* 迷你模式样式 */
+.group-list-panel.mini-mode {
+  width: 80px !important;
+  min-width: 80px !important;
+  max-width: 80px !important;
+  resize: none; /* 迷你模式下禁止调整大小 */
+}
+
+.group-list-panel.mini-mode .group-list-header h4 {
+  display: none;
+}
+
+.group-list-panel.mini-mode .group-search,
+.group-list-panel.mini-mode .group-stats {
+  display: none;
+}
+
+.group-list-panel.mini-mode .group-item {
+  padding: 8px 4px;
+  margin: 2px 4px;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.group-list-panel.mini-mode .group-info {
+  display: none;
+}
+
+.group-list-panel.mini-mode .group-avatar {
+  margin-right: 0;
+  margin-bottom: 4px;
+}
+
+/* 平板模式下的群组列表优化 */
+@media (min-width: 769px) and (max-width: 1200px) {
+  .group-list-panel {
+    width: 300px;
+    min-width: 280px;
+    max-width: 400px;
+  }
+  
+  .group-list-panel.mini-mode {
+    width: 70px !important;
+    min-width: 70px !important;
+    max-width: 70px !important;
+  }
+  
+  .group-item {
+    padding: 12px 14px;
+    margin: 2px 8px;
+  }
+  
+  .group-avatar {
+    width: 42px;
+    height: 42px;
+    margin-right: 12px;
+  }
+  
+  .group-name {
+    font-size: 14px;
+  }
+  
+  .member-count {
+    font-size: 11px;
+  }
 }
 
 /* 群组列表容器 */

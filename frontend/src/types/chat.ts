@@ -25,6 +25,8 @@ export interface GroupListItemProps {
   onClick: (group: TelegramGroup) => void;
   unreadCount?: number;
   lastMessageTime?: string;
+  isMiniMode?: boolean;
+  isTablet?: boolean;
 }
 
 export interface MessageBubbleProps {

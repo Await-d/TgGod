@@ -1,13 +1,32 @@
-/* 群组列表容器 */
+/* 群组列表容器 - 支持平板模式和迷你模式 */
 .group-list {
   display: flex;
   flex-direction: column;
   height: 100%;
   background: #fafafa;
   min-height: 0; /* 防止flex子项溢出 */
+  transition: all 0.3s ease;
 }
 
-/* 群组列表头部 */
+/* 平板模式优化 */
+.group-list.tablet-mode {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* 迷你模式优化 */
+.group-list.mini-mode {
+  overflow: hidden;
+}
+
+.group-list.mini-mode .group-list-header {
+  padding: 12px 8px 8px;
+}
+
+.group-list.mini-mode .group-list-content {
+  padding: 0 4px 16px;
+}
+
+/* 群组列表头部 - 平板模式优化 */
 .group-list-header {
   display: flex;
   flex-direction: column;
@@ -16,6 +35,17 @@
   border-bottom: 1px solid #f0f0f0;
   background: #fff;
   flex-shrink: 0; /* 防止头部被压缩 */
+}
+
+.group-list.tablet-mode .group-list-header {
+  padding: 16px 20px 12px;
+  gap: 10px;
+}
+
+.group-list.mini-mode .group-list-header {
+  padding: 8px 4px;
+  gap: 4px;
+  text-align: center;
 }
 
 .header-title {
@@ -319,35 +349,43 @@
 /* 统计信息样式 - 精简版本 */
 .stats-summary {
   font-size: 10px;
-  color: #8c8c8c;
+  color: #555;
   font-weight: 500;
   white-space: nowrap;
-  background: rgba(140, 140, 140, 0.1);
+  background: rgba(24, 144, 255, 0.08);
+  border: 1px solid rgba(24, 144, 255, 0.15);
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: 8px;
   line-height: 1.2;
+  transition: all 0.2s ease;
 }
 
 .stats-summary.loading {
   background: transparent;
+  border: none;
   padding: 0;
   display: flex;
   align-items: center;
+  color: #999;
 }
 
 .group-item.selected .stats-summary {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
   background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .group-item:hover .stats-summary {
-  color: #666;
-  background: rgba(140, 140, 140, 0.15);
+  color: #333;
+  background: rgba(24, 144, 255, 0.12);
+  border: 1px solid rgba(24, 144, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 .group-item.selected:hover .stats-summary {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 1);
   background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .group-username {
@@ -481,6 +519,20 @@
   
   .group-description {
     font-size: 11px;
+  }
+  
+  /* 移动端统计信息优化 */
+  .stats-summary {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 6px;
+    background: rgba(24, 144, 255, 0.1);
+    border: 1px solid rgba(24, 144, 255, 0.2);
+  }
+  
+  .group-item.selected .stats-summary {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
   
   .metadata-item {

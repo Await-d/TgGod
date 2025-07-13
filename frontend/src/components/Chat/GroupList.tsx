@@ -16,6 +16,11 @@ interface GroupListProps {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   isMobile?: boolean;
+  isTablet?: boolean;
+  isGroupListMini?: boolean;
+  onToggleMini?: () => void;
+  groupListWidth?: number;
+  onWidthChange?: (width: number) => void;
 }
 
 const GroupList: React.FC<GroupListProps> = ({
@@ -23,7 +28,12 @@ const GroupList: React.FC<GroupListProps> = ({
   onGroupSelect,
   searchQuery = '',
   onSearchChange,
-  isMobile = false
+  isMobile = false,
+  isTablet = false,
+  isGroupListMini = false,
+  onToggleMini,
+  groupListWidth = 380,
+  onWidthChange
 }) => {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -178,16 +188,30 @@ const GroupList: React.FC<GroupListProps> = ({
   };
 
   return (
-    <div className="group-list">
+    <div className={`group-list ${isTablet ? 'tablet-mode' : ''} ${isGroupListMini ? 'mini-mode' : ''}`}>
       {/* 群组列表头部 */}
       <div className="group-list-header">
         <div className="header-title">
-          <h4>群组列表</h4>
+          <h4>{isGroupListMini ? '' : '群组列表'}</h4>
           <Badge count={groupStats.total} showZero style={{ backgroundColor: '#52c41a' }} />
         </div>
         
         <div className="header-actions">
           <Space size="small">
+            {/* 平板模式下的迷你切换按钮 */}
+            {(isTablet || groupListWidth < 350) && onToggleMini && (
+              <Button
+                type="text"
+                icon={isGroupListMini ? <UserOutlined /> : <UserOutlined />}
+                onClick={onToggleMini}
+                size={isMobile ? 'small' : 'middle'}
+                title={isGroupListMini ? '展开群组列表' : '收起为迷你模式'}
+                style={{ 
+                  background: isGroupListMini ? '#1890ff' : 'transparent',
+                  color: isGroupListMini ? 'white' : undefined
+                }}
+              />
+            )}
             <Button
               type="text"
               icon={<SyncOutlined />}
@@ -204,44 +228,50 @@ const GroupList: React.FC<GroupListProps> = ({
               size={isMobile ? 'small' : 'middle'}
               title="刷新"
             />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setAddGroupModalVisible(true)}
-              size={isMobile ? 'small' : 'middle'}
-            >
-              {isMobile ? '' : '添加'}
-            </Button>
+            {!isGroupListMini && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setAddGroupModalVisible(true)}
+                size={isMobile ? 'small' : 'middle'}
+              >
+                {isMobile ? '' : '添加'}
+              </Button>
+            )}
           </Space>
         </div>
       </div>
 
-      {/* 搜索框 */}
-      <div className="group-search">
-        <Search
-          placeholder="搜索群组..."
-          value={onSearchChange ? searchQuery : localSearchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-          prefix={<SearchOutlined />}
-          allowClear
-        />
-      </div>
+      {/* 搜索框 - 迷你模式下隐藏 */}
+      {!isGroupListMini && (
+        <div className="group-search">
+          <Search
+            placeholder="搜索群组..."
+            value={onSearchChange ? searchQuery : localSearchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            prefix={<SearchOutlined />}
+            allowClear
+          />
+        </div>
+      )}
 
-      {/* 群组统计 */}
-      <div className="group-stats">
-        <div className="stat-item">
-          <span className="stat-label">总计</span>
-          <span className="stat-value">{groupStats.total}</span>
+      {/* 群组统计 - 迷你模式下隐藏 */}
+      {!isGroupListMini && (
+        <div className="group-stats">
+          <div className="stat-item">
+            <span className="stat-label">总计</span>
+            <span className="stat-value">{groupStats.total}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">活跃</span>
+            <span className="stat-value active">{groupStats.active}</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">暂停</span>
+            <span className="stat-value inactive">{groupStats.inactive}</span>
+          </div>
         </div>
-        <div className="stat-item">
-          <span className="stat-label">活跃</span>
-          <span className="stat-value active">{groupStats.active}</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">暂停</span>
-          <span className="stat-value inactive">{groupStats.inactive}</span>
-        </div>
-      </div>
+      )}
 
       {/* 群组列表 */}
       <div className="group-list-content">
@@ -252,24 +282,26 @@ const GroupList: React.FC<GroupListProps> = ({
         ) : filteredGroups.length === 0 ? (
           <div className="empty-groups">
             <UserOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
-            <p>暂无群组</p>
-            <Space direction="vertical" size="middle">
-              <Button
-                type="primary"
-                icon={<SyncOutlined />}
-                onClick={handleSyncGroups}
-                loading={syncing}
-              >
-                从Telegram同步群组
-              </Button>
-              <Button
-                type="default"
-                icon={<PlusOutlined />}
-                onClick={() => setAddGroupModalVisible(true)}
-              >
-                手动添加群组
-              </Button>
-            </Space>
+            {!isGroupListMini && <p>暂无群组</p>}
+            {!isGroupListMini && (
+              <Space direction="vertical" size="middle">
+                <Button
+                  type="primary"
+                  icon={<SyncOutlined />}
+                  onClick={handleSyncGroups}
+                  loading={syncing}
+                >
+                  从Telegram同步群组
+                </Button>
+                <Button
+                  type="default"
+                  icon={<PlusOutlined />}
+                  onClick={() => setAddGroupModalVisible(true)}
+                >
+                  手动添加群组
+                </Button>
+              </Space>
+            )}
           </div>
         ) : (
           filteredGroups.map(group => (
@@ -280,6 +312,8 @@ const GroupList: React.FC<GroupListProps> = ({
               onClick={onGroupSelect}
               unreadCount={0} // TODO: 实现未读消息计数
               lastMessageTime={group.updated_at}
+              isMiniMode={isGroupListMini}
+              isTablet={isTablet}
             />
           ))
         )}

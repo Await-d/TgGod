@@ -23,6 +23,7 @@ interface MessageAreaProps {
   onJumpToGroup?: (groupId: number) => void;
   searchFilter?: any;
   isMobile?: boolean;
+  isTablet?: boolean;
   searchQuery?: string;
   onQuote?: (message: TelegramMessage) => void;
   onForward?: (message: TelegramMessage, targets: string[], comment?: string) => void;
@@ -45,6 +46,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   onJumpToGroup,
   searchFilter = {},
   isMobile = false,
+  isTablet = false,
   searchQuery = '',
   onQuote,
   onForward,
@@ -363,6 +365,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         onJumpToMessage={jumpToMessage}
         visible={true}
         isMobile={isMobile}
+        isTablet={isTablet}
       />
 
       {/* 消息列表 */}

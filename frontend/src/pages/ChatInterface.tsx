@@ -32,8 +32,11 @@ const ChatInterface: React.FC = () => {
   // 页面滚动控制 - 移除，允许正常滚动
   // useChatPageScrollControl();
   
-  // 移动端检测
+  // 移动端和平板检测
   const isMobile = useIsMobile();
+  const [isTablet, setIsTablet] = useState(false);
+  const [groupListWidth, setGroupListWidth] = useState(380);
+  const [isGroupListMini, setIsGroupListMini] = useState(false);
   const { keyboardHeight, isKeyboardVisible } = useKeyboardHeight();
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
@@ -96,6 +99,41 @@ const ChatInterface: React.FC = () => {
     searchQuery: '',
     messageFilter: {}
   });
+  
+  // 平板模式检测和响应
+  useEffect(() => {
+    const checkTabletMode = () => {
+      const width = window.innerWidth;
+      const newIsTablet = width > 768 && width <= 1200; // 平板模式范围
+      setIsTablet(newIsTablet);
+      
+      // 平板模式下自动调整群组列表宽度
+      if (newIsTablet) {
+        if (width <= 900) {
+          setGroupListWidth(280); // 较小平板
+        } else {
+          setGroupListWidth(320); // 较大平板
+        }
+      } else if (!isMobile) {
+        setGroupListWidth(380); // 桌面模式
+      }
+    };
+    
+    checkTabletMode();
+    window.addEventListener('resize', checkTabletMode);
+    return () => window.removeEventListener('resize', checkTabletMode);
+  }, [isMobile]);
+
+  // 群组列表控制功能
+  const toggleGroupListMini = useCallback(() => {
+    setIsGroupListMini(!isGroupListMini);
+  }, [isGroupListMini]);
+
+  const adjustGroupListWidth = useCallback((width: number) => {
+    const minWidth = isTablet ? 280 : 320;
+    const maxWidth = isTablet ? 400 : 500;
+    setGroupListWidth(Math.max(minWidth, Math.min(maxWidth, width)));
+  }, [isTablet]);
   
   const [replyTo, setReplyTo] = useState<TelegramMessage | null>(null);
   const [quotedMessage, setQuotedMessage] = useState<TelegramMessage | null>(null);
@@ -332,6 +370,11 @@ const ChatInterface: React.FC = () => {
       searchQuery={chatState.searchQuery}
       onSearchChange={(query) => setChatState(prev => ({ ...prev, searchQuery: query }))}
       isMobile={isMobile}
+      isTablet={isTablet}
+      isGroupListMini={isGroupListMini}
+      onToggleMini={toggleGroupListMini}
+      groupListWidth={groupListWidth}
+      onWidthChange={adjustGroupListWidth}
     />
   );
 
@@ -345,6 +388,7 @@ const ChatInterface: React.FC = () => {
         onCreateRule={handleCreateQuickRule}
         searchFilter={chatState.messageFilter}
         isMobile={isMobile}
+        isTablet={isTablet}
         searchQuery={chatState.searchQuery}
         onQuote={handleQuote}
         onForward={handleForward}
@@ -429,8 +473,15 @@ const ChatInterface: React.FC = () => {
       >
         {/* 桌面端布局 */}
         {!isMobile ? (
-          <div className="desktop-layout">
-            <div className={`group-list-panel ${chatState.isGroupListCollapsed ? 'collapsed' : ''}`}>
+          <div className={`desktop-layout ${isTablet ? 'tablet-mode' : ''}`}>
+            <div 
+              className={`group-list-panel ${chatState.isGroupListCollapsed ? 'collapsed' : ''} ${isGroupListMini ? 'mini-mode' : ''}`}
+              style={{
+                width: chatState.isGroupListCollapsed ? 0 : (isGroupListMini ? 80 : groupListWidth),
+                minWidth: chatState.isGroupListCollapsed ? 0 : (isGroupListMini ? 80 : (isTablet ? 280 : 320)),
+                maxWidth: isGroupListMini ? 80 : (isTablet ? 400 : 500)
+              }}
+            >
               {renderGroupList()}
             </div>
             <div className="message-panel">

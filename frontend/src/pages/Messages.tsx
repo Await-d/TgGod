@@ -72,6 +72,11 @@ const MessagesPage: React.FC = () => {
   const [replyTo, setReplyTo] = useState<TelegramMessage | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   
+  // 批量选择相关状态
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [selectedRows, setSelectedRows] = useState<TelegramMessage[]>([]);
+  const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
+  
   const { user } = useAuthStore();
 
   // 检查是否为移动设备
@@ -176,9 +181,88 @@ const MessagesPage: React.FC = () => {
       // 刷新消息列表
       await fetchMessages(selectedGroup.id, pagination.current, filters);
       
+      // 移除已删除的消息从选中列表
+      setSelectedRowKeys(prevKeys => prevKeys.filter(key => key !== messageId));
+      setSelectedRows(prevRows => prevRows.filter(row => row.message_id !== messageId));
+      
     } catch (error: any) {
       message.error('删除消息失败: ' + error.message);
     }
+  };
+
+  // 批量删除消息
+  const handleBatchDeleteMessages = async () => {
+    if (!selectedGroup || selectedRowKeys.length === 0) return;
+    
+    setBatchDeleteLoading(true);
+    
+    try {
+      let successCount = 0;
+      let failCount = 0;
+      
+      // 批量删除：并发调用单个删除API
+      const deletePromises = selectedRowKeys.map(async (messageId) => {
+        try {
+          await messageApi.deleteMessage(selectedGroup.id, Number(messageId));
+          successCount++;
+        } catch (error) {
+          failCount++;
+          console.error(`删除消息 ${messageId} 失败:`, error);
+        }
+      });
+      
+      await Promise.all(deletePromises);
+      
+      // 显示结果消息
+      if (successCount > 0 && failCount === 0) {
+        message.success(`成功删除 ${successCount} 条消息！`);
+      } else if (successCount > 0 && failCount > 0) {
+        message.warning(`成功删除 ${successCount} 条消息，${failCount} 条删除失败`);
+      } else {
+        message.error(`删除失败，${failCount} 条消息删除失败`);
+      }
+      
+      // 清空选择
+      setSelectedRowKeys([]);
+      setSelectedRows([]);
+      
+      // 刷新消息列表
+      await fetchMessages(selectedGroup.id, pagination.current, filters);
+      
+    } catch (error: any) {
+      message.error('批量删除失败: ' + error.message);
+    } finally {
+      setBatchDeleteLoading(false);
+    }
+  };
+
+  // 选择变化处理
+  const handleRowSelectionChange = (
+    selectedKeys: React.Key[], 
+    selectedRows: TelegramMessage[]
+  ) => {
+    setSelectedRowKeys(selectedKeys);
+    setSelectedRows(selectedRows);
+  };
+
+  // 全选/取消全选
+  const handleSelectAll = () => {
+    if (selectedRowKeys.length === messages.length) {
+      // 当前全选状态，执行取消全选
+      setSelectedRowKeys([]);
+      setSelectedRows([]);
+    } else {
+      // 执行全选
+      const allKeys = messages.map(msg => msg.message_id as React.Key);
+      setSelectedRowKeys(allKeys);
+      setSelectedRows(messages);
+    }
+  };
+
+  // 清空选择
+  const handleClearSelection = () => {
+    setSelectedRowKeys([]);
+    setSelectedRows([]);
   };
 
   // 同步消息
@@ -615,11 +699,92 @@ const MessagesPage: React.FC = () => {
               </Space>
             }
           >
+            {/* 批量操作工具栏 */}
+            {selectedRowKeys.length > 0 && (
+              <div style={{ 
+                marginBottom: 16, 
+                padding: '12px 16px', 
+                background: '#f6f8fa', 
+                borderRadius: 8, 
+                border: '1px solid #d0d7de' 
+              }}>
+                <Row align="middle" justify="space-between">
+                  <Col>
+                    <Space>
+                      <Text strong>已选择 {selectedRowKeys.length} 条消息</Text>
+                      <Button 
+                        size="small" 
+                        type="link" 
+                        onClick={handleSelectAll}
+                      >
+                        {selectedRowKeys.length === messages.length ? '取消全选' : '全选当前页'}
+                      </Button>
+                      <Button 
+                        size="small" 
+                        type="link" 
+                        onClick={handleClearSelection}
+                      >
+                        清空选择
+                      </Button>
+                    </Space>
+                  </Col>
+                  <Col>
+                    <Space>
+                      <Popconfirm
+                        title="确认删除所选消息吗？"
+                        description={`将删除 ${selectedRowKeys.length} 条消息，此操作不可撤销`}
+                        onConfirm={handleBatchDeleteMessages}
+                        okText="确认删除"
+                        cancelText="取消"
+                        okButtonProps={{ danger: true }}
+                      >
+                        <Button 
+                          type="primary" 
+                          danger 
+                          icon={<DeleteOutlined />}
+                          loading={batchDeleteLoading}
+                          size={isMobile ? 'small' : 'middle'}
+                        >
+                          批量删除
+                        </Button>
+                      </Popconfirm>
+                    </Space>
+                  </Col>
+                </Row>
+              </div>
+            )}
+            
             <Table
               columns={columns}
               dataSource={messages}
-              rowKey="id"
+              rowKey="message_id"
               loading={loading}
+              rowSelection={{
+                selectedRowKeys,
+                onChange: handleRowSelectionChange,
+                onSelectAll: (selected, selectedRows, changeRows) => {
+                  if (selected) {
+                    // 选中当前页所有行
+                    const allKeys = messages.map(msg => msg.message_id as React.Key);
+                    const newSelectedKeys = [...selectedRowKeys];
+                    allKeys.forEach(key => {
+                      if (!newSelectedKeys.includes(key)) {
+                        newSelectedKeys.push(key);
+                      }
+                    });
+                    setSelectedRowKeys(newSelectedKeys);
+                    setSelectedRows([...selectedRows, ...messages.filter(msg => !selectedRowKeys.includes(msg.message_id as React.Key))]);
+                  } else {
+                    // 取消选中当前页所有行
+                    const currentPageKeys = messages.map(msg => msg.message_id as React.Key);
+                    setSelectedRowKeys(selectedRowKeys.filter(key => !currentPageKeys.includes(key)));
+                    setSelectedRows(selectedRows.filter(row => !currentPageKeys.includes(row.message_id as React.Key)));
+                  }
+                },
+                getCheckboxProps: (record: TelegramMessage) => ({
+                  name: record.message_id.toString(),
+                }),
+              }}
               pagination={{
                 current: pagination.current,
                 pageSize: pagination.pageSize,

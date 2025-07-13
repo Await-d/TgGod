@@ -21,6 +21,7 @@ interface PinnedMessagesProps {
   onClose?: () => void;
   visible?: boolean;
   isMobile?: boolean;
+  isTablet?: boolean;
 }
 
 const PinnedMessages: React.FC<PinnedMessagesProps> = ({
@@ -28,7 +29,8 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   onJumpToMessage,
   onClose,
   visible = true,
-  isMobile = false
+  isMobile = false,
+  isTablet = false
 }) => {
   const [pinnedMessages, setPinnedMessages] = useState<TelegramMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -269,9 +271,9 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   const currentMessage = pinnedMessages[currentIndex];
 
   return (
-    <div className={`pinned-messages-container ${isMobile ? 'mobile' : ''}`}>
+    <div className={`pinned-messages-container ${isMobile ? 'mobile' : ''} ${isTablet ? 'tablet' : ''}`}>
       <Card 
-        className={`pinned-messages-card ${isExpanded ? 'expanded' : ''} ${autoPlay ? 'autoplay' : ''}`}
+        className={`pinned-messages-card ${isExpanded ? 'expanded' : ''} ${autoPlay ? 'autoplay' : ''} ${isTablet ? 'tablet-mode' : ''}`}
         size="small"
       >
         {/* 自动播放进度条 */}

@@ -14,7 +14,9 @@ const GroupItem: React.FC<GroupListItemProps> = ({
   isSelected,
   onClick,
   unreadCount = 0,
-  lastMessageTime
+  lastMessageTime,
+  isMiniMode = false,
+  isTablet = false
 }) => {
   const [groupStats, setGroupStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -82,16 +84,24 @@ const GroupItem: React.FC<GroupListItemProps> = ({
     // 总消息数 - 简化显示，超过1k显示为k
     if (groupStats.total_messages > 0) {
       const count = groupStats.total_messages;
-      if (count >= 1000) {
-        stats.push(`${Math.floor(count / 1000)}k`);
+      if (count >= 10000) {
+        stats.push(`${Math.floor(count / 1000)}k条`);
+      } else if (count >= 1000) {
+        stats.push(`${(count / 1000).toFixed(1)}k条`);
       } else {
-        stats.push(count.toString());
+        stats.push(`${count}条`);
       }
     }
 
     // 置顶消息数 - 只在有置顶时显示
     if (groupStats.pinned_messages > 0) {
       stats.push(`📌${groupStats.pinned_messages}`);
+    }
+
+    // 添加媒体消息统计（如果有的话）
+    const mediaCount = (groupStats.photo_messages || 0) + (groupStats.video_messages || 0);
+    if (mediaCount > 0) {
+      stats.push(`📸${mediaCount > 99 ? '99+' : mediaCount}`);
     }
 
     return stats.length > 0 ? (
