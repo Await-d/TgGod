@@ -14,6 +14,7 @@ import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
 import MediaTestPage from './pages/MediaTestPage';
 import MediaDownloadTestPage from './pages/MediaDownloadTestPage';
+import WebSocketTest from './components/WebSocketTest';
 import { webSocketService } from './services/websocket';
 import { useGlobalStore, useAuthStore } from './store';
 // 导入StagewiseToolbar和ReactPlugin
@@ -147,6 +148,15 @@ const App: React.FC = () => {
             <MainLayout>
               <Content>
                 <Settings />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/websocket-test" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <WebSocketTest />
               </Content>
             </MainLayout>
           </ProtectedRoute>

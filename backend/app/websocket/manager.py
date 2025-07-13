@@ -104,19 +104,24 @@ class WebSocketManager:
     
     def get_connected_clients(self) -> List[str]:
         """获取已连接的客户端列表"""
-        return list(self.active_connections.keys())
+        clients = list(self.active_connections.keys())
+        logger.debug(f"当前连接的客户端: {clients}")
+        return clients
     
     async def send_message(self, client_id: str, message_data: dict):
         """发送消息到特定客户端，支持自定义消息类型"""
+        logger.info(f"尝试发送消息到客户端 {client_id}, 消息类型: {message_data.get('type', 'unknown')}")
+        
         if client_id in self.active_connections:
             try:
-                await self.active_connections[client_id].send_text(json.dumps(message_data))
-                logger.debug(f"Message sent to {client_id}: {message_data.get('type', 'unknown')}")
+                message_json = json.dumps(message_data)
+                await self.active_connections[client_id].send_text(message_json)
+                logger.info(f"消息成功发送到 {client_id}: {message_data.get('type', 'unknown')}")
             except Exception as e:
-                logger.error(f"Error sending message to {client_id}: {e}")
+                logger.error(f"发送消息到 {client_id} 失败: {e}")
                 self.disconnect(client_id)
         else:
-            logger.warning(f"Client {client_id} not found in active connections")
+            logger.warning(f"客户端 {client_id} 不在活跃连接列表中，当前连接: {list(self.active_connections.keys())}")
     
     async def send_realtime_message(self, message_data: dict, client_id: str = None):
         """发送实时消息（保持原有方法兼容性）"""
