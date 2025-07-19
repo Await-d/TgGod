@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Avatar, Badge, Tag, Tooltip } from 'antd';
 import { 
   TeamOutlined, 
@@ -20,29 +20,64 @@ const GroupItem: React.FC<GroupListItemProps> = ({
 }) => {
   const [groupStats, setGroupStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [statsLoaded, setStatsLoaded] = useState(false);
+  const elementRef = useRef<HTMLDivElement>(null);
   
-  // 获取群组统计信息
+  // 懒加载统计信息的函数
+  const fetchGroupStats = useCallback(async () => {
+    if (!group.id || statsLoaded || loadingStats) return;
+    
+    setLoadingStats(true);
+    try {
+      const stats = await telegramApi.getGroupStats(group.id);
+      setGroupStats(stats);
+      setStatsLoaded(true);
+    } catch (error) {
+      // 静默失败，不影响基本功能
+      console.warn('获取群组统计失败:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [group.id, statsLoaded, loadingStats]);
+
+  // 使用Intersection Observer实现懒加载
   useEffect(() => {
-    const fetchGroupStats = async () => {
-      if (!group.id) return;
-      
-      setLoadingStats(true);
-      try {
-        const stats = await telegramApi.getGroupStats(group.id);
-        setGroupStats(stats);
-      } catch (error) {
-        // 静默失败，不影响基本功能
-        console.warn('获取群组统计失败:', error);
-      } finally {
-        setLoadingStats(false);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            // 当元素可见时加载统计信息
+            if (!statsLoaded && !loadingStats) {
+              fetchGroupStats();
+            }
+          }
+        });
+      },
+      {
+        threshold: 0.1, // 10%可见时触发
+        rootMargin: '50px' // 提前50px开始加载
+      }
+    );
+
+    if (elementRef.current) {
+      observer.observe(elementRef.current);
+    }
+
+    return () => {
+      if (elementRef.current) {
+        observer.unobserve(elementRef.current);
       }
     };
+  }, [fetchGroupStats, statsLoaded, loadingStats]);
 
-    // 只在选中状态或者首次加载时获取统计
-    if (isSelected || !groupStats) {
+  // 当群组被选中时立即加载统计（如果还没加载）
+  useEffect(() => {
+    if (isSelected && !statsLoaded && !loadingStats) {
       fetchGroupStats();
     }
-  }, [group.id, isSelected]); // 移除 groupStats 避免无限循环
+  }, [isSelected, fetchGroupStats, statsLoaded, loadingStats]);
   
   // 格式化时间
   const formatTime = (dateString: string) => {
@@ -70,7 +105,16 @@ const GroupItem: React.FC<GroupListItemProps> = ({
     if (loadingStats) {
       return (
         <span className="stats-summary loading">
-          ···
+          <span style={{ opacity: 0.6 }}>加载中...</span>
+        </span>
+      );
+    }
+    
+    if (!groupStats && !isVisible && !isSelected) {
+      // 未可见且未选中时显示空状态
+      return (
+        <span className="stats-summary placeholder">
+          <span style={{ opacity: 0.4, fontSize: '12px' }}>滚动加载</span>
         </span>
       );
     }
@@ -108,7 +152,11 @@ const GroupItem: React.FC<GroupListItemProps> = ({
       <span className="stats-summary">
         {stats.join(' · ')}
       </span>
-    ) : null;
+    ) : (
+      <span className="stats-summary empty">
+        <span style={{ opacity: 0.5 }}>暂无数据</span>
+      </span>
+    );
   };
 
   // 获取群组头像
@@ -166,6 +214,7 @@ const GroupItem: React.FC<GroupListItemProps> = ({
 
   return (
     <div
+      ref={elementRef}
       className={`group-item ${isSelected ? 'selected' : ''} ${group.is_pinned ? 'pinned' : ''}`}
       onClick={() => onClick(group)}
     >
