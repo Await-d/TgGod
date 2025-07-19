@@ -5,28 +5,19 @@ import json
 
 class Settings:
     def __init__(self):
-        self._db = None
         self._cache = {}
     
     def get_db(self) -> Session:
-        if self._db is None:
-            from sqlalchemy import create_engine
-            from sqlalchemy.orm import sessionmaker
-            # 直接使用环境变量避免循环导入
-            database_url = os.environ.get("DATABASE_URL", "sqlite:////app/data/tggod.db")
-            engine = create_engine(
-                database_url,
-                connect_args={"check_same_thread": False} if "sqlite" in database_url else {}
-            )
-            SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-            self._db = SessionLocal()
-        return self._db
+        # 使用database.py中的SessionLocal避免重复创建连接
+        from .database import SessionLocal
+        return SessionLocal()
     
     def _get_config(self, key: str, default=None):
         """从数据库获取配置，带缓存"""
         if key in self._cache:
             return self._cache[key]
         
+        db = None
         try:
             db = self.get_db()
             from .services.config_service import config_service
@@ -38,6 +29,9 @@ class Settings:
         except Exception as e:
             print(f"获取配置失败 {key}: {e}")
             return default
+        finally:
+            if db:
+                db.close()
     
     def _get_list_config(self, key: str, default: List[str] = None):
         """获取列表类型的配置"""
@@ -178,6 +172,7 @@ settings = Settings()
 
 def init_settings():
     """初始化设置 - 创建必要的目录和默认配置"""
+    db = None
     try:
         # 确保所有必要的目录存在
         os.makedirs(settings.media_root, exist_ok=True)
@@ -198,3 +193,6 @@ def init_settings():
         print("设置初始化完成")
     except Exception as e:
         print(f"设置初始化失败: {e}")
+    finally:
+        if db:
+            db.close()
