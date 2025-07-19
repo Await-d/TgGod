@@ -8,8 +8,34 @@ class Settings:
         self._cache = {}
     
     def get_db(self) -> Session:
-        # 使用database.py中的SessionLocal避免重复创建连接
-        from .database import SessionLocal
+        # 延迟导入避免循环依赖
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        
+        # 直接使用环境变量避免循环导入
+        database_url = os.environ.get("DATABASE_URL", "sqlite:////app/data/tggod.db")
+        
+        if "sqlite" in database_url:
+            engine = create_engine(
+                database_url,
+                connect_args={
+                    "check_same_thread": False,
+                    "timeout": 30,
+                    "isolation_level": None,
+                },
+                pool_pre_ping=True,
+                pool_recycle=3600,
+                echo=False
+            )
+        else:
+            engine = create_engine(
+                database_url,
+                pool_pre_ping=True,
+                pool_recycle=3600,
+                echo=False
+            )
+        
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         return SessionLocal()
     
     def _get_config(self, key: str, default=None):
