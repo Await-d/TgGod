@@ -634,12 +634,29 @@ async def sync_all_groups_monthly(
         logger.error(f"批量按月同步失败: {e}")
         raise HTTPException(status_code=500, detail=f"批量按月同步失败: {str(e)}")
 
+# 简单的内存缓存
+import time
+from typing import Dict, Any
+
+# 统计信息缓存，格式: {group_id: {"data": stats, "timestamp": time.time()}}
+_stats_cache: Dict[int, Dict[str, Any]] = {}
+CACHE_TTL = 300  # 5分钟缓存
+
 @router.get("/groups/{group_id}/stats")
 async def get_group_stats(
     group_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    force_refresh: bool = False
 ):
-    """获取群组统计信息"""
+    """获取群组统计信息（带缓存）"""
+    # 检查缓存
+    current_time = time.time()
+    if not force_refresh and group_id in _stats_cache:
+        cached_data = _stats_cache[group_id]
+        if current_time - cached_data["timestamp"] < CACHE_TTL:
+            logger.info(f"返回群组 {group_id} 的缓存统计数据")
+            return cached_data["data"]
+    
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
@@ -695,7 +712,8 @@ async def get_group_stats(
         TelegramMessage.reactions.isnot(None)
     ).count()
     
-    return {
+    # 构建统计结果
+    stats_result = {
         "total_messages": total_messages,
         "media_messages": media_messages,
         "text_messages": total_messages - media_messages,
@@ -708,6 +726,15 @@ async def get_group_stats(
         "messages_with_reactions": messages_with_reactions,
         "member_count": group.member_count
     }
+    
+    # 缓存结果
+    _stats_cache[group_id] = {
+        "data": stats_result,
+        "timestamp": current_time
+    }
+    
+    logger.info(f"已缓存群组 {group_id} 的统计数据")
+    return stats_result
 
 
 @router.post("/groups/{group_id}/send", response_model=dict)
