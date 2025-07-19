@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <div id="status">Not connected</div>
+    <div id="messages"></div>
+    <button onclick="sendTestMessage()">Send Test Message</button>
+    <button onclick="sendMonthlySync()">Send Monthly Sync Test</button>
+
+    <script>
+        let ws = null;
+        const clientId = 'test_client_' + Date.now();
+        
+        function connect() {
+            const wsUrl = `ws://localhost:8000/ws/${clientId}`;
+            console.log('Connecting to:', wsUrl);
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                document.getElementById('status').innerText = 'Connected';
+                console.log('WebSocket connected');
+            };
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                console.log('Received:', message);
+                
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML += '<p>' + JSON.stringify(message) + '</p>';
+            };
+            
+            ws.onclose = function() {
+                document.getElementById('status').innerText = 'Disconnected';
+                console.log('WebSocket disconnected');
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                document.getElementById('status').innerText = 'Error: ' + error;
+            };
+        }
+        
+        function sendTestMessage() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'ping',
+                    timestamp: new Date().toISOString()
+                }));
+            }
+        }
+        
+        function sendMonthlySync() {
+            // Simulate sending a monthly sync progress message to test
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'monthly_sync_progress',
+                    data: {
+                        currentMonth: '2025-07',
+                        progress: 1,
+                        total: 3,
+                        completed: 0,
+                        failed: 0
+                    },
+                    timestamp: new Date().toISOString()
+                };
+                
+                // This would normally be sent by the backend, but we're testing the format
+                console.log('Would send:', message);
+            }
+        }
+        
+        // Auto connect on page load
+        connect();
+    </script>
+</body>
+</html>
