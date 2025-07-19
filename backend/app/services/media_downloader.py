@@ -127,7 +127,17 @@ class TelegramMediaDownloader:
                 
                 # 获取消息
                 messages = await self.client.get_messages(chat, ids=message_id)
-                message = messages[0] if messages and len(messages) > 0 else None
+                
+                # 处理返回的消息，可能是单个消息或消息列表
+                if messages:
+                    if hasattr(messages, '__iter__') and not isinstance(messages, str):
+                        # 是列表类型
+                        message = messages[0] if len(messages) > 0 else None
+                    else:
+                        # 是单个消息对象
+                        message = messages
+                else:
+                    message = None
                 
                 if not message:
                     logger.warning(f"消息 {message_id} 不存在")
