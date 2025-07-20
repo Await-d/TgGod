@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Typography, Avatar, Space, Spin, message as notification } from 'antd';
 import { MessageOutlined, UserOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
-import { telegramApi } from '../../services/apiService';
+import { messageApi } from '../../services/apiService';
 import './ReplyMessagePreview.css';
 
 const { Text } = Typography;
@@ -39,7 +39,7 @@ const ReplyMessagePreview: React.FC<ReplyMessagePreviewProps> = ({
         groupId
       });
       
-      const message = await telegramApi.getMessageById(groupId, replyToMessageId);
+      const message = await messageApi.getMessageById(groupId, replyToMessageId);
       console.log('ReplyMessagePreview - fetched message:', message);
       setReplyMessage(message);
     } catch (error: any) {
