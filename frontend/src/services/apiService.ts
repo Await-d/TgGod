@@ -593,6 +593,13 @@ export const mediaApi = {
     media_type?: string;
     file_id?: string;
     error?: string;
+    // 新增进度相关字段
+    progress?: number;
+    downloaded_size?: number;
+    total_size?: number;
+    download_speed?: number;
+    estimated_time_remaining?: number;
+    download_started_at?: string;
   }> => {
     return api.get(`/media/download-status/${messageId}`);
   },
