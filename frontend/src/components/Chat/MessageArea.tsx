@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Space, Button, Empty, Spin, Typography, message as antMessage } from 'antd';
+import { Space, Button, Empty, Spin, Typography, Badge, message as antMessage } from 'antd';
 import { 
   ReloadOutlined, 
   SyncOutlined, 
@@ -66,7 +66,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [buttonVisible, setButtonVisible] = useState(true);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const internalContainerRef = useRef<HTMLDivElement>(null);
@@ -172,6 +175,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     setShowScrollToBottom(false);
+    setUnreadCount(0);
   }, []);
 
   // 检查是否需要显示"滚动到底部"按钮
@@ -181,6 +185,24 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     const container = messagesContainerRef.current;
     const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 200;
     setShowScrollToBottom(!isNearBottom);
+    
+    // 如果滚动到底部，清除未读计数
+    if (isNearBottom) {
+      setUnreadCount(0);
+    }
+
+    // 重置按钮可见性和超时计时器
+    setButtonVisible(true);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // 5秒后让按钮稍微透明（如果仍不在底部）
+    if (!isNearBottom) {
+      scrollTimeoutRef.current = setTimeout(() => {
+        setButtonVisible(false);
+      }, 5000);
+    }
   }, []);
 
   // 获取消息列表
@@ -313,9 +335,42 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     const container = messagesContainerRef.current;
     if (container) {
       container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
+      return () => {
+        container.removeEventListener('scroll', handleScroll);
+        // 清理定时器
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+      };
     }
   }, [handleScroll]);
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // 监听新消息并更新未读计数
+  const previousMessageCount = useRef(displayMessages.length);
+  useEffect(() => {
+    if (displayMessages.length > previousMessageCount.current) {
+      // 有新消息
+      const newMessageCount = displayMessages.length - previousMessageCount.current;
+      if (showScrollToBottom && messagesContainerRef.current) {
+        // 只有在用户不在底部时才增加未读计数
+        const container = messagesContainerRef.current;
+        const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 200;
+        if (!isNearBottom) {
+          setUnreadCount(prev => prev + newMessageCount);
+        }
+      }
+    }
+    previousMessageCount.current = displayMessages.length;
+  }, [displayMessages.length, showScrollToBottom]);
 
   // 处理滚动加载更多
   const handleScrollToTop = useCallback(() => {
@@ -472,14 +527,20 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
       {/* 滚动到底部按钮 */}
       {showScrollToBottom && (
-        <div className="scroll-to-bottom">
-          <Button
-            type="primary"
-            shape="circle"
-            icon={<ArrowDownOutlined />}
-            onClick={scrollToBottom}
-            size="large"
-          />
+        <div 
+          className={`scroll-to-bottom ${!buttonVisible ? 'auto-hidden' : ''}`}
+          onMouseEnter={() => setButtonVisible(true)}
+        >
+          <Badge count={unreadCount} size="small" offset={[-5, 5]}>
+            <Button
+              type="primary"
+              shape="circle"
+              icon={<ArrowDownOutlined />}
+              onClick={scrollToBottom}
+              size="large"
+              title={unreadCount > 0 ? `${unreadCount} 条新消息` : '回到底部'}
+            />
+          </Badge>
         </div>
       )}
     </div>
