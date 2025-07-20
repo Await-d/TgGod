@@ -70,7 +70,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [unreadCount, setUnreadCount] = useState(0);
   const [buttonVisible, setButtonVisible] = useState(true);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
-  const [forceShowScrollButton, setForceShowScrollButton] = useState(true); // 临时测试：强制显示按钮
+  // 移除调试用的强制显示状态
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   
   // 媒体画廊状态
@@ -245,17 +245,18 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100; // 减少阈值到100px
     const shouldShow = !isNearBottom;
     
-    // 调试信息 - 每次滚动都输出，用于调试
-    console.log('MessageArea - scroll check', {
-      scrollTop: container.scrollTop,
-      clientHeight: container.clientHeight,
-      scrollHeight: container.scrollHeight,
-      threshold: container.scrollHeight - 100,
-      isNearBottom,
-      shouldShow,
-      currentShow: showScrollToBottom,
-      forceShow: forceShowScrollButton
-    });
+    // 调试信息 - 只在状态变化时输出
+    if (shouldShow !== showScrollToBottom) {
+      console.log('MessageArea - scroll state changed', {
+        scrollTop: container.scrollTop,
+        clientHeight: container.clientHeight,
+        scrollHeight: container.scrollHeight,
+        threshold: container.scrollHeight - 100,
+        isNearBottom,
+        shouldShow,
+        currentShow: showScrollToBottom
+      });
+    }
     
     setShowScrollToBottom(shouldShow);
     
@@ -606,41 +607,13 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 调试按钮 */}
-      <div style={{
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
-        zIndex: 1002,
-        display: 'flex',
-        gap: '8px'
-      }}>
-        <Button 
-          size="small"
-          onClick={() => {
-            handleScroll();
-            console.log('手动触发滚动检查');
-          }}
-        >
-          测试滚动
-        </Button>
-        <Button 
-          size="small"
-          type={forceShowScrollButton ? 'primary' : 'default'}
-          onClick={() => setForceShowScrollButton(!forceShowScrollButton)}
-        >
-          强制显示: {forceShowScrollButton ? 'ON' : 'OFF'}
-        </Button>
-      </div>
-
       {/* 滚动到底部按钮 */}
-      {(showScrollToBottom || forceShowScrollButton) && (
+      {showScrollToBottom && (
         <div 
           className={`scroll-to-bottom ${!buttonVisible ? 'auto-hidden' : ''}`}
           onMouseEnter={() => setButtonVisible(true)}
           style={{
-            // 添加明显的背景色以便调试
-            backgroundColor: forceShowScrollButton ? 'rgba(255, 0, 0, 0.1)' : 'rgba(0, 255, 0, 0.1)'
+            // 移除调试背景色
           }}
         >
           <Badge count={unreadCount} size="small" offset={[-5, 5]}>
@@ -648,18 +621,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
               type="primary"
               shape="circle"
               icon={<ArrowDownOutlined />}
-              onClick={() => {
-                console.log('滚动按钮被点击', { 
-                  showScrollToBottom, 
-                  forceShowScrollButton,
-                  window: { width: window.innerWidth, height: window.innerHeight }
-                });
-                scrollToBottom();
-                // 不立即关闭强制显示，让正常逻辑接管
-                // setForceShowScrollButton(false);
-              }}
+              onClick={scrollToBottom}
               size="large"
-              title={unreadCount > 0 ? `${unreadCount} 条新消息` : `回到底部 (正常:${showScrollToBottom},强制:${forceShowScrollButton})`}
+              title={unreadCount > 0 ? `${unreadCount} 条新消息` : '回到底部'}
             />
           </Badge>
         </div>
