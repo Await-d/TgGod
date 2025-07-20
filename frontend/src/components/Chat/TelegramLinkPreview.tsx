@@ -6,10 +6,12 @@ import {
   LinkOutlined, 
   RightOutlined,
   PlusOutlined,
-  CheckOutlined
+  CheckOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { telegramApi } from '../../services/apiService';
+import ExternalGroupPreview from './ExternalGroupPreview';
 import './TelegramLinkPreview.css';
 
 const { Text, Title } = Typography;
@@ -50,6 +52,7 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
   const [groupPreview, setGroupPreview] = useState<GroupPreviewData | null>(null);
   const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [showExternalPreview, setShowExternalPreview] = useState(false);
 
   // 解析Telegram链接
   const parseTelegramUrl = (url: string): TelegramLinkInfo | null => {
@@ -344,27 +347,41 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
             </div>
             
             <div className="preview-action">
-              {groupPreview.is_joined ? (
+              <Space direction="vertical" size={4}>
                 <Button 
                   type="primary" 
                   size="small"
-                  icon={<RightOutlined />}
-                  onClick={handleJumpToGroup}
-                  disabled={!onJumpToGroup}
+                  icon={<EyeOutlined />}
+                  onClick={() => setShowExternalPreview(true)}
+                  style={{ width: '100%' }}
                 >
-                  进入群组
+                  查看详情
                 </Button>
-              ) : (
-                <Button 
-                  type="default" 
-                  size="small"
-                  icon={joining ? <Spin size="small" /> : <PlusOutlined />}
-                  onClick={handleJoinGroup}
-                  loading={joining}
-                >
-                  加入群组
-                </Button>
-              )}
+                
+                {groupPreview.is_joined ? (
+                  <Button 
+                    type="default" 
+                    size="small"
+                    icon={<RightOutlined />}
+                    onClick={handleJumpToGroup}
+                    disabled={!onJumpToGroup}
+                    style={{ width: '100%' }}
+                  >
+                    进入群组
+                  </Button>
+                ) : (
+                  <Button 
+                    type="default" 
+                    size="small"
+                    icon={joining ? <Spin size="small" /> : <PlusOutlined />}
+                    onClick={handleJoinGroup}
+                    loading={joining}
+                    style={{ width: '100%' }}
+                  >
+                    快速加入
+                  </Button>
+                )}
+              </Space>
             </div>
           </div>
           
@@ -382,9 +399,23 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
   };
 
   return (
-    <div className={`telegram-link-preview-wrapper ${className}`}>
-      {renderPreviewContent()}
-    </div>
+    <>
+      <div className={`telegram-link-preview-wrapper ${className}`}>
+        {renderPreviewContent()}
+      </div>
+      
+      {/* 外部群组详细预览模态框 */}
+      <ExternalGroupPreview
+        url={url}
+        visible={showExternalPreview}
+        onClose={() => setShowExternalPreview(false)}
+        onJoinGroup={(groupInfo) => {
+          console.log('TelegramLinkPreview - group joined from external preview:', groupInfo);
+          setGroupPreview(prev => prev ? { ...prev, is_joined: true } : null);
+          notification.success(`已加入群组: ${groupInfo.title}`);
+        }}
+      />
+    </>
   );
 };
 

@@ -73,6 +73,11 @@
 .preview-action {
   flex-shrink: 0;
   margin-left: 8px;
+  min-width: 100px;
+}
+
+.preview-action .ant-space-vertical {
+  width: 100%;
 }
 
 .joined-indicator {
@@ -157,10 +162,15 @@
     font-size: 14px;
   }
   
+  .preview-action {
+    min-width: 80px;
+  }
+  
   .preview-action .ant-btn {
-    font-size: 12px;
-    height: 28px;
-    padding: 0 12px;
+    font-size: 11px;
+    height: 26px;
+    padding: 0 8px;
+    width: 100%;
   }
 }
 
