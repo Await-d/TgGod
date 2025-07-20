@@ -29,6 +29,7 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
   
   const [isLoading, setIsLoading] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout>();
+  const progressIntervalRef = useRef<NodeJS.Timeout>();
   const abortControllerRef = useRef<AbortController>();
 
   // 获取下载状态
@@ -154,10 +155,13 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
     }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
     
     // 模拟进度增长（因为后端没有实时进度）
     let progress = 0;
-    const progressInterval = setInterval(() => {
+    progressIntervalRef.current = setInterval(() => {
       progress += Math.random() * 15; // 随机增长
       if (progress > 95) progress = 95; // 最多到95%，等待实际完成
       
@@ -173,7 +177,10 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       const data = await fetchDownloadStatus();
       
       if (data && (data.status === 'downloaded' || data.status === 'download_failed')) {
-        clearInterval(progressInterval);
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = undefined;
+        }
         stopPolling();
       }
     }, 2000);
@@ -184,6 +191,10 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = undefined;
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = undefined;
     }
   }, []);
 

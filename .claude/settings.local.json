@@ -98,7 +98,8 @@
       "Bash(./pre_deploy_fix.sh:*)",
       "Bash(npx tsc:*)",
       "Bash(env)",
-      "Bash(pip3 install:*)"
+      "Bash(pip3 install:*)",
+      "Bash(source:*)"
     ],
     "deny": []
   }

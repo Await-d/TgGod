@@ -114,16 +114,25 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
   // 确定要使用的媒体URL
   // 优先使用已下载文件的URL，然后是备选URLs，最后是原始URL
   const getDisplayUrl = () => {
+    // 优先使用下载状态中的URL
     if (downloadStatus.downloadUrl) {
+      console.log('Using downloadStatus.downloadUrl:', downloadStatus.downloadUrl);
       return downloadStatus.downloadUrl;
     }
     if (downloadStatus.filePath) {
-      return getMediaUrl(downloadStatus.filePath);
+      const filePathUrl = getMediaUrl(downloadStatus.filePath);
+      console.log('Using downloadStatus.filePath as URL:', filePathUrl);
+      return filePathUrl;
     }
+    // 如果没有下载状态URL，使用备选URLs
     if (alternativeUrls.length > 0) {
+      console.log('Using alternative URL:', alternativeUrls[currentUrlIndex]);
       return alternativeUrls[currentUrlIndex];
     }
-    return getMediaUrl(url);
+    // 最后使用原始URL
+    const originalUrl = getMediaUrl(url);
+    console.log('Using original URL:', originalUrl);
+    return originalUrl;
   };
   
   const mediaUrl = getDisplayUrl();
@@ -147,6 +156,20 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                          downloadStatus.status === 'downloaded' || 
                          isLocalFile || 
                          hasDownloadedFile;
+
+  // 调试输出
+  React.useEffect(() => {
+    console.log('MediaPreview debug:', {
+      messageId,
+      url,
+      downloaded,
+      downloadStatus,
+      isLocalFile,
+      hasDownloadedFile,
+      shouldShowMedia,
+      mediaUrl
+    });
+  }, [messageId, url, downloaded, downloadStatus, isLocalFile, hasDownloadedFile, shouldShowMedia, mediaUrl]);
   
   // 将媒体类型转换为下载组件需要的格式
   const mediaType = type === 'image' ? 'photo' : type;
@@ -371,7 +394,12 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
   if (type === 'video') {
     return (
       <div className={`media-preview video-preview ${className || ''}`}>
-        <div className="video-thumbnail" onClick={() => shouldShowMedia && setPreviewVisible(true)} style={{ position: 'relative' }}>
+        <div className="video-thumbnail" onClick={() => {
+          console.log('Open gallery for:', mediaUrl);
+          if (shouldShowMedia) {
+            setPreviewVisible(true);
+          }
+        }} style={{ position: 'relative', cursor: shouldShowMedia ? 'pointer' : 'default' }}>
           {shouldShowMedia ? (
             <>
               <video

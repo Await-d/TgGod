@@ -5,9 +5,9 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
-/* 群组信息区域 */
+/* 群组信息区域 - 紧凑布局 */
 .group-info-section {
-  padding: 12px 16px;
+  padding: 8px 12px; /* 减少内边距 */
   background: transparent;
 }
 
@@ -31,8 +31,8 @@
 
 .group-title {
   margin: 0 !important;
-  font-size: 18px !important;
-  line-height: 24px !important;
+  font-size: 16px !important; /* 减小字体大小 */
+  line-height: 20px !important; /* 减少行高 */
   color: #262626 !important;
   font-weight: 600 !important;
 }
@@ -67,10 +67,10 @@
   line-height: 18px !important;
 }
 
-/* 统计信息区域 */
+/* 统计信息区域 - 紧凑显示 */
 .stats-section {
-  margin-bottom: 4px;
-  padding: 4px 16px 6px 16px;
+  margin-bottom: 2px;
+  padding: 2px 12px 4px 12px; /* 显著减少内边距 */
   background: #fafafa;
   border-top: 1px solid #f0f0f0;
   border-bottom: 1px solid #f0f0f0;
@@ -79,8 +79,31 @@
 .stats-header {
   display: flex;
   align-items: center;
+  justify-content: space-between; /* 让切换按钮靠右对齐 */
   gap: 4px;
-  margin-bottom: 4px;
+  margin-bottom: 2px; /* 减少底部间距 */
+}
+
+.stats-header-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stats-toggle-btn {
+  border: none !important;
+  box-shadow: none !important;
+  color: #666 !important;
+  font-size: 10px !important;
+  height: 16px !important;
+  width: 16px !important;
+  padding: 0 !important;
+  min-width: auto !important;
+}
+
+.stats-toggle-btn:hover {
+  color: #1890ff !important;
+  background: rgba(24, 144, 255, 0.1) !important;
 }
 
 .stats-icon {
@@ -101,29 +124,29 @@
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 4px;
-  margin-bottom: 2px;
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); /* 减小最小宽度 */
+  gap: 2px; /* 减少间距 */
+  margin-bottom: 0; /* 去除底部间距 */
 }
 
 .stat-item {
   text-align: center;
-  min-width: 60px;
-  padding: 0 2px;
+  min-width: 50px; /* 减小最小宽度 */
+  padding: 0 1px; /* 减少内边距 */
 }
 
 .stat-value {
-  font-size: 14px;
+  font-size: 12px; /* 减小字体大小 */
   font-weight: 600;
   line-height: 1.1;
-  margin-bottom: 1px;
+  margin-bottom: 0; /* 去除底部间距 */
 }
 
 .stat-label {
-  font-size: 10px;
+  font-size: 9px; /* 减小标签字体 */
   color: #8c8c8c;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1.1; /* 减少行高 */
 }
 
 /* 置顶消息区域 */
@@ -215,64 +238,64 @@
   background: #faad14 !important;
 }
 
-/* 移动端适配 */
+/* 移动端适配 - 进一步紧凑化 */
 @media (max-width: 768px) {
   .group-info-section {
-    padding: 10px 12px;
+    padding: 6px 10px; /* 减少移动端内边距 */
   }
   
   .group-main-info {
-    gap: 10px;
+    gap: 8px; /* 减少间距 */
   }
   
   .group-title {
-    font-size: 16px !important;
-    line-height: 22px !important;
+    font-size: 14px !important; /* 减小字体 */
+    line-height: 18px !important; /* 减少行高 */
   }
   
   .group-meta-row {
-    gap: 8px;
+    gap: 6px; /* 减少间距 */
     flex-wrap: wrap;
   }
   
   .member-count {
-    font-size: 12px !important;
+    font-size: 11px !important; /* 减小字体 */
   }
   
   .group-username {
-    font-size: 11px !important;
+    font-size: 10px !important; /* 减小字体 */
   }
   
   .stats-section {
-    padding: 6px 12px;
+    padding: 2px 10px 3px 10px; /* 显著减少移动端统计区域内边距 */
   }
   
   .stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 4px;
-  margin-bottom: 2px;
-}
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); /* 减小移动端最小宽度 */
+    gap: 1px; /* 减少移动端间距 */
+    margin-bottom: 0; /* 去除底部间距 */
+  }
   
   .stat-item {
-  text-align: center;
-  min-width: 60px;
-  padding: 0 2px;
-}
+    text-align: center;
+    min-width: 45px; /* 减小移动端最小宽度 */
+    padding: 0 1px; /* 减少移动端内边距 */
+  }
   
   .stat-value {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.1;
-  margin-bottom: 1px;
-}
+    font-size: 11px; /* 减小移动端数值字体 */
+    font-weight: 600;
+    line-height: 1.1;
+    margin-bottom: 0; /* 去除移动端底部间距 */
+  }
   
   .stat-label {
-  font-size: 10px;
-  color: #8c8c8c;
-  font-weight: 500;
-  line-height: 1.2;
-}
+    font-size: 8px; /* 减小移动端标签字体 */
+    color: #8c8c8c;
+    font-weight: 500;
+    line-height: 1.1; /* 减少移动端行高 */
+  }
   
   .pinned-section {
     padding: 6px 12px;

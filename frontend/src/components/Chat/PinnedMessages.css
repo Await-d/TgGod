@@ -1,9 +1,9 @@
-/* 置顶消息容器 - 支持平板模式 */
+/* 置顶消息容器 - 优化为更紧凑的布局 */
 .pinned-messages-container {
   position: sticky;
   top: 0;
   z-index: 50;
-  margin-bottom: 12px;
+  margin-bottom: 6px; /* 减少底部间距 */
   animation: pinnedSlideIn 0.3s ease-out;
 }
 
@@ -11,11 +11,12 @@
   position: sticky;
   top: 0;
   z-index: 20;
+  margin-bottom: 4px; /* 移动端进一步减少间距 */
 }
 
 /* 平板模式优化 */
 .pinned-messages-container.tablet {
-  margin-bottom: 8px;
+  margin-bottom: 4px; /* 减少平板模式间距 */
   z-index: 40;
 }
 
@@ -72,12 +73,12 @@
   border-color: #d9d9d9;
 }
 
-/* 置顶消息头部 */
+/* 置顶消息头部 - 减少高度 */
 .pinned-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 4px 10px; /* 减少内边距 */
   background: rgba(250, 173, 20, 0.1);
   border-bottom: 1px solid rgba(250, 173, 20, 0.2);
 }
@@ -176,7 +177,7 @@
 }
 
 .pinned-content.visible {
-  max-height: 250px;
+  max-height: 120px; /* 显著减少最大高度 */
   opacity: 1;
   transform: translateY(0);
 }
@@ -188,10 +189,10 @@
 }
 
 .pinned-message-content {
-  padding: 12px;
+  padding: 6px 10px; /* 减少内边距 */
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px; /* 减少间距 */
   animation: contentSlideIn 0.3s ease-out;
 }
 
@@ -218,14 +219,16 @@
   font-size: 12px;
 }
 
-/* 消息文本 */
+/* 消息文本 - 紧凑显示 */
 .pinned-text {
   color: #262626;
-  line-height: 1.5;
+  line-height: 1.3; /* 减少行高 */
+  font-size: 13px; /* 减小字体大小 */
 }
 
 .pinned-text .ant-typography {
   color: inherit;
+  font-size: 13px; /* 保持一致的字体大小 */
 }
 
 /* 媒体信息 */
@@ -269,10 +272,10 @@
   }
 }
 
-/* 移动端适配 */
+/* 移动端适配 - 更紧凑的布局 */
 @media (max-width: 768px) {
   .pinned-messages-container {
-    margin-bottom: 8px;
+    margin-bottom: 2px; /* 进一步减少移动端间距 */
   }
   
   .pinned-messages-card {
@@ -280,22 +283,23 @@
   }
   
   .pinned-header {
-    padding: 6px 12px;
+    padding: 3px 8px; /* 减少移动端头部内边距 */
   }
   
   .pinned-message-content {
-    padding: 8px 12px;
-    gap: 6px;
+    padding: 4px 8px; /* 减少移动端内容内边距 */
+    gap: 3px; /* 减少移动端间距 */
   }
   
   .pinned-text {
-    font-size: 14px;
+    font-size: 12px; /* 减小移动端字体 */
+    line-height: 1.2; /* 减少移动端行高 */
   }
   
   .pinned-jump .ant-btn {
-    font-size: 11px;
-    height: 24px;
-    padding: 0 8px;
+    font-size: 10px;
+    height: 20px; /* 减小按钮高度 */
+    padding: 0 6px;
   }
 }
 

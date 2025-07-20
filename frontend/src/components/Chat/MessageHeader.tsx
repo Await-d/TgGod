@@ -1,10 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Typography, Tag, Avatar, Spin } from 'antd';
+import { Typography, Tag, Avatar, Spin, Button } from 'antd';
 import { 
   TeamOutlined,
   CheckCircleOutlined,
   PauseCircleOutlined,
-  MessageOutlined
+  MessageOutlined,
+  UpOutlined,
+  DownOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { telegramApi } from '../../services/apiService';
@@ -33,6 +35,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   // 群组统计信息状态
   const [groupStats, setGroupStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [showStats, setShowStats] = useState(true); // 统计信息显示状态
 
   // 获取群组统计信息
   const fetchGroupStats = useCallback(async () => {
@@ -129,10 +132,20 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
       {groupStats && (
         <div className="stats-section">
           <div className="stats-header">
-            <MessageOutlined className="stats-icon" />
-            <span className="stats-title">消息统计</span>
+            <div className="stats-header-left">
+              <MessageOutlined className="stats-icon" />
+              <span className="stats-title">消息统计</span>
+            </div>
+            <Button 
+              type="text" 
+              size="small"
+              icon={showStats ? <UpOutlined /> : <DownOutlined />}
+              onClick={() => setShowStats(!showStats)}
+              className="stats-toggle-btn"
+              title={showStats ? '隐藏统计' : '显示统计'}
+            />
           </div>
-          {loadingStats ? (
+          {showStats && (loadingStats ? (
             <div className="stats-loading">
               <Spin size="small" />
             </div>
@@ -179,7 +192,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                 </>
               )}
             </div>
-          )}
+          ))}
         </div>
       )}
     </div>
