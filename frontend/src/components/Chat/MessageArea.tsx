@@ -196,9 +196,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       totalDisplayMessages: displayMessages.length
     });
     
-    // 筛选出所有有媒体且已下载的消息
+    // 筛选出所有有媒体路径的消息（不管是否标记为已下载，只要有路径就可以尝试显示）
     const mediaMessages = displayMessages.filter(msg => 
-      msg.media_type && msg.media_downloaded && msg.media_path
+      msg.media_type && msg.media_path
     );
     
     console.log('MessageArea - filtered media messages', {

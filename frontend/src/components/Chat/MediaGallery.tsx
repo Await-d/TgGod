@@ -103,7 +103,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
   // 初始化媒体项目
   useEffect(() => {
     const items = messages
-      .filter(msg => msg.media_downloaded && msg.media_path)
+      .filter(msg => msg.media_type && msg.media_path)
       .map(msg => ({
         message: msg,
         url: buildMediaUrl(msg),
