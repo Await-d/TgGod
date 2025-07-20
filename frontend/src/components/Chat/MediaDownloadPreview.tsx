@@ -544,7 +544,10 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
           {renderMediaThumbnail()}
           
           <div className="media-details">
-            <div className="media-filename">
+            <div 
+              className="media-filename"
+              title={message.media_filename || `${message.media_type}_${message.id}`} // 悬浮显示完整文件名
+            >
               {message.media_filename || `${message.media_type}_${message.id}`}
             </div>
             <div className="media-meta">
