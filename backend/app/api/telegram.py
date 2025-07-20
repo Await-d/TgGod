@@ -245,62 +245,84 @@ async def get_group_messages(
 ):
     """获取群组消息（支持搜索和过滤）"""
     
-    # 检查群组是否存在
-    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
-    if not group:
-        raise HTTPException(status_code=404, detail="群组不存在")
-    
-    # 构建查询
-    query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group_id)
-    
-    # 应用过滤条件
-    if search:
-        query = query.filter(TelegramMessage.text.contains(search))
-    
-    if sender_username:
-        query = query.filter(TelegramMessage.sender_username == sender_username)
-    
-    if media_type:
-        query = query.filter(TelegramMessage.media_type == media_type)
-    
-    if has_media is not None:
-        if has_media:
-            query = query.filter(TelegramMessage.media_type.isnot(None))
+    try:
+        # 检查群组是否存在
+        group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+        if not group:
+            raise HTTPException(status_code=404, detail="群组不存在")
+        
+        # 构建查询
+        query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group_id)
+        
+        # 应用过滤条件
+        if search:
+            query = query.filter(TelegramMessage.text.contains(search))
+        
+        if sender_username:
+            query = query.filter(TelegramMessage.sender_username == sender_username)
+        
+        if media_type:
+            query = query.filter(TelegramMessage.media_type == media_type)
+        
+        if has_media is not None:
+            if has_media:
+                query = query.filter(TelegramMessage.media_type.isnot(None))
+            else:
+                query = query.filter(TelegramMessage.media_type.is_(None))
+        
+        if is_forwarded is not None:
+            query = query.filter(TelegramMessage.is_forwarded == is_forwarded)
+        
+        if is_pinned is not None:
+            query = query.filter(TelegramMessage.is_pinned == is_pinned)
+        
+        if start_date:
+            query = query.filter(TelegramMessage.date >= start_date)
+        
+        if end_date:
+            query = query.filter(TelegramMessage.date <= end_date)
+        
+        # 排序和分页逻辑：
+        # 1. 如果是置顶消息，按照置顶时间排序（最新置顶的在前）
+        # 2. 普通消息按照日期排序，先获取最新的消息（倒序），然后对结果进行正序排列
+        # 3. 这样前端就不需要做任何排序操作
+        
+        if is_pinned is True:
+            # 置顶消息按照消息日期降序排列（最新置顶的在前）
+            # 使用date字段而不是id，因为date更准确反映消息的时间
+            messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
         else:
-            query = query.filter(TelegramMessage.media_type.is_(None))
-    
-    if is_forwarded is not None:
-        query = query.filter(TelegramMessage.is_forwarded == is_forwarded)
-    
-    if is_pinned is not None:
-        query = query.filter(TelegramMessage.is_pinned == is_pinned)
-    
-    if start_date:
-        query = query.filter(TelegramMessage.date >= start_date)
-    
-    if end_date:
-        query = query.filter(TelegramMessage.date <= end_date)
-    
-    # 排序和分页逻辑：
-    # 1. 如果是置顶消息，按照置顶时间排序（最新置顶的在前）
-    # 2. 普通消息按照日期排序，先获取最新的消息（倒序），然后对结果进行正序排列
-    # 3. 这样前端就不需要做任何排序操作
-    
-    if is_pinned is True:
-        # 置顶消息按照消息日期降序排列（最新置顶的在前）
-        # 使用date字段而不是id，因为date更准确反映消息的时间
-        messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
-    else:
-        # 获取消息（降序获取最新的）
-        messages_desc = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
-        # 反转为正序（最老消息在前，最新消息在后）
-        messages = list(reversed(messages_desc))
-    
-    # 处理JSON字段的数据类型转换
-    for message in messages:
-        process_message_json_fields(message)
-    
-    return messages
+            # 获取消息（降序获取最新的）
+            messages_desc = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+            # 反转为正序（最老消息在前，最新消息在后）
+            messages = list(reversed(messages_desc))
+        
+        # 处理JSON字段的数据类型转换
+        for message in messages:
+            process_message_json_fields(message)
+        
+        return messages
+        
+    except Exception as e:
+        logger.error(f"获取群组 {group_id} 消息失败: {e}")
+        
+        # 特殊处理数据库锁定错误
+        if "database is locked" in str(e).lower():
+            raise HTTPException(
+                status_code=503, 
+                detail="数据库正忙，请稍后重试。可能有同步任务正在进行中。"
+            )
+        elif "timeout" in str(e).lower():
+            raise HTTPException(
+                status_code=504, 
+                detail="数据库查询超时，请尝试缩小查询范围或稍后重试。"
+            )
+        else:
+            # 其他数据库错误
+            raise HTTPException(
+                status_code=500, 
+                detail=f"数据库查询失败: {str(e)}"
+            )
 
 
 @router.get("/groups/{group_id}/messages/{message_id}", response_model=MessageResponse)

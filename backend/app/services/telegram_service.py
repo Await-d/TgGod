@@ -666,15 +666,14 @@ class TelegramService:
             from ..database import SessionLocal
             db = SessionLocal()
             
-            # 查询群组记录（如果需要）
-            if group_id is None:
-                group_record = db.query(TelegramGroup).filter_by(
-                    telegram_id=entity.id
-                ).first()
-                group_id = group_record.id if group_record else None
-                logger.info(f"从数据库查询到群组ID: {group_id}")
-            
             try:
+                # 查询群组记录（如果需要）
+                if group_id is None:
+                    group_record = db.query(TelegramGroup).filter_by(
+                        telegram_id=entity.id
+                    ).first()
+                    group_id = group_record.id if group_record else None
+                    logger.info(f"从数据库查询到群组ID: {group_id}")
                 # 按月同步消息
                 for i, month_info in enumerate(months):
                     try:
@@ -770,6 +769,12 @@ class TelegramService:
                         await asyncio.sleep(2)
                 
                 logger.info(f"按月同步完成: 总计 {sync_result['total_messages']} 条消息")
+                return sync_result
+                
+            except Exception as inner_e:
+                logger.error(f"同步过程中出现错误: {inner_e}")
+                sync_result["success"] = False
+                sync_result["error"] = str(inner_e)
                 return sync_result
                 
             finally:
