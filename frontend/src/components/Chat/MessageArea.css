@@ -415,7 +415,7 @@
   position: absolute;
   bottom: 24px;
   right: 24px;
-  z-index: 10;
+  z-index: 1000; /* 提高z-index确保显示 */
   animation: slideInUp 0.3s ease-out;
 }
 

@@ -202,9 +202,16 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                 message={message}
                 className="message-media-preview"
                 onPreview={(mediaPath) => {
+                  console.log('MessageBubble - onPreview called', {
+                    messageId: message.id,
+                    mediaPath,
+                    hasOnOpenGallery: !!onOpenGallery
+                  });
                   if (onOpenGallery) {
+                    console.log('MessageBubble - calling onOpenGallery');
                     onOpenGallery(message);
                   } else {
+                    console.log('MessageBubble - no onOpenGallery prop, using fallback');
                     console.log('Open gallery for:', mediaPath);
                   }
                 }}

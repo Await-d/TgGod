@@ -186,18 +186,45 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
   // 媒体画廊相关函数
   const openMediaGallery = useCallback((targetMessage: TelegramMessage) => {
+    console.log('MessageArea - openMediaGallery called', {
+      targetMessage: {
+        id: targetMessage.id,
+        mediaType: targetMessage.media_type,
+        mediaDownloaded: targetMessage.media_downloaded,
+        mediaPath: targetMessage.media_path
+      },
+      totalDisplayMessages: displayMessages.length
+    });
+    
     // 筛选出所有有媒体且已下载的消息
     const mediaMessages = displayMessages.filter(msg => 
       msg.media_type && msg.media_downloaded && msg.media_path
     );
     
+    console.log('MessageArea - filtered media messages', {
+      totalMediaMessages: mediaMessages.length,
+      mediaMessages: mediaMessages.map(msg => ({
+        id: msg.id,
+        mediaType: msg.media_type,
+        mediaPath: msg.media_path
+      }))
+    });
+    
     // 找到目标消息在媒体消息中的索引
     const targetIndex = mediaMessages.findIndex(msg => msg.id === targetMessage.id);
     
+    console.log('MessageArea - target index', { targetIndex });
+    
     if (targetIndex >= 0) {
+      console.log('MessageArea - opening gallery', {
+        galleryIndex: targetIndex,
+        galleryMessagesCount: mediaMessages.length
+      });
       setGalleryMessages(mediaMessages);
       setGalleryIndex(targetIndex);
       setGalleryVisible(true);
+    } else {
+      console.warn('MessageArea - target message not found in media messages');
     }
   }, [displayMessages]);
 
@@ -215,7 +242,21 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     
     const container = messagesContainerRef.current;
     const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 200;
-    setShowScrollToBottom(!isNearBottom);
+    const shouldShow = !isNearBottom;
+    
+    // 调试信息 - 只在状态变化时输出
+    if (shouldShow !== showScrollToBottom) {
+      console.log('MessageArea - scroll state changed', {
+        scrollTop: container.scrollTop,
+        clientHeight: container.clientHeight,
+        scrollHeight: container.scrollHeight,
+        isNearBottom,
+        shouldShow,
+        currentShow: showScrollToBottom
+      });
+    }
+    
+    setShowScrollToBottom(shouldShow);
     
     // 如果滚动到底部，清除未读计数
     if (isNearBottom) {
@@ -562,6 +603,12 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         <div 
           className={`scroll-to-bottom ${!buttonVisible ? 'auto-hidden' : ''}`}
           onMouseEnter={() => setButtonVisible(true)}
+          style={{
+            /* 调试样式 - 确保按钮可见 */
+            backgroundColor: 'rgba(24, 144, 255, 0.1)',
+            borderRadius: '50%',
+            padding: '4px'
+          }}
         >
           <Badge count={unreadCount} size="small" offset={[-5, 5]}>
             <Button

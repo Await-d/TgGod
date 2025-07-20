@@ -34,12 +34,45 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   className = '',
   onPreview
 }) => {
-  const [downloadState, setDownloadState] = useState<DownloadState>({
-    status: message.media_downloaded ? 'downloaded' : 'not_downloaded',
-    downloadUrl: message.media_path
+  const [downloadState, setDownloadState] = useState<DownloadState>(() => {
+    const initialState = {
+      status: message.media_downloaded ? 'downloaded' : 'not_downloaded' as DownloadState['status'],
+      downloadUrl: message.media_path
+    };
+    console.log('MediaDownloadPreview - initial state', {
+      messageId: message.id,
+      mediaDownloaded: message.media_downloaded,
+      mediaPath: message.media_path,
+      initialState
+    });
+    return initialState;
   });
   
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  
+  // 监听 message 变化，更新下载状态
+  useEffect(() => {
+    console.log('MediaDownloadPreview - message updated', {
+      messageId: message.id,
+      mediaDownloaded: message.media_downloaded,
+      mediaPath: message.media_path,
+      currentDownloadState: downloadState
+    });
+    
+    const newStatus = message.media_downloaded ? 'downloaded' : 'not_downloaded';
+    if (downloadState.status !== newStatus || downloadState.downloadUrl !== message.media_path) {
+      console.log('MediaDownloadPreview - updating download state', {
+        oldStatus: downloadState.status,
+        newStatus,
+        oldUrl: downloadState.downloadUrl,
+        newUrl: message.media_path
+      });
+      setDownloadState({
+        status: newStatus,
+        downloadUrl: message.media_path
+      });
+    }
+  }, [message.media_downloaded, message.media_path, message.id]);
 
   // 获取媒体类型图标
   const getMediaIcon = (mediaType: string) => {
@@ -148,14 +181,26 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   // 预览媒体
   const handlePreview = () => {
+    console.log('MediaDownloadPreview - handlePreview called', {
+      messageId: message.id,
+      downloadState,
+      onPreview: !!onPreview,
+      mediaType: message.media_type,
+      mediaPath: message.media_path,
+      mediaDownloaded: message.media_downloaded
+    });
+    
     if (downloadState.status === 'downloaded' && downloadState.downloadUrl) {
       if (onPreview) {
+        console.log('MediaDownloadPreview - calling onPreview with URL:', downloadState.downloadUrl);
         onPreview(downloadState.downloadUrl);
       } else {
+        console.log('MediaDownloadPreview - opening preview modal');
         // 打开预览模态框
         setShowPreviewModal(true);
       }
     } else {
+      console.log('MediaDownloadPreview - media not downloaded, starting download');
       // 需要先下载
       handleDownload();
     }
@@ -298,7 +343,10 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             <Button 
               type="primary" 
               icon={<EyeOutlined />}
-              onClick={handlePreview}
+              onClick={(e) => {
+                console.log('MediaDownloadPreview - preview button clicked', e);
+                handlePreview();
+              }}
               style={{ marginRight: 8 }}
               size="small"
             >
@@ -376,7 +424,10 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     switch (message.media_type) {
       case 'photo':
         return (
-          <div className="media-thumbnail" onClick={handlePreview} style={{ cursor: 'pointer' }}>
+          <div className="media-thumbnail" onClick={(e) => {
+            console.log('MediaDownloadPreview - photo thumbnail clicked', e);
+            handlePreview();
+          }} style={{ cursor: 'pointer' }}>
             <img 
               src={fullUrl} 
               alt={message.media_filename || '图片'}
@@ -403,7 +454,10 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
         );
       case 'video':
         return (
-          <div className="media-thumbnail" onClick={handlePreview} style={{ cursor: 'pointer' }}>
+          <div className="media-thumbnail" onClick={(e) => {
+            console.log('MediaDownloadPreview - video thumbnail clicked', e);
+            handlePreview();
+          }} style={{ cursor: 'pointer' }}>
             <video 
               src={fullUrl}
               style={{ 
