@@ -4,13 +4,16 @@ import MediaPreview from '../components/Chat/MediaPreview';
 import EnhancedMediaPreview from '../components/Chat/EnhancedMediaPreview';
 import VoiceMessageWithDownload from '../components/Chat/VoiceMessageWithDownload';
 import MediaDownloadOverlay from '../components/Chat/MediaDownloadOverlay';
+import MediaDownloadPreview from '../components/Chat/MediaDownloadPreview';
 import { MediaDownloadStatus } from '../hooks/useMediaDownload';
+import { TelegramMessage } from '../types';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
 const MediaDownloadTestPage: React.FC = () => {
   const [showDownloaded, setShowDownloaded] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   // 模拟下载状态数据
   const mockStatuses: Record<string, MediaDownloadStatus> = {
@@ -76,6 +79,74 @@ const MediaDownloadTestPage: React.FC = () => {
     console.log('Retry clicked');
   };
 
+  // 模拟TelegramMessage数据
+  const mockTelegramMessages: TelegramMessage[] = [
+    {
+      id: 78055,
+      message_id: 78055,
+      sender_id: 1,
+      group_id: 1,
+      content: '这是一个测试视频文件，用于测试增强的下载进度条功能',
+      date: new Date().toISOString(),
+      media_type: 'video',
+      media_filename: '高清测试视频.mp4',
+      media_size: 52428800, // 50MB
+      media_downloaded: false,
+      media_path: null,
+      is_own_message: false,
+      message_type: 'media'
+    },
+    {
+      id: 78056,
+      message_id: 78056,
+      sender_id: 1,
+      group_id: 1,
+      content: '精美图片分享',
+      date: new Date().toISOString(),
+      media_type: 'photo',
+      media_filename: '高分辨率图片.jpg',
+      media_size: 8388608, // 8MB
+      media_downloaded: false,
+      media_path: null,
+      is_own_message: false,
+      message_type: 'media'
+    },
+    {
+      id: 78057,
+      message_id: 78057,
+      sender_id: 1,
+      group_id: 1,
+      content: '音频文件测试',
+      date: new Date().toISOString(),
+      media_type: 'audio',
+      media_filename: '高品质音乐.mp3',
+      media_size: 15728640, // 15MB
+      media_downloaded: false,
+      media_path: null,
+      is_own_message: false,
+      message_type: 'media'
+    },
+    {
+      id: 78058,
+      message_id: 78058,
+      sender_id: 1,
+      group_id: 1,
+      content: '重要文档分享',
+      date: new Date().toISOString(),
+      media_type: 'document',
+      media_filename: '项目技术文档.pdf',
+      media_size: 25165824, // 24MB
+      media_downloaded: false,
+      media_path: null,
+      is_own_message: false,
+      message_type: 'media'
+    }
+  ];
+
+  const handleDownloadStateUpdate = (messageId: number, state: any) => {
+    console.log('下载状态更新:', { messageId, state });
+  };
+
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
       <div style={{ maxWidth: 1400, margin: '0 auto' }}>
@@ -96,7 +167,7 @@ const MediaDownloadTestPage: React.FC = () => {
           </Space>
         </div>
 
-        <Tabs defaultActiveKey="1" type="card">
+        <Tabs defaultActiveKey="6" type="card">
           <TabPane tab="下载遮罩演示" key="1">
             <Title level={3}>下载状态遮罩层演示</Title>
             <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
@@ -321,6 +392,80 @@ const MediaDownloadTestPage: React.FC = () => {
                 </Col>
               ))}
             </Row>
+          </TabPane>
+
+          <TabPane tab="增强进度条 (NEW)" key="6">
+            <Title level={3}>增强的媒体下载进度条</Title>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+              全新的MediaDownloadPreview组件，支持实时进度、下载速度、剩余时间等功能
+            </Text>
+            
+            <div style={{ marginBottom: 16 }}>
+              <Space>
+                <Button 
+                  type="primary" 
+                  onClick={() => setRefreshKey(prev => prev + 1)}
+                >
+                  重置组件状态
+                </Button>
+                <Text type="secondary">（点击重置以测试下载功能）</Text>
+              </Space>
+            </div>
+
+            <Row gutter={[16, 16]}>
+              {mockTelegramMessages.map((message) => (
+                <Col xs={24} sm={12} md={8} lg={6} key={`${message.id}-${refreshKey}`}>
+                  <Card 
+                    title={`${message.media_type?.toUpperCase()} - ${message.media_filename}`}
+                    size="small"
+                    style={{ height: '100%' }}
+                  >
+                    <div style={{ marginBottom: 16 }}>
+                      <MediaDownloadPreview
+                        message={message}
+                        onUpdateDownloadState={handleDownloadStateUpdate}
+                      />
+                    </div>
+                    
+                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        文件大小: {(message.media_size / 1024 / 1024).toFixed(1)} MB
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        消息ID: {message.id}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        媒体类型: {message.media_type}
+                      </Text>
+                    </Space>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+
+            <div style={{ marginTop: 24, padding: 16, backgroundColor: '#f0f2f5', borderRadius: 8 }}>
+              <Title level={4}>新功能特性</Title>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} md={12}>
+                  <Space direction="vertical" size="small">
+                    <Text>✅ 实时下载进度显示 (0-100%)</Text>
+                    <Text>✅ 下载速度计算 (KB/s, MB/s)</Text>
+                    <Text>✅ 预计剩余时间计算</Text>
+                    <Text>✅ 已下载/总大小显示</Text>
+                    <Text>✅ 取消下载功能</Text>
+                  </Space>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Space direction="vertical" size="small">
+                    <Text>✅ 渐变进度条动画</Text>
+                    <Text>✅ 状态自动切换</Text>
+                    <Text>✅ 错误处理和重试</Text>
+                    <Text>✅ 组件状态同步</Text>
+                    <Text>✅ 响应式设计</Text>
+                  </Space>
+                </Col>
+              </Row>
+            </div>
           </TabPane>
         </Tabs>
 

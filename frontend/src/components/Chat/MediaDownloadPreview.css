@@ -10,6 +10,61 @@
   box-sizing: border-box; /* 包含padding在内的总宽度 */
 }
 
+/* 下载进度条样式增强 */
+.download-progress .ant-card-body {
+  padding: 12px !important;
+}
+
+.download-progress .ant-progress {
+  margin-bottom: 8px !important;
+}
+
+.download-progress .ant-progress-line {
+  position: relative;
+}
+
+.download-progress .ant-progress-bg {
+  background: linear-gradient(90deg, #1890ff 0%, #52c41a 100%) !important;
+  transition: all 0.3s ease !important;
+}
+
+.download-progress .ant-progress-text {
+  color: #1890ff !important;
+  font-weight: 500 !important;
+}
+
+/* 下载状态动画效果 */
+@keyframes downloadPulse {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+
+.download-progress .ant-spin-dot {
+  animation: downloadPulse 1.4s linear infinite;
+}
+
+/* 下载信息文本样式 */
+.download-progress .download-info {
+  font-size: 11px;
+  color: #8c8c8c;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.download-progress .download-speed {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.download-progress .remaining-time {
+  color: #52c41a;
+  text-align: center;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
 .media-info {
   display: flex;
   align-items: center;

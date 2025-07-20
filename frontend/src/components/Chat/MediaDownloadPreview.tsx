@@ -8,7 +8,9 @@ import {
   VideoCameraOutlined,
   AudioOutlined,
   EyeOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  CloseOutlined,
+  PauseOutlined
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
 import apiService, { mediaApi } from '../../services/apiService';
@@ -28,6 +30,9 @@ interface DownloadState {
   downloadUrl?: string;
   downloadedSize?: number;
   totalSize?: number;
+  downloadSpeed?: number; // 下载速度 B/s
+  estimatedTimeRemaining?: number; // 预计剩余时间 秒
+  lastProgressUpdate?: number; // 上次进度更新时间
 }
 
 const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
@@ -51,6 +56,8 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   });
   
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
+  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
   
   // 当下载状态改变时，通知父组件
   useEffect(() => {
@@ -82,6 +89,18 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       });
     }
   }, [message.media_downloaded, message.media_path, message.id]);
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [pollInterval, timeoutId]);
 
   // 获取媒体类型图标
   const getMediaIcon = (mediaType: string) => {
@@ -116,11 +135,88 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
+  // 格式化下载速度
+  const formatDownloadSpeed = (bytesPerSecond?: number) => {
+    if (!bytesPerSecond) return '计算中...';
+    const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    let speed = bytesPerSecond;
+    let unitIndex = 0;
+    
+    while (speed >= 1024 && unitIndex < units.length - 1) {
+      speed /= 1024;
+      unitIndex++;
+    }
+    
+    return `${speed.toFixed(1)} ${units[unitIndex]}`;
+  };
+
+  // 格式化剩余时间
+  const formatTimeRemaining = (seconds?: number) => {
+    if (!seconds || seconds === Infinity) return '计算中...';
+    
+    if (seconds < 60) {
+      return `${Math.ceil(seconds)}秒`;
+    } else if (seconds < 3600) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = Math.ceil(seconds % 60);
+      return `${minutes}分${remainingSeconds > 0 ? remainingSeconds + '秒' : ''}`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return `${hours}小时${minutes > 0 ? minutes + '分' : ''}`;
+    }
+  };
+
+  // 计算下载速度和剩余时间
+  const calculateDownloadStats = (
+    currentDownloaded: number, 
+    totalSize: number, 
+    lastDownloaded: number, 
+    lastUpdateTime: number
+  ) => {
+    const now = Date.now();
+    const timeDiff = (now - lastUpdateTime) / 1000; // 转换为秒
+    const sizeDiff = currentDownloaded - lastDownloaded;
+    
+    if (timeDiff > 0 && sizeDiff > 0) {
+      const speed = sizeDiff / timeDiff; // B/s
+      const remainingBytes = totalSize - currentDownloaded;
+      const estimatedTime = remainingBytes / speed;
+      
+      return { speed, estimatedTime };
+    }
+    
+    return { speed: 0, estimatedTime: 0 };
+  };
+
+  // 取消下载
+  const handleCancelDownload = () => {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      setPollInterval(null);
+    }
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      setTimeoutId(null);
+    }
+    
+    setDownloadState({
+      status: 'not_downloaded',
+      progress: 0
+    });
+    
+    notification.info('下载已取消');
+  };
+
   // 下载媒体文件
   const handleDownload = async () => {
     if (downloadState.status === 'downloading') return;
     
-    setDownloadState({ status: 'downloading', progress: 0 });
+    setDownloadState({ 
+      status: 'downloading', 
+      progress: 0,
+      lastProgressUpdate: Date.now()
+    });
     
     try {
       // 启动下载任务
@@ -136,24 +232,61 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       }
       
       // 开始轮询下载状态
-      const pollInterval = setInterval(async () => {
+      const newPollInterval = setInterval(async () => {
         try {
           const statusResponse = await mediaApi.getDownloadStatus(message.id);
+          const now = Date.now();
           
           if (statusResponse.status === 'downloaded') {
             setDownloadState({
               status: 'downloaded',
-              downloadUrl: statusResponse.download_url
+              downloadUrl: statusResponse.download_url,
+              progress: 100
             });
             notification.success('文件下载完成');
-            clearInterval(pollInterval);
+            clearInterval(newPollInterval);
+            setPollInterval(null);
           } else if (statusResponse.status === 'download_failed') {
             setDownloadState({
               status: 'error',
               error: statusResponse.error || '下载失败'
             });
             notification.error('下载失败: ' + (statusResponse.error || '未知错误'));
-            clearInterval(pollInterval);
+            clearInterval(newPollInterval);
+            setPollInterval(null);
+          } else if (statusResponse.status === 'downloading') {
+            // 更新下载进度
+            setDownloadState(prevState => {
+              const currentDownloaded = statusResponse.file_size || 0;
+              const totalSize = message.media_size || statusResponse.file_size || currentDownloaded;
+              const progress = totalSize > 0 ? Math.round((currentDownloaded / totalSize) * 100) : 0;
+              
+              // 计算下载速度和剩余时间
+              let speed = prevState.downloadSpeed || 0;
+              let estimatedTime = prevState.estimatedTimeRemaining || 0;
+              
+              if (prevState.downloadedSize && prevState.lastProgressUpdate) {
+                const stats = calculateDownloadStats(
+                  currentDownloaded,
+                  totalSize,
+                  prevState.downloadedSize,
+                  prevState.lastProgressUpdate
+                );
+                speed = stats.speed;
+                estimatedTime = stats.estimatedTime;
+              }
+              
+              return {
+                ...prevState,
+                status: 'downloading' as const,
+                progress,
+                downloadedSize: currentDownloaded,
+                totalSize,
+                downloadSpeed: speed,
+                estimatedTimeRemaining: estimatedTime,
+                lastProgressUpdate: now
+              };
+            });
           }
           // 继续轮询其他状态
         } catch (error) {
@@ -162,21 +295,30 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             status: 'error',
             error: '获取下载状态失败'
           });
-          clearInterval(pollInterval);
+          clearInterval(newPollInterval);
+          setPollInterval(null);
         }
-      }, 2000); // 每2秒轮询一次
+      }, 1000); // 每1秒轮询一次，更频繁的更新
+      
+      setPollInterval(newPollInterval);
       
       // 设置超时
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        if (downloadState.status === 'downloading') {
-          setDownloadState({
-            status: 'error',
-            error: '下载超时'
-          });
-          notification.error('下载超时，请重试');
-        }
-      }, 60000); // 60秒超时
+      const newTimeoutId = setTimeout(() => {
+        clearInterval(newPollInterval);
+        setPollInterval(null);
+        setDownloadState(prevState => {
+          if (prevState.status === 'downloading') {
+            return {
+              status: 'error',
+              error: '下载超时'
+            };
+          }
+          return prevState;
+        });
+        notification.error('下载超时，请重试');
+      }, 300000); // 5分钟超时
+      
+      setTimeoutId(newTimeoutId);
       
     } catch (error: any) {
       console.error('下载请求失败:', error);
@@ -378,34 +520,64 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       case 'downloading':
         return (
           <div className="download-progress">
-            <Card size="small" style={{ width: '100%', textAlign: 'center' }}>
-              <Spin 
-                indicator={<LoadingOutlined style={{ fontSize: 18 }} spin />}
-                tip={
-                  <div>
-                    <div>下载中...</div>
-                    {downloadState.downloadedSize && downloadState.totalSize && (
-                      <div style={{ fontSize: '11px', color: '#8c8c8c', marginTop: 4 }}>
-                        {formatFileSize(downloadState.downloadedSize)} / {formatFileSize(downloadState.totalSize)}
-                      </div>
-                    )}
-                  </div>
-                }
-              >
-                <div style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {downloadState.progress !== undefined && (
-                    <Progress
-                      percent={downloadState.progress}
-                      size="small"
-                      style={{ width: '120px' }}
-                      strokeColor={{
-                        '0%': '#108ee9',
-                        '100%': '#87d068',
-                      }}
-                    />
-                  )}
+            <Card size="small" style={{ width: '100%' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ marginBottom: 8 }}>
+                  <LoadingOutlined style={{ fontSize: 16, color: '#1890ff' }} spin />
+                  <span style={{ marginLeft: 8, fontWeight: 500 }}>下载中...</span>
                 </div>
-              </Spin>
+                
+                {/* 进度条 */}
+                <Progress
+                  percent={downloadState.progress || 0}
+                  size="small"
+                  strokeColor={{
+                    '0%': '#108ee9',
+                    '100%': '#87d068',
+                  }}
+                  trailColor="#f5f5f5"
+                  style={{ marginBottom: 8 }}
+                />
+                
+                {/* 下载信息 */}
+                <div className="download-info">
+                  <span>
+                    {downloadState.downloadedSize && downloadState.totalSize ? (
+                      `${formatFileSize(downloadState.downloadedSize)} / ${formatFileSize(downloadState.totalSize)}`
+                    ) : (
+                      `${downloadState.progress || 0}%`
+                    )}
+                  </span>
+                  <span className="download-speed">
+                    {downloadState.downloadSpeed && downloadState.downloadSpeed > 0 ? (
+                      formatDownloadSpeed(downloadState.downloadSpeed)
+                    ) : (
+                      '计算中...'
+                    )}
+                  </span>
+                </div>
+                
+                {/* 预计剩余时间 */}
+                {downloadState.estimatedTimeRemaining && downloadState.estimatedTimeRemaining > 0 && (
+                  <div className="remaining-time">
+                    剩余时间: {formatTimeRemaining(downloadState.estimatedTimeRemaining)}
+                  </div>
+                )}
+                
+                {/* 取消下载按钮 */}
+                <div style={{ marginTop: 8, textAlign: 'center' }}>
+                  <Button 
+                    size="small" 
+                    type="text" 
+                    danger
+                    icon={<CloseOutlined />}
+                    onClick={handleCancelDownload}
+                    style={{ fontSize: '11px' }}
+                  >
+                    取消下载
+                  </Button>
+                </div>
+              </div>
             </Card>
           </div>
         );
