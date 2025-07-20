@@ -230,7 +230,15 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         mediaPath: targetMessage.media_path,
         downloadState: downloadStates[targetMessage.id || targetMessage.message_id]
       });
-      mediaMessages.push(targetMessage);
+      
+      // 如果目标消息有更新的媒体路径，使用更新后的版本
+      const updatedTargetMessage = targetMessage.media_path ? targetMessage : {
+        ...targetMessage,
+        media_path: downloadStates[targetMessage.id || targetMessage.message_id]?.downloadUrl || targetMessage.media_path,
+        media_downloaded: true
+      };
+      
+      mediaMessages.push(updatedTargetMessage);
     }
     
     console.log('MessageArea - filtered media messages', {
@@ -329,7 +337,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     
     const container = messagesContainerRef.current;
     const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100; // 减少阈值到100px
-    const shouldShow = !isNearBottom;
+    const shouldShow = !isNearBottom && container.scrollHeight > container.clientHeight + 100; // 确保有足够内容才显示
     
     // 调试信息 - 只在状态变化时输出
     if (shouldShow !== showScrollToBottom) {
@@ -340,7 +348,8 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         threshold: container.scrollHeight - 100,
         isNearBottom,
         shouldShow,
-        currentShow: showScrollToBottom
+        currentShow: showScrollToBottom,
+        hasEnoughContent: container.scrollHeight > container.clientHeight + 100
       });
     }
     
@@ -358,7 +367,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
     
     // 5秒后让按钮稍微透明（如果仍不在底部）
-    if (!isNearBottom) {
+    if (!isNearBottom && shouldShow) {
       scrollTimeoutRef.current = setTimeout(() => {
         setButtonVisible(false);
       }, 5000);

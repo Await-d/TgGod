@@ -233,7 +233,18 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                     });
                     if (onOpenGallery) {
                       console.log('MessageBubble - calling onOpenGallery');
-                      onOpenGallery(message);
+                      // 创建一个更新的消息对象，包含当前的媒体路径
+                      const updatedMessage = {
+                        ...message,
+                        media_path: mediaPath,
+                        media_downloaded: true
+                      };
+                      console.log('MessageBubble - calling onOpenGallery with updated message', {
+                        originalMediaPath: message.media_path,
+                        updatedMediaPath: mediaPath,
+                        messageId: message.id
+                      });
+                      onOpenGallery(updatedMessage);
                     } else {
                       console.log('MessageBubble - no onOpenGallery prop, using fallback');
                       console.log('Open gallery for:', mediaPath);
