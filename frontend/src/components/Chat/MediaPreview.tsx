@@ -82,7 +82,7 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
     retryDownload
   } = useMediaDownload({
     messageId,
-    autoRefresh: !downloaded, // 如果未下载才自动刷新状态
+    autoRefresh: true, // 始终自动刷新状态，以获取准确的下载状态
     onDownloadComplete: (filePath) => {
       message.success('文件下载完成');
       // 可以在这里更新本地状态或触发其他操作
@@ -111,7 +111,22 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
     return Array.from(new Set(urls)); // 去重
   };
 
-  const mediaUrl = alternativeUrls.length > 0 ? alternativeUrls[currentUrlIndex] : getMediaUrl(url);
+  // 确定要使用的媒体URL
+  // 优先使用已下载文件的URL，然后是备选URLs，最后是原始URL
+  const getDisplayUrl = () => {
+    if (downloadStatus.downloadUrl) {
+      return downloadStatus.downloadUrl;
+    }
+    if (downloadStatus.filePath) {
+      return getMediaUrl(downloadStatus.filePath);
+    }
+    if (alternativeUrls.length > 0) {
+      return alternativeUrls[currentUrlIndex];
+    }
+    return getMediaUrl(url);
+  };
+  
+  const mediaUrl = getDisplayUrl();
   const formattedSize = size ? formatFileSize(size) : undefined;
 
   // 初始化备选URLs
@@ -125,8 +140,13 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
   // 1. 如果传入downloaded=true，直接显示
   // 2. 如果downloadStatus显示已下载，也显示
   // 3. 如果文件路径看起来是本地文件(包含media/)，也显示
+  // 4. 如果downloadStatus有filePath或downloadUrl，也显示（表示文件已存在）
   const isLocalFile = url && (url.includes('media/') || url.startsWith('/media/'));
-  const shouldShowMedia = downloaded || downloadStatus.status === 'downloaded' || isLocalFile;
+  const hasDownloadedFile = downloadStatus.filePath || downloadStatus.downloadUrl;
+  const shouldShowMedia = downloaded || 
+                         downloadStatus.status === 'downloaded' || 
+                         isLocalFile || 
+                         hasDownloadedFile;
   
   // 将媒体类型转换为下载组件需要的格式
   const mediaType = type === 'image' ? 'photo' : type;
@@ -288,15 +308,31 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
               >
                 预览
               </Button>
-              <Button 
-                type="text" 
-                icon={<DownloadOutlined />} 
-                size="small"
-                onClick={shouldShowMedia ? handleDownload : () => startDownload()}
-                loading={isDownloading}
-              >
-                下载
-              </Button>
+              {/* 只有在未下载或下载失败时才显示下载按钮 */}
+              {(!shouldShowMedia || downloadStatus.status === 'download_failed') && (
+                <Button 
+                  type="text" 
+                  icon={<DownloadOutlined />} 
+                  size="small"
+                  onClick={() => startDownload()}
+                  loading={isDownloading}
+                >
+                  {downloadStatus.status === 'download_failed' ? '重新下载' : '下载'}
+                </Button>
+              )}
+              {/* 对于已下载的文件，提供重新下载选项 */}
+              {shouldShowMedia && downloadStatus.status === 'downloaded' && (
+                <Button 
+                  type="text" 
+                  icon={<DownloadOutlined />} 
+                  size="small"
+                  onClick={() => startDownload(true)}
+                  loading={isDownloading}
+                  style={{ color: '#8c8c8c' }}
+                >
+                  重新下载
+                </Button>
+              )}
             </Space>
           </div>
         )}
@@ -494,15 +530,31 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
               >
                 播放
               </Button>
-              <Button 
-                type="text" 
-                icon={<DownloadOutlined />} 
-                size="small"
-                onClick={shouldShowMedia ? handleDownload : () => startDownload()}
-                loading={isDownloading}
-              >
-                下载
-              </Button>
+              {/* 只有在未下载或下载失败时才显示下载按钮 */}
+              {(!shouldShowMedia || downloadStatus.status === 'download_failed') && (
+                <Button 
+                  type="text" 
+                  icon={<DownloadOutlined />} 
+                  size="small"
+                  onClick={() => startDownload()}
+                  loading={isDownloading}
+                >
+                  {downloadStatus.status === 'download_failed' ? '重新下载' : '下载'}
+                </Button>
+              )}
+              {/* 对于已下载的文件，提供重新下载选项 */}
+              {shouldShowMedia && downloadStatus.status === 'downloaded' && (
+                <Button 
+                  type="text" 
+                  icon={<DownloadOutlined />} 
+                  size="small"
+                  onClick={() => startDownload(true)}
+                  loading={isDownloading}
+                  style={{ color: '#8c8c8c' }}
+                >
+                  重新下载
+                </Button>
+              )}
             </Space>
           </div>
         )}
