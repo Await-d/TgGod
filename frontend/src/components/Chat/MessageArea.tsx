@@ -221,6 +221,18 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       return hasMediaType && (hasMediaPath || hasDownloadUrl);
     });
     
+    // 如果目标消息不在过滤后的列表中，但它有媒体类型，强制添加它
+    const targetInFilteredList = mediaMessages.some(msg => msg.id === targetMessage.id);
+    if (!targetInFilteredList && targetMessage.media_type) {
+      console.log('MessageArea - Target message not in filtered list, adding it', {
+        targetMessageId: targetMessage.id,
+        mediaType: targetMessage.media_type,
+        mediaPath: targetMessage.media_path,
+        downloadState: downloadStates[targetMessage.id || targetMessage.message_id]
+      });
+      mediaMessages.push(targetMessage);
+    }
+    
     console.log('MessageArea - filtered media messages', {
       totalMediaMessages: mediaMessages.length,
       targetMessageId: targetMessage.id,
