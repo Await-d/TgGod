@@ -82,12 +82,43 @@ def init_database():
         columns = inspector.get_columns('telegram_messages')
         column_names = [col['name'] for col in columns]
         
+        # 检查基础字段
         required_columns = ['is_own_message', 'is_forwarded', 'is_pinned']
         missing_columns = [col for col in required_columns if col not in column_names]
         
-        if missing_columns:
-            logger.error(f"telegram_messages 表缺少字段: {missing_columns}")
-            return False
+        # 检查下载进度字段
+        download_progress_columns = [
+            'download_progress', 'downloaded_size', 'download_speed', 
+            'estimated_time_remaining', 'download_started_at'
+        ]
+        missing_download_columns = [col for col in download_progress_columns if col not in column_names]
+        
+        all_missing = missing_columns + missing_download_columns
+        
+        if all_missing:
+            logger.error(f"telegram_messages 表缺少字段: {all_missing}")
+            
+            # 尝试运行数据库修复工具
+            logger.info("尝试自动修复缺少的字段...")
+            try:
+                from fix_database_schema import fix_telegram_messages_table
+                db_path = str(project_root / "tggod.db") if settings.database_url.startswith("sqlite:///./") else settings.database_url.replace("sqlite:///", "")
+                success = fix_telegram_messages_table(db_path)
+                if success:
+                    logger.info("✅ 字段修复成功")
+                    # 重新验证
+                    columns = inspector.get_columns('telegram_messages')
+                    column_names = [col['name'] for col in columns]
+                    final_missing = [col for col in all_missing if col not in column_names]
+                    if final_missing:
+                        logger.error(f"修复后仍缺少字段: {final_missing}")
+                        return False
+                else:
+                    logger.error("❌ 字段修复失败")
+                    return False
+            except Exception as repair_error:
+                logger.error(f"字段修复过程中出错: {repair_error}")
+                return False
         
         logger.info("所有关键字段验证通过")
         
