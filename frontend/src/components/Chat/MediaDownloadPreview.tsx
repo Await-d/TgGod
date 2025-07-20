@@ -190,22 +190,40 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   };
 
   // 取消下载
-  const handleCancelDownload = () => {
-    if (pollInterval) {
-      clearInterval(pollInterval);
-      setPollInterval(null);
+  const handleCancelDownload = async () => {
+    try {
+      // 清理前端定时器
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        setPollInterval(null);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        setTimeoutId(null);
+      }
+      
+      // 调用后端API取消下载
+      const response = await fetch(`${process.env.REACT_APP_API_URL || ''}/api/media/cancel-download/${message.id}`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        notification.success('下载已取消');
+      } else {
+        console.warn('后端取消下载失败，但前端状态已重置');
+        notification.info('下载已取消');
+      }
+    } catch (error) {
+      console.error('取消下载时发生错误:', error);
+      notification.info('下载已取消');
+    } finally {
+      // 重置前端状态
+      setDownloadState({
+        status: 'not_downloaded',
+        progress: 0
+      });
     }
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      setTimeoutId(null);
-    }
-    
-    setDownloadState({
-      status: 'not_downloaded',
-      progress: 0
-    });
-    
-    notification.info('下载已取消');
   };
 
   // 已移除模拟进度功能，现在使用后端真实进度数据

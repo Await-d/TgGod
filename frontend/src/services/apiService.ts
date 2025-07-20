@@ -604,6 +604,15 @@ export const mediaApi = {
     return api.get(`/media/download-status/${messageId}`);
   },
 
+  // 取消下载
+  cancelDownload: (messageId: number): Promise<{
+    status: string;
+    message: string;
+    message_id?: number;
+  }> => {
+    return api.post(`/media/cancel-download/${messageId}`);
+  },
+
   // 删除本地媒体文件
   deleteMediaFile: (messageId: number): Promise<{
     status: string;

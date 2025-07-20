@@ -19,6 +19,9 @@ download_worker_started = False
 # 正在下载的消息ID集合，防止重复下载
 downloading_messages = set()
 
+# 已取消的下载任务集合
+cancelled_downloads = set()
+
 def build_media_url(file_path: str) -> str:
     """构建媒体文件的访问URL"""
     if not file_path:
@@ -178,11 +181,18 @@ async def get_download_status(
             }
     
     if message.media_download_error:
-        return {
-            "status": "download_failed",
-            "message": "下载失败",
-            "error": message.media_download_error
-        }
+        if message.media_download_error == "下载已取消":
+            return {
+                "status": "cancelled",
+                "message": "下载已取消",
+                "error": message.media_download_error
+            }
+        else:
+            return {
+                "status": "download_failed",
+                "message": "下载失败",
+                "error": message.media_download_error
+            }
     
     # 检查是否正在下载中
     global downloading_messages
@@ -206,6 +216,71 @@ async def get_download_status(
         "media_type": message.media_type,
         "file_id": message.media_file_id
     }
+
+@router.post("/cancel-download/{message_id}")
+async def cancel_download(
+    message_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    取消正在进行的媒体文件下载
+    
+    Args:
+        message_id: 消息ID
+        db: 数据库会话
+    
+    Returns:
+        取消下载结果
+    """
+    message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="消息不存在"
+        )
+    
+    if not message.media_type:
+        return {
+            "status": "no_media",
+            "message": "该消息不包含媒体文件"
+        }
+    
+    # 检查是否正在下载中
+    global downloading_messages, cancelled_downloads
+    if message_id not in downloading_messages:
+        return {
+            "status": "not_downloading",
+            "message": "该文件当前未在下载中"
+        }
+    
+    # 标记为已取消
+    cancelled_downloads.add(message_id)
+    
+    try:
+        # 重置下载状态
+        message.download_progress = 0
+        message.downloaded_size = 0
+        message.download_speed = 0
+        message.estimated_time_remaining = 0
+        message.download_started_at = None
+        message.media_download_error = "下载已取消"
+        db.commit()
+        
+        logger.info(f"下载取消成功: 消息 {message_id}")
+        
+        return {
+            "status": "cancelled",
+            "message": "下载已取消",
+            "message_id": message_id
+        }
+        
+    except Exception as e:
+        logger.error(f"取消下载时数据库更新失败: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"取消下载失败: {str(e)}"
+        )
 
 @router.delete("/media/{message_id}")
 async def delete_media_file(
@@ -277,11 +352,18 @@ async def start_download_worker():
             logger.info(f"处理下载任务: 消息 {message_id}")
             
             try:
-                # 执行下载
-                await download_media_background(message_id, force)
+                # 检查是否已被取消
+                if message_id in cancelled_downloads:
+                    logger.info(f"下载任务已被取消，跳过执行: 消息 {message_id}")
+                    cancelled_downloads.discard(message_id)
+                else:
+                    # 执行下载
+                    await download_media_background(message_id, force)
             finally:
                 # 无论成功失败，都从下载中集合移除
                 downloading_messages.discard(message_id)
+                # 清理取消标记
+                cancelled_downloads.discard(message_id)
             
             # 标记任务完成
             download_queue.task_done()
@@ -378,6 +460,11 @@ async def download_media_background(message_id: int, force: bool = False):
         
         def progress_callback(current_bytes, total_bytes, progress_percent):
             nonlocal last_update_time, last_downloaded_size
+            
+            # 检查是否已被取消
+            if message_id in cancelled_downloads:
+                logger.info(f"下载已被取消，停止进度更新: 消息 {message_id}")
+                raise Exception("下载已取消")
             
             try:
                 current_time = time.time()

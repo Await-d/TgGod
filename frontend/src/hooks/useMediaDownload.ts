@@ -204,18 +204,59 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
   }, [startDownload]);
 
   // 取消下载
-  const cancelDownload = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+  const cancelDownload = useCallback(async () => {
+    try {
+      // 取消前端HTTP请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // 停止轮询
+      stopPolling();
+      
+      // 调用后端API取消下载
+      const response = await fetch(`${API_BASE}/api/media/cancel-download/${messageId}`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        
+        // 更新状态为已取消
+        setDownloadStatus(prev => ({
+          ...prev,
+          status: 'not_downloaded',
+          progress: 0,
+          error: undefined
+        }));
+        
+        message.success('下载已取消');
+      } else {
+        // 如果后端取消失败，仍然取消前端状态
+        setDownloadStatus(prev => ({
+          ...prev,
+          status: 'not_downloaded',
+          progress: 0
+        }));
+        
+        console.warn('后端取消下载失败，但前端状态已重置');
+        message.info('下载已取消');
+      }
+    } catch (error) {
+      console.error('取消下载时发生错误:', error);
+      
+      // 即使出错，也重置前端状态
+      setDownloadStatus(prev => ({
+        ...prev,
+        status: 'not_downloaded',
+        progress: 0
+      }));
+      
+      message.info('下载已取消');
+    } finally {
+      setIsLoading(false);
     }
-    stopPolling();
-    setDownloadStatus(prev => ({
-      ...prev,
-      status: 'not_downloaded',
-      progress: 0
-    }));
-    setIsLoading(false);
-  }, [stopPolling]);
+  }, [messageId, stopPolling]);
 
   // 初始化时获取状态
   useEffect(() => {
