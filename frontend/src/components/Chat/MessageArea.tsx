@@ -238,7 +238,18 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         media_downloaded: true
       };
       
-      mediaMessages.push(updatedTargetMessage);
+      // 将目标消息插入到列表开头，确保它是第一个（索引0）
+      mediaMessages.unshift(updatedTargetMessage);
+    } else {
+      // 如果目标消息已经在列表中，确保它的媒体路径是最新的
+      const targetIndex = mediaMessages.findIndex(msg => msg.id === targetMessage.id);
+      if (targetIndex >= 0 && targetMessage.media_path) {
+        mediaMessages[targetIndex] = {
+          ...mediaMessages[targetIndex],
+          media_path: targetMessage.media_path,
+          media_downloaded: true
+        };
+      }
     }
     
     console.log('MessageArea - filtered media messages', {
@@ -264,18 +275,39 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     // 找到目标消息在媒体消息中的索引
     const targetIndex = mediaMessages.findIndex(msg => msg.id === targetMessage.id);
     
-    console.log('MessageArea - target index', { targetIndex });
+    console.log('MessageArea - target index', { 
+      targetIndex,
+      targetMessageId: targetMessage.id,
+      mediaMessagesIds: mediaMessages.map(msg => msg.id),
+      targetMessage: {
+        id: targetMessage.id,
+        mediaPath: targetMessage.media_path,
+        mediaType: targetMessage.media_type
+      },
+      firstMessage: mediaMessages[0] ? {
+        id: mediaMessages[0].id,
+        mediaPath: mediaMessages[0].media_path,
+        mediaType: mediaMessages[0].media_type
+      } : null
+    });
     
     if (targetIndex >= 0) {
       console.log('MessageArea - opening gallery', {
         galleryIndex: targetIndex,
-        galleryMessagesCount: mediaMessages.length
+        galleryMessagesCount: mediaMessages.length,
+        targetMessageAtIndex: mediaMessages[targetIndex] ? {
+          id: mediaMessages[targetIndex].id,
+          mediaPath: mediaMessages[targetIndex].media_path
+        } : null
       });
       setGalleryMessages(mediaMessages);
       setGalleryIndex(targetIndex);
       setGalleryVisible(true);
     } else {
-      console.warn('MessageArea - target message not found in media messages');
+      console.warn('MessageArea - target message not found in media messages', {
+        targetMessageId: targetMessage.id,
+        availableMessageIds: mediaMessages.map(msg => msg.id)
+      });
     }
   }, [displayMessages, downloadStates]);
 

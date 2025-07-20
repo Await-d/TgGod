@@ -125,14 +125,43 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
   // 初始化媒体项目
   useEffect(() => {
     const items = messages
-      .filter(msg => msg.media_type && msg.media_path)
+      .filter(msg => {
+        if (!msg.media_type) return false;
+        
+        // 检查是否有媒体路径或下载状态中的URL
+        const messageId = msg.id || msg.message_id;
+        const downloadState = downloadStates[messageId];
+        const hasMediaUrl = msg.media_path || downloadState?.downloadUrl;
+        
+        console.log('MediaGallery - filtering message', {
+          messageId,
+          mediaType: msg.media_type,
+          mediaPath: msg.media_path,
+          downloadUrl: downloadState?.downloadUrl,
+          hasMediaUrl: !!hasMediaUrl,
+          included: !!hasMediaUrl
+        });
+        
+        return !!hasMediaUrl;
+      })
       .map(msg => ({
         message: msg,
         url: buildMediaUrl(msg),
         type: getMediaType(msg)
       }));
+      
+    console.log('MediaGallery - processed media items', {
+      totalMessages: messages.length,
+      filteredItems: items.length,
+      items: items.map(item => ({
+        messageId: item.message.id,
+        url: item.url,
+        type: item.type
+      }))
+    });
+    
     setMediaItems(items);
-  }, [messages, buildMediaUrl, getMediaType]);
+  }, [messages, buildMediaUrl, getMediaType, downloadStates]);
 
   // 同步当前索引
   useEffect(() => {
