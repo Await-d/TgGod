@@ -550,10 +550,9 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
               src={mediaUrl} 
               controls 
               style={{ width: '100%', maxHeight: '80vh', borderRadius: '8px' }}
-              autoPlay
               controlsList="nodownload"
               playsInline
-              crossOrigin="anonymous"
+              preload="metadata"
               onError={(e) => {
                 console.error('Video playback error:', e, 'URL:', mediaUrl);
                 console.error('Video element details:', {
@@ -561,6 +560,20 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                   networkState: (e.target as HTMLVideoElement).networkState,
                   error: (e.target as HTMLVideoElement).error
                 });
+                
+                // 尝试访问当前URL以检查文件是否存在
+                fetch(mediaUrl, { method: 'HEAD' })
+                  .then(response => {
+                    console.log('Video file check:', {
+                      url: mediaUrl,
+                      status: response.status,
+                      contentType: response.headers.get('content-type'),
+                      contentLength: response.headers.get('content-length')
+                    });
+                  })
+                  .catch(fetchError => {
+                    console.error('Failed to check video file:', fetchError);
+                  });
                 
                 // 尝试重新加载
                 if (currentUrlIndex < alternativeUrls.length - 1) {

@@ -16,6 +16,35 @@ logger = logging.getLogger(__name__)
 download_queue = asyncio.Queue()
 download_worker_started = False
 
+# 正在下载的消息ID集合，防止重复下载
+downloading_messages = set()
+
+def build_media_url(file_path: str) -> str:
+    """构建媒体文件的访问URL"""
+    if not file_path:
+        return ""
+    
+    # 标准化路径
+    normalized_path = os.path.normpath(file_path)
+    
+    # 如果文件在media目录下，构建相对URL
+    if 'media' in normalized_path:
+        # 找到media目录的位置
+        parts = normalized_path.split(os.sep)
+        media_index = -1
+        for i, part in enumerate(parts):
+            if part == 'media':
+                media_index = i
+                break
+        
+        if media_index >= 0 and media_index < len(parts) - 1:
+            # 获取media目录后的路径部分
+            relative_parts = parts[media_index + 1:]
+            return f"/media/{'/'.join(relative_parts)}"
+    
+    # 如果无法确定，使用文件名
+    return f"/media/{os.path.basename(file_path)}"
+
 @router.post("/download/{message_id}")
 async def download_media_file(
     message_id: int,
@@ -57,7 +86,7 @@ async def download_media_file(
                 "message": "文件已存在",
                 "file_path": message.media_path,
                 "file_size": message.media_size,
-                "download_url": f"/media/{os.path.relpath(message.media_path, './media')}"
+                "download_url": build_media_url(message.media_path)
             }
         else:
             # 文件记录存在但实际文件丢失，重置下载状态
@@ -67,13 +96,27 @@ async def download_media_file(
                 db.commit()
             except Exception as commit_error:
                 logger.warning(f"重置下载状态时数据库提交失败: {str(commit_error)}")
+                db.rollback()
                 # 即使提交失败，也继续执行下载任务
+    
+    # 检查是否已经在下载队列中
+    global downloading_messages
+    if message_id in downloading_messages:
+        return {
+            "status": "download_in_progress",
+            "message": "该文件正在下载中，请稍候",
+            "message_id": message_id,
+            "media_type": message.media_type
+        }
     
     # 启动下载工作进程（如果还没启动）
     global download_worker_started
     if not download_worker_started:
         background_tasks.add_task(start_download_worker)
         download_worker_started = True
+    
+    # 添加到下载中的集合
+    downloading_messages.add(message_id)
     
     # 将下载任务添加到队列
     await download_queue.put((message_id, force))
@@ -121,7 +164,7 @@ async def get_download_status(
                 "message": "文件已下载",
                 "file_path": message.media_path,
                 "file_size": message.media_size,
-                "download_url": f"/media/{os.path.relpath(message.media_path, './media')}"
+                "download_url": build_media_url(message.media_path)
             }
         else:
             return {
@@ -212,8 +255,12 @@ async def start_download_worker():
             message_id, force = await download_queue.get()
             logger.info(f"处理下载任务: 消息 {message_id}")
             
-            # 执行下载
-            await download_media_background(message_id, force)
+            try:
+                # 执行下载
+                await download_media_background(message_id, force)
+            finally:
+                # 无论成功失败，都从下载中集合移除
+                downloading_messages.discard(message_id)
             
             # 标记任务完成
             download_queue.task_done()
@@ -233,6 +280,7 @@ async def download_media_background(message_id: int, force: bool = False):
     """
     from ..database import SessionLocal
     
+    # 使用短连接获取消息信息
     db = SessionLocal()
     try:
         message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
@@ -244,82 +292,114 @@ async def download_media_background(message_id: int, force: bool = False):
             logger.error(f"下载任务: 消息 {message_id} 没有文件ID")
             return
         
-        # 清除之前的错误信息
-        message.media_download_error = None
-        db.commit()
+        # 获取必要的信息后立即关闭连接
+        media_file_id = message.media_file_id
+        media_type = message.media_type
+        media_filename = message.media_filename
+        group_id = message.group_id
+        message_id_telegram = message.message_id
+        group_telegram_id = message.group.telegram_id if message.group else None
+        
+    finally:
+        db.close()
+    
+    # 清除之前的错误信息（单独的数据库操作）
+    db = SessionLocal()
+    try:
+        message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+        if message:
+            message.media_download_error = None
+            db.commit()
+    except Exception as e:
+        logger.warning(f"清除错误信息失败: {e}")
+        db.rollback()
+    finally:
+        db.close()
+        
+    # 执行实际下载（不持有数据库连接）
+    file_path = None
+    download_error = None
+    download_success = False
+    
+    try:
+        # 创建Telegram服务实例
+        telegram_service = TelegramService()
+        
+        # 构建文件保存路径
+        media_dir = f"./media/{media_type}s"
+        os.makedirs(media_dir, exist_ok=True)
+        
+        # 生成唯一文件名
+        file_extension = ""
+        if media_filename:
+            file_extension = os.path.splitext(media_filename)[1]
+        elif media_type == "photo":
+            file_extension = ".jpg"
+        elif media_type == "video":
+            file_extension = ".mp4"
+        elif media_type == "audio":
+            file_extension = ".mp3"
+        elif media_type == "voice":
+            file_extension = ".ogg"
+        elif media_type == "document":
+            file_extension = ".bin"
+        
+        unique_filename = f"{group_id}_{message_id_telegram}_{uuid.uuid4().hex[:8]}{file_extension}"
+        file_path = os.path.join(media_dir, unique_filename)
+        
+        # 下载文件
+        from ..services.media_downloader import get_media_downloader
         
         try:
-            # 创建Telegram服务实例
-            telegram_service = TelegramService()
+            downloader = await get_media_downloader()
             
-            # 构建文件保存路径
-            media_dir = f"./media/{message.media_type}s"
-            os.makedirs(media_dir, exist_ok=True)
+            download_success = await downloader.download_file(
+                file_id=media_file_id,
+                file_path=file_path,
+                chat_id=group_telegram_id,
+                message_id=message_id_telegram
+            )
             
-            # 生成唯一文件名
-            file_extension = ""
-            if message.media_filename:
-                file_extension = os.path.splitext(message.media_filename)[1]
-            elif message.media_type == "photo":
-                file_extension = ".jpg"
-            elif message.media_type == "video":
-                file_extension = ".mp4"
-            elif message.media_type == "audio":
-                file_extension = ".mp3"
-            elif message.media_type == "voice":
-                file_extension = ".ogg"
-            elif message.media_type == "document":
-                file_extension = ".bin"
-            
-            unique_filename = f"{message.group_id}_{message.message_id}_{uuid.uuid4().hex[:8]}{file_extension}"
-            file_path = os.path.join(media_dir, unique_filename)
-            
-            # 下载文件
-            from ..services.media_downloader import get_media_downloader
-            
-            try:
-                downloader = await get_media_downloader()
+            if download_success:
+                logger.info(f"媒体文件下载成功: {file_path}")
+            else:
+                download_error = "Telegram API下载失败"
+                logger.error(f"媒体文件下载失败: 消息 {message_id}")
                 
-                success = await downloader.download_file(
-                    file_id=message.media_file_id,
-                    file_path=file_path,
-                    chat_id=message.group.telegram_id if message.group else None,
-                    message_id=message.message_id
-                )
-                
-                if success:
-                    # 更新数据库记录
-                    message.media_downloaded = True
-                    message.media_path = file_path
-                    
-                    # 获取实际文件大小
-                    if os.path.exists(file_path):
-                        message.media_size = os.path.getsize(file_path)
-                    
-                    logger.info(f"媒体文件下载成功: {file_path}")
-                else:
-                    message.media_download_error = "Telegram API下载失败"
-                    logger.error(f"媒体文件下载失败: 消息 {message_id}")
-                    
-            except Exception as download_error:
-                error_msg = f"下载器错误: {str(download_error)}"
-                message.media_download_error = error_msg
-                logger.error(f"媒体下载器异常: {error_msg}")
-                
-                # 如果是认证错误，提供更详细的信息
-                if "EOF when reading a line" in str(download_error) or "AuthKeyUnregisteredError" in str(download_error):
-                    message.media_download_error = "Telegram认证失败，请检查API配置和session状态"
-                    logger.error("Telegram认证失败，可能需要重新登录或检查API配置")
-                
-        except Exception as e:
-            error_msg = f"下载过程中发生错误: {str(e)}"
-            message.media_download_error = error_msg
-            logger.error(f"下载任务异常: {error_msg}")
-        
-        finally:
-            db.commit()
+        except Exception as download_err:
+            download_error = f"下载器错误: {str(download_err)}"
+            logger.error(f"媒体下载器异常: {download_error}")
+            
+            # 如果是认证错误，提供更详细的信息
+            if "EOF when reading a line" in str(download_err) or "AuthKeyUnregisteredError" in str(download_err):
+                download_error = "Telegram认证失败，请检查API配置和session状态"
+                logger.error("Telegram认证失败，可能需要重新登录或检查API配置")
             
     except Exception as e:
-        logger.error(f"下载任务数据库操作失败: {str(e)}")
+        download_error = f"下载过程中发生错误: {str(e)}"
+        logger.error(f"下载任务异常: {download_error}")
+    
+    # 最后更新数据库状态（单独的短连接）
+    db = SessionLocal()
+    try:
+        message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+        if message:
+            if download_success and file_path:
+                message.media_downloaded = True
+                message.media_path = file_path
+                message.media_download_error = None
+                
+                # 获取实际文件大小
+                if os.path.exists(file_path):
+                    message.media_size = os.path.getsize(file_path)
+            else:
+                message.media_download_error = download_error
+            
+            db.commit()
+            logger.info(f"数据库状态更新完成: 消息 {message_id}")
+            
+    except Exception as e:
+        logger.error(f"更新数据库状态失败: {str(e)}")
+        db.rollback()
     finally:
         db.close()
