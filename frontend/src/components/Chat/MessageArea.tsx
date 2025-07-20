@@ -496,11 +496,23 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     if (container) {
       container.addEventListener('scroll', handleScroll);
       
-      // 初始检查滚动位置
+      // 初始检查滚动位置 - 延长等待时间确保DOM渲染完成
       setTimeout(() => {
         console.log('MessageArea - initial scroll check');
         handleScroll();
-      }, 100);
+        // 强制检查是否需要显示按钮
+        if (container.scrollHeight > container.clientHeight) {
+          const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+          console.log('MessageArea - force check scroll button', {
+            scrollHeight: container.scrollHeight,
+            clientHeight: container.clientHeight,
+            scrollTop: container.scrollTop,
+            isNearBottom,
+            shouldShowButton: !isNearBottom
+          });
+          setShowScrollToBottom(!isNearBottom);
+        }
+      }, 300);
       
       return () => {
         container.removeEventListener('scroll', handleScroll);

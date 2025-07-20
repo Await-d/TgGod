@@ -73,13 +73,25 @@ const ReplyMessagePreview: React.FC<ReplyMessagePreviewProps> = ({
 
   // 处理跳转到消息
   const handleJumpToMessage = useCallback(() => {
-    if (onJumpToMessage && replyMessage) {
-      console.log('ReplyMessagePreview - jumping to message:', replyMessage.id);
-      onJumpToMessage(replyMessage.id);
+    console.log('ReplyMessagePreview - handleJumpToMessage called', {
+      hasHandler: !!onJumpToMessage,
+      replyToMessageId,
+      replyMessage: replyMessage ? {
+        id: replyMessage.id,
+        content: replyMessage.content?.substring(0, 50)
+      } : null
+    });
+    
+    if (onJumpToMessage && replyToMessageId) {
+      console.log('ReplyMessagePreview - jumping to message ID:', replyToMessageId);
+      onJumpToMessage(replyToMessageId);
     } else {
-      console.log('ReplyMessagePreview - no jump handler or message');
+      console.log('ReplyMessagePreview - cannot jump', {
+        hasHandler: !!onJumpToMessage,
+        hasReplyToMessageId: !!replyToMessageId
+      });
     }
-  }, [onJumpToMessage, replyMessage]);
+  }, [onJumpToMessage, replyToMessageId]);
 
   // 格式化时间
   const formatMessageTime = (dateString: string) => {
