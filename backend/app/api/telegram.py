@@ -14,6 +14,10 @@ import asyncio
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# 同步队列，防止并发同步冲突
+sync_queue = asyncio.Queue()
+sync_worker_started = False
+
 def process_message_json_fields(message):
     """处理消息对象的JSON字段，确保类型正确"""
     try:
@@ -469,11 +473,14 @@ async def sync_group_messages_monthly(
         # 转换月份数据
         months_data = [{"year": month.year, "month": month.month} for month in request.months]
         
-        # 启动异步同步任务（不等待完成）
-        import asyncio
-        asyncio.create_task(
-            sync_monthly_task(group_identifier, months_data, group_id)
-        )
+        # 启动同步工作进程（如果还没启动）
+        global sync_worker_started
+        if not sync_worker_started:
+            asyncio.create_task(start_sync_worker())
+            sync_worker_started = True
+        
+        # 将同步任务添加到队列
+        await sync_queue.put(("single", group_identifier, months_data, group_id))
         
         # 立即返回成功响应
         return {
@@ -564,6 +571,55 @@ async def sync_all_groups_monthly(
         # 转换月份数据
         months_data = [{"year": month.year, "month": month.month} for month in request.months]
         
+        # 启动同步工作进程（如果还没启动）
+        global sync_worker_started
+        if not sync_worker_started:
+            asyncio.create_task(start_sync_worker())
+            sync_worker_started = True
+        
+        # 将批量同步任务添加到队列
+        await sync_queue.put(("batch", active_groups, months_data, None))
+        
+        return {
+            "success": True,
+            "message": f"批量同步任务已启动，将同步 {len(active_groups)} 个群组",
+            "total_groups": len(active_groups)
+        }
+        
+    except Exception as e:
+        logger.error(f"启动批量同步任务失败: {e}")
+        raise HTTPException(status_code=500, detail=f"启动批量同步任务失败: {str(e)}")
+
+async def start_sync_worker():
+    """启动同步工作进程，串行处理同步队列"""
+    logger.info("同步工作进程已启动")
+    
+    while True:
+        try:
+            # 从队列获取同步任务
+            task_type, *args = await sync_queue.get()
+            logger.info(f"处理同步任务: {task_type}")
+            
+            if task_type == "single":
+                # 单个群组同步
+                group_identifier, months_data, group_id = args
+                await sync_monthly_task(group_identifier, months_data, group_id)
+            elif task_type == "batch":
+                # 批量群组同步
+                active_groups, months_data, _ = args
+                await batch_sync_task(active_groups, months_data)
+            
+            # 标记任务完成
+            sync_queue.task_done()
+            
+        except Exception as e:
+            logger.error(f"同步工作进程异常: {str(e)}")
+            # 继续处理下一个任务
+            continue
+
+async def batch_sync_task(active_groups, months_data):
+    """执行批量同步任务"""
+    try:
         # 批量同步结果
         batch_result = {
             "success": True,
@@ -628,11 +684,27 @@ async def sync_all_groups_monthly(
         except Exception as ws_e:
             logger.warning(f"WebSocket推送失败: {ws_e}")
         
-        return batch_result
+        logger.info(f"批量同步完成: {batch_result['synced_groups']}/{batch_result['total_groups']} 个群组")
         
     except Exception as e:
-        logger.error(f"批量按月同步失败: {e}")
-        raise HTTPException(status_code=500, detail=f"批量按月同步失败: {str(e)}")
+        logger.error(f"批量同步任务执行失败: {e}")
+        # 推送错误消息
+        try:
+            from ..websocket import websocket_manager
+            await websocket_manager.broadcast({
+                "type": "batch_monthly_sync_complete",
+                "data": {
+                    "success": False,
+                    "error": str(e),
+                    "total_groups": len(active_groups) if active_groups else 0,
+                    "synced_groups": 0,
+                    "failed_groups": [],
+                    "total_messages": 0,
+                    "group_results": []
+                }
+            })
+        except Exception as ws_e:
+            logger.warning(f"WebSocket推送错误消息失败: {ws_e}")
 
 # 简单的内存缓存
 import time

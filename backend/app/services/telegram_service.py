@@ -657,22 +657,27 @@ class TelegramService:
                 logger.info(f"使用传入的群组ID: {group_id}")
             else:
                 logger.info("未传入群组ID，尝试从数据库查询...")
-                from ..database import SessionLocal
-                db = SessionLocal()
-                try:
-                    group_record = db.query(TelegramGroup).filter_by(
-                        telegram_id=entity.id
-                    ).first()
-                    group_id = group_record.id if group_record else None
-                    logger.info(f"从数据库查询到群组ID: {group_id}")
-                finally:
-                    db.close()
+                # 简化数据库查询，避免单独会话
+                group_id = None  # 如果没有传入group_id，暂时设为None，在保存消息时再查询
             
             total_months = len(months)
             
-            # 按月同步消息
-            for i, month_info in enumerate(months):
-                try:
+            # 创建单个数据库会话用于整个同步过程
+            from ..database import SessionLocal
+            db = SessionLocal()
+            
+            # 查询群组记录（如果需要）
+            if group_id is None:
+                group_record = db.query(TelegramGroup).filter_by(
+                    telegram_id=entity.id
+                ).first()
+                group_id = group_record.id if group_record else None
+                logger.info(f"从数据库查询到群组ID: {group_id}")
+            
+            try:
+                # 按月同步消息
+                for i, month_info in enumerate(months):
+                    try:
                     year = month_info.get("year")
                     month = month_info.get("month")
                     
@@ -725,45 +730,34 @@ class TelegramService:
                         entity, start_date, end_date
                     )
                     
-                    # 保存消息到数据库
-                    from ..database import SessionLocal
-                    db = SessionLocal()
-                    try:
-                        # 获取群组ID
-                        group_record = db.query(TelegramGroup).filter_by(
-                            telegram_id=entity.id
-                        ).first()
+                    # 保存消息到数据库（使用共享的数据库会话）
+                    if group_id is None:
+                        logger.error(f"未找到群组记录: {entity.id}")
+                        sync_result["failed_months"].append({
+                            "month": month_info,
+                            "error": "未找到群组记录"
+                        })
+                        continue
                         
-                        if not group_record:
-                            logger.error(f"未找到群组记录: {entity.id}")
-                            sync_result["failed_months"].append({
-                                "month": month_info,
-                                "error": "未找到群组记录"
-                            })
-                            continue
-                        
-                        saved_count = await self.save_messages_to_db(
-                            group_record.id, month_messages, db
-                        )
-                        
-                        # 统计结果
-                        month_stat = {
-                            "year": year,
-                            "month": month,
-                            "total_messages": len(month_messages),
-                            "saved_messages": saved_count,
-                            "start_date": start_date.isoformat(),
-                            "end_date": end_date.isoformat()
-                        }
-                        
-                        sync_result["monthly_stats"].append(month_stat)
-                        sync_result["total_messages"] += saved_count
-                        sync_result["months_synced"] += 1
-                        
-                        logger.info(f"✓ {year}-{month:02d} 同步完成: {saved_count}/{len(month_messages)} 条消息")
-                        
-                    finally:
-                        db.close()
+                    saved_count = await self.save_messages_to_db(
+                        group_id, month_messages, db
+                    )
+                    
+                    # 统计结果
+                    month_stat = {
+                        "year": year,
+                        "month": month,
+                        "total_messages": len(month_messages),
+                        "saved_messages": saved_count,
+                        "start_date": start_date.isoformat(),
+                        "end_date": end_date.isoformat()
+                    }
+                    
+                    sync_result["monthly_stats"].append(month_stat)
+                    sync_result["total_messages"] += saved_count
+                    sync_result["months_synced"] += 1
+                    
+                    logger.info(f"✓ {year}-{month:02d} 同步完成: {saved_count}/{len(month_messages)} 条消息")
                         
                 except Exception as e:
                     logger.error(f"同步 {year}-{month:02d} 失败: {e}")
@@ -772,11 +766,15 @@ class TelegramService:
                         "error": str(e)
                     })
                     
-                # 添加延迟以避免API限制
-                await asyncio.sleep(2)
-            
-            logger.info(f"按月同步完成: 总计 {sync_result['total_messages']} 条消息")
-            return sync_result
+                    # 添加延迟以避免API限制
+                    await asyncio.sleep(2)
+                
+                logger.info(f"按月同步完成: 总计 {sync_result['total_messages']} 条消息")
+                return sync_result
+                
+            finally:
+                # 确保数据库会话被关闭
+                db.close()
             
         except Exception as e:
             logger.error(f"按月同步失败: {e}")
