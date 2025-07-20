@@ -96,6 +96,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const { currentTelegramUser, setCurrentTelegramUser } = useTelegramUserStore();
   const PAGE_SIZE = 50;
 
+  // 下载状态管理 - 用于跟踪媒体文件下载进度和URL
+  const [downloadStates, setDownloadStates] = useState<Record<number, any>>({});
+
   // 获取当前 Telegram 用户信息
   const fetchCurrentTelegramUser = useCallback(async () => {
     if (currentTelegramUser) return; // 如果已经有了，就不重复获取
@@ -241,7 +244,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     } else {
       console.warn('MessageArea - target message not found in media messages');
     }
-  }, [displayMessages]);
+  }, [displayMessages, downloadStates]);
 
   const closeMediaGallery = useCallback(() => {
     setGalleryVisible(false);
