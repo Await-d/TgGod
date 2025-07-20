@@ -325,8 +325,6 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                 e.stopPropagation();
                 // 启用 Ant Design 的内置图片预览功能，支持缩放
                 const imageElement = e.target as HTMLImageElement;
-                const newImage = new Image();
-                newImage.src = mediaUrl;
                 
                 // 创建一个新的模态框来显示可缩放的图片
                 const zoomModal = Modal.info({
