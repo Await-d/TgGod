@@ -344,7 +344,7 @@
 }
 
 /* 缩放预览蒙版样式 */
-.zoom-mask {
+.zoom-mask, .image-zoom-mask {
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(2px);
   display: flex !important;
@@ -357,7 +357,7 @@
   transition: all 0.3s ease;
 }
 
-.zoom-mask:hover {
+.zoom-mask:hover, .image-zoom-mask:hover {
   background: rgba(0, 0, 0, 0.7);
 }
 

@@ -1,5 +1,6 @@
 import os
 import logging
+import shutil
 from typing import Optional, Dict, Any
 from telethon import TelegramClient
 from telethon.errors import AuthKeyUnregisteredError, FloodWaitError
@@ -14,8 +15,9 @@ class TelegramMediaDownloader:
     def __init__(self):
         self.client: Optional[TelegramClient] = None
         self._initialized = False
-        # 使用与主服务相同的session路径
-        self.session_name = os.path.join("./telegram_sessions", "tggod_session")
+        self._shared_client = None  # 共享的客户端实例
+        # 使用独立的session路径，避免与主服务冲突
+        self.session_name = os.path.join("./telegram_sessions", "tggod_downloader_session")
     
     async def initialize(self):
         """初始化Telegram客户端"""
@@ -23,6 +25,14 @@ class TelegramMediaDownloader:
             return
         
         try:
+            # 如果已有客户端实例，先断开
+            if self.client:
+                try:
+                    await self.client.disconnect()
+                except:
+                    pass
+                self.client = None
+            
             # 强制清除配置缓存，确保获取最新配置
             settings.clear_cache()
             
@@ -38,14 +48,34 @@ class TelegramMediaDownloader:
             # 确保session目录存在
             os.makedirs(os.path.dirname(self.session_name), exist_ok=True)
             
-            # 创建客户端
+            # 尝试复制主session文件（如果存在且下载器session不存在）
+            main_session_path = os.path.join("./telegram_sessions", "tggod_session.session")
+            downloader_session_path = f"{self.session_name}.session"
+            
+            if os.path.exists(main_session_path) and not os.path.exists(downloader_session_path):
+                try:
+                    # 等待一段时间确保主session没有被占用
+                    await asyncio.sleep(0.2)
+                    shutil.copy2(main_session_path, downloader_session_path)
+                    logger.info("已复制主session文件到下载器")
+                except Exception as copy_error:
+                    logger.warning(f"复制session文件失败，将创建新session: {copy_error}")
+            
+            # 创建客户端，使用更保守的配置
             self.client = TelegramClient(
                 self.session_name,
                 api_id,
-                api_hash
+                api_hash,
+                # 使用更保守的连接配置
+                connection_retries=2,
+                retry_delay=2,
+                timeout=30,
+                # 使用内存session来避免数据库锁定
+                use_ipv6=False
             )
             
             # 连接客户端
+            logger.info("正在连接媒体下载器客户端...")
             await self.client.connect()
             
             # 检查认证状态
@@ -116,6 +146,9 @@ class TelegramMediaDownloader:
                 except:
                     pass
             return False
+        finally:
+            # 下载完成后断开连接释放资源
+            await self.cleanup()
     
     async def _download_by_message(self, chat_id: int, message_id: int, file_path: str) -> bool:
         """通过消息ID下载文件"""
@@ -250,29 +283,34 @@ class TelegramMediaDownloader:
             logger.error(f"生成缩略图失败: {str(e)}")
             return False
     
+    async def cleanup(self):
+        """清理资源，下载完成后调用"""
+        try:
+            if self.client and self.client.is_connected():
+                await self.client.disconnect()
+                logger.info("媒体下载器连接已断开")
+        except Exception as e:
+            logger.warning(f"断开下载器连接时出错: {e}")
+        finally:
+            self._initialized = False
+    
     async def close(self):
         """关闭客户端连接"""
-        if self.client and self.client.is_connected():
-            await self.client.disconnect()
-        self._initialized = False
+        await self.cleanup()
         logger.info("Telegram媒体下载器已关闭")
 
-# 全局下载器实例
-_downloader: Optional[TelegramMediaDownloader] = None
-
 async def get_media_downloader() -> TelegramMediaDownloader:
-    """获取媒体下载器实例"""
-    global _downloader
-    if _downloader is None:
-        _downloader = TelegramMediaDownloader()
+    """获取媒体下载器实例 - 每次创建新实例避免冲突"""
+    downloader = TelegramMediaDownloader()
     
-    # 每次都尝试初始化，确保连接正常
     try:
-        await _downloader.initialize()
+        await downloader.initialize()
+        return downloader
     except Exception as e:
         logger.error(f"媒体下载器初始化失败: {e}")
-        # 重置实例
-        _downloader = None
+        # 确保清理资源
+        try:
+            await downloader.cleanup()
+        except:
+            pass
         raise
-    
-    return _downloader

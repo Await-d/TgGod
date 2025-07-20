@@ -311,49 +311,20 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
             centered
             className="media-preview-modal"
           >
-            <Image 
-              src={mediaUrl} 
-              alt={filename} 
-              style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain' }}
-              preview={{
-                visible: false,
-                onVisibleChange: () => {},
-                mask: null,
-                maskStyle: { display: 'none' }
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                // 启用 Ant Design 的内置图片预览功能，支持缩放
-                const imageElement = e.target as HTMLImageElement;
-                
-                // 创建一个新的模态框来显示可缩放的图片
-                const zoomModal = Modal.info({
-                  title: filename || '图片预览',
-                  width: '95%',
-                  style: { maxWidth: 1400, top: 10 },
-                  content: (
-                    <div style={{ textAlign: 'center' }}>
-                      <Image
-                        src={mediaUrl}
-                        alt={filename}
-                        style={{ maxWidth: '100%', maxHeight: '85vh' }}
-                        preview={{
-                          mask: '点击放大',
-                          maskClassName: 'zoom-mask'
-                        }}
-                      />
-                    </div>
-                  ),
-                  onOk: () => {
-                    zoomModal.destroy();
-                  },
-                  okText: '关闭',
-                  centered: true
-                });
-              }}
-            />
-            <div style={{ textAlign: 'center', marginTop: 16, color: '#8c8c8c', fontSize: 12 }}>
-              点击图片可放大查看
+            <div style={{ textAlign: 'center' }}>
+              <Image 
+                src={mediaUrl} 
+                alt={filename} 
+                style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+                preview={{
+                  mask: '点击放大查看',
+                  maskClassName: 'image-zoom-mask'
+                }}
+              />
+              <div style={{ marginTop: 16, color: '#8c8c8c', fontSize: 12 }}>
+                {filename && <div>{filename}</div>}
+                <div>点击图片可放大查看</div>
+              </div>
             </div>
           </Modal>
         )}
@@ -546,74 +517,81 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
             centered
             className="video-preview-modal"
           >
-            <video 
-              src={mediaUrl} 
-              controls 
-              style={{ width: '100%', maxHeight: '80vh', borderRadius: '8px' }}
-              controlsList="nodownload"
-              playsInline
-              preload="metadata"
-              onError={(e) => {
-                console.error('Video playback error:', e, 'URL:', mediaUrl);
-                console.error('Video element details:', {
-                  readyState: (e.target as HTMLVideoElement).readyState,
-                  networkState: (e.target as HTMLVideoElement).networkState,
-                  error: (e.target as HTMLVideoElement).error
-                });
-                
-                // 尝试访问当前URL以检查文件是否存在
-                fetch(mediaUrl, { method: 'HEAD' })
-                  .then(response => {
-                    console.log('Video file check:', {
-                      url: mediaUrl,
-                      status: response.status,
-                      contentType: response.headers.get('content-type'),
-                      contentLength: response.headers.get('content-length')
-                    });
-                  })
-                  .catch(fetchError => {
-                    console.error('Failed to check video file:', fetchError);
+            <div style={{ textAlign: 'center' }}>
+              <video 
+                src={mediaUrl} 
+                controls 
+                style={{ width: '100%', maxHeight: '80vh', borderRadius: '8px' }}
+                controlsList="nodownload"
+                playsInline
+                preload="metadata"
+                autoPlay={false}
+                onError={(e) => {
+                  console.error('Video playback error:', e, 'URL:', mediaUrl);
+                  const video = e.target as HTMLVideoElement;
+                  console.error('Video element details:', {
+                    readyState: video.readyState,
+                    networkState: video.networkState,
+                    error: video.error
                   });
-                
-                // 尝试重新加载
-                if (currentUrlIndex < alternativeUrls.length - 1) {
-                  setCurrentUrlIndex(prev => prev + 1);
-                  console.log('Trying alternative URL for video playback:', alternativeUrls[currentUrlIndex + 1]);
-                } else {
-                  message.error('视频播放失败，请检查文件格式或网络连接');
-                }
-              }}
-              onLoadedData={() => {
-                console.log('Video loaded successfully for playback');
-              }}
-              onCanPlay={() => {
-                console.log('Video can play in modal');
-              }}
-              onCanPlayThrough={() => {
-                console.log('Video can play through in modal');
-              }}
-              onLoadedMetadata={(e) => {
-                const video = e.target as HTMLVideoElement;
-                console.log('Modal video metadata:', {
-                  duration: video.duration,
-                  videoWidth: video.videoWidth,
-                  videoHeight: video.videoHeight,
-                  readyState: video.readyState,
-                  src: video.src
-                });
-              }}
-            >
-              {/* 为播放器添加多种格式支持 */}
-              <source src={mediaUrl} type="video/mp4" />
-              <source src={mediaUrl} type="video/webm" />
-              <source src={mediaUrl} type="video/ogg" />
-              <source src={mediaUrl} type="video/avi" />
-              <track kind="captions" />
-              您的浏览器不支持视频播放。请尝试使用最新版本的 Chrome、Firefox 或 Safari 浏览器。
-            </video>
-            <div style={{ textAlign: 'center', marginTop: 16, color: '#8c8c8c', fontSize: 12 }}>
-              {filename && <div>{filename}</div>}
-              {formattedSize && <div>文件大小: {formattedSize}</div>}
+                  
+                  // 检查文件是否存在
+                  fetch(mediaUrl, { method: 'HEAD' })
+                    .then(response => {
+                      console.log('Video file check:', {
+                        url: mediaUrl,
+                        status: response.status,
+                        contentType: response.headers.get('content-type'),
+                        contentLength: response.headers.get('content-length')
+                      });
+                      
+                      if (response.status !== 200) {
+                        message.error(`视频文件不存在或无法访问 (状态码: ${response.status})`);
+                      }
+                    })
+                    .catch(fetchError => {
+                      console.error('Failed to check video file:', fetchError);
+                      message.error('无法访问视频文件，请检查网络连接');
+                    });
+                  
+                  // 尝试下一个备选URL
+                  if (currentUrlIndex < alternativeUrls.length - 1) {
+                    setCurrentUrlIndex(prev => prev + 1);
+                    console.log('Trying alternative URL for video playback:', alternativeUrls[currentUrlIndex + 1]);
+                  } else {
+                    message.error('视频播放失败，所有备选URL都无法加载');
+                  }
+                }}
+                onLoadedData={() => {
+                  console.log('Video loaded successfully for playback');
+                  message.success('视频加载完成，可以播放');
+                }}
+                onCanPlay={() => {
+                  console.log('Video can play in modal');
+                }}
+                onCanPlayThrough={() => {
+                  console.log('Video can play through in modal');
+                }}
+                onLoadedMetadata={(e) => {
+                  const video = e.target as HTMLVideoElement;
+                  console.log('Modal video metadata:', {
+                    duration: video.duration,
+                    videoWidth: video.videoWidth,
+                    videoHeight: video.videoHeight,
+                    readyState: video.readyState,
+                    src: video.src
+                  });
+                }}
+              >
+                您的浏览器不支持视频播放。请尝试使用最新版本的 Chrome、Firefox 或 Safari 浏览器。
+              </video>
+              <div style={{ marginTop: 16, color: '#8c8c8c', fontSize: 12 }}>
+                {filename && <div style={{ marginBottom: 4 }}>{filename}</div>}
+                {formattedSize && <div>文件大小: {formattedSize}</div>}
+                <div style={{ marginTop: 8, fontSize: 11 }}>
+                  如果视频无法播放，请检查文件格式是否为 MP4、WebM 或 OGG
+                </div>
+              </div>
             </div>
           </Modal>
         )}
