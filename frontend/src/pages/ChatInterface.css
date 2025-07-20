@@ -323,10 +323,11 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  position: relative;
+  position: relative; /* 确保相对定位作为绝对定位按钮的参考 */
   background: #ffffff;
   overflow: hidden;
   min-height: 0;  /* 关键：允许flex子元素收缩 */
+  z-index: 1; /* 确保容器层级正确 */
 }
 
 /* 消息区域 - 正确的滚动设置 */

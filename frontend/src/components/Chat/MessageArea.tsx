@@ -603,12 +603,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         <div 
           className={`scroll-to-bottom ${!buttonVisible ? 'auto-hidden' : ''}`}
           onMouseEnter={() => setButtonVisible(true)}
-          style={{
-            /* 调试样式 - 确保按钮可见 */
-            backgroundColor: 'rgba(24, 144, 255, 0.1)',
-            borderRadius: '50%',
-            padding: '4px'
-          }}
         >
           <Badge count={unreadCount} size="small" offset={[-5, 5]}>
             <Button

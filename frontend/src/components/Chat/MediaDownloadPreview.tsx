@@ -190,10 +190,14 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       mediaDownloaded: message.media_downloaded
     });
     
-    if (downloadState.status === 'downloaded' && downloadState.downloadUrl) {
+    // 检查是否有可用的媒体URL
+    const hasMediaUrl = downloadState.downloadUrl || (message.media_downloaded && message.media_path);
+    const mediaUrlForPreview = downloadState.downloadUrl || message.media_path;
+    
+    if (hasMediaUrl && mediaUrlForPreview) {
       if (onPreview) {
-        console.log('MediaDownloadPreview - calling onPreview with URL:', downloadState.downloadUrl);
-        onPreview(downloadState.downloadUrl);
+        console.log('MediaDownloadPreview - calling onPreview with URL:', mediaUrlForPreview);
+        onPreview(mediaUrlForPreview);
       } else {
         console.log('MediaDownloadPreview - opening preview modal');
         // 打开预览模态框
@@ -301,6 +305,49 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   // 渲染下载状态
   const renderDownloadStatus = () => {
+    // 检查是否有可用的媒体URL（优先检查实际状态）
+    const hasMediaUrl = downloadState.downloadUrl || (message.media_downloaded && message.media_path);
+    const isActuallyDownloaded = hasMediaUrl || downloadState.status === 'downloaded';
+    
+    console.log('renderDownloadStatus called', {
+      downloadStateStatus: downloadState.status,
+      hasMediaUrl,
+      isActuallyDownloaded,
+      messageMediaDownloaded: message.media_downloaded
+    });
+    
+    // 如果实际上已经下载，显示预览按钮
+    if (isActuallyDownloaded) {
+      const mediaUrlForDownload = downloadState.downloadUrl || message.media_path;
+      return (
+        <div className="download-actions">
+          <Button 
+            type="primary" 
+            icon={<EyeOutlined />}
+            onClick={(e) => {
+              console.log('MediaDownloadPreview - preview button clicked', e);
+              handlePreview();
+            }}
+            style={{ marginRight: 8 }}
+            size="small"
+          >
+            预览
+          </Button>
+          {mediaUrlForDownload && (
+            <Button 
+              icon={<DownloadOutlined />}
+              href={getFullMediaUrl(mediaUrlForDownload)}
+              download={message.media_filename}
+              target="_blank"
+              size="small"
+            >
+              下载
+            </Button>
+          )}
+        </div>
+      );
+    }
+    
     switch (downloadState.status) {
       case 'downloading':
         return (
@@ -334,35 +381,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                 </div>
               </Spin>
             </Card>
-          </div>
-        );
-        
-      case 'downloaded':
-        return (
-          <div className="download-actions">
-            <Button 
-              type="primary" 
-              icon={<EyeOutlined />}
-              onClick={(e) => {
-                console.log('MediaDownloadPreview - preview button clicked', e);
-                handlePreview();
-              }}
-              style={{ marginRight: 8 }}
-              size="small"
-            >
-              预览
-            </Button>
-            {downloadState.downloadUrl && (
-              <Button 
-                icon={<DownloadOutlined />}
-                href={getFullMediaUrl(downloadState.downloadUrl)}
-                download={message.media_filename}
-                target="_blank"
-                size="small"
-              >
-                下载
-              </Button>
-            )}
           </div>
         );
         
@@ -411,7 +429,19 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   // 渲染媒体缩略图（对于已下载的图片和视频）
   const renderMediaThumbnail = () => {
-    if (downloadState.status !== 'downloaded' || !downloadState.downloadUrl) {
+    // 检查是否有可用的媒体URL（已下载或有路径）
+    const hasMediaUrl = downloadState.downloadUrl || (message.media_downloaded && message.media_path);
+    const mediaUrl = downloadState.downloadUrl || message.media_path;
+    
+    console.log('renderMediaThumbnail called', {
+      hasMediaUrl,
+      mediaUrl,
+      downloadStatus: downloadState.status,
+      messageMediaDownloaded: message.media_downloaded,
+      messageMediaPath: message.media_path
+    });
+    
+    if (!hasMediaUrl) {
       return (
         <div className="media-icon">
           {getMediaIcon(message.media_type || 'document')}
@@ -419,7 +449,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       );
     }
 
-    const fullUrl = getFullMediaUrl(downloadState.downloadUrl);
+    const fullUrl = getFullMediaUrl(mediaUrl);
 
     switch (message.media_type) {
       case 'photo':

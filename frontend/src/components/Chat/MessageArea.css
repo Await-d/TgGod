@@ -410,13 +410,16 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* 滚动到底部按钮 */
+/* 滚动到底部按钮 - 所有屏幕尺寸下都可见 */
 .scroll-to-bottom {
   position: absolute;
   bottom: 24px;
   right: 24px;
   z-index: 1000; /* 提高z-index确保显示 */
   animation: slideInUp 0.3s ease-out;
+  pointer-events: auto; /* 确保可点击 */
+  /* 在所有屏幕尺寸下显示 */
+  display: block !important;
 }
 
 .scroll-to-bottom .ant-btn {
@@ -490,6 +493,21 @@
   }
   60% {
     transform: translateY(-1px);
+  }
+}
+
+/* 宽屏桌面端适配 - 确保按钮显示 */
+@media (min-width: 769px) {
+  .scroll-to-bottom {
+    display: block !important;
+    position: absolute !important;
+    z-index: 1001 !important; /* 在宽屏下进一步提高层级 */
+    bottom: 24px !important;
+    right: 24px !important;
+  }
+  
+  .scroll-to-bottom .ant-btn {
+    box-shadow: 0 4px 16px rgba(24, 144, 255, 0.4) !important;
   }
 }
 
