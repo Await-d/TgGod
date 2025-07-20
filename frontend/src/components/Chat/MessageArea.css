@@ -247,11 +247,11 @@
 /* 消息头像 */
 .message-avatar {
   flex-shrink: 0;
-  align-self: flex-end;
+  align-self: flex-start; /* 改为flex-start使头像显示在左上角 */
 }
 
 .message-bubble.own .message-avatar {
-  align-self: flex-end;
+  align-self: flex-start; /* 自己的消息头像也显示在上方 */
 }
 
 /* 消息主体 */
