@@ -108,7 +108,7 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
       urls.push(`${apiBase}/${originalUrl.startsWith('/') ? originalUrl.slice(1) : originalUrl}`);
     }
     
-    return [...new Set(urls)]; // 去重
+    return Array.from(new Set(urls)); // 去重
   };
 
   const mediaUrl = alternativeUrls.length > 0 ? alternativeUrls[currentUrlIndex] : getMediaUrl(url);
