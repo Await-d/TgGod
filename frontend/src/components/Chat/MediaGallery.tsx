@@ -23,6 +23,7 @@ interface MediaGalleryProps {
   visible: boolean;
   onClose: () => void;
   onIndexChange?: (index: number) => void;
+  downloadStates?: Record<number, any>;
 }
 
 interface MediaItem {
@@ -36,7 +37,8 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
   currentIndex,
   visible,
   onClose,
-  onIndexChange
+  onIndexChange,
+  downloadStates = {}
 }) => {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(currentIndex);
@@ -45,8 +47,28 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
   const [imageRotation, setImageRotation] = useState(0);
   const [videoPlaying, setVideoPlaying] = useState(false);
 
-  // 构建媒体URL（修复重复media路径问题）
+  // 构建媒体URL（修复重复media路径问题，支持downloadUrl）
   const buildMediaUrl = useCallback((message: TelegramMessage): string => {
+    // 首先检查是否有下载状态中的URL（优先使用，适用于刚下载完成的文件）
+    const messageId = message.id || message.message_id;
+    const downloadState = downloadStates[messageId];
+    if (downloadState?.downloadUrl) {
+      const downloadUrl = downloadState.downloadUrl;
+      console.log('MediaGallery - using downloadUrl:', downloadUrl);
+      
+      // 如果downloadUrl已经是完整路径，直接返回
+      if (downloadUrl.startsWith('/media/')) {
+        return downloadUrl;
+      }
+      // 如果需要清理和添加前缀
+      if (downloadUrl.startsWith('./media/')) {
+        return downloadUrl.replace('./media/', '/media/');
+      }
+      // 如果是相对路径，添加前缀
+      return downloadUrl.startsWith('/') ? downloadUrl : `/media/${downloadUrl}`;
+    }
+    
+    // 使用message.media_path作为后备
     const path = message.media_path;
     if (!path) return '';
     
@@ -82,7 +104,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
     const result = `/media/${path}`;
     console.log('MediaGallery - adding /media/ prefix to relative path:', result);
     return result;
-  }, []);
+  }, [downloadStates]);
 
   // 获取媒体类型
   const getMediaType = useCallback((message: TelegramMessage): 'image' | 'video' | 'audio' | 'document' => {

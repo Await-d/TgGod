@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { 
   Avatar, 
   Space, 
@@ -59,6 +59,12 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   isMobile = false,
   onOpenGallery
 }) => {
+  const [isActive, setIsActive] = React.useState(false);
+  
+  // 处理消息点击，激活操作按钮
+  const handleMessageClick = useCallback(() => {
+    setIsActive(prev => !prev);
+  }, []);
   
   // 获取媒体类型图标
   const getMediaIcon = (mediaType: string) => {
@@ -202,24 +208,26 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
               />
             ) : (
               /* 所有媒体类型使用按需下载预览组件 */
-              <MediaDownloadPreview
-                message={message}
-                className="message-media-preview"
-                onPreview={(mediaPath) => {
-                  console.log('MessageBubble - onPreview called', {
-                    messageId: message.id,
-                    mediaPath,
-                    hasOnOpenGallery: !!onOpenGallery
-                  });
-                  if (onOpenGallery) {
-                    console.log('MessageBubble - calling onOpenGallery');
-                    onOpenGallery(message);
-                  } else {
-                    console.log('MessageBubble - no onOpenGallery prop, using fallback');
-                    console.log('Open gallery for:', mediaPath);
-                  }
-                }}
-              />
+              <div onClick={(e) => e.stopPropagation()}>
+                <MediaDownloadPreview
+                  message={message}
+                  className="message-media-preview"
+                  onPreview={(mediaPath) => {
+                    console.log('MessageBubble - onPreview called', {
+                      messageId: message.id,
+                      mediaPath,
+                      hasOnOpenGallery: !!onOpenGallery
+                    });
+                    if (onOpenGallery) {
+                      console.log('MessageBubble - calling onOpenGallery');
+                      onOpenGallery(message);
+                    } else {
+                      console.log('MessageBubble - no onOpenGallery prop, using fallback');
+                      console.log('Open gallery for:', mediaPath);
+                    }
+                  }}
+                />
+              </div>
             )}
           </div>
         )}
@@ -277,7 +285,11 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   };
 
   return (
-    <div className={`message-bubble ${isOwn ? 'own' : 'other'}`}>
+    <div 
+      className={`message-bubble ${isOwn ? 'own' : 'other'} ${isActive ? 'active' : ''}`}
+      onClick={handleMessageClick}
+      style={{ cursor: 'pointer' }}
+    >
       {/* 发送者头像 */}
       {!isOwn && (
         <div className="message-avatar">
@@ -340,14 +352,17 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
             </div>
 
             {/* 操作按钮 */}
-            <div className="message-actions">
+            <div className="message-actions" onClick={(e) => e.stopPropagation()}>
               <Space size={4}>
                 <Tooltip title="回复">
                   <Button
                     type="text"
                     size="small"
                     icon={<MessageOutlined />}
-                    onClick={() => onReply(message)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReply(message);
+                    }}
                     className="action-btn"
                   />
                 </Tooltip>
@@ -357,7 +372,10 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                     type="text"
                     size="small"
                     icon={<PlusOutlined />}
-                    onClick={() => onCreateRule(message)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCreateRule(message);
+                    }}
                     className="action-btn"
                   />
                 </Tooltip>
@@ -365,7 +383,10 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                 {!isMobile && (
                   <Popconfirm
                     title="确认删除这条消息吗？"
-                    onConfirm={() => onDelete(message.message_id)}
+                    onConfirm={(e) => {
+                      if (e) e.stopPropagation();
+                      onDelete(message.message_id);
+                    }}
                     placement="topRight"
                   >
                     <Tooltip title="删除">
@@ -374,6 +395,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                         size="small"
                         danger
                         icon={<DeleteOutlined />}
+                        onClick={(e) => e.stopPropagation()}
                         className="action-btn"
                       />
                     </Tooltip>

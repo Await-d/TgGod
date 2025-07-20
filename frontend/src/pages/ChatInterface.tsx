@@ -224,13 +224,21 @@ const ChatInterface: React.FC = () => {
 
   // 处理跳转到群组
   const handleJumpToGroup = useCallback((groupId: number) => {
+    console.log('ChatInterface - handleJumpToGroup called', {
+      groupId,
+      totalGroups: groups.length,
+      availableGroupIds: groups.map(g => g.id)
+    });
+    
     const targetGroup = groups.find(group => group.id === groupId);
     if (targetGroup) {
+      console.log('ChatInterface - found target group:', targetGroup);
       // 使用群组导航逻辑跳转到目标群组
       selectGroup(targetGroup);
       antMessage.success(`已跳转到${targetGroup.title}`);
     } else {
-      antMessage.warning('未找到目标群组');
+      console.log('ChatInterface - target group not found in current groups list');
+      antMessage.warning(`未找到目标群组 (ID: ${groupId})`);
     }
   }, [groups, selectGroup]);
 

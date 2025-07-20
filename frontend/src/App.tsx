@@ -14,6 +14,7 @@ import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
 import MediaTestPage from './pages/MediaTestPage';
 import MediaDownloadTestPage from './pages/MediaDownloadTestPage';
+import TelegramLinkTestPage from './pages/TelegramLinkTestPage';
 import WebSocketTest from './components/WebSocketTest';
 import { webSocketService } from './services/websocket';
 import { useGlobalStore, useAuthStore } from './store';
@@ -157,6 +158,15 @@ const App: React.FC = () => {
             <MainLayout>
               <Content>
                 <WebSocketTest />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/telegram-link-test" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <TelegramLinkTestPage />
               </Content>
             </MainLayout>
           </ProtectedRoute>

@@ -388,11 +388,33 @@
 
 .message-actions {
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
 }
 
-.message-bubble:hover .message-actions {
+.message-bubble:hover .message-actions,
+.message-bubble:focus-within .message-actions,
+.message-bubble.active .message-actions {
   opacity: 1;
+  pointer-events: auto;
+}
+
+/* 点击激活状态的持久性 */
+.message-bubble.active .message-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 确保在触摸设备上操作按钮可见且可点击 */
+@media (hover: none) and (pointer: coarse) {
+  .message-actions {
+    opacity: 0.8;
+    pointer-events: auto;
+  }
+  
+  .message-bubble.active .message-actions {
+    opacity: 1;
+  }
 }
 
 .action-btn {

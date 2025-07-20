@@ -197,18 +197,32 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       totalDisplayMessages: displayMessages.length
     });
     
-    // 筛选出所有有媒体路径的消息（不管是否标记为已下载，只要有路径就可以尝试显示）
-    const mediaMessages = displayMessages.filter(msg => 
-      msg.media_type && msg.media_path
-    );
+    // 筛选出所有有媒体的消息（包括正在下载或已下载的）
+    const mediaMessages = displayMessages.filter(msg => {
+      const hasMediaType = msg.media_type;
+      const hasMediaPath = msg.media_path;
+      
+      // 检查是否有下载状态中的URL（适用于刚下载完成的文件）
+      const messageId = msg.id || msg.message_id;
+      const downloadState = downloadStates[messageId];
+      const hasDownloadUrl = downloadState?.downloadUrl;
+      
+      return hasMediaType && (hasMediaPath || hasDownloadUrl);
+    });
     
     console.log('MessageArea - filtered media messages', {
       totalMediaMessages: mediaMessages.length,
-      mediaMessages: mediaMessages.map(msg => ({
-        id: msg.id,
-        mediaType: msg.media_type,
-        mediaPath: msg.media_path
-      }))
+      mediaMessages: mediaMessages.map(msg => {
+        const messageId = msg.id || msg.message_id;
+        const downloadState = downloadStates[messageId];
+        return {
+          id: msg.id,
+          mediaType: msg.media_type,
+          mediaPath: msg.media_path,
+          downloadUrl: downloadState?.downloadUrl,
+          hasDownloadState: !!downloadState
+        };
+      })
     });
     
     // 找到目标消息在媒体消息中的索引
@@ -636,6 +650,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         visible={galleryVisible}
         onClose={closeMediaGallery}
         onIndexChange={handleGalleryIndexChange}
+        downloadStates={downloadStates}
       />
     </div>
   );
