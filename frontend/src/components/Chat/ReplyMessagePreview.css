@@ -1,0 +1,191 @@
+.reply-message-preview {
+  margin: 4px 0 8px 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f6f9ff 0%, #e8f4fd 100%);
+  border: 1px solid #d6e7ff;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.reply-message-preview:hover {
+  background: linear-gradient(135deg, #e8f4fd 0%, #d6e7ff 100%);
+  border-color: #91caff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+}
+
+.reply-message-preview.compact {
+  margin: 2px 0 4px 0;
+  border-radius: 6px;
+}
+
+.reply-message-preview.loading {
+  background: #fafafa;
+  border-color: #f0f0f0;
+}
+
+.reply-message-preview.error {
+  background: linear-gradient(135deg, #fff2f0 0%, #ffccc7 100%);
+  border-color: #ffccc7;
+}
+
+.reply-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  position: relative;
+}
+
+.reply-message-preview.compact .reply-content {
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.reply-indicator {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.sender-avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.message-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sender-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.message-content {
+  overflow: hidden;
+}
+
+.message-content .ant-typography {
+  margin: 0;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.jump-hint {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.reply-message-preview:hover .jump-hint {
+  opacity: 1;
+}
+
+.reply-message-preview.compact .jump-hint {
+  top: 2px;
+  right: 6px;
+  font-size: 10px;
+}
+
+/* 加载状态动画 */
+.reply-message-preview.loading .reply-content {
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* 错误状态样式 */
+.reply-message-preview.error:hover {
+  background: linear-gradient(135deg, #ffccc7 0%, #ffa39e 100%);
+  border-color: #ff7875;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .reply-message-preview {
+    margin: 3px 0 6px 0;
+    border-radius: 6px;
+  }
+  
+  .reply-content {
+    gap: 6px;
+    padding: 6px 10px;
+  }
+  
+  .sender-info {
+    font-size: 11px;
+  }
+  
+  .message-content .ant-typography {
+    font-size: 11px;
+  }
+  
+  .jump-hint {
+    display: none; /* 在移动端隐藏跳转提示 */
+  }
+}
+
+/* 在消息气泡中的样式适配 */
+.message-bubble .reply-message-preview {
+  max-width: 100%;
+  margin: 2px 0 6px 0;
+}
+
+.own-bubble .reply-message-preview {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e1f5fe 100%);
+  border-color: #b3e5fc;
+}
+
+.own-bubble .reply-message-preview:hover {
+  background: linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 100%);
+  border-color: #81d4fa;
+}
+
+.other-bubble .reply-message-preview {
+  background: linear-gradient(135deg, #f6f9ff 0%, #e8f4fd 100%);
+  border-color: #d6e7ff;
+}
+
+/* 动画效果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reply-message-preview {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* 高亮效果 */
+.reply-message-preview.highlighted {
+  background: linear-gradient(135deg, #fff7e6 0%, #ffd666 50%, #fff7e6 100%);
+  border-color: #fadb14;
+  animation: highlight-pulse 1s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    background: linear-gradient(135deg, #fff7e6 0%, #ffd666 50%, #fff7e6 100%);
+  }
+  50% {
+    background: linear-gradient(135deg, #fadb14 0%, #ffc53d 50%, #fadb14 100%);
+  }
+}

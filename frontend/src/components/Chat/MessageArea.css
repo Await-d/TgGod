@@ -623,3 +623,37 @@
     transform: translateY(0);
   }
 }
+
+/* 消息高亮效果 */
+.message-wrapper.highlighted {
+  background: linear-gradient(135deg, #fff7e6 0%, #ffd666 50%, #fff7e6 100%);
+  border-radius: 8px;
+  margin: 4px 0;
+  padding: 4px;
+  animation: highlight-pulse 2s ease-in-out;
+  transition: background 0.3s ease;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    background: linear-gradient(135deg, #fff7e6 0%, #ffd666 50%, #fff7e6 100%);
+  }
+  50% {
+    background: linear-gradient(135deg, #fadb14 0%, #ffc53d 50%, #fadb14 100%);
+  }
+}
+
+/* 回复消息预览在消息气泡中的样式 */
+.message-bubble .message-reply-preview {
+  margin: 4px 0 8px 0;
+}
+
+.message-bubble.own .message-reply-preview {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.message-bubble.other .message-reply-preview {
+  margin-left: 0;
+  margin-right: auto;
+}

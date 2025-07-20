@@ -32,6 +32,7 @@ import EnhancedMessageText from './EnhancedMessageText';
 import LinkPreview, { parseLinks, renderTextWithLinks } from './LinkPreview';
 import MarkdownRenderer, { isMarkdownContent } from './MarkdownRenderer';
 import ForwardedMessagePreview from './ForwardedMessagePreview';
+import ReplyMessagePreview from './ReplyMessagePreview';
 import './EnhancedMediaPreview.css';
 import './EnhancedVoiceMessage.css';
 import './MessageReactions.css';
@@ -56,6 +57,8 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   onCreateRule,
   onDelete,
   onJumpToGroup,
+  onJumpToMessage,
+  onUpdateDownloadState,
   isMobile = false,
   onOpenGallery
 }) => {
@@ -154,12 +157,13 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
 
         {/* 回复信息 */}
         {message.reply_to_message_id && !message.is_forwarded && (
-          <div className="reply-info">
-            <MessageOutlined style={{ marginRight: 4 }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              回复消息 #{message.reply_to_message_id}
-            </Text>
-          </div>
+          <ReplyMessagePreview
+            replyToMessageId={message.reply_to_message_id}
+            groupId={message.group_id}
+            onJumpToMessage={onJumpToMessage}
+            compact={isMobile}
+            className="message-reply-preview"
+          />
         )}
 
         {/* 消息文本 */}
@@ -226,6 +230,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                       console.log('Open gallery for:', mediaPath);
                     }
                   }}
+                  onUpdateDownloadState={onUpdateDownloadState}
                 />
               </div>
             )}

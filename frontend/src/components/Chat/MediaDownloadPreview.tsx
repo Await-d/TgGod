@@ -18,6 +18,7 @@ interface MediaDownloadPreviewProps {
   message: TelegramMessage;
   className?: string;
   onPreview?: (mediaPath: string) => void;
+  onUpdateDownloadState?: (messageId: number, state: any) => void;
 }
 
 interface DownloadState {
@@ -32,7 +33,8 @@ interface DownloadState {
 const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   message,
   className = '',
-  onPreview
+  onPreview,
+  onUpdateDownloadState
 }) => {
   const [downloadState, setDownloadState] = useState<DownloadState>(() => {
     const initialState = {
@@ -49,6 +51,13 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   });
   
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  
+  // 当下载状态改变时，通知父组件
+  useEffect(() => {
+    if (onUpdateDownloadState) {
+      onUpdateDownloadState(message.id, downloadState);
+    }
+  }, [downloadState, message.id, onUpdateDownloadState]);
   
   // 监听 message 变化，更新下载状态
   useEffect(() => {

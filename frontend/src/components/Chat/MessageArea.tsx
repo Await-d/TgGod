@@ -99,6 +99,14 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   // 下载状态管理 - 用于跟踪媒体文件下载进度和URL
   const [downloadStates, setDownloadStates] = useState<Record<number, any>>({});
 
+  // 更新下载状态的函数
+  const updateDownloadState = useCallback((messageId: number, state: any) => {
+    setDownloadStates(prev => ({
+      ...prev,
+      [messageId]: state
+    }));
+  }, []);
+
   // 获取当前 Telegram 用户信息
   const fetchCurrentTelegramUser = useCallback(async () => {
     if (currentTelegramUser) return; // 如果已经有了，就不重复获取
@@ -215,6 +223,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     
     console.log('MessageArea - filtered media messages', {
       totalMediaMessages: mediaMessages.length,
+      targetMessageId: targetMessage.id,
+      targetMessageHasMediaType: !!targetMessage.media_type,
+      targetMessageMediaPath: targetMessage.media_path,
+      targetDownloadState: downloadStates[targetMessage.id || targetMessage.message_id],
       mediaMessages: mediaMessages.map(msg => {
         const messageId = msg.id || msg.message_id;
         const downloadState = downloadStates[messageId];
@@ -223,7 +235,8 @@ const MessageArea: React.FC<MessageAreaProps> = ({
           mediaType: msg.media_type,
           mediaPath: msg.media_path,
           downloadUrl: downloadState?.downloadUrl,
-          hasDownloadState: !!downloadState
+          hasDownloadState: !!downloadState,
+          isTargetMessage: msg.id === targetMessage.id
         };
       })
     });
@@ -253,6 +266,50 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const handleGalleryIndexChange = useCallback((newIndex: number) => {
     setGalleryIndex(newIndex);
   }, []);
+
+  // 处理跳转到消息
+  const handleJumpToMessage = useCallback((messageId: number) => {
+    console.log('MessageArea - handleJumpToMessage called', { messageId });
+    
+    // 查找目标消息在当前消息列表中的位置
+    const targetMessageIndex = displayMessages.findIndex(msg => msg.id === messageId);
+    
+    if (targetMessageIndex >= 0) {
+      const targetMessage = displayMessages[targetMessageIndex];
+      console.log('MessageArea - found message in current list', {
+        messageId,
+        targetMessageIndex,
+        targetMessage
+      });
+      
+      // 滚动到目标消息
+      const messageElement = messageRefs.current[messageId];
+      if (messageElement && messagesContainerRef.current) {
+        messageElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'nearest'
+        });
+        
+        // 高亮目标消息
+        setHighlightedMessageId(messageId);
+        
+        // 3秒后移除高亮
+        setTimeout(() => {
+          setHighlightedMessageId(null);
+        }, 3000);
+        
+        console.log('MessageArea - scrolled to message and highlighted');
+      } else {
+        console.log('MessageArea - message element not found in DOM');
+      }
+    } else {
+      console.log('MessageArea - message not found in current list, may need to load more messages');
+      // TODO: 如果消息不在当前列表中，可能需要向上加载更多消息或者使用API搜索
+      // 暂时显示提示信息
+      // notification.info('正在查找目标消息...');
+    }
+  }, [displayMessages, messagesContainerRef, messageRefs]);
 
   // 检查是否需要显示"滚动到底部"按钮
   const handleScroll = useCallback(() => {
@@ -612,8 +669,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
                     onCreateRule={onCreateRule}
                     onDelete={handleDeleteMessage}
                     onJumpToGroup={onJumpToGroup}
+                    onJumpToMessage={handleJumpToMessage}
                     isMobile={isMobile}
                     onOpenGallery={openMediaGallery}
+                    onUpdateDownloadState={updateDownloadState}
                   />
                 </div>
               );
