@@ -12,6 +12,10 @@ import asyncio
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# 简单的下载队列，防止并发冲突
+download_queue = asyncio.Queue()
+download_worker_started = False
+
 @router.post("/download/{message_id}")
 async def download_media_file(
     message_id: int,
@@ -57,16 +61,22 @@ async def download_media_file(
             }
         else:
             # 文件记录存在但实际文件丢失，重置下载状态
-            message.media_downloaded = False
-            message.media_path = None
-            db.commit()
+            try:
+                message.media_downloaded = False
+                message.media_path = None
+                db.commit()
+            except Exception as commit_error:
+                logger.warning(f"重置下载状态时数据库提交失败: {str(commit_error)}")
+                # 即使提交失败，也继续执行下载任务
     
-    # 添加后台下载任务
-    background_tasks.add_task(
-        download_media_background,
-        message_id=message_id,
-        force=force
-    )
+    # 启动下载工作进程（如果还没启动）
+    global download_worker_started
+    if not download_worker_started:
+        background_tasks.add_task(start_download_worker)
+        download_worker_started = True
+    
+    # 将下载任务添加到队列
+    await download_queue.put((message_id, force))
     
     return {
         "status": "download_started",
@@ -192,9 +202,30 @@ async def delete_media_file(
             detail=f"删除文件失败: {str(e)}"
         )
 
+async def start_download_worker():
+    """启动下载工作进程，串行处理下载队列"""
+    logger.info("下载工作进程已启动")
+    
+    while True:
+        try:
+            # 从队列获取下载任务
+            message_id, force = await download_queue.get()
+            logger.info(f"处理下载任务: 消息 {message_id}")
+            
+            # 执行下载
+            await download_media_background(message_id, force)
+            
+            # 标记任务完成
+            download_queue.task_done()
+            
+        except Exception as e:
+            logger.error(f"下载工作进程异常: {str(e)}")
+            # 继续处理下一个任务
+            continue
+
 async def download_media_background(message_id: int, force: bool = False):
     """
-    后台下载媒体文件任务
+    后台下载媒体文件任务（串行执行，无并发冲突）
     
     Args:
         message_id: 消息ID
