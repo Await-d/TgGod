@@ -314,3 +314,86 @@
     padding: 6px 10px;
   }
 }
+
+/* 媒体预览模态框样式 */
+.media-preview-modal .ant-modal-content {
+  padding: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.media-preview-modal .ant-modal-body {
+  padding: 0;
+  text-align: center;
+}
+
+.media-preview-modal .ant-image {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.media-preview-modal .ant-image img {
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.media-preview-modal .ant-image img:hover {
+  transform: scale(1.02);
+}
+
+/* 缩放预览蒙版样式 */
+.zoom-mask {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.zoom-mask:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* Ant Design 图片预览组件增强 */
+.ant-image-preview-operations {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+
+.ant-image-preview-operations .ant-image-preview-operations-operation {
+  color: white;
+  font-size: 18px;
+  transition: all 0.2s ease;
+}
+
+.ant-image-preview-operations .ant-image-preview-operations-operation:hover {
+  color: #1890ff;
+  transform: scale(1.1);
+}
+
+/* 视频预览模态框样式 */
+.video-preview-modal .ant-modal-content {
+  background: #000;
+  border-radius: 12px;
+}
+
+.video-preview-modal .ant-modal-body {
+  padding: 0;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.video-preview-modal video {
+  border-radius: 8px;
+  outline: none;
+}

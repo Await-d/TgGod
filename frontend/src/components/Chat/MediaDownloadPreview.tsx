@@ -381,10 +381,10 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               src={fullUrl} 
               alt={message.media_filename || '图片'}
               style={{ 
-                width: '60px', 
-                height: '60px', 
+                width: '100%', 
+                height: '100%', 
                 objectFit: 'cover', 
-                borderRadius: '6px' 
+                borderRadius: '8px' 
               }}
               onError={(e) => {
                 console.error('Thumbnail load error:', e, 'URL:', fullUrl);
@@ -407,8 +407,8 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             <video 
               src={fullUrl}
               style={{ 
-                width: '60px', 
-                height: '60px', 
+                width: '100%', 
+                height: '100%', 
                 objectFit: 'cover', 
                 borderRadius: '6px' 
               }}

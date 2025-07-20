@@ -65,6 +65,53 @@ os.makedirs(os.path.join(settings.media_root, "audios"), exist_ok=True)
 os.makedirs(os.path.join(settings.media_root, "documents"), exist_ok=True)
 
 if os.path.exists(settings.media_root):
+    # 配置媒体文件服务，支持视频流
+    from starlette.responses import FileResponse
+    from starlette.middleware.base import BaseHTTPMiddleware
+    
+    class MediaHeaders(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            response = await call_next(request)
+            
+            # 为媒体文件添加适当的MIME类型和头部
+            if request.url.path.startswith('/media/'):
+                file_ext = request.url.path.split('.')[-1].lower()
+                
+                # 视频文件类型
+                if file_ext in ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv']:
+                    response.headers["Accept-Ranges"] = "bytes"
+                    response.headers["Content-Type"] = f"video/{file_ext}"
+                    if file_ext == 'mp4':
+                        response.headers["Content-Type"] = "video/mp4"
+                    elif file_ext == 'webm':
+                        response.headers["Content-Type"] = "video/webm"
+                    elif file_ext == 'avi':
+                        response.headers["Content-Type"] = "video/x-msvideo"
+                
+                # 图片文件类型  
+                elif file_ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
+                    response.headers["Content-Type"] = f"image/{file_ext}"
+                    if file_ext in ['jpg', 'jpeg']:
+                        response.headers["Content-Type"] = "image/jpeg"
+                
+                # 音频文件类型
+                elif file_ext in ['mp3', 'wav', 'ogg', 'flac', 'aac']:
+                    response.headers["Content-Type"] = f"audio/{file_ext}"
+                    if file_ext == 'mp3':
+                        response.headers["Content-Type"] = "audio/mpeg"
+                
+                # 设置缓存头部
+                response.headers["Cache-Control"] = "public, max-age=3600"
+                response.headers["Access-Control-Allow-Origin"] = "*"
+                response.headers["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
+                response.headers["Access-Control-Allow-Headers"] = "Range"
+                
+            return response
+    
+    # 添加媒体文件处理中间件
+    app.add_middleware(MediaHeaders)
+    
+    # 挂载静态文件服务
     app.mount("/media", StaticFiles(directory=settings.media_root), name="media")
 
 # 导入WebSocket管理器（使用全局单例）
