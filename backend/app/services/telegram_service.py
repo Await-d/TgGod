@@ -678,96 +678,96 @@ class TelegramService:
                 # 按月同步消息
                 for i, month_info in enumerate(months):
                     try:
-                    year = month_info.get("year")
-                    month = month_info.get("month")
-                    
-                    if not year or not month:
-                        logger.error(f"月份信息不完整: {month_info}")
-                        sync_result["failed_months"].append({
-                            "month": month_info,
-                            "error": "月份信息不完整"
-                        })
-                        continue
-                    
-                    logger.info(f"开始同步 {year}-{month:02d} 的消息...")
-                    
-                    # 发送进度更新
-                    if group_id:
-                        try:
-                            from ..websocket import websocket_manager
-                            # 向所有连接的客户端发送进度更新
-                            connected_clients = websocket_manager.get_connected_clients()
-                            logger.info(f"向 {len(connected_clients)} 个客户端发送进度更新")
-                            
-                            progress_message = {
-                                "type": "monthly_sync_progress",
-                                "data": {
-                                    "currentMonth": f"{year}-{month:02d}",
-                                    "progress": i,
-                                    "total": total_months,
-                                    "completed": sync_result["months_synced"],
-                                    "failed": len(sync_result["failed_months"])
-                                },
-                                "timestamp": datetime.now().isoformat()
-                            }
-                            
-                            for client_id in connected_clients:
-                                await websocket_manager.send_message(client_id, progress_message)
-                                logger.info(f"进度消息已发送给客户端 {client_id}")
+                        year = month_info.get("year")
+                        month = month_info.get("month")
+                        
+                        if not year or not month:
+                            logger.error(f"月份信息不完整: {month_info}")
+                            sync_result["failed_months"].append({
+                                "month": month_info,
+                                "error": "月份信息不完整"
+                            })
+                            continue
+                        
+                        logger.info(f"开始同步 {year}-{month:02d} 的消息...")
+                        
+                        # 发送进度更新
+                        if group_id:
+                            try:
+                                from ..websocket import websocket_manager
+                                # 向所有连接的客户端发送进度更新
+                                connected_clients = websocket_manager.get_connected_clients()
+                                logger.info(f"向 {len(connected_clients)} 个客户端发送进度更新")
                                 
-                        except Exception as ws_e:
-                            logger.warning(f"WebSocket进度推送失败: {ws_e}")
-                    
-                    # 计算时间范围
-                    start_date = datetime(year, month, 1, tzinfo=timezone.utc)
-                    if month == 12:
-                        end_date = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
-                    else:
-                        end_date = datetime(year, month + 1, 1, tzinfo=timezone.utc)
-                    
-                    # 获取该月的消息
-                    month_messages = await self._get_messages_by_time_range(
-                        entity, start_date, end_date
-                    )
-                    
-                    # 保存消息到数据库（使用共享的数据库会话）
-                    if group_id is None:
-                        logger.error(f"未找到群组记录: {entity.id}")
+                                progress_message = {
+                                    "type": "monthly_sync_progress",
+                                    "data": {
+                                        "currentMonth": f"{year}-{month:02d}",
+                                        "progress": i,
+                                        "total": total_months,
+                                        "completed": sync_result["months_synced"],
+                                        "failed": len(sync_result["failed_months"])
+                                    },
+                                    "timestamp": datetime.now().isoformat()
+                                }
+                                
+                                for client_id in connected_clients:
+                                    await websocket_manager.send_message(client_id, progress_message)
+                                    logger.info(f"进度消息已发送给客户端 {client_id}")
+                                    
+                            except Exception as ws_e:
+                                logger.warning(f"WebSocket进度推送失败: {ws_e}")
+                        
+                        # 计算时间范围
+                        start_date = datetime(year, month, 1, tzinfo=timezone.utc)
+                        if month == 12:
+                            end_date = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+                        else:
+                            end_date = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+                        
+                        # 获取该月的消息
+                        month_messages = await self._get_messages_by_time_range(
+                            entity, start_date, end_date
+                        )
+                        
+                        # 保存消息到数据库（使用共享的数据库会话）
+                        if group_id is None:
+                            logger.error(f"未找到群组记录: {entity.id}")
+                            sync_result["failed_months"].append({
+                                "month": month_info,
+                                "error": "未找到群组记录"
+                            })
+                            continue
+                            
+                        saved_count = await self.save_messages_to_db(
+                            group_id, month_messages, db
+                        )
+                        
+                        # 统计结果
+                        month_stat = {
+                            "year": year,
+                            "month": month,
+                            "total_messages": len(month_messages),
+                            "saved_messages": saved_count,
+                            "start_date": start_date.isoformat(),
+                            "end_date": end_date.isoformat()
+                        }
+                        
+                        sync_result["monthly_stats"].append(month_stat)
+                        sync_result["total_messages"] += saved_count
+                        sync_result["months_synced"] += 1
+                        
+                        logger.info(f"✓ {year}-{month:02d} 同步完成: {saved_count}/{len(month_messages)} 条消息")
+                            
+                    except Exception as e:
+                        logger.error(f"同步 {year}-{month:02d} 失败: {e}")
                         sync_result["failed_months"].append({
                             "month": month_info,
-                            "error": "未找到群组记录"
+                            "error": str(e)
                         })
-                        continue
                         
-                    saved_count = await self.save_messages_to_db(
-                        group_id, month_messages, db
-                    )
-                    
-                    # 统计结果
-                    month_stat = {
-                        "year": year,
-                        "month": month,
-                        "total_messages": len(month_messages),
-                        "saved_messages": saved_count,
-                        "start_date": start_date.isoformat(),
-                        "end_date": end_date.isoformat()
-                    }
-                    
-                    sync_result["monthly_stats"].append(month_stat)
-                    sync_result["total_messages"] += saved_count
-                    sync_result["months_synced"] += 1
-                    
-                    logger.info(f"✓ {year}-{month:02d} 同步完成: {saved_count}/{len(month_messages)} 条消息")
-                        
-                except Exception as e:
-                    logger.error(f"同步 {year}-{month:02d} 失败: {e}")
-                    sync_result["failed_months"].append({
-                        "month": month_info,
-                        "error": str(e)
-                    })
-                    
-                    # 添加延迟以避免API限制
-                    await asyncio.sleep(2)
+                        # 添加延迟以避免API限制
+                        await asyncio.sleep(2)
                 
                 logger.info(f"按月同步完成: 总计 {sync_result['total_messages']} 条消息")
                 return sync_result
