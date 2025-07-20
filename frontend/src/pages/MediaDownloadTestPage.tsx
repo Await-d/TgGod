@@ -86,60 +86,68 @@ const MediaDownloadTestPage: React.FC = () => {
       message_id: 78055,
       sender_id: 1,
       group_id: 1,
-      content: '这是一个测试视频文件，用于测试增强的下载进度条功能',
+      text: '这是一个测试视频文件，用于测试增强的下载进度条功能',
       date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       media_type: 'video',
       media_filename: '高清测试视频.mp4',
       media_size: 52428800, // 50MB
       media_downloaded: false,
       media_path: undefined,
-      is_own_message: false,
-      message_type: 'media'
+      is_forwarded: false,
+      is_pinned: false,
+      is_own_message: false
     },
     {
       id: 78056,
       message_id: 78056,
       sender_id: 1,
       group_id: 1,
-      content: '精美图片分享',
+      text: '精美图片分享',
       date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       media_type: 'photo',
       media_filename: '高分辨率图片.jpg',
       media_size: 8388608, // 8MB
       media_downloaded: false,
       media_path: undefined,
-      is_own_message: false,
-      message_type: 'media'
+      is_forwarded: false,
+      is_pinned: false,
+      is_own_message: false
     },
     {
       id: 78057,
       message_id: 78057,
       sender_id: 1,
       group_id: 1,
-      content: '音频文件测试',
+      text: '音频文件测试',
       date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       media_type: 'audio',
       media_filename: '高品质音乐.mp3',
       media_size: 15728640, // 15MB
       media_downloaded: false,
       media_path: undefined,
-      is_own_message: false,
-      message_type: 'media'
+      is_forwarded: false,
+      is_pinned: false,
+      is_own_message: false
     },
     {
       id: 78058,
       message_id: 78058,
       sender_id: 1,
       group_id: 1,
-      content: '重要文档分享',
+      text: '重要文档分享',
       date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       media_type: 'document',
       media_filename: '项目技术文档.pdf',
       media_size: 25165824, // 24MB
       media_downloaded: false,
       media_path: undefined,
-      is_own_message: false,
-      message_type: 'media'
+      is_forwarded: false,
+      is_pinned: false,
+      is_own_message: false
     }
   ];
 
