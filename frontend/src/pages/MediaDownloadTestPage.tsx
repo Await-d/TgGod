@@ -437,7 +437,7 @@ const MediaDownloadTestPage: React.FC = () => {
                     
                     <Space direction="vertical" size="small" style={{ width: '100%' }}>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        文件大小: {(message.media_size / 1024 / 1024).toFixed(1)} MB
+                        文件大小: {message.media_size ? (message.media_size / 1024 / 1024).toFixed(1) + ' MB' : '未知'}
                       </Text>
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         消息ID: {message.id}
