@@ -78,7 +78,7 @@ const ReplyMessagePreview: React.FC<ReplyMessagePreviewProps> = ({
       replyToMessageId,
       replyMessage: replyMessage ? {
         id: replyMessage.id,
-        content: replyMessage.content?.substring(0, 50)
+        text: replyMessage.text?.substring(0, 50)
       } : null
     });
     
