@@ -10,6 +10,7 @@ import { TelegramGroup, TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
 import MessageHeader from './MessageHeader';
 import PinnedMessages from './PinnedMessages';
+import MediaGallery from './MediaGallery';
 import { messageApi, telegramApi } from '../../services/apiService';
 import { useTelegramStore, useAuthStore, useTelegramUserStore } from '../../store';
 import './MessageArea.css';
@@ -70,6 +71,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [buttonVisible, setButtonVisible] = useState(true);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  // 媒体画廊状态
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [galleryMessages, setGalleryMessages] = useState<TelegramMessage[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const internalContainerRef = useRef<HTMLDivElement>(null);
@@ -176,6 +182,31 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     setShowScrollToBottom(false);
     setUnreadCount(0);
+  }, []);
+
+  // 媒体画廊相关函数
+  const openMediaGallery = useCallback((targetMessage: TelegramMessage) => {
+    // 筛选出所有有媒体且已下载的消息
+    const mediaMessages = displayMessages.filter(msg => 
+      msg.media_type && msg.media_downloaded && msg.media_path
+    );
+    
+    // 找到目标消息在媒体消息中的索引
+    const targetIndex = mediaMessages.findIndex(msg => msg.id === targetMessage.id);
+    
+    if (targetIndex >= 0) {
+      setGalleryMessages(mediaMessages);
+      setGalleryIndex(targetIndex);
+      setGalleryVisible(true);
+    }
+  }, [displayMessages]);
+
+  const closeMediaGallery = useCallback(() => {
+    setGalleryVisible(false);
+  }, []);
+
+  const handleGalleryIndexChange = useCallback((newIndex: number) => {
+    setGalleryIndex(newIndex);
   }, []);
 
   // 检查是否需要显示"滚动到底部"按钮
@@ -515,6 +546,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
                     onDelete={handleDeleteMessage}
                     onJumpToGroup={onJumpToGroup}
                     isMobile={isMobile}
+                    onOpenGallery={openMediaGallery}
                   />
                 </div>
               );
@@ -543,6 +575,15 @@ const MessageArea: React.FC<MessageAreaProps> = ({
           </Badge>
         </div>
       )}
+      
+      {/* 媒体画廊模态框 */}
+      <MediaGallery
+        messages={galleryMessages}
+        currentIndex={galleryIndex}
+        visible={galleryVisible}
+        onClose={closeMediaGallery}
+        onIndexChange={handleGalleryIndexChange}
+      />
     </div>
   );
 };

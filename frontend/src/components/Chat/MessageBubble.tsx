@@ -44,6 +44,7 @@ const { Text, Paragraph } = Typography;
 
 interface ExtendedMessageBubbleProps extends MessageBubbleProps {
   isMobile?: boolean;
+  onOpenGallery?: (message: TelegramMessage) => void;
 }
 
 const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
@@ -54,7 +55,8 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   onCreateRule,
   onDelete,
   onJumpToGroup,
-  isMobile = false
+  isMobile = false,
+  onOpenGallery
 }) => {
   
   // 获取媒体类型图标
@@ -200,8 +202,11 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                 message={message}
                 className="message-media-preview"
                 onPreview={(mediaPath) => {
-                  // TODO: 打开画廊模式
-                  console.log('Open gallery for:', mediaPath);
+                  if (onOpenGallery) {
+                    onOpenGallery(message);
+                  } else {
+                    console.log('Open gallery for:', mediaPath);
+                  }
                 }}
               />
             )}
