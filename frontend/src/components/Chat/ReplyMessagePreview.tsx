@@ -149,6 +149,15 @@ const ReplyMessagePreview: React.FC<ReplyMessagePreviewProps> = ({
     );
   };
 
+  console.log('ReplyMessagePreview - render state', {
+    loading,
+    error,
+    hasReplyMessage: !!replyMessage,
+    replyToMessageId,
+    groupId,
+    hasOnJumpToMessage: !!onJumpToMessage
+  });
+
   if (loading) {
     return (
       <div className={`reply-message-preview loading ${className}`}>

@@ -157,13 +157,22 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
 
         {/* 回复信息 */}
         {message.reply_to_message_id && !message.is_forwarded && (
-          <ReplyMessagePreview
-            replyToMessageId={message.reply_to_message_id}
-            groupId={message.group_id}
-            onJumpToMessage={onJumpToMessage}
-            compact={isMobile}
-            className="message-reply-preview"
-          />
+          <>
+            {console.log('MessageBubble - rendering ReplyMessagePreview', {
+              messageId: message.id,
+              replyToMessageId: message.reply_to_message_id,
+              groupId: message.group_id,
+              hasOnJumpToMessage: !!onJumpToMessage,
+              isForwarded: message.is_forwarded
+            })}
+            <ReplyMessagePreview
+              replyToMessageId={message.reply_to_message_id}
+              groupId={message.group_id}
+              onJumpToMessage={onJumpToMessage}
+              compact={isMobile}
+              className="message-reply-preview"
+            />
+          </>
         )}
 
         {/* 消息文本 */}

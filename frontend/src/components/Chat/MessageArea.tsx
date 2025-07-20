@@ -192,9 +192,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setShowScrollToBottom(false);
     setUnreadCount(0);
-  }, []);
+    // 滚动后让handleScroll自然检查按钮状态
+    setTimeout(handleScroll, 100);
+  }, [handleScroll]);
 
   // 媒体画廊相关函数
   const openMediaGallery = useCallback((targetMessage: TelegramMessage) => {
@@ -394,8 +395,13 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       } else {
         // 首次加载：后端已返回正确顺序（最老消息在前，最新消息在后）
         setMessages(response);
-        // 新消息加载后滚动到底部
-        setTimeout(scrollToBottom, 100);
+        // 新消息加载后滚动到底部，但不强制隐藏按钮
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          setUnreadCount(0);
+          // 滚动后检查是否需要显示按钮
+          setTimeout(handleScroll, 100);
+        }, 100);
       }
       
       // 检查是否还有更多消息
