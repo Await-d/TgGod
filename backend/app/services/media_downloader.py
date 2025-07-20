@@ -105,7 +105,8 @@ class TelegramMediaDownloader:
         file_id: str, 
         file_path: str,
         chat_id: Optional[int] = None,
-        message_id: Optional[int] = None
+        message_id: Optional[int] = None,
+        progress_callback: Optional[callable] = None
     ) -> bool:
         """
         下载媒体文件
@@ -115,6 +116,7 @@ class TelegramMediaDownloader:
             file_path: 本地保存路径
             chat_id: 聊天ID（可选，用于获取更多文件信息）
             message_id: 消息ID（可选，用于获取更多文件信息）
+            progress_callback: 进度回调函数
         
         Returns:
             下载是否成功
@@ -132,7 +134,7 @@ class TelegramMediaDownloader:
             
             if chat_id and message_id:
                 # 通过聊天和消息ID获取文件
-                return await self._download_by_message(chat_id, message_id, file_path)
+                return await self._download_by_message(chat_id, message_id, file_path, progress_callback)
             else:
                 logger.warning(f"缺少chat_id或message_id，无法下载文件: {file_id}")
                 return False
@@ -150,7 +152,7 @@ class TelegramMediaDownloader:
             # 下载完成后断开连接释放资源
             await self.cleanup()
     
-    async def _download_by_message(self, chat_id: int, message_id: int, file_path: str) -> bool:
+    async def _download_by_message(self, chat_id: int, message_id: int, file_path: str, progress_callback: Optional[callable] = None) -> bool:
         """通过消息ID下载文件"""
         max_retries = 3
         for attempt in range(max_retries):
@@ -180,8 +182,22 @@ class TelegramMediaDownloader:
                     logger.warning(f"消息 {message_id} 无媒体内容")
                     return False
                 
-                # 下载媒体文件
-                await self.client.download_media(message.media, file_path)
+                # 下载媒体文件，支持进度回调
+                if progress_callback:
+                    # 创建进度处理包装器
+                    def progress_wrapper(current, total):
+                        try:
+                            if total > 0:
+                                progress = int((current / total) * 100)
+                                # 调用回调函数
+                                progress_callback(current, total, progress)
+                        except Exception as e:
+                            logger.error(f"进度回调执行失败: {e}")
+                    
+                    await self.client.download_media(message.media, file_path, progress_callback=progress_wrapper)
+                else:
+                    await self.client.download_media(message.media, file_path)
+                
                 logger.info(f"通过消息下载文件成功: {file_path}")
                 return True
                 

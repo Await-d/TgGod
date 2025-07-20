@@ -208,6 +208,8 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     notification.info('下载已取消');
   };
 
+  // 已移除模拟进度功能，现在使用后端真实进度数据
+
   // 下载媒体文件
   const handleDownload = async () => {
     if (downloadState.status === 'downloading') return;
@@ -241,7 +243,9 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             setDownloadState({
               status: 'downloaded',
               downloadUrl: statusResponse.download_url,
-              progress: 100
+              progress: 100,
+              downloadedSize: statusResponse.downloaded_size || statusResponse.file_size,
+              totalSize: statusResponse.total_size || statusResponse.file_size
             });
             notification.success('文件下载完成');
             clearInterval(newPollInterval);
@@ -255,35 +259,18 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             clearInterval(newPollInterval);
             setPollInterval(null);
           } else if (statusResponse.status === 'downloading') {
-            // 更新下载进度
+            // 使用后端返回的真实进度数据
             setDownloadState(prevState => {
-              const currentDownloaded = statusResponse.file_size || 0;
-              const totalSize = message.media_size || statusResponse.file_size || currentDownloaded;
-              const progress = totalSize > 0 ? Math.round((currentDownloaded / totalSize) * 100) : 0;
-              
-              // 计算下载速度和剩余时间
-              let speed = prevState.downloadSpeed || 0;
-              let estimatedTime = prevState.estimatedTimeRemaining || 0;
-              
-              if (prevState.downloadedSize && prevState.lastProgressUpdate) {
-                const stats = calculateDownloadStats(
-                  currentDownloaded,
-                  totalSize,
-                  prevState.downloadedSize,
-                  prevState.lastProgressUpdate
-                );
-                speed = stats.speed;
-                estimatedTime = stats.estimatedTime;
-              }
+              const now = Date.now();
               
               return {
                 ...prevState,
                 status: 'downloading' as const,
-                progress,
-                downloadedSize: currentDownloaded,
-                totalSize,
-                downloadSpeed: speed,
-                estimatedTimeRemaining: estimatedTime,
+                progress: statusResponse.progress || 0,
+                downloadedSize: statusResponse.downloaded_size || 0,
+                totalSize: statusResponse.total_size || message.media_size || 0,
+                downloadSpeed: statusResponse.download_speed || 0,
+                estimatedTimeRemaining: statusResponse.estimated_time_remaining || 0,
                 lastProgressUpdate: now
               };
             });

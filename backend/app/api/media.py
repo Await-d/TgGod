@@ -4,7 +4,7 @@ from typing import Optional
 import os
 import uuid
 import logging
-from ..database import get_db
+from ..database import get_db, SessionLocal
 from ..models import TelegramMessage
 from ..services.telegram_service import TelegramService
 import asyncio
@@ -164,7 +164,12 @@ async def get_download_status(
                 "message": "文件已下载",
                 "file_path": message.media_path,
                 "file_size": message.media_size,
-                "download_url": build_media_url(message.media_path)
+                "download_url": build_media_url(message.media_path),
+                "progress": 100,
+                "downloaded_size": message.media_size or 0,
+                "total_size": message.media_size or 0,
+                "download_speed": 0,
+                "estimated_time_remaining": 0
             }
         else:
             return {
@@ -177,6 +182,22 @@ async def get_download_status(
             "status": "download_failed",
             "message": "下载失败",
             "error": message.media_download_error
+        }
+    
+    # 检查是否正在下载中
+    global downloading_messages
+    if message_id in downloading_messages:
+        return {
+            "status": "downloading",
+            "message": "文件正在下载中",
+            "progress": message.download_progress or 0,
+            "downloaded_size": message.downloaded_size or 0,
+            "total_size": message.media_size or 0,
+            "download_speed": message.download_speed or 0,
+            "estimated_time_remaining": message.estimated_time_remaining or 0,
+            "download_started_at": message.download_started_at.isoformat() if message.download_started_at else None,
+            "media_type": message.media_type,
+            "file_id": message.media_file_id
         }
     
     return {
@@ -349,6 +370,55 @@ async def download_media_background(message_id: int, force: bool = False):
         
         # 下载文件
         from ..services.media_downloader import get_media_downloader
+        import time
+        
+        # 创建进度回调函数
+        last_update_time = time.time()
+        last_downloaded_size = 0
+        
+        def progress_callback(current_bytes, total_bytes, progress_percent):
+            nonlocal last_update_time, last_downloaded_size
+            
+            try:
+                current_time = time.time()
+                time_diff = current_time - last_update_time
+                
+                # 每秒最多更新一次数据库
+                if time_diff >= 1.0:
+                    # 计算下载速度
+                    size_diff = current_bytes - last_downloaded_size
+                    download_speed = size_diff / time_diff if time_diff > 0 else 0
+                    
+                    # 计算预计剩余时间
+                    remaining_bytes = total_bytes - current_bytes
+                    estimated_time = remaining_bytes / download_speed if download_speed > 0 else 0
+                    
+                    # 更新数据库
+                    db_update = SessionLocal()
+                    try:
+                        msg = db_update.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+                        if msg:
+                            msg.download_progress = progress_percent
+                            msg.downloaded_size = current_bytes
+                            msg.download_speed = int(download_speed)
+                            msg.estimated_time_remaining = int(estimated_time)
+                            if not msg.download_started_at:
+                                from datetime import datetime
+                                msg.download_started_at = datetime.utcnow()
+                            db_update.commit()
+                    except Exception as e:
+                        logger.error(f"更新下载进度失败: {e}")
+                        db_update.rollback()
+                    finally:
+                        db_update.close()
+                    
+                    last_update_time = current_time
+                    last_downloaded_size = current_bytes
+                    
+                    logger.info(f"下载进度 {message_id}: {progress_percent}% ({current_bytes}/{total_bytes} bytes, {download_speed:.0f} B/s)")
+                    
+            except Exception as e:
+                logger.error(f"进度回调执行失败: {e}")
         
         try:
             downloader = await get_media_downloader()
@@ -357,7 +427,8 @@ async def download_media_background(message_id: int, force: bool = False):
                 file_id=media_file_id,
                 file_path=file_path,
                 chat_id=group_telegram_id,
-                message_id=message_id_telegram
+                message_id=message_id_telegram,
+                progress_callback=progress_callback
             )
             
             if download_success:
@@ -389,11 +460,23 @@ async def download_media_background(message_id: int, force: bool = False):
                 message.media_path = file_path
                 message.media_download_error = None
                 
+                # 设置完成状态的进度信息
+                message.download_progress = 100
+                message.download_speed = 0
+                message.estimated_time_remaining = 0
+                
                 # 获取实际文件大小
                 if os.path.exists(file_path):
-                    message.media_size = os.path.getsize(file_path)
+                    actual_size = os.path.getsize(file_path)
+                    message.media_size = actual_size
+                    message.downloaded_size = actual_size
             else:
                 message.media_download_error = download_error
+                # 重置进度信息
+                message.download_progress = 0
+                message.downloaded_size = 0
+                message.download_speed = 0
+                message.estimated_time_remaining = 0
             
             db.commit()
             logger.info(f"数据库状态更新完成: 消息 {message_id}")

@@ -41,6 +41,13 @@ class TelegramMessage(Base):
     media_download_url = Column(String(500), nullable=True)  # Telegram下载链接（临时）
     media_download_error = Column(Text, nullable=True)  # 下载失败错误信息
     media_thumbnail_path = Column(String(500), nullable=True)  # 缩略图路径
+    
+    # 下载进度相关字段
+    download_progress = Column(Integer, default=0)  # 下载进度 0-100
+    downloaded_size = Column(BigInteger, default=0)  # 已下载字节数
+    download_speed = Column(Integer, default=0)  # 下载速度 bytes/second
+    estimated_time_remaining = Column(Integer, default=0)  # 预计剩余时间 seconds
+    download_started_at = Column(DateTime(timezone=True), nullable=True)  # 下载开始时间
     view_count = Column(Integer, default=0)
     is_forwarded = Column(Boolean, default=False)
     forwarded_from = Column(String(255), nullable=True)  # 转发来源名称
