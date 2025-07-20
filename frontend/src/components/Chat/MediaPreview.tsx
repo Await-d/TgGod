@@ -14,14 +14,25 @@ const getMediaUrl = (path: string) => {
     return path;
   }
   
-  // 如果路径以 media/ 开头，直接使用 /media/ 前缀（静态文件服务）
+  // 如果路径以 /media/ 开头，直接返回（已经是完整路径）
+  if (path.startsWith('/media/')) {
+    return path;
+  }
+  
+  // 如果路径以 media/ 开头，添加前导斜杠
   if (path.startsWith('media/')) {
     return `/${path}`;
   }
   
+  // 对于其他路径，尝试构建完整URL
+  // 首先尝试作为媒体文件路径
+  if (!path.startsWith('/')) {
+    return `/media/${path}`;
+  }
+  
   // 如果是其他相对路径，使用API基础URL
   const apiBase = process.env.REACT_APP_API_URL || '';
-  return `${apiBase}/${path.startsWith('/') ? path.slice(1) : path}`;
+  return `${apiBase}${path}`;
 };
 
 // 格式化文件大小
@@ -59,7 +70,9 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
 }) => {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [alternativeUrls, setAlternativeUrls] = useState<string[]>([]);
+  const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
   
   // 下载状态管理
   const {
@@ -79,11 +92,41 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
     }
   });
   
-  const mediaUrl = getMediaUrl(url);
+  // 生成多个可能的URL
+  const generateAlternativeUrls = (originalUrl: string) => {
+    const urls = [getMediaUrl(originalUrl)];
+    
+    // 如果原始URL不是以/media/开头，尝试添加
+    if (!originalUrl.startsWith('/media/') && !originalUrl.startsWith('media/')) {
+      urls.push(`/media/${originalUrl}`);
+    }
+    
+    // 尝试API路径
+    const apiBase = process.env.REACT_APP_API_URL || '';
+    if (apiBase) {
+      urls.push(`${apiBase}/media/${originalUrl.replace(/^\/media\//, '')}`);
+      urls.push(`${apiBase}/${originalUrl.startsWith('/') ? originalUrl.slice(1) : originalUrl}`);
+    }
+    
+    return [...new Set(urls)]; // 去重
+  };
+
+  const mediaUrl = alternativeUrls.length > 0 ? alternativeUrls[currentUrlIndex] : getMediaUrl(url);
   const formattedSize = size ? formatFileSize(size) : undefined;
+
+  // 初始化备选URLs
+  React.useEffect(() => {
+    if (url && alternativeUrls.length === 0) {
+      setAlternativeUrls(generateAlternativeUrls(url));
+    }
+  }, [url, alternativeUrls.length]);
   
   // 判断是否应该显示媒体内容
-  const shouldShowMedia = downloaded || downloadStatus.status === 'downloaded';
+  // 1. 如果传入downloaded=true，直接显示
+  // 2. 如果downloadStatus显示已下载，也显示
+  // 3. 如果文件路径看起来是本地文件(包含media/)，也显示
+  const isLocalFile = url && (url.includes('media/') || url.startsWith('/media/'));
+  const shouldShowMedia = downloaded || downloadStatus.status === 'downloaded' || isLocalFile;
   
   // 将媒体类型转换为下载组件需要的格式
   const mediaType = type === 'image' ? 'photo' : type;
@@ -121,11 +164,22 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                 alt={filename}
                 style={{ maxWidth: 200, maxHeight: 150, objectFit: 'cover', borderRadius: 8 }}
                 preview={false}
-                onLoad={() => setLoading(false)}
-                onError={(e) => {
-                  console.error('Image load error:', e);
-                  setImageError(true);
+                onLoadStart={() => setLoading(true)}
+                onLoad={() => {
                   setLoading(false);
+                  setImageError(false);
+                }}
+                onError={(e) => {
+                  console.error('Image load error:', e, 'URL:', mediaUrl);
+                  
+                  // 尝试下一个备选URL
+                  if (currentUrlIndex < alternativeUrls.length - 1) {
+                    setCurrentUrlIndex(prev => prev + 1);
+                    console.log('Trying alternative URL:', alternativeUrls[currentUrlIndex + 1]);
+                  } else {
+                    setImageError(true);
+                    setLoading(false);
+                  }
                 }}
               />
               
@@ -142,9 +196,50 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                 </div>
               )}
               
-              <div className="media-overlay">
-                <EyeOutlined style={{ fontSize: 24, color: 'white' }} />
-              </div>
+              {/* 加载状态指示器 */}
+              {loading && (
+                <div className="media-loading-indicator" style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 8
+                }}>
+                  <div style={{ color: 'white' }}>加载中...</div>
+                </div>
+              )}
+              
+              {/* 错误状态指示器 */}
+              {imageError && (
+                <div className="media-error-indicator" style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(255,0,0,0.1)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 8,
+                  border: '1px dashed #ff4d4f'
+                }}>
+                  <FileImageOutlined style={{ fontSize: 24, color: '#ff4d4f', marginBottom: 4 }} />
+                  <div style={{ color: '#ff4d4f', fontSize: 12 }}>加载失败</div>
+                </div>
+              )}
+              
+              {!loading && !imageError && (
+                <div className="media-overlay">
+                  <EyeOutlined style={{ fontSize: 24, color: 'white' }} />
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -232,9 +327,23 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                 src={mediaUrl}
                 style={{ maxWidth: 200, maxHeight: 150, objectFit: 'cover', borderRadius: 8 }}
                 muted
-                poster={mediaUrl} // 可以添加视频缩略图
+                preload="metadata"
+                onLoadStart={() => setLoading(true)}
+                onLoadedData={() => {
+                  setLoading(false);
+                  setImageError(false);
+                }}
                 onError={(e) => {
-                  console.error('Video load error:', e);
+                  console.error('Video load error:', e, 'URL:', mediaUrl);
+                  
+                  // 尝试下一个备选URL
+                  if (currentUrlIndex < alternativeUrls.length - 1) {
+                    setCurrentUrlIndex(prev => prev + 1);
+                    console.log('Trying alternative video URL:', alternativeUrls[currentUrlIndex + 1]);
+                  } else {
+                    setImageError(true);
+                    setLoading(false);
+                  }
                 }}
               />
               
@@ -251,9 +360,50 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                 </div>
               )}
               
-              <div className="media-overlay">
-                <PlayCircleOutlined style={{ fontSize: 32, color: 'white' }} />
-              </div>
+              {/* 加载状态指示器 */}
+              {loading && (
+                <div className="media-loading-indicator" style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 8
+                }}>
+                  <div style={{ color: 'white' }}>加载中...</div>
+                </div>
+              )}
+              
+              {/* 错误状态指示器 */}
+              {imageError && (
+                <div className="media-error-indicator" style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(255,0,0,0.1)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 8,
+                  border: '1px dashed #ff4d4f'
+                }}>
+                  <VideoCameraOutlined style={{ fontSize: 24, color: '#ff4d4f', marginBottom: 4 }} />
+                  <div style={{ color: '#ff4d4f', fontSize: 12 }}>加载失败</div>
+                </div>
+              )}
+              
+              {!loading && !imageError && (
+                <div className="media-overlay">
+                  <PlayCircleOutlined style={{ fontSize: 32, color: 'white' }} />
+                </div>
+              )}
             </>
           ) : (
             <>

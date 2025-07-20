@@ -161,13 +161,41 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     }
   };
 
+  // 获取完整的媒体URL（与MediaPreview组件保持一致）
+  const getFullMediaUrl = (path: string) => {
+    if (!path) return '';
+    
+    // 如果已经是完整URL，直接返回
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    
+    // 如果路径以 /media/ 开头，直接返回（已经是完整路径）
+    if (path.startsWith('/media/')) {
+      return path;
+    }
+    
+    // 如果路径以 media/ 开头，添加前导斜杠
+    if (path.startsWith('media/')) {
+      return `/${path}`;
+    }
+    
+    // 对于其他路径，尝试构建完整URL
+    // 首先尝试作为媒体文件路径
+    if (!path.startsWith('/')) {
+      return `/media/${path}`;
+    }
+    
+    // 如果是其他相对路径，使用API基础URL
+    const apiBase = process.env.REACT_APP_API_URL || '';
+    return `${apiBase}${path}`;
+  };
+
   // 渲染预览内容
   const renderPreviewContent = () => {
     if (!downloadState.downloadUrl) return null;
     
-    const fullUrl = downloadState.downloadUrl.startsWith('http') 
-      ? downloadState.downloadUrl 
-      : `${process.env.REACT_APP_API_URL || 'http://localhost:8001'}${downloadState.downloadUrl}`;
+    const fullUrl = getFullMediaUrl(downloadState.downloadUrl);
     
     switch (message.media_type) {
       case 'photo':
@@ -176,6 +204,13 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             src={fullUrl} 
             alt={message.media_filename || '图片'} 
             style={{ maxWidth: '100%', maxHeight: '70vh' }}
+            onError={(e) => {
+              console.error('Image load error in preview modal:', e, 'URL:', fullUrl);
+              // 可以设置错误处理，比如显示错误提示
+            }}
+            onLoad={() => {
+              console.log('Image loaded successfully in preview modal');
+            }}
           />
         );
       case 'video':
@@ -184,6 +219,12 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             controls 
             style={{ maxWidth: '100%', maxHeight: '70vh' }}
             preload="metadata"
+            onError={(e) => {
+              console.error('Video load error in preview modal:', e, 'URL:', fullUrl);
+            }}
+            onLoadedData={() => {
+              console.log('Video loaded successfully in preview modal');
+            }}
           >
             <source src={fullUrl} />
             您的浏览器不支持视频播放
@@ -266,10 +307,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             {downloadState.downloadUrl && (
               <Button 
                 icon={<DownloadOutlined />}
-                href={downloadState.downloadUrl.startsWith('http') 
-                  ? downloadState.downloadUrl 
-                  : `${process.env.REACT_APP_API_URL || 'http://localhost:8001'}${downloadState.downloadUrl}`
-                }
+                href={getFullMediaUrl(downloadState.downloadUrl)}
                 download={message.media_filename}
                 target="_blank"
                 size="small"
@@ -323,14 +361,86 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     }
   };
 
+  // 渲染媒体缩略图（对于已下载的图片和视频）
+  const renderMediaThumbnail = () => {
+    if (downloadState.status !== 'downloaded' || !downloadState.downloadUrl) {
+      return (
+        <div className="media-icon">
+          {getMediaIcon(message.media_type || 'document')}
+        </div>
+      );
+    }
+
+    const fullUrl = getFullMediaUrl(downloadState.downloadUrl);
+
+    switch (message.media_type) {
+      case 'photo':
+        return (
+          <div className="media-thumbnail" onClick={handlePreview} style={{ cursor: 'pointer' }}>
+            <img 
+              src={fullUrl} 
+              alt={message.media_filename || '图片'}
+              style={{ 
+                width: '60px', 
+                height: '60px', 
+                objectFit: 'cover', 
+                borderRadius: '6px' 
+              }}
+              onError={(e) => {
+                console.error('Thumbnail load error:', e, 'URL:', fullUrl);
+                // 回退到图标显示
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = getMediaIcon(message.media_type || 'document')?.props?.children || '';
+              }}
+              onLoad={() => {
+                console.log('Thumbnail loaded successfully');
+              }}
+            />
+            <div className="thumbnail-overlay">
+              <EyeOutlined style={{ color: 'white', fontSize: '16px' }} />
+            </div>
+          </div>
+        );
+      case 'video':
+        return (
+          <div className="media-thumbnail" onClick={handlePreview} style={{ cursor: 'pointer' }}>
+            <video 
+              src={fullUrl}
+              style={{ 
+                width: '60px', 
+                height: '60px', 
+                objectFit: 'cover', 
+                borderRadius: '6px' 
+              }}
+              muted
+              preload="metadata"
+              onError={(e) => {
+                console.error('Video thumbnail load error:', e, 'URL:', fullUrl);
+                // 回退到图标显示
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = getMediaIcon(message.media_type || 'document')?.props?.children || '';
+              }}
+            />
+            <div className="thumbnail-overlay">
+              <PlayCircleOutlined style={{ color: 'white', fontSize: '20px' }} />
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div className="media-icon">
+            {getMediaIcon(message.media_type || 'document')}
+          </div>
+        );
+    }
+  };
+
   return (
     <>
       <div className={`media-download-preview ${className}`}>
         {/* 媒体信息 */}
         <div className="media-info">
-          <div className="media-icon">
-            {getMediaIcon(message.media_type || 'document')}
-          </div>
+          {renderMediaThumbnail()}
           
           <div className="media-details">
             <div className="media-filename">
