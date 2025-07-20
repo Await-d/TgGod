@@ -45,28 +45,43 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
   const [imageRotation, setImageRotation] = useState(0);
   const [videoPlaying, setVideoPlaying] = useState(false);
 
-  // 构建媒体URL
+  // 构建媒体URL（修复重复media路径问题）
   const buildMediaUrl = useCallback((message: TelegramMessage): string => {
     const path = message.media_path;
     if (!path) return '';
     
+    console.log('MediaGallery - buildMediaUrl input path:', path);
+    
     // 如果已经是完整URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
+      console.log('MediaGallery - returning complete URL:', path);
       return path;
     }
     
     // 如果路径以 /media/ 开头，直接返回
     if (path.startsWith('/media/')) {
+      console.log('MediaGallery - returning path with /media/ prefix:', path);
       return path;
     }
     
     // 如果路径以 media/ 开头，添加前导斜杠
     if (path.startsWith('media/')) {
-      return `/${path}`;
+      const result = `/${path}`;
+      console.log('MediaGallery - adding leading slash to media/ path:', result);
+      return result;
+    }
+    
+    // 如果路径包含 ./media/ 前缀，清理并返回
+    if (path.startsWith('./media/')) {
+      const result = path.replace('./media/', '/media/');
+      console.log('MediaGallery - cleaning ./media/ prefix:', result);
+      return result;
     }
     
     // 其他情况，构建完整路径
-    return `/media/${path}`;
+    const result = `/media/${path}`;
+    console.log('MediaGallery - adding /media/ prefix to relative path:', result);
+    return result;
   }, []);
 
   // 获取媒体类型

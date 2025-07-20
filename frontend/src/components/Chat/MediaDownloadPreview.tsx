@@ -210,34 +210,51 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     }
   };
 
-  // 获取完整的媒体URL（与MediaPreview组件保持一致）
+  // 获取完整的媒体URL（修复重复media路径问题）
   const getFullMediaUrl = (path: string) => {
     if (!path) return '';
     
+    console.log('getFullMediaUrl - input path:', path);
+    
     // 如果已经是完整URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
+      console.log('getFullMediaUrl - returning complete URL:', path);
       return path;
     }
     
     // 如果路径以 /media/ 开头，直接返回（已经是完整路径）
     if (path.startsWith('/media/')) {
+      console.log('getFullMediaUrl - returning path with /media/ prefix:', path);
       return path;
     }
     
     // 如果路径以 media/ 开头，添加前导斜杠
     if (path.startsWith('media/')) {
-      return `/${path}`;
+      const result = `/${path}`;
+      console.log('getFullMediaUrl - adding leading slash to media/ path:', result);
+      return result;
+    }
+    
+    // 如果路径包含 ./media/ 前缀，清理并返回
+    if (path.startsWith('./media/')) {
+      const result = path.replace('./media/', '/media/');
+      console.log('getFullMediaUrl - cleaning ./media/ prefix:', result);
+      return result;
     }
     
     // 对于其他路径，尝试构建完整URL
     // 首先尝试作为媒体文件路径
     if (!path.startsWith('/')) {
-      return `/media/${path}`;
+      const result = `/media/${path}`;
+      console.log('getFullMediaUrl - adding /media/ prefix to relative path:', result);
+      return result;
     }
     
     // 如果是其他相对路径，使用API基础URL
     const apiBase = process.env.REACT_APP_API_URL || '';
-    return `${apiBase}${path}`;
+    const result = `${apiBase}${path}`;
+    console.log('getFullMediaUrl - using API base URL:', result);
+    return result;
   };
 
   // 渲染预览内容
