@@ -92,7 +92,7 @@ const MediaDownloadTestPage: React.FC = () => {
       media_filename: '高清测试视频.mp4',
       media_size: 52428800, // 50MB
       media_downloaded: false,
-      media_path: null,
+      media_path: undefined,
       is_own_message: false,
       message_type: 'media'
     },
@@ -107,7 +107,7 @@ const MediaDownloadTestPage: React.FC = () => {
       media_filename: '高分辨率图片.jpg',
       media_size: 8388608, // 8MB
       media_downloaded: false,
-      media_path: null,
+      media_path: undefined,
       is_own_message: false,
       message_type: 'media'
     },
@@ -122,7 +122,7 @@ const MediaDownloadTestPage: React.FC = () => {
       media_filename: '高品质音乐.mp3',
       media_size: 15728640, // 15MB
       media_downloaded: false,
-      media_path: null,
+      media_path: undefined,
       is_own_message: false,
       message_type: 'media'
     },
@@ -137,7 +137,7 @@ const MediaDownloadTestPage: React.FC = () => {
       media_filename: '项目技术文档.pdf',
       media_size: 25165824, // 24MB
       media_downloaded: false,
-      media_path: null,
+      media_path: undefined,
       is_own_message: false,
       message_type: 'media'
     }
