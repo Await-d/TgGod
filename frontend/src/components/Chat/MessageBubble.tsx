@@ -28,6 +28,7 @@ import { MessageBubbleProps } from '../../types/chat';
 import MediaDownloadPreview from './MediaDownloadPreview';
 import EnhancedVoiceMessage from './EnhancedVoiceMessage';
 import MessageReactions from './MessageReactions';
+import EnhancedMessageText from './EnhancedMessageText';
 import LinkPreview, { parseLinks, renderTextWithLinks } from './LinkPreview';
 import MarkdownRenderer, { isMarkdownContent } from './MarkdownRenderer';
 import ForwardedMessagePreview from './ForwardedMessagePreview';
@@ -166,12 +167,15 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
               />
             ) : (
               <>
-                <Paragraph style={{ margin: 0, wordBreak: 'break-word' }}>
-                  {renderTextWithLinks(message.text)}
-                </Paragraph>
+                {/* 使用增强的消息文本组件，支持Telegram链接预览 */}
+                <EnhancedMessageText
+                  text={message.text}
+                  onJumpToGroup={onJumpToGroup}
+                  className="message-enhanced-text"
+                />
                 
-                {/* 链接预览 */}
-                {parseLinks(message.text).map((link, index) => (
+                {/* 保留原有的非Telegram链接预览 */}
+                {parseLinks(message.text).filter(link => !link.includes('t.me')).map((link, index) => (
                   <LinkPreview
                     key={index}
                     url={link}

@@ -1,0 +1,225 @@
+.telegram-link-preview-wrapper {
+  margin: 8px 0;
+  max-width: 400px;
+}
+
+.telegram-link-preview {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.telegram-link-preview:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.telegram-link-preview.group {
+  border: 1px solid #e8f4fd;
+  background: linear-gradient(135deg, #f6f9ff 0%, #e8f4fd 100%);
+}
+
+.telegram-link-preview.language {
+  border: 1px solid #fff7e6;
+  background: linear-gradient(135deg, #fffef9 0%, #fff7e6 100%);
+}
+
+.telegram-link-preview.loading {
+  border: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.telegram-link-preview.error {
+  border: 1px solid #ffccc7;
+  background: linear-gradient(135deg, #fff2f0 0%, #ffccc7 100%);
+}
+
+.telegram-link-preview.unknown {
+  border: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.preview-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px;
+  position: relative;
+}
+
+.preview-icon {
+  flex-shrink: 0;
+}
+
+.preview-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.preview-info .ant-typography {
+  margin: 0;
+}
+
+.preview-info h5 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #262626;
+  font-weight: 600;
+}
+
+.preview-action {
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.joined-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  background: rgba(82, 196, 26, 0.1);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+/* Telegram品牌色调 */
+.telegram-link-preview.group .preview-icon .ant-avatar {
+  background: linear-gradient(135deg, #0088cc 0%, #005580 100%);
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 136, 204, 0.3);
+}
+
+.telegram-link-preview.language .preview-icon .ant-avatar {
+  background: linear-gradient(135deg, #fa8c16 0%, #d46b08 100%);
+}
+
+/* 按钮样式 */
+.preview-action .ant-btn-primary {
+  background: linear-gradient(135deg, #0088cc 0%, #005580 100%);
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 136, 204, 0.3);
+}
+
+.preview-action .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #40a9ff 0%, #0088cc 100%);
+  box-shadow: 0 4px 8px rgba(0, 136, 204, 0.4);
+  transform: translateY(-1px);
+}
+
+.preview-action .ant-btn-default {
+  border-color: #d9d9d9;
+  color: #595959;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.preview-action .ant-btn-default:hover {
+  border-color: #0088cc;
+  color: #0088cc;
+  background: rgba(0, 136, 204, 0.05);
+}
+
+/* 加载状态 */
+.telegram-link-preview.loading .preview-content {
+  justify-content: center;
+  padding: 16px;
+}
+
+/* 错误状态 */
+.telegram-link-preview.error .preview-icon .ant-avatar {
+  background: #ff4d4f;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .telegram-link-preview-wrapper {
+    max-width: 100%;
+  }
+  
+  .preview-content {
+    gap: 8px;
+    padding: 2px;
+  }
+  
+  .preview-icon .ant-avatar {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  .preview-info h5 {
+    font-size: 14px;
+  }
+  
+  .preview-action .ant-btn {
+    font-size: 12px;
+    height: 28px;
+    padding: 0 12px;
+  }
+}
+
+/* 悬浮效果 */
+.telegram-link-preview:hover .preview-action .ant-btn {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* 动画效果 */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.telegram-link-preview {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* 成功状态指示 */
+.joined-indicator {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 链接预览卡片内的文本样式 */
+.telegram-link-preview .ant-typography {
+  word-break: break-word;
+}
+
+.telegram-link-preview .preview-info .ant-typography:last-child {
+  margin-top: 2px;
+}
+
+/* 特殊链接类型的图标颜色 */
+.telegram-link-preview.unknown .preview-content {
+  opacity: 0.7;
+}
+
+.telegram-link-preview.group .preview-info h5 {
+  color: #0050b3;
+}
+
+.telegram-link-preview.language .preview-info h5 {
+  color: #d46b08;
+}

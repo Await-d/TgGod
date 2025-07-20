@@ -1,0 +1,58 @@
+.enhanced-message-text {
+  width: 100%;
+}
+
+.enhanced-message-text .message-text-content {
+  margin-bottom: 8px;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.enhanced-message-text .message-text-content .ant-typography {
+  margin: 0;
+}
+
+.enhanced-message-text .telegram-link-previews {
+  margin-top: 8px;
+}
+
+.enhanced-message-text .telegram-link-previews:empty {
+  display: none;
+}
+
+/* 确保链接预览在消息气泡中正确显示 */
+.message-bubble .enhanced-message-text .telegram-link-preview-wrapper {
+  max-width: 100%;
+  margin: 8px 0;
+}
+
+.message-bubble .enhanced-message-text .telegram-link-preview {
+  max-width: 100%;
+}
+
+/* 在自己的消息中的样式调整 */
+.own-bubble .enhanced-message-text .telegram-link-preview-wrapper {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* 在他人消息中的样式调整 */
+.other-bubble .enhanced-message-text .telegram-link-preview-wrapper {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .enhanced-message-text .telegram-link-preview-wrapper {
+    max-width: 100%;
+  }
+  
+  .enhanced-message-text .telegram-link-preview {
+    max-width: 100%;
+  }
+  
+  .enhanced-message-text .message-text-content {
+    font-size: 14px;
+  }
+}

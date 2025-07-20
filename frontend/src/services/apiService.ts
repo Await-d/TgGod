@@ -255,6 +255,50 @@ export const telegramApi = {
   }> => {
     return api.get(`/telegram/groups/${groupId}/stats`);
   },
+
+  // 获取群组预览信息（通过用户名）
+  getGroupPreview: (username: string): Promise<{
+    id: number;
+    title: string;
+    description?: string;
+    member_count?: number;
+    is_joined: boolean;
+    is_public: boolean;
+    photo_url?: string;
+  }> => {
+    return api.get(`/telegram/groups/preview/${username}`);
+  },
+
+  // 获取群组预览信息（通过邀请链接）
+  getGroupPreviewByInvite: (inviteHash: string): Promise<{
+    id: number;
+    title: string;
+    description?: string;
+    member_count?: number;
+    is_joined: boolean;
+    is_public: boolean;
+    photo_url?: string;
+  }> => {
+    return api.get(`/telegram/groups/preview/invite/${inviteHash}`);
+  },
+
+  // 加入公开群组
+  joinGroup: (username: string): Promise<{
+    success: boolean;
+    group: TelegramGroup;
+    message: string;
+  }> => {
+    return api.post(`/telegram/groups/join/${username}`);
+  },
+
+  // 通过邀请链接加入群组
+  joinGroupByInvite: (inviteHash: string): Promise<{
+    success: boolean;
+    group: TelegramGroup;
+    message: string;
+  }> => {
+    return api.post(`/telegram/groups/join/invite/${inviteHash}`);
+  },
 };
 
 // 消息相关API
