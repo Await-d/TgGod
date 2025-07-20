@@ -337,7 +337,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             <Button 
               icon={<DownloadOutlined />}
               href={getFullMediaUrl(mediaUrlForDownload)}
-              download={message.media_filename}
+              download={message.media_filename || undefined}
               target="_blank"
               size="small"
             >
@@ -441,7 +441,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       messageMediaPath: message.media_path
     });
     
-    if (!hasMediaUrl) {
+    if (!hasMediaUrl || !mediaUrl) {
       return (
         <div className="media-icon">
           {getMediaIcon(message.media_type || 'document')}
