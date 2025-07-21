@@ -462,28 +462,20 @@
 /* 滚动到底部按钮 - 强化显示样式 */
 .scroll-to-bottom {
   position: fixed !important;
-  /* 改为fixed定位，确保始终可见 */
   bottom: 24px;
   right: 24px;
   z-index: 9999 !important;
-  /* 提高z-index确保始终在最上层 */
-  animation: none !important;
-  /* 移除可能导致问题的动画 */
-  pointer-events: auto;
-  display: block !important;
-  /* 强制显示 */
-  transition: none !important;
-  /* 移除过渡效果，避免干扰 */
-  will-change: auto;
-  transform: none !important;
-  /* 移除可能导致问题的变换 */
-  opacity: 1 !important;
-  /* 确保始终不透明 */
+  pointer-events: all !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
 }
 
 .scroll-to-bottom .ant-btn {
   box-shadow: 0 4px 12px rgba(24, 144, 255, 0.5) !important;
-  /* 增强阴影 */
   border: none;
   background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
   width: 50px !important;
@@ -491,6 +483,10 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  cursor: pointer !important;
+  pointer-events: all !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .scroll-to-bottom .ant-btn:hover {

@@ -133,6 +133,15 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       const threshold = 100; // 增大阈值到100px
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
 
+      // 调试信息
+      console.log('检测滚动位置:', {
+        scrollTop: container.scrollTop,
+        clientHeight: container.clientHeight,
+        scrollHeight: container.scrollHeight,
+        isNearBottom,
+        diff: container.scrollHeight - container.scrollTop - container.clientHeight
+      });
+
       return isNearBottom;
     }
     return true;
@@ -141,7 +150,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
   // 滚动事件处理 - 移除debounce，直接处理滚动事件
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
-    const { scrollTop } = target;
+    const { scrollTop, scrollHeight, clientHeight } = target;
 
     // 确定滚动方向
     const direction = scrollTop > lastScrollTopRef.current ? 'down' : 'up';
@@ -149,26 +158,27 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     setScrollDirection(direction);
 
     // 检查是否在底部
-    const isNearBottom = checkIfNearBottom();
+    const isNearBottom = scrollHeight - scrollTop - clientHeight <= 100;
 
     // 如果滚动位置变化，立即更新内部状态
     if (isScrolledFromBottom !== !isNearBottom) {
       setIsScrolledFromBottom(!isNearBottom);
     }
 
-    // 始终通知父组件滚动位置，无论是否变化
-    // 确保滚动按钮正确显示
-    if (onScrollPositionChange && lastNotifiedBottomState.current !== isNearBottom) {
-      console.log('通知滚动位置变化:', { isNearBottom, direction });
-      onScrollPositionChange(isNearBottom);
-      lastNotifiedBottomState.current = isNearBottom;
-    }
-
-    // 向上滚动时，确保通知父组件不在底部
-    if (direction === 'up' && !isNearBottom && onScrollPositionChange) {
-      console.log('向上滚动，通知不在底部');
-      onScrollPositionChange(false);
-      lastNotifiedBottomState.current = false;
+    // 通知父组件滚动位置变化
+    if (onScrollPositionChange) {
+      // 特别是向上滚动时，确保通知父组件
+      if (direction === 'up' && !isNearBottom) {
+        console.log('向上滚动，通知不在底部');
+        onScrollPositionChange(false);
+        lastNotifiedBottomState.current = false;
+      }
+      // 向下滚动且接近底部，通知已在底部
+      else if (direction === 'down' && isNearBottom && !lastNotifiedBottomState.current) {
+        console.log('向下滚动到底部，通知在底部');
+        onScrollPositionChange(true);
+        lastNotifiedBottomState.current = true;
+      }
     }
 
     // 检查是否滚动到顶部，触发加载更多
@@ -176,7 +186,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       console.log('触发加载更多历史消息!');
       onScrollToTop();
     }
-  }, [isLoadingMore, onScrollToTop, checkIfNearBottom, onScrollPositionChange, isScrolledFromBottom]);
+  }, [isLoadingMore, onScrollToTop, onScrollPositionChange, isScrolledFromBottom]);
 
   // 处理消息列表变化时的滚动
   useEffect(() => {
