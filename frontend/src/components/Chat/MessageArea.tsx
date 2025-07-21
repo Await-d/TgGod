@@ -225,7 +225,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
             try {
               container.scrollTo({
                 top: container.scrollHeight * 2,
-                behavior: 'instant' // 使用即时行为
+                behavior: 'auto' // 使用即时行为，auto替代不支持的instant
               });
             } catch (e) {
               console.warn('scrollTo方法失败:', e);
@@ -236,7 +236,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
             // 方法3: 使用scrollIntoView
             if (messagesEndRef.current) {
               try {
-                messagesEndRef.current.scrollIntoView({ block: 'end', behavior: 'instant' });
+                messagesEndRef.current.scrollIntoView({ block: 'end', behavior: 'auto' });
               } catch (e) {
                 console.warn('scrollIntoView方法失败:', e);
               }
@@ -792,11 +792,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
           </div>
         ) : (
           <>
-            {!hasMoreMessages && displayMessages.length > 0 && (
-              <div className="no-more-messages">
-                <Text type="secondary">没有更多消息了</Text>
-              </div>
-            )}
 
             {/* 更新使用虚拟化消息列表组件，添加滚动位置变化通知 */}
             <VirtualizedMessageList

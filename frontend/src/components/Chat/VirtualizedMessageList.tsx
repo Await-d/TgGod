@@ -2,7 +2,10 @@ import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react'
 import { TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
 import { useVirtualScroll } from '../../hooks/useVirtualScroll';
+import { Typography } from 'antd';
 import './VirtualizedMessageList.css';
+
+const { Text } = Typography;
 
 interface VirtualizedMessageListProps {
   messages: TelegramMessage[];
@@ -261,6 +264,19 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       data-scroll-direction={scrollDirection} // 添加滚动方向属性
       data-near-bottom={checkIfNearBottom() ? 'true' : 'false'} // 添加是否靠近底部属性
     >
+      {/* "没有更多消息了"提示 - 只有当消息不为空且没有更多消息时显示 */}
+      {!hasMore && messages.length > 0 && (
+        <div className="no-more-messages" style={{
+          textAlign: 'center',
+          padding: '16px',
+          position: 'relative',
+          borderBottom: '1px solid #f0f0f0',
+          background: '#f9f9f9'
+        }}>
+          <Text type="secondary">没有更多消息了</Text>
+        </div>
+      )}
+
       {/* 直接渲染所有消息 */}
       {messagesWithMetadata.map((messageData, index) => {
         const isHighlighted = highlightedMessageId === messageData.id;

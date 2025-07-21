@@ -13,6 +13,31 @@
   /* 限制最大高度 */
 }
 
+/* 没有更多消息提示样式 */
+.no-more-messages {
+  text-align: center;
+  padding: 16px;
+  margin-bottom: 16px;
+  position: relative;
+  /* 相对定位，随内容滚动 */
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #f9f9f9;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.no-more-messages:hover {
+  opacity: 1;
+}
+
+.no-more-messages .ant-typography {
+  font-size: 13px;
+  color: #8c8c8c;
+  letter-spacing: 0.5px;
+}
+
 .virtual-content {
   position: relative;
   width: 100%;
