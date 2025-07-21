@@ -61,7 +61,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   onLoadMore,
   containerRef: propContainerRef,
   // 跳转功能
-  jumpToMessageId,
+  jumpToMessageId: propJumpToMessageId,
   onJumpComplete,
   onJumpToMessage
 }) => {
@@ -76,7 +76,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [jumpToMessageId, setJumpToMessageId] = useState<number | null>(null);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [containerHeight, setContainerHeight] = useState(500);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
   // 移除调试用的强制显示状态
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   
@@ -206,15 +205,16 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
   // 监听跳转请求
   useEffect(() => {
-    if (jumpToMessageId) {
+    if (propJumpToMessageId) {
       // 延迟执行，确保消息已渲染
       const timer = setTimeout(() => {
-        jumpToMessage(jumpToMessageId);
+        jumpToMessage(propJumpToMessageId);
+        setJumpToMessageId(propJumpToMessageId); // 同步到内部状态
       }, 100);
       
       return () => clearTimeout(timer);
     }
-  }, [jumpToMessageId, jumpToMessage]);
+  }, [propJumpToMessageId, jumpToMessage]);
 
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
@@ -754,7 +754,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
             )}
             
             {/* 使用虚拟化消息列表组件，只渲染可见消息以优化性能 */}
-            <div ref={messagesContainerRef} style={{ height: '100%' }}>
+            <div style={{ height: '100%' }}>
               <VirtualizedMessageList
                 messages={displayMessages}
                 containerHeight={containerHeight}
