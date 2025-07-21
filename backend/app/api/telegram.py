@@ -34,8 +34,7 @@ from telethon.errors import (
     PhoneCodeExpiredError,
     PasswordHashInvalidError,
     ChatIdInvalidError,
-    ChannelPrivateError,
-    ConnectionError
+    ChannelPrivateError
 )
 from telethon.tl.functions.messages import GetDialogsRequest, GetHistoryRequest
 from telethon.tl.functions.channels import GetFullChannelRequest
