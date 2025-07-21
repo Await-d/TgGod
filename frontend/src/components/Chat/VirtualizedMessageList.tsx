@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
 import { useVirtualScroll } from '../../hooks/useVirtualScroll';
@@ -106,28 +106,43 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     const target = e.target as HTMLDivElement;
     const { scrollTop } = target;
     
-    console.log('Scroll event:', { scrollTop, hasMore, isLoadingMore });
+    // 检测是否在底部
+    checkIfAtBottom();
     
     // 检查是否滚动到顶部，触发加载更多
     if (scrollTop <= 50 && hasMore && !isLoadingMore && onScrollToTop) {
-      console.log('Triggering scroll to top handler');
       onScrollToTop();
     }
-  }, [hasMore, isLoadingMore, onScrollToTop]);
+  }, [hasMore, isLoadingMore, onScrollToTop, checkIfAtBottom]);
 
   // 消息容器引用，用于滚动控制
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 自动滚动到底部
+  // 保存滚动位置状态
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  // 检测滚动位置是否在底部
+  const checkIfAtBottom = useCallback(() => {
+    if (containerRef.current) {
+      const container = containerRef.current;
+      const threshold = 50; // 50px阈值
+      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+      setIsAtBottom(atBottom);
+      setShouldAutoScroll(atBottom);
+    }
+  }, []);
+
+  // 自动滚动到底部（只在初始加载或用户在底部时）
   useEffect(() => {
-    if (containerRef.current && messages.length > 0) {
+    if (containerRef.current && messages.length > 0 && shouldAutoScroll) {
       const container = containerRef.current;
       // 延迟滚动，确保DOM更新完成
       setTimeout(() => {
         container.scrollTop = container.scrollHeight;
       }, 100);
     }
-  }, [messages.length]);
+  }, [messages.length, shouldAutoScroll]);
 
   // 临时简化实现：直接渲染所有消息，避免虚拟滚动复杂性导致的布局问题
   return (

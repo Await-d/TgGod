@@ -133,7 +133,7 @@
 .message-list {
   flex: 1;
   overflow: hidden; /* 移除外层滚动，让内部组件处理 */
-  padding: 16px 24px;
+  padding: 0; /* 移除外层padding，让内部组件处理 */
   background: #f9f9f9;
   position: relative;
   min-height: 0; /* 修复flex子元素溢出 */

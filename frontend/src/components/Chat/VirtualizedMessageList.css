@@ -4,7 +4,7 @@
   position: relative;
   scroll-behavior: smooth;
   min-height: 0; /* 允许flex子元素收缩 */
-  padding: 0; /* 移除内边距，让外层控制 */
+  padding: 16px 24px; /* 添加内边距保持一致的间距 */
 }
 
 .virtual-content {
