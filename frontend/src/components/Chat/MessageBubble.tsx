@@ -1,16 +1,16 @@
 import React, { useCallback } from 'react';
-import { 
-  Avatar, 
-  Space, 
-  Typography, 
-  Tag, 
-  Button, 
-  Tooltip, 
+import {
+  Avatar,
+  Space,
+  Typography,
+  Tag,
+  Button,
+  Tooltip,
   Popconfirm,
   Card,
-  Image 
+  Image
 } from 'antd';
-import { 
+import {
   UserOutlined,
   MessageOutlined,
   DeleteOutlined,
@@ -21,7 +21,7 @@ import {
   FileTextOutlined,
   VideoCameraOutlined,
   AudioOutlined,
-  EyeOutlined 
+  EyeOutlined
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
 import { MessageBubbleProps } from '../../types/chat';
@@ -63,12 +63,12 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   onOpenGallery
 }) => {
   const [isActive, setIsActive] = React.useState(false);
-  
+
   // 处理消息点击，激活操作按钮
   const handleMessageClick = useCallback(() => {
     setIsActive(prev => !prev);
   }, []);
-  
+
   // 获取媒体类型图标
   const getMediaIcon = (mediaType: string) => {
     switch (mediaType) {
@@ -86,11 +86,11 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   const getSenderAvatar = () => {
     const senderName = message.sender_name || message.sender_username || '未知用户';
     const firstChar = senderName.charAt(0).toUpperCase();
-    
+
     // 生成随机颜色基于用户名
     const getAvatarColor = (name: string) => {
       const colors = [
-        '#f56a00', '#7265e6', '#ffbf00', '#00a2ae', 
+        '#f56a00', '#7265e6', '#ffbf00', '#00a2ae',
         '#87d068', '#1890ff', '#722ed1', '#eb2f96',
         '#52c41a', '#faad14', '#13c2c2', '#f5222d'
       ];
@@ -100,11 +100,11 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
       }
       return colors[Math.abs(hash) % colors.length];
     };
-    
+
     return (
-      <Avatar 
-        size={isMobile ? 32 : 36} 
-        style={{ 
+      <Avatar
+        size={isMobile ? 32 : 36}
+        style={{
           backgroundColor: getAvatarColor(senderName),
           color: 'white',
           fontWeight: 'bold',
@@ -122,11 +122,11 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
     const date = new Date(dateString);
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
-    
+
     if (isToday) {
-      return date.toLocaleTimeString('zh-CN', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      return date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit'
       });
     } else {
       return date.toLocaleString('zh-CN', {
@@ -136,6 +136,16 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         minute: '2-digit'
       });
     }
+  };
+
+  // 添加一个辅助方法来过滤掉文本中的表情反应字符串
+  const removeReactionEmojisFromText = (text: string): string => {
+    if (!text) return '';
+
+    // 过滤掉所有类似 ReactionEmoji(emoticon='❤') 30 的字符串
+    return text.replace(/ReactionEmoji\s*\(\s*emoticon\s*=\s*['"][^'"]+['"]\s*\)\s*\d+/g, '')
+      .replace(/\n\s*\n/g, '\n') // 清理多余的空行
+      .trim();
   };
 
   // 渲染消息内容
@@ -178,31 +188,50 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {/* 消息文本 */}
         {message.text && (
           <div className="message-text">
-            {isMarkdownContent(message.text) ? (
-              <MarkdownRenderer 
-                content={message.text} 
-                isOwn={isOwn}
-                className="message-markdown"
-              />
-            ) : (
-              <>
-                {/* 使用增强的消息文本组件，支持Telegram链接预览 */}
-                <EnhancedMessageText
-                  text={message.text}
-                  onJumpToGroup={onJumpToGroup}
-                  className="message-enhanced-text"
-                />
-                
-                {/* 保留原有的非Telegram链接预览 */}
-                {parseLinks(message.text).filter(link => !link.includes('t.me')).map((link, index) => (
-                  <LinkPreview
-                    key={index}
-                    url={link}
-                    className="message-link-preview"
+            {/* 处理文本中可能存在的表情反应字符串 */}
+            {(() => {
+              // 检查文本中是否包含"ReactionEmoji"字符串
+              const containsEmojiString = message.text.includes('ReactionEmoji');
+
+              // 处理文本，移除表情反应字符串
+              const processedText = containsEmojiString
+                ? removeReactionEmojisFromText(message.text)
+                : message.text;
+
+              // 如果处理后的文本为空，不显示任何内容
+              if (!processedText.trim()) {
+                return null;
+              }
+
+              // 使用处理后的文本
+              if (isMarkdownContent(processedText)) {
+                return (
+                  <MarkdownRenderer
+                    content={processedText}
+                    isOwn={isOwn}
+                    className="message-markdown"
                   />
-                ))}
-              </>
-            )}
+                );
+              } else {
+                return (
+                  <>
+                    <EnhancedMessageText
+                      text={processedText}
+                      onJumpToGroup={onJumpToGroup}
+                      className="message-enhanced-text"
+                    />
+
+                    {parseLinks(processedText).filter(link => !link.includes('t.me')).map((link, index) => (
+                      <LinkPreview
+                        key={index}
+                        url={link}
+                        className="message-link-preview"
+                      />
+                    ))}
+                  </>
+                );
+              }
+            })()}
           </div>
         )}
 
@@ -265,7 +294,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                 <PushpinOutlined /> 置顶
               </Tag>
             )}
-            
+
             {message.edit_date && (
               <Tag color="blue">
                 已编辑
@@ -290,27 +319,27 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {/* 提及和标签 */}
         {((message.mentions && message.mentions.length > 0) ||
           (message.hashtags && message.hashtags.length > 0)) && (
-          <div className="message-meta-tags">
-            <Space size={4} wrap>
-              {message.mentions?.map(mention => (
-                <Tag key={mention} color="purple">
-                  @{mention}
-                </Tag>
-              ))}
-              {message.hashtags?.map(hashtag => (
-                <Tag key={hashtag} color="green">
-                  #{hashtag}
-                </Tag>
-              ))}
-            </Space>
-          </div>
-        )}
+            <div className="message-meta-tags">
+              <Space size={4} wrap>
+                {message.mentions?.map(mention => (
+                  <Tag key={mention} color="purple">
+                    @{mention}
+                  </Tag>
+                ))}
+                {message.hashtags?.map(hashtag => (
+                  <Tag key={hashtag} color="green">
+                    #{hashtag}
+                  </Tag>
+                ))}
+              </Space>
+            </div>
+          )}
       </div>
     );
   };
 
   return (
-    <div 
+    <div
       className={`message-bubble ${isOwn ? 'own' : 'other'} ${isActive ? 'active' : ''}`}
       onClick={handleMessageClick}
       style={{ cursor: 'pointer' }}
@@ -348,15 +377,15 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {/* 消息气泡 */}
         <div className={`message-bubble-content ${isOwn ? 'own-bubble' : 'other-bubble'}`}>
           {renderMessageContent()}
-          
+
           {/* 表情反应 */}
           {message.reactions && (
-            <MessageReactions 
-              reactions={message.reactions} 
+            <MessageReactions
+              reactions={message.reactions}
               isMobile={isMobile}
             />
           )}
-          
+
           {/* 消息时间和操作 */}
           <div className="message-footer">
             <div className="message-time">
@@ -364,7 +393,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                 <Text type="secondary" style={{ fontSize: 11 }}>
                   {formatTime(message.date)}
                 </Text>
-                
+
                 {message.view_count !== undefined && (
                   <div className="view-count">
                     <EyeOutlined style={{ fontSize: 11, marginRight: 2 }} />
@@ -391,7 +420,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                     className="action-btn"
                   />
                 </Tooltip>
-                
+
                 <Tooltip title="创建规则">
                   <Button
                     type="text"
@@ -404,7 +433,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                     className="action-btn"
                   />
                 </Tooltip>
-                
+
                 {!isMobile && (
                   <Popconfirm
                     title="确认删除这条消息吗？"
