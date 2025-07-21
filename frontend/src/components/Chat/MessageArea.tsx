@@ -73,6 +73,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [unreadCount, setUnreadCount] = useState(0);
   const [buttonVisible, setButtonVisible] = useState(true);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
+  const [jumpToMessageId, setJumpToMessageId] = useState<number | null>(null);
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const [containerHeight, setContainerHeight] = useState(500);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   // 移除调试用的强制显示状态
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   
@@ -127,6 +131,26 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   useEffect(() => {
     fetchCurrentTelegramUser();
   }, [fetchCurrentTelegramUser]);
+
+  // 动态计算容器高度
+  useEffect(() => {
+    const updateContainerHeight = () => {
+      if (messagesContainerRef.current) {
+        const container = messagesContainerRef.current;
+        const rect = container.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        const availableHeight = windowHeight - rect.top - 60; // 60px for bottom padding
+        setContainerHeight(Math.max(200, availableHeight)); // 最小高度200px
+      }
+    };
+
+    updateContainerHeight();
+    window.addEventListener('resize', updateContainerHeight);
+    
+    return () => {
+      window.removeEventListener('resize', updateContainerHeight);
+    };
+  }, [selectedGroup]);
 
   // 跳转到特定消息
   const jumpToMessage = useCallback((messageId: number) => {
@@ -730,23 +754,25 @@ const MessageArea: React.FC<MessageAreaProps> = ({
             )}
             
             {/* 使用虚拟化消息列表组件，只渲染可见消息以优化性能 */}
-            <VirtualizedMessageList
-              messages={displayMessages}
-              containerHeight={500} // 固定容器高度，可根据实际需要调整
-              currentTelegramUser={currentTelegramUser}
-              user={user}
-              onReply={onReply}
-              onCreateRule={onCreateRule}
-              onDelete={handleDeleteMessage}
-              onJumpToGroup={onJumpToGroup}
-              onJumpToMessage={handleJumpToMessage}
-              onOpenGallery={openMediaGallery}
-              onUpdateDownloadState={updateDownloadState}
-              isMobile={isMobile}
-              highlightedMessageId={highlightedMessageId}
-              jumpToMessageId={jumpToMessageId}
-              onJumpComplete={onJumpComplete}
-            />
+            <div ref={messagesContainerRef} style={{ height: '100%' }}>
+              <VirtualizedMessageList
+                messages={displayMessages}
+                containerHeight={containerHeight}
+                currentTelegramUser={currentTelegramUser}
+                user={user}
+                onReply={onReply}
+                onCreateRule={onCreateRule}
+                onDelete={handleDeleteMessage}
+                onJumpToGroup={onJumpToGroup}
+                onJumpToMessage={handleJumpToMessage}
+                onOpenGallery={openMediaGallery}
+                onUpdateDownloadState={updateDownloadState}
+                isMobile={isMobile}
+                highlightedMessageId={highlightedMessageId}
+                jumpToMessageId={jumpToMessageId}
+                onJumpComplete={onJumpComplete}
+              />
+            </div>
           </>
         )}
         

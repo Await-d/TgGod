@@ -115,7 +115,8 @@ export const useVirtualScroll = ({
       top: offset,
       left: 0,
       right: 0,
-      height: actualItemHeights.get(index) || itemHeight,
+      minHeight: itemHeight, // 使用minHeight而不是固定height
+      width: '100%',
     };
   }, [actualItemHeights, itemHeight]);
 

@@ -50,6 +50,17 @@
   background: #a8a8a8;
 }
 
+/* 简化消息项样式 */
+.simple-message-item {
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.simple-message-item.highlighted {
+  background-color: rgba(24, 144, 255, 0.1);
+  animation: highlight-pulse 1s ease-in-out;
+}
+
 /* 移动端优化 */
 @media (max-width: 768px) {
   .virtualized-message-container::-webkit-scrollbar {
@@ -57,6 +68,10 @@
   }
   
   .virtual-message-item {
+    padding: 0 4px;
+  }
+
+  .simple-message-item {
     padding: 0 4px;
   }
 }

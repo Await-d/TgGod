@@ -180,19 +180,43 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     className: 'virtualized-message-container'
   };
 
+  // 临时简化实现：直接渲染所有消息，避免虚拟滚动复杂性导致的布局问题
   return (
-    <div {...containerProps}>
-      {/* 虚拟化容器，设置总高度 */}
-      <div 
-        className="virtual-content"
-        style={{ 
-          height: virtualScroll.totalHeight,
-          position: 'relative'
-        }}
-      >
-        {/* 只渲染可见的消息 */}
-        {virtualScroll.visibleItems.map(renderVirtualItem)}
-      </div>
+    <div 
+      className="virtualized-message-container"
+      style={{ 
+        height: containerHeight,
+        overflow: 'auto',
+        position: 'relative'
+      }}
+    >
+      {/* 直接渲染所有消息 */}
+      {messagesWithMetadata.map((messageData, index) => {
+        const isHighlighted = highlightedMessageId === messageData.id;
+        
+        return (
+          <div
+            key={`message-${messageData.id}`}
+            ref={(el) => setMessageRef(index, el)}
+            className={`simple-message-item ${isHighlighted ? 'highlighted' : ''}`}
+            style={{ width: '100%', padding: '4px 0' }}
+          >
+            <MessageBubble
+              message={messageData}
+              showAvatar={messageData.showAvatar}
+              isOwn={messageData.isOwn}
+              onReply={onReply}
+              onCreateRule={onCreateRule}
+              onDelete={onDelete}
+              onJumpToGroup={onJumpToGroup}
+              onJumpToMessage={onJumpToMessage}
+              onOpenGallery={onOpenGallery}
+              onUpdateDownloadState={onUpdateDownloadState}
+              isMobile={isMobile}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 };
