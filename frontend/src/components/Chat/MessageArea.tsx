@@ -367,9 +367,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       } else {
         console.log('MessageArea - no parent handler available');
         // 显示提示信息
-        notification.info({
-          message: '目标消息不在当前页面，正在尝试定位...'
-        });
+        notification.info('目标消息不在当前页面，正在尝试定位...');
       }
     }
   }, [displayMessages, messagesContainerRef, messageRefs, onJumpToMessage]);

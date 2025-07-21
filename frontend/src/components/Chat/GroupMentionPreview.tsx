@@ -123,9 +123,7 @@ const GroupMentionPreview: React.FC<GroupMentionPreviewProps> = ({
       console.log('GroupMentionPreview - jumping to group:', groupId);
       onJumpToGroup(groupId);
     } else {
-      notification.info({
-          message: '请在消息列表中点击群组名称进入'
-        });
+      notification.info('请在消息列表中点击群组名称进入');
     }
   }, [onJumpToGroup]);
 
