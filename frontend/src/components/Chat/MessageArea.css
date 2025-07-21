@@ -459,30 +459,36 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* 滚动到底部按钮 - 所有屏幕尺寸下都可见 */
+/* 滚动到底部按钮 - 强化显示样式 */
 .scroll-to-bottom {
-  position: absolute;
+  position: fixed !important;
+  /* 改为fixed定位，确保始终可见 */
   bottom: 24px;
   right: 24px;
   z-index: 1000;
-  /* 提高z-index确保显示 */
   animation: slideInUp 0.3s ease-out;
   pointer-events: auto;
-  /* 确保可点击 */
-  /* 在所有屏幕尺寸下显示 */
   display: block !important;
+  /* 强制显示 */
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  will-change: transform, opacity;
+  transform: translateY(0) scale(1);
 }
 
 .scroll-to-bottom .ant-btn {
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.25);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.35) !important;
+  /* 增强阴影 */
   border: none;
   background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 48px;
+  height: 48px;
 }
 
 .scroll-to-bottom .ant-btn:hover {
   transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.35);
+  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.45) !important;
+  /* 增强悬浮阴影 */
   background: linear-gradient(135deg, #40a9ff 0%, #69c0ff 100%);
 }
 
@@ -493,6 +499,8 @@
 
 .scroll-to-bottom .ant-btn .anticon {
   animation: bounce 1.5s ease-in-out infinite;
+  font-size: 20px;
+  /* 增大图标 */
 }
 
 .scroll-to-bottom .ant-badge-count {
@@ -519,12 +527,16 @@
 }
 
 .scroll-to-bottom.auto-hidden {
-  opacity: 0.3;
-  transition: opacity 0.3s ease;
+  opacity: 0.7;
+  /* 增大半透明状态的不透明度 */
+  transform: scale(0.95);
+  /* 缩小一点但保持可见 */
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .scroll-to-bottom.auto-hidden:hover {
   opacity: 1;
+  transform: scale(1);
 }
 
 @keyframes slideInUp {
@@ -555,6 +567,35 @@
 
   60% {
     transform: translateY(-1px);
+  }
+}
+
+/* 针对桌面和移动设备的特定样式 */
+@media (min-width: 769px) {
+  .scroll-to-bottom {
+    bottom: 32px;
+    /* 桌面端位置略高 */
+    right: 32px;
+  }
+
+  .scroll-to-bottom .ant-btn {
+    width: 50px;
+    /* 桌面端按钮略大 */
+    height: 50px;
+  }
+}
+
+@media (max-width: 768px) {
+  .scroll-to-bottom {
+    bottom: 80px;
+    /* 移动端位置更高，避免与其他控件重叠 */
+    right: 16px;
+  }
+
+  .scroll-to-bottom .ant-btn {
+    width: 44px;
+    /* 移动端按钮略小 */
+    height: 44px;
   }
 }
 

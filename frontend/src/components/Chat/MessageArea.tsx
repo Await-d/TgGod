@@ -429,6 +429,30 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [showScrollToBottom]);
 
+  // 更新滚动位置处理函数
+  const handleScrollPositionChange = useCallback((isNearBottom: boolean) => {
+    console.log('MessageArea - 收到滚动位置变化通知:', { isNearBottom });
+    setShowScrollToBottom(!isNearBottom);
+
+    // 如果滚动到底部，清除未读计数
+    if (isNearBottom) {
+      setUnreadCount(0);
+    }
+
+    // 重置按钮可见性和超时计时器
+    setButtonVisible(true);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    // 5秒后让按钮稍微透明（如果仍不在底部）
+    if (!isNearBottom) {
+      scrollTimeoutRef.current = setTimeout(() => {
+        setButtonVisible(false);
+      }, 5000);
+    }
+  }, []);
+
   // 获取消息列表
   const fetchMessages = useCallback(async (
     groupId: number,
@@ -588,55 +612,14 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     fetchCurrentTelegramUser();
   }, [fetchCurrentTelegramUser]);
 
-  // 添加滚动监听
+  // 添加滚动监听 - 仍然保留这部分以保持兼容性，但主要逻辑通过VirtualizedMessageList组件实现
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (container) {
-      container.addEventListener('scroll', handleScroll);
-
-      // 初始检查滚动位置 - 延长等待时间确保DOM渲染完成
+      // 初始检查滚动位置
       setTimeout(() => {
-        console.log('MessageArea - initial scroll check');
         handleScroll();
       }, 300);
-
-      // 额外检查，确保有内容时显示按钮
-      setTimeout(() => {
-        // 统一使用与 handleScroll 相同的阈值
-        const hasEnoughContent = container.scrollHeight > container.clientHeight + 100;
-        const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
-        const shouldShow = !isNearBottom && hasEnoughContent;
-
-        console.log('MessageArea - force check scroll button', {
-          scrollHeight: container.scrollHeight,
-          clientHeight: container.clientHeight,
-          scrollTop: container.scrollTop,
-          hasEnoughContent,
-          isNearBottom,
-          shouldShow,
-          // 桌面端强制显示逻辑
-          isDesktop: window.innerWidth > 768,
-          contentDifference: container.scrollHeight - container.clientHeight
-        });
-
-        // 桌面端：如果内容超过视窗高度且不在底部，强制显示按钮
-        const isDesktop = window.innerWidth > 768;
-        if (isDesktop && container.scrollHeight > container.clientHeight && !isNearBottom) {
-          console.log('MessageArea - forcing scroll button on desktop');
-          setShowScrollToBottom(true);
-        } else {
-          // 移动端或其他情况：使用标准逻辑
-          setShowScrollToBottom(shouldShow);
-        }
-      }, 500);
-
-      return () => {
-        container.removeEventListener('scroll', handleScroll);
-        // 清理定时器
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
-      };
     }
   }, [handleScroll]);
 
@@ -753,7 +736,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
               </div>
             )}
 
-            {/* 使用虚拟化消息列表组件，只渲染可见消息以优化性能 */}
+            {/* 更新使用虚拟化消息列表组件，添加滚动位置变化通知 */}
             <VirtualizedMessageList
               messages={displayMessages}
               currentTelegramUser={currentTelegramUser}
@@ -770,6 +753,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
               jumpToMessageId={jumpToMessageId}
               onJumpComplete={onJumpComplete}
               onScrollToTop={loadMoreMessages}
+              onScrollPositionChange={handleScrollPositionChange} // 添加滚动位置变化处理
               hasMore={hasMoreMessages}
               isLoadingMore={isLoadingMore}
             />
@@ -779,13 +763,16 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 滚动到底部按钮 */}
+      {/* 滚动到底部按钮 - 强制显示，只根据状态控制透明度，添加CSS样式保证显示 */}
       {showScrollToBottom && (
         <div
           className={`scroll-to-bottom ${!buttonVisible ? 'auto-hidden' : ''}`}
           onMouseEnter={() => setButtonVisible(true)}
           style={{
-            // 移除调试背景色
+            display: 'block', // 强制显示
+            opacity: showScrollToBottom ? 1 : 0, // 使用透明度控制可见性
+            pointerEvents: showScrollToBottom ? 'auto' : 'none', // 只有在需要显示时允许点击
+            zIndex: 1000, // 确保足够高的层级
           }}
         >
           <Badge count={unreadCount} size="small" offset={[-5, 5]}>

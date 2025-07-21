@@ -19,8 +19,9 @@ interface VirtualizedMessageListProps {
   highlightedMessageId?: number | null;
   jumpToMessageId?: number | null;
   onJumpComplete?: () => void;
-  // 新增滚动相关回调
+  // 滚动相关回调
   onScrollToTop?: () => void;
+  onScrollPositionChange?: (isNearBottom: boolean) => void; // 新增：通知父组件滚动位置变化
   hasMore?: boolean;
   isLoadingMore?: boolean;
 }
@@ -43,13 +44,15 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
   jumpToMessageId,
   onJumpComplete,
   onScrollToTop,
+  onScrollPositionChange, // 新增属性
   hasMore = false,
   isLoadingMore = false
 }) => {
   const itemHeightCache = useRef<Map<number, number>>(new Map());
   const messageRefs = useRef<{ [key: number]: HTMLDivElement }>({});
-
-  // 暂时移除虚拟滚动逻辑，使用简化实现
+  const lastScrollTopRef = useRef<number>(0);
+  const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('down');
+  const [isScrolledFromBottom, setIsScrolledFromBottom] = useState<boolean>(false);
 
   // 缓存消息渲染数据，避免重复计算
   const messagesWithMetadata = useMemo(() => {
@@ -75,8 +78,6 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     });
   }, [messages, currentTelegramUser, user]);
 
-  // 暂时移除高度变化处理
-
   // 消息元素引用回调
   const setMessageRef = useCallback((index: number, element: HTMLDivElement | null) => {
     if (element) {
@@ -86,7 +87,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     }
   }, []);
 
-  // 跳转到特定消息（简化实现）
+  // 跳转到特定消息
   useEffect(() => {
     if (jumpToMessageId && onJumpComplete && containerRef.current) {
       const messageElement = messageRefs.current[messages.findIndex(msg => msg.id === jumpToMessageId)];
@@ -99,57 +100,84 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     }
   }, [jumpToMessageId, messages, onJumpComplete]);
 
-  // 移除虚拟滚动相关的渲染函数
-
-  // 消息容器引用，用于滚动控制
+  // 消息容器引用
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 保存滚动位置状态
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-
   // 检测滚动位置是否在底部
-  const checkIfAtBottom = useCallback(() => {
+  const checkIfNearBottom = useCallback(() => {
     if (containerRef.current) {
       const container = containerRef.current;
-      const threshold = 50; // 50px阈值
-      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
-      setIsAtBottom(atBottom);
-      setShouldAutoScroll(atBottom);
+      const threshold = 100; // 增大阈值到100px
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+
+      // 如果滚动位置发生变化，通知父组件
+      if (onScrollPositionChange && isScrolledFromBottom !== !isNearBottom) {
+        setIsScrolledFromBottom(!isNearBottom);
+        onScrollPositionChange(isNearBottom);
+      }
+
+      return isNearBottom;
     }
-  }, []);
+    return true;
+  }, [onScrollPositionChange, isScrolledFromBottom]);
 
   // 滚动事件处理
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
-    const { scrollTop } = target;
+    const { scrollTop, scrollHeight, clientHeight } = target;
 
-    // 检测是否在底部
-    checkIfAtBottom();
+    // 确定滚动方向
+    const direction = scrollTop > lastScrollTopRef.current ? 'down' : 'up';
+    lastScrollTopRef.current = scrollTop;
+    setScrollDirection(direction);
+
+    // 检查是否在底部
+    const isNearBottom = checkIfNearBottom();
+
+    // 当用户向上滚动一定距离时，显示滚动到底部按钮
+    if (direction === 'up' && !isNearBottom) {
+      // 通过父组件的回调通知需要显示按钮
+      if (onScrollPositionChange) {
+        onScrollPositionChange(false);
+      }
+    }
 
     // 检查是否滚动到顶部，触发加载更多
-    // 添加debug日志，检查触发条件
-    console.log(`滚动检测: scrollTop=${scrollTop}, hasMore=${hasMore}, isLoadingMore=${isLoadingMore}, onScrollToTop=${!!onScrollToTop}`);
+    console.log(`滚动检测: scrollTop=${scrollTop}, direction=${direction}, isNearBottom=${isNearBottom}, hasMore=${hasMore}, isLoadingMore=${isLoadingMore}`);
 
-    // 修改逻辑：删除hasMore条件，让onScrollToTop始终可以被调用，让父组件决定是否真的加载更多
     if (scrollTop <= 50 && !isLoadingMore && onScrollToTop) {
       console.log('触发加载更多历史消息!');
       onScrollToTop();
     }
-  }, [isLoadingMore, onScrollToTop, checkIfAtBottom]);
+  }, [isLoadingMore, onScrollToTop, checkIfNearBottom, onScrollPositionChange]);
 
-  // 自动滚动到底部（只在初始加载或用户在底部时）
+  // 初始检查滚动位置
   useEffect(() => {
-    if (containerRef.current && messages.length > 0 && shouldAutoScroll) {
-      const container = containerRef.current;
-      // 延迟滚动，确保DOM更新完成
+    if (containerRef.current) {
+      // 初始化时检查一次滚动位置
       setTimeout(() => {
-        container.scrollTop = container.scrollHeight;
+        checkIfNearBottom();
       }, 100);
     }
-  }, [messages.length, shouldAutoScroll]);
+  }, [checkIfNearBottom]);
 
-  // 临时简化实现：直接渲染所有消息，避免虚拟滚动复杂性导致的布局问题
+  // 自动滚动到底部（仅在初始加载时）
+  useEffect(() => {
+    if (containerRef.current && messages.length > 0) {
+      const container = containerRef.current;
+
+      // 判断是否需要自动滚动到底部（初始加载或用户在底部时添加新消息）
+      const shouldAutoScroll = checkIfNearBottom() || messages.length <= 20; // 消息较少时总是滚动到底部
+
+      if (shouldAutoScroll) {
+        // 延迟滚动，确保DOM更新完成
+        setTimeout(() => {
+          container.scrollTop = container.scrollHeight;
+        }, 100);
+      }
+    }
+  }, [messages.length, checkIfNearBottom]);
+
   return (
     <div
       ref={containerRef}
@@ -158,15 +186,17 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
         flex: 1,
         overflow: 'auto',
         position: 'relative',
-        minHeight: 0, // 重要：允许flex子元素收缩
+        minHeight: 0, // 允许flex子元素收缩
         height: '100%', // 确保容器高度为100%
         display: 'flex',
         flexDirection: 'column',
-        WebkitOverflowScrolling: 'touch' // 增加iOS滚动流畅度
+        WebkitOverflowScrolling: 'touch' // iOS滚动流畅度
       }}
       onScroll={handleScroll}
-      data-has-more={hasMore ? 'true' : 'false'} // 添加数据属性便于调试
+      data-has-more={hasMore ? 'true' : 'false'}
       data-loading={isLoadingMore ? 'true' : 'false'}
+      data-scroll-direction={scrollDirection} // 添加滚动方向属性
+      data-near-bottom={checkIfNearBottom() ? 'true' : 'false'} // 添加是否靠近底部属性
     >
       {/* 直接渲染所有消息 */}
       {messagesWithMetadata.map((messageData, index) => {
