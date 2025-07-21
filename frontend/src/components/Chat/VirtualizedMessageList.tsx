@@ -167,14 +167,6 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       data-has-more={hasMore ? 'true' : 'false'} // 添加数据属性便于调试
       data-loading={isLoadingMore ? 'true' : 'false'}
     >
-      {/* 加载指示器 - 显示在消息列表顶部 */}
-      {isLoadingMore && (
-        <div className="loading-more-indicator">
-          <div className="loading-spinner"></div>
-          <span>正在加载历史消息...</span>
-        </div>
-      )}
-
       {/* 直接渲染所有消息 */}
       {messagesWithMetadata.map((messageData, index) => {
         const isHighlighted = highlightedMessageId === messageData.id;
