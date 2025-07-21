@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from telethon.tl.functions.messages import GetFullChatRequest
+from telethon.tl.functions.channels import GetParticipantRequest
 from ..database import get_db
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..services.telegram_service import telegram_service
@@ -1444,3 +1446,290 @@ async def get_current_telegram_user():
     except Exception as e:
         logger.error(f"获取当前用户信息失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取当前用户信息失败: {str(e)}")
+
+# 群组预览相关接口
+class GroupPreviewResponse(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    member_count: Optional[int] = None
+    is_joined: bool = False
+    is_public: bool = True
+    photo_url: Optional[str] = None
+    username: Optional[str] = None
+    verification_status: Optional[str] = "none"
+    category: Optional[str] = None
+    last_activity: Optional[str] = None
+
+@router.get("/groups/preview/{username}", response_model=GroupPreviewResponse)
+async def get_group_preview(
+    username: str,
+    db: Session = Depends(get_db)
+):
+    """获取公开群组预览信息"""
+    try:
+        await telegram_service.initialize()
+        
+        # 检查是否已授权
+        is_authorized = await telegram_service.client.is_user_authorized()
+        if not is_authorized:
+            await telegram_service.disconnect()
+            raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
+        
+        try:
+            # 通过用户名获取群组实体
+            entity = await telegram_service.client.get_entity(username)
+            
+            # 获取群组详细信息
+            full_info = await telegram_service.client(GetFullChatRequest(entity.id))
+            
+            # 检查是否已加入该群组
+            is_joined = False
+            try:
+                # 尝试获取群组成员状态
+                participant = await telegram_service.client(GetParticipantRequest(
+                    channel=entity,
+                    participant='me'
+                ))
+                is_joined = participant.participant is not None
+            except Exception:
+                # 如果无法获取成员状态，默认为未加入
+                is_joined = False
+            
+            # 构建响应
+            preview = GroupPreviewResponse(
+                id=entity.id,
+                title=entity.title,
+                description=full_info.full_chat.about if hasattr(full_info.full_chat, 'about') else None,
+                member_count=getattr(entity, 'participants_count', None),
+                is_joined=is_joined,
+                is_public=True,  # 通过用户名访问的都是公开群组
+                username=username,
+                verification_status="none"  # 默认值，可根据实际情况调整
+            )
+            
+            await telegram_service.disconnect()
+            return preview
+            
+        except ValueError as e:
+            # 群组不存在或无法访问
+            await telegram_service.disconnect()
+            raise HTTPException(status_code=404, detail=f"群组 @{username} 不存在或无法访问")
+        
+    except Exception as e:
+        logger.error(f"获取群组预览失败: {e}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=500, detail=f"获取群组预览失败: {str(e)}")
+
+@router.get("/groups/preview/invite/{invite_hash}", response_model=GroupPreviewResponse)
+async def get_group_preview_by_invite(
+    invite_hash: str,
+    db: Session = Depends(get_db)
+):
+    """通过邀请链接获取群组预览信息"""
+    try:
+        await telegram_service.initialize()
+        
+        # 检查是否已授权
+        is_authorized = await telegram_service.client.is_user_authorized()
+        if not is_authorized:
+            await telegram_service.disconnect()
+            raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
+        
+        try:
+            # 通过邀请链接获取群组信息
+            from telethon.tl.functions.messages import CheckChatInviteRequest
+            
+            invite_info = await telegram_service.client(CheckChatInviteRequest(invite_hash))
+            
+            # 检查邀请链接类型
+            if hasattr(invite_info, 'chat'):
+                # 已加入的群组
+                chat = invite_info.chat
+                preview = GroupPreviewResponse(
+                    id=chat.id,
+                    title=chat.title,
+                    member_count=getattr(chat, 'participants_count', None),
+                    is_joined=True,
+                    is_public=False,  # 邀请链接的群组通常是私有的
+                    verification_status="none"
+                )
+            elif hasattr(invite_info, 'title'):
+                # 未加入的群组预览
+                preview = GroupPreviewResponse(
+                    id=0,  # 未加入时无法获取真实ID
+                    title=invite_info.title,
+                    member_count=getattr(invite_info, 'participants_count', None),
+                    is_joined=False,
+                    is_public=False,
+                    verification_status="none"
+                )
+            else:
+                raise HTTPException(status_code=400, detail="无效的邀请链接")
+            
+            await telegram_service.disconnect()
+            return preview
+            
+        except Exception as e:
+            await telegram_service.disconnect()
+            if "INVITE_HASH_EXPIRED" in str(e):
+                raise HTTPException(status_code=400, detail="邀请链接已过期")
+            elif "INVITE_HASH_INVALID" in str(e):
+                raise HTTPException(status_code=400, detail="无效的邀请链接")
+            else:
+                raise HTTPException(status_code=404, detail=f"无法获取邀请群组信息: {str(e)}")
+        
+    except Exception as e:
+        logger.error(f"获取邀请群组预览失败: {e}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=500, detail=f"获取邀请群组预览失败: {str(e)}")
+
+@router.post("/groups/join/{username}")
+async def join_group(
+    username: str,
+    db: Session = Depends(get_db)
+):
+    """加入公开群组"""
+    try:
+        await telegram_service.initialize()
+        
+        # 检查是否已授权
+        is_authorized = await telegram_service.client.is_user_authorized()
+        if not is_authorized:
+            await telegram_service.disconnect()
+            raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
+        
+        try:
+            # 获取群组实体
+            entity = await telegram_service.client.get_entity(username)
+            
+            # 加入群组
+            from telethon.tl.functions.channels import JoinChannelRequest
+            await telegram_service.client(JoinChannelRequest(entity))
+            
+            # 将群组添加到数据库
+            group_info = await telegram_service.get_group_info(entity)
+            if group_info:
+                # 检查群组是否已存在
+                existing_group = db.query(TelegramGroup).filter(
+                    TelegramGroup.telegram_id == group_info["telegram_id"]
+                ).first()
+                
+                if existing_group:
+                    # 更新现有群组信息
+                    for key, value in group_info.items():
+                        setattr(existing_group, key, value)
+                    db.commit()
+                    db.refresh(existing_group)
+                    group = existing_group
+                else:
+                    # 创建新群组
+                    group = TelegramGroup(**group_info)
+                    db.add(group)
+                    db.commit()
+                    db.refresh(group)
+            else:
+                group = None
+            
+            await telegram_service.disconnect()
+            
+            return {
+                "success": True,
+                "group": group,
+                "message": f"成功加入群组 @{username}"
+            }
+            
+        except Exception as e:
+            await telegram_service.disconnect()
+            if "USER_ALREADY_PARTICIPANT" in str(e):
+                raise HTTPException(status_code=400, detail="您已经是该群组的成员")
+            elif "INVITE_REQUEST_SENT" in str(e):
+                return {
+                    "success": True,
+                    "group": None,
+                    "message": "加入请求已发送，等待管理员审核"
+                }
+            else:
+                raise HTTPException(status_code=400, detail=f"加入群组失败: {str(e)}")
+        
+    except Exception as e:
+        logger.error(f"加入群组失败: {e}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=500, detail=f"加入群组失败: {str(e)}")
+
+@router.post("/groups/join/invite/{invite_hash}")
+async def join_group_by_invite(
+    invite_hash: str,
+    db: Session = Depends(get_db)
+):
+    """通过邀请链接加入群组"""
+    try:
+        await telegram_service.initialize()
+        
+        # 检查是否已授权
+        is_authorized = await telegram_service.client.is_user_authorized()
+        if not is_authorized:
+            await telegram_service.disconnect()
+            raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
+        
+        try:
+            # 通过邀请链接加入群组
+            from telethon.tl.functions.messages import ImportChatInviteRequest
+            
+            result = await telegram_service.client(ImportChatInviteRequest(invite_hash))
+            
+            # 获取加入的群组信息
+            group_entity = None
+            if hasattr(result, 'chats') and result.chats:
+                group_entity = result.chats[0]
+            
+            if group_entity:
+                # 将群组添加到数据库
+                group_info = await telegram_service.get_group_info(group_entity)
+                if group_info:
+                    # 检查群组是否已存在
+                    existing_group = db.query(TelegramGroup).filter(
+                        TelegramGroup.telegram_id == group_info["telegram_id"]
+                    ).first()
+                    
+                    if existing_group:
+                        # 更新现有群组信息
+                        for key, value in group_info.items():
+                            setattr(existing_group, key, value)
+                        db.commit()
+                        db.refresh(existing_group)
+                        group = existing_group
+                    else:
+                        # 创建新群组
+                        group = TelegramGroup(**group_info)
+                        db.add(group)
+                        db.commit()
+                        db.refresh(group)
+                else:
+                    group = None
+            else:
+                group = None
+            
+            await telegram_service.disconnect()
+            
+            return {
+                "success": True,
+                "group": group,
+                "message": "成功通过邀请链接加入群组"
+            }
+            
+        except Exception as e:
+            await telegram_service.disconnect()
+            if "USER_ALREADY_PARTICIPANT" in str(e):
+                raise HTTPException(status_code=400, detail="您已经是该群组的成员")
+            elif "INVITE_HASH_EXPIRED" in str(e):
+                raise HTTPException(status_code=400, detail="邀请链接已过期")
+            elif "INVITE_HASH_INVALID" in str(e):
+                raise HTTPException(status_code=400, detail="无效的邀请链接")
+            else:
+                raise HTTPException(status_code=400, detail=f"加入群组失败: {str(e)}")
+        
+    except Exception as e:
+        logger.error(f"通过邀请链接加入群组失败: {e}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=500, detail=f"通过邀请链接加入群组失败: {str(e)}")
