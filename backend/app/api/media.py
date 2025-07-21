@@ -1,18 +1,43 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel
 import os
 import uuid
 import logging
 import mimetypes
 from ..database import get_db, SessionLocal
 from ..models import TelegramMessage
-from ..services.telegram_service import TelegramService
 import asyncio
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# Request/Response models for batch operations
+class BatchDownloadRequest(BaseModel):
+    message_ids: List[int]
+    force: bool = False
+    max_concurrent: int = 3  # Maximum concurrent downloads
+
+class BatchDownloadResponse(BaseModel):
+    batch_id: str
+    status: str
+    message: str
+    total_files: int
+    started_downloads: List[int]
+    already_downloaded: List[int]
+    failed_to_start: List[dict]
+
+class BatchStatusResponse(BaseModel):
+    batch_id: str
+    total_files: int
+    completed: int
+    downloading: int
+    failed: int
+    pending: int
+    overall_status: str
+    files: List[dict]
 
 # 简单的下载队列，防止并发冲突
 download_queue = asyncio.Queue()
@@ -23,6 +48,10 @@ downloading_messages = set()
 
 # 已取消的下载任务集合
 cancelled_downloads = set()
+
+# 批量下载管理
+batch_downloads = {}  # batch_id -> {message_ids, status, started_at, max_concurrent}
+batch_semaphores = {}  # batch_id -> asyncio.Semaphore for controlling concurrency
 
 def build_media_url(file_path: str) -> str:
     """构建媒体文件的访问URL"""
@@ -49,6 +78,384 @@ def build_media_url(file_path: str) -> str:
     
     # 如果无法确定，使用文件名
     return f"/media/{os.path.basename(file_path)}"
+
+@router.post("/batch-download", response_model=BatchDownloadResponse)
+async def start_batch_download(
+    request: BatchDownloadRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    批量下载多个媒体文件
+    
+    Args:
+        request: 批量下载请求，包含消息ID列表和配置
+        background_tasks: 后台任务管理器
+        db: 数据库会话
+    
+    Returns:
+        批量下载状态和信息
+    """
+    if not request.message_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="消息ID列表不能为空"
+        )
+    
+    if len(request.message_ids) > 50:  # 限制单次批量下载数量
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="单次批量下载最多支持50个文件"
+        )
+    
+    # 验证并分类消息
+    valid_messages = []
+    already_downloaded = []
+    failed_to_start = []
+    
+    for message_id in request.message_ids:
+        message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+        if not message:
+            failed_to_start.append({
+                "message_id": message_id,
+                "reason": "消息不存在"
+            })
+            continue
+        
+        if not message.media_type or not message.media_file_id:
+            failed_to_start.append({
+                "message_id": message_id,
+                "reason": "该消息不包含媒体文件"
+            })
+            continue
+        
+        # 检查是否已下载
+        if message.media_downloaded and message.media_path and not request.force:
+            if os.path.exists(message.media_path):
+                already_downloaded.append(message_id)
+                continue
+            else:
+                # 文件记录存在但实际文件丢失，重置下载状态
+                try:
+                    message.media_downloaded = False
+                    message.media_path = None
+                    db.commit()
+                    valid_messages.append(message_id)
+                except Exception as e:
+                    logger.warning(f"重置消息 {message_id} 下载状态失败: {str(e)}")
+                    db.rollback()
+                    failed_to_start.append({
+                        "message_id": message_id,
+                        "reason": f"重置下载状态失败: {str(e)}"
+                    })
+        else:
+            valid_messages.append(message_id)
+    
+    if not valid_messages:
+        return BatchDownloadResponse(
+            batch_id="",
+            status="no_files_to_download",
+            message="没有需要下载的文件",
+            total_files=len(request.message_ids),
+            started_downloads=[],
+            already_downloaded=already_downloaded,
+            failed_to_start=failed_to_start
+        )
+    
+    # 生成批量下载ID
+    batch_id = f"batch_{uuid.uuid4().hex[:8]}"
+    
+    # 记录批量下载信息
+    from datetime import datetime, timezone
+    global batch_downloads, batch_semaphores
+    
+    batch_downloads[batch_id] = {
+        "message_ids": valid_messages,
+        "total_files": len(valid_messages),
+        "status": "started",
+        "started_at": datetime.now(timezone.utc),
+        "max_concurrent": min(request.max_concurrent, 5),  # 最多5个并发
+        "force": request.force
+    }
+    
+    # 创建信号量控制并发数
+    batch_semaphores[batch_id] = asyncio.Semaphore(batch_downloads[batch_id]["max_concurrent"])
+    
+    # 启动下载工作进程（如果还没启动）
+    global download_worker_started
+    if not download_worker_started:
+        background_tasks.add_task(start_download_worker)
+        download_worker_started = True
+    
+    # 启动批量下载管理器
+    background_tasks.add_task(batch_download_manager, batch_id)
+    
+    logger.info(f"批量下载任务启动: {batch_id}, 文件数量: {len(valid_messages)}")
+    
+    return BatchDownloadResponse(
+        batch_id=batch_id,
+        status="started",
+        message=f"批量下载任务已启动，包含 {len(valid_messages)} 个文件",
+        total_files=len(request.message_ids),
+        started_downloads=valid_messages,
+        already_downloaded=already_downloaded,
+        failed_to_start=failed_to_start
+    )
+
+@router.get("/batch-status/{batch_id}", response_model=BatchStatusResponse)
+async def get_batch_download_status(
+    batch_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    获取批量下载状态
+    
+    Args:
+        batch_id: 批量下载ID
+        db: 数据库会话
+    
+    Returns:
+        批量下载状态信息
+    """
+    global batch_downloads
+    
+    if batch_id not in batch_downloads:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="批量下载任务不存在"
+        )
+    
+    batch_info = batch_downloads[batch_id]
+    message_ids = batch_info["message_ids"]
+    
+    # 获取所有文件的状态
+    files_status = []
+    completed = 0
+    downloading = 0
+    failed = 0
+    pending = 0
+    
+    for message_id in message_ids:
+        message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+        if not message:
+            files_status.append({
+                "message_id": message_id,
+                "status": "not_found",
+                "progress": 0,
+                "error": "消息不存在"
+            })
+            failed += 1
+            continue
+        
+        file_status = {
+            "message_id": message_id,
+            "media_type": message.media_type,
+            "media_filename": message.media_filename,
+            "progress": message.download_progress or 0,
+            "downloaded_size": message.downloaded_size or 0,
+            "total_size": message.media_size or 0,
+            "download_speed": message.download_speed or 0,
+            "estimated_time_remaining": message.estimated_time_remaining or 0
+        }
+        
+        if message.media_downloaded and message.media_path:
+            if os.path.exists(message.media_path):
+                file_status["status"] = "completed"
+                file_status["file_path"] = message.media_path
+                file_status["download_url"] = build_media_url(message.media_path)
+                completed += 1
+            else:
+                file_status["status"] = "file_missing"
+                file_status["error"] = "文件记录存在但实际文件丢失"
+                failed += 1
+        elif message.media_download_error:
+            if message.media_download_error == "下载已取消":
+                file_status["status"] = "cancelled"
+            else:
+                file_status["status"] = "failed"
+            file_status["error"] = message.media_download_error
+            failed += 1
+        elif message_id in downloading_messages:
+            file_status["status"] = "downloading"
+            downloading += 1
+        else:
+            file_status["status"] = "pending"
+            pending += 1
+        
+        files_status.append(file_status)
+    
+    # 确定总体状态
+    total_files = len(message_ids)
+    if completed == total_files:
+        overall_status = "completed"
+    elif failed == total_files:
+        overall_status = "failed"
+    elif downloading > 0 or pending > 0:
+        overall_status = "in_progress"
+    else:
+        overall_status = "unknown"
+    
+    return BatchStatusResponse(
+        batch_id=batch_id,
+        total_files=total_files,
+        completed=completed,
+        downloading=downloading,
+        failed=failed,
+        pending=pending,
+        overall_status=overall_status,
+        files=files_status
+    )
+
+@router.post("/batch-cancel/{batch_id}")
+async def cancel_batch_download(
+    batch_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    取消批量下载任务
+    
+    Args:
+        batch_id: 批量下载ID
+        db: 数据库会话
+    
+    Returns:
+        取消结果
+    """
+    global batch_downloads, cancelled_downloads
+    
+    if batch_id not in batch_downloads:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="批量下载任务不存在"
+        )
+    
+    batch_info = batch_downloads[batch_id]
+    message_ids = batch_info["message_ids"]
+    
+    # 标记批量任务为取消状态
+    batch_info["status"] = "cancelled"
+    
+    # 取消所有相关的单个下载任务
+    cancelled_count = 0
+    for message_id in message_ids:
+        if message_id in downloading_messages:
+            cancelled_downloads.add(message_id)
+            cancelled_count += 1
+            
+            # 更新数据库状态
+            try:
+                message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+                if message and not message.media_downloaded:
+                    message.download_progress = 0
+                    message.downloaded_size = 0
+                    message.download_speed = 0
+                    message.estimated_time_remaining = 0
+                    message.download_started_at = None
+                    message.media_download_error = "下载已取消"
+                db.commit()
+            except Exception as e:
+                logger.error(f"取消下载时数据库更新失败 (消息 {message_id}): {str(e)}")
+                db.rollback()
+    
+    logger.info(f"批量下载任务已取消: {batch_id}, 取消了 {cancelled_count} 个下载")
+    
+    return {
+        "status": "cancelled",
+        "message": f"批量下载任务已取消，取消了 {cancelled_count} 个下载",
+        "batch_id": batch_id,
+        "cancelled_downloads": cancelled_count,
+        "total_files": len(message_ids)
+    }
+
+async def batch_download_manager(batch_id: str):
+    """
+    批量下载管理器，负责控制并发下载
+    
+    Args:
+        batch_id: 批量下载ID
+    """
+    global batch_downloads, batch_semaphores
+    
+    if batch_id not in batch_downloads:
+        logger.error(f"批量下载管理器: 任务 {batch_id} 不存在")
+        return
+    
+    batch_info = batch_downloads[batch_id]
+    message_ids = batch_info["message_ids"]
+    force = batch_info.get("force", False)
+    semaphore = batch_semaphores.get(batch_id)
+    
+    if not semaphore:
+        logger.error(f"批量下载管理器: 任务 {batch_id} 没有对应的信号量")
+        return
+    
+    logger.info(f"批量下载管理器启动: {batch_id}, 并发数: {batch_info['max_concurrent']}")
+    
+    # 创建下载任务
+    download_tasks = []
+    for message_id in message_ids:
+        if batch_info["status"] == "cancelled":
+            logger.info(f"批量下载任务已取消，停止创建新的下载任务: {batch_id}")
+            break
+        
+        # 使用信号量控制并发
+        task = asyncio.create_task(batch_download_single_file(batch_id, message_id, force, semaphore))
+        download_tasks.append(task)
+    
+    # 等待所有下载任务完成
+    if download_tasks:
+        try:
+            await asyncio.gather(*download_tasks, return_exceptions=True)
+        except Exception as e:
+            logger.error(f"批量下载管理器异常: {batch_id}, 错误: {str(e)}")
+    
+    # 清理资源
+    if batch_id in batch_semaphores:
+        del batch_semaphores[batch_id]
+    
+    # 更新批量任务状态
+    if batch_id in batch_downloads:
+        if batch_downloads[batch_id]["status"] != "cancelled":
+            batch_downloads[batch_id]["status"] = "completed"
+    
+    logger.info(f"批量下载管理器完成: {batch_id}")
+
+async def batch_download_single_file(batch_id: str, message_id: int, force: bool, semaphore: asyncio.Semaphore):
+    """
+    批量下载中的单个文件下载任务
+    
+    Args:
+        batch_id: 批量下载ID
+        message_id: 消息ID
+        force: 是否强制重新下载
+        semaphore: 并发控制信号量
+    """
+    # 获取信号量，控制并发数
+    async with semaphore:
+        # 检查批量任务是否已取消
+        global batch_downloads
+        if batch_id in batch_downloads and batch_downloads[batch_id]["status"] == "cancelled":
+            logger.info(f"批量下载已取消，跳过文件下载: batch={batch_id}, message={message_id}")
+            return
+        
+        # 检查单个文件是否已经在下载中
+        global downloading_messages
+        if message_id in downloading_messages:
+            logger.info(f"文件已在下载队列中，跳过: message={message_id}")
+            return
+        
+        try:
+            # 添加到下载中的集合
+            downloading_messages.add(message_id)
+            
+            # 将下载任务添加到队列
+            await download_queue.put((message_id, force))
+            logger.info(f"批量下载文件已添加到队列: batch={batch_id}, message={message_id}")
+            
+        except Exception as e:
+            logger.error(f"批量下载单个文件时发生异常: batch={batch_id}, message={message_id}, 错误: {str(e)}")
+            # 确保从下载集合中移除
+            downloading_messages.discard(message_id)
 
 @router.post("/start-download/{message_id}")
 async def download_media_file(
@@ -450,8 +857,10 @@ async def download_media_background(message_id: int, force: bool = False):
     
     Args:
         message_id: 消息ID
-        force: 是否强制重新下载
+        force: 是否强制重新下载（当前未使用，因为force检查在队列前完成）
     """
+    # Note: force parameter is currently unused as force checking is done before queueing
+    _ = force  # Suppress unused parameter warning
     from ..database import SessionLocal
     
     # 使用短连接获取消息信息
@@ -496,9 +905,6 @@ async def download_media_background(message_id: int, force: bool = False):
     download_success = False
     
     try:
-        # 创建Telegram服务实例
-        telegram_service = TelegramService()
-        
         # 构建文件保存路径
         media_dir = f"./media/{media_type}s"
         os.makedirs(media_dir, exist_ok=True)
@@ -564,8 +970,8 @@ async def download_media_background(message_id: int, force: bool = False):
                             msg.download_speed = int(download_speed)
                             msg.estimated_time_remaining = int(estimated_time)
                             if not msg.download_started_at:
-                                from datetime import datetime
-                                msg.download_started_at = datetime.utcnow()
+                                from datetime import datetime, timezone
+                                msg.download_started_at = datetime.now(timezone.utc)
                             db_update.commit()
                     except Exception as e:
                         logger.error(f"更新下载进度失败: {e}")
