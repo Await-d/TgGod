@@ -103,6 +103,23 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
   // 消息容器引用
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // 自动滚动到底部（仅在初始加载时）
+  useEffect(() => {
+    if (containerRef.current && messages.length > 0) {
+      const container = containerRef.current;
+
+      // 延迟滚动，确保DOM更新完成
+      setTimeout(() => {
+        console.log('VirtualizedMessageList - 初始自动滚动到底部');
+        container.scrollTop = container.scrollHeight;
+        // 通知父组件已滚动到底部
+        if (onScrollPositionChange) {
+          onScrollPositionChange(true);
+        }
+      }, 200);
+    }
+  }, []); // 仅在初始挂载时执行一次
+
   // 检测滚动位置是否在底部
   const checkIfNearBottom = useCallback(() => {
     if (containerRef.current) {
@@ -110,8 +127,15 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       const threshold = 100; // 增大阈值到100px
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
 
+      console.log('VirtualizedMessageList - 检测滚动位置:', {
+        scrollTop: container.scrollTop,
+        clientHeight: container.clientHeight,
+        scrollHeight: container.scrollHeight,
+        isNearBottom
+      });
+
       // 如果滚动位置发生变化，通知父组件
-      if (onScrollPositionChange && isScrolledFromBottom !== !isNearBottom) {
+      if (onScrollPositionChange) {
         setIsScrolledFromBottom(!isNearBottom);
         onScrollPositionChange(isNearBottom);
       }
@@ -119,7 +143,25 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       return isNearBottom;
     }
     return true;
-  }, [onScrollPositionChange, isScrolledFromBottom]);
+  }, [onScrollPositionChange]);
+
+  // 处理消息列表变化时的滚动
+  useEffect(() => {
+    if (containerRef.current && messages.length > 0) {
+      const container = containerRef.current;
+
+      // 检查是否在底部或接近底部
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 100;
+
+      // 如果在底部，随着新消息自动滚动
+      if (isNearBottom) {
+        console.log('VirtualizedMessageList - 新消息自动滚动到底部');
+        setTimeout(() => {
+          container.scrollTop = container.scrollHeight;
+        }, 50);
+      }
+    }
+  }, [messages.length]);
 
   // 滚动事件处理
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -134,7 +176,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     // 检查是否在底部
     const isNearBottom = checkIfNearBottom();
 
-    // 当用户向上滚动一定距离时，显示滚动到底部按钮
+    // 当用户向上滚动时，显示滚动到底部按钮
     if (direction === 'up' && !isNearBottom) {
       // 通过父组件的回调通知需要显示按钮
       if (onScrollPositionChange) {
@@ -149,7 +191,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       console.log('触发加载更多历史消息!');
       onScrollToTop();
     }
-  }, [isLoadingMore, onScrollToTop, checkIfNearBottom, onScrollPositionChange]);
+  }, [isLoadingMore, onScrollToTop, checkIfNearBottom, onScrollPositionChange, hasMore]);
 
   // 初始检查滚动位置
   useEffect(() => {
@@ -160,23 +202,6 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       }, 100);
     }
   }, [checkIfNearBottom]);
-
-  // 自动滚动到底部（仅在初始加载时）
-  useEffect(() => {
-    if (containerRef.current && messages.length > 0) {
-      const container = containerRef.current;
-
-      // 判断是否需要自动滚动到底部（初始加载或用户在底部时添加新消息）
-      const shouldAutoScroll = checkIfNearBottom() || messages.length <= 20; // 消息较少时总是滚动到底部
-
-      if (shouldAutoScroll) {
-        // 延迟滚动，确保DOM更新完成
-        setTimeout(() => {
-          container.scrollTop = container.scrollHeight;
-        }, 100);
-      }
-    }
-  }, [messages.length, checkIfNearBottom]);
 
   return (
     <div

@@ -75,9 +75,8 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [jumpToMessageId, setJumpToMessageId] = useState<number | null>(null);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
-  // 移除固定高度，改用flex布局
-  // 移除调试用的强制显示状态
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const previousMessageCount = useRef(0); // 添加回引用，用于跟踪消息数量变化
 
   // 媒体画廊状态
   const [galleryVisible, setGalleryVisible] = useState(false);
@@ -200,9 +199,26 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setShowScrollToBottom(false);
-    setUnreadCount(0);
+    console.log('MessageArea - 执行滚动到底部');
+    try {
+      if (messagesContainerRef.current) {
+        // 使用更可靠的滚动方法
+        const container = messagesContainerRef.current;
+        // 先强制滚动到底部
+        container.scrollTop = container.scrollHeight;
+
+        // 然后平滑滚动确保视觉效果
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          console.log('MessageArea - 滚动到底部完成');
+        }, 10);
+
+        setShowScrollToBottom(false);
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('滚动到底部失败:', error);
+    }
   }, []);
 
   // 媒体画廊相关函数
@@ -432,24 +448,32 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   // 更新滚动位置处理函数
   const handleScrollPositionChange = useCallback((isNearBottom: boolean) => {
     console.log('MessageArea - 收到滚动位置变化通知:', { isNearBottom });
-    setShowScrollToBottom(!isNearBottom);
+    // 仅当位置变化时才更新状态，避免频繁切换
+    setShowScrollToBottom(prev => {
+      if (prev === !isNearBottom) return prev; // 状态未变，不更新
+      return !isNearBottom;
+    });
 
     // 如果滚动到底部，清除未读计数
     if (isNearBottom) {
       setUnreadCount(0);
     }
 
-    // 重置按钮可见性和超时计时器
+    // 设置按钮可见性，但不要频繁切换或自动隐藏
     setButtonVisible(true);
+
+    // 清除旧的隐藏计时器
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = undefined;
     }
 
-    // 5秒后让按钮稍微透明（如果仍不在底部）
+    // 只有当明确不在底部时才考虑自动半透明
     if (!isNearBottom) {
+      // 延长计时器时间，让按钮保持更长时间的可见性
       scrollTimeoutRef.current = setTimeout(() => {
         setButtonVisible(false);
-      }, 5000);
+      }, 8000); // 增加到8秒
     }
   }, []);
 
@@ -623,6 +647,40 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [handleScroll]);
 
+  // 初始化时确保滚动到底部
+  useEffect(() => {
+    // 当消息加载完成且有消息时，确保滚动到底部
+    if (displayMessages.length > 0 && !loading && !isLoadingMore) {
+      console.log('MessageArea - 初始滚动到底部，消息数量:', displayMessages.length);
+      // 使用延时，确保DOM已经更新
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [selectedGroup, loading]); // 仅在群组变化或加载状态变化时触发
+
+  // 监听新消息并自动滚动（如果在底部）
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (container && displayMessages.length > previousMessageCount.current) {
+      // 检查是否在底部或接近底部
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 100;
+
+      if (isNearBottom) {
+        // 如果在底部，自动滚动到新消息
+        console.log('MessageArea - 新消息自动滚动到底部');
+        setTimeout(scrollToBottom, 50);
+      } else {
+        // 如果不在底部，增加未读计数
+        const newCount = displayMessages.length - previousMessageCount.current;
+        setUnreadCount(prev => prev + newCount);
+        // 确保显示滚动按钮
+        setShowScrollToBottom(true);
+        setButtonVisible(true);
+      }
+    }
+
+    previousMessageCount.current = displayMessages.length;
+  }, [displayMessages.length, scrollToBottom]);
+
   // 组件卸载时清理定时器
   useEffect(() => {
     return () => {
@@ -631,26 +689,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       }
     };
   }, []);
-
-  // 监听新消息并更新未读计数
-  const previousMessageCount = useRef(displayMessages.length);
-  useEffect(() => {
-    if (displayMessages.length > previousMessageCount.current) {
-      // 有新消息
-      const newMessageCount = displayMessages.length - previousMessageCount.current;
-      if (showScrollToBottom && messagesContainerRef.current) {
-        // 只有在用户不在底部时才增加未读计数
-        const container = messagesContainerRef.current;
-        const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 200;
-        if (!isNearBottom) {
-          setUnreadCount(prev => prev + newMessageCount);
-        }
-      }
-    }
-    previousMessageCount.current = displayMessages.length;
-  }, [displayMessages.length, showScrollToBottom]);
-
-  // 滚动监听已移至VirtualizedMessageList组件内部处理
 
   // 渲染空状态
   if (!selectedGroup) {
