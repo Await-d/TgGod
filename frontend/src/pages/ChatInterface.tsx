@@ -192,6 +192,63 @@ const ChatInterface: React.FC = () => {
     }
   }, [selectedGroup, searchParams, setSearchParams]);
 
+  // 添加一个独立的effect来处理初始群组恢复
+  useEffect(() => {
+    // 这个effect专门用于处理页面加载时的群组恢复
+    if (groups.length > 0) {
+      // 从URL参数中获取群组ID
+      const urlGroupId = searchParams.get('group');
+
+      // 检查URL参数中是否有有效的群组ID
+      if (urlGroupId) {
+        const groupFromUrl = groups.find(g => g.id.toString() === urlGroupId);
+        if (groupFromUrl) {
+          console.log('页面加载：从URL恢复群组:', groupFromUrl.title);
+          selectGroup(groupFromUrl);
+          return; // 如果从URL恢复了群组，就不再尝试其他方式
+        }
+      }
+
+      // 如果URL中没有参数，尝试从sessionStorage恢复
+      const storedGroupId = sessionStorage.getItem('last_selected_group_id');
+      if (storedGroupId) {
+        const storedGroup = groups.find(g => g.id.toString() === storedGroupId);
+        if (storedGroup) {
+          console.log('页面加载：从sessionStorage恢复群组:', storedGroup.title);
+          selectGroup(storedGroup);
+
+          // 确保URL也被更新
+          const newParams = new URLSearchParams(searchParams);
+          newParams.set('group', storedGroupId);
+          setSearchParams(newParams, { replace: true });
+          return;
+        }
+      }
+
+      // 如果没有恢复到任何群组，则选择默认群组
+      if (!selectedGroup) {
+        const defaultGroup = groups.find(g => g.is_active) || groups[0];
+        if (defaultGroup) {
+          console.log('页面加载：选择默认群组:', defaultGroup.title);
+          selectGroup(defaultGroup);
+        }
+      }
+    }
+  }, [groups.length, searchParams, setSearchParams, selectGroup, selectedGroup]);
+
+  // 确保用户手动点击群组时会保存记录
+  useEffect(() => {
+    if (selectedGroup) {
+      console.log('保存当前群组到sessionStorage:', selectedGroup.title);
+      sessionStorage.setItem('last_selected_group_id', selectedGroup.id.toString());
+
+      // 确保URL也被更新
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('group', selectedGroup.id.toString());
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [selectedGroup, searchParams, setSearchParams]);
+
   // 监听浏览器前进后退操作
   useEffect(() => {
     const handlePopState = () => {

@@ -100,6 +100,16 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
     return reactionArray;
   };
 
+  // 从键名中提取表情符号 - 新增方法
+  const extractEmojiFromKey = (key: string): string => {
+    // 匹配"ReactionEmoji(emoticon='❤')"格式的键名
+    const match = key.match(/ReactionEmoji\s*\(\s*emoticon\s*=\s*['"]([^'"]+)['"]\s*\)/);
+    if (match && match[1]) {
+      return match[1]; // 返回提取的表情符号
+    }
+    return key; // 如果无法提取，则返回原始键名
+  };
+
   // 统一处理反应数据
   const processReactions = () => {
     let reactionData: ReactionEmoji[] = [];
@@ -111,11 +121,14 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
       // 处理 ReactionEmoji[] 格式
       reactionData = reactions;
     } else if (typeof reactions === 'object') {
-      // 处理 Record<string, number> 格式
-      reactionData = Object.entries(reactions).map(([emoticon, count]) => ({
-        emoticon,
-        count: typeof count === 'number' ? count : 1
-      }));
+      // 处理 Record<string, number> 格式，包括"ReactionEmoji(emoticon='❤')"格式的键名
+      reactionData = Object.entries(reactions).map(([key, count]) => {
+        const emoticon = extractEmojiFromKey(key);
+        return {
+          emoticon,
+          count: typeof count === 'number' ? count : 1
+        };
+      });
     }
 
     // 合并相同表情符号
