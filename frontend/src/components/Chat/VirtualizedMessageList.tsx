@@ -131,11 +131,12 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     // 添加debug日志，检查触发条件
     console.log(`滚动检测: scrollTop=${scrollTop}, hasMore=${hasMore}, isLoadingMore=${isLoadingMore}, onScrollToTop=${!!onScrollToTop}`);
 
-    if (scrollTop <= 50 && hasMore && !isLoadingMore && onScrollToTop) {
+    // 修改逻辑：删除hasMore条件，让onScrollToTop始终可以被调用，让父组件决定是否真的加载更多
+    if (scrollTop <= 50 && !isLoadingMore && onScrollToTop) {
       console.log('触发加载更多历史消息!');
       onScrollToTop();
     }
-  }, [hasMore, isLoadingMore, onScrollToTop, checkIfAtBottom]);
+  }, [isLoadingMore, onScrollToTop, checkIfAtBottom]);
 
   // 自动滚动到底部（只在初始加载或用户在底部时）
   useEffect(() => {
