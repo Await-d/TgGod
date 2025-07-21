@@ -239,7 +239,7 @@ const ChatInterface: React.FC = () => {
     if (targetGroup) {
       console.log('ChatInterface - found target group in current list:', targetGroup);
       selectGroup(targetGroup);
-      antMessage.success(`已跳转到${targetGroup.title}`);
+      antMessage.success(`已跳转到${targetGroup!.title}`);
       return;
     }
     
@@ -256,15 +256,15 @@ const ChatInterface: React.FC = () => {
       }
       
       // 将获取到的群组添加到当前群组列表中（如果不存在）
-      const existingGroup = groups.find(g => g.id === targetGroup.id);
+      const existingGroup = groups.find(g => g.id === targetGroup!.id);
       if (!existingGroup) {
         // 更新群组列表状态
         addGroup(targetGroup);
-        console.log('ChatInterface - added new group to list:', targetGroup.title);
+        console.log('ChatInterface - added new group to list:', targetGroup!.title);
       }
       
       selectGroup(targetGroup);
-      antMessage.success(`已跳转到${targetGroup.title}`);
+      antMessage.success(`已跳转到${targetGroup!.title}`);
       
     } catch (error) {
       console.error('ChatInterface - failed to fetch group from API:', error);
