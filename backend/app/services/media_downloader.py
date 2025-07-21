@@ -182,7 +182,6 @@ class TelegramMediaDownloader:
                     logger.warning(f"消息 {message_id} 无媒体内容")
                     return False
                 
-                # 下载媒体文件，支持进度回调
                 if progress_callback:
                     # 创建进度处理包装器
                     def progress_wrapper(current, total):
@@ -193,13 +192,30 @@ class TelegramMediaDownloader:
                                 progress_callback(current, total, progress)
                         except Exception as e:
                             logger.error(f"进度回调执行失败: {e}")
+                            # 如果是取消下载的异常，停止下载
+                            if str(e) == "下载已取消":
+                                logger.info("检测到下载取消信号，停止下载过程")
+                                raise e  # 向上传递异常以中断下载过程
                     
-                    await self.client.download_media(message.media, file_path, progress_callback=progress_wrapper)
+                    try:
+                        await self.client.download_media(message.media, file_path, progress_callback=progress_wrapper)
+                        
+                        logger.info(f"通过消息下载文件成功: {file_path}")
+                        return True
+                    except Exception as e:
+                        # 特殊处理下载取消异常
+                        if str(e) == "下载已取消":
+                            logger.info("下载已被用户取消")
+                            # 重新抛出异常以便上层处理
+                            raise
+                        # 其他异常正常记录
+                        logger.error(f"下载失败: {e}")
+                        raise
                 else:
                     await self.client.download_media(message.media, file_path)
-                
-                logger.info(f"通过消息下载文件成功: {file_path}")
-                return True
+                    
+                    logger.info(f"通过消息下载文件成功: {file_path}")
+                    return True
                 
             except FloodWaitError as e:
                 if attempt < max_retries - 1:

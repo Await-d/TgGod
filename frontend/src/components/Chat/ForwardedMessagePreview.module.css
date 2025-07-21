@@ -234,29 +234,195 @@
   margin-top: 4px;
 }
 
+.historyButton,
+.enhancedButton {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.historyButton:hover,
+.enhancedButton:hover {
+  color: #1890ff;
+  background: #e6f7ff;
+}
+
+.historyFloatingButton {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 10;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.historyFloatingButton:hover {
+  opacity: 1;
+}
+
+/* 跳转历史记录样式 */
+.jumpHistoryList {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.jumpHistoryItem {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.jumpHistoryItem:hover {
+  background: #f0f0f0;
+}
+
+.jumpHistoryIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  color: #1890ff;
+}
+
+.jumpHistoryContent {
+  flex: 1;
+}
+
+.jumpHistoryType {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 2px;
+}
+
+.jumpHistoryTitle {
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+}
+
+.jumpHistoryArrow {
+  margin-left: 10px;
+  color: #ccc;
+}
+
+.emptyHistory {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+/* 增强预览模态框样式 */
+.previewModalContent {
+  background: #fff;
+  border-radius: 6px;
+}
+
+.previewModalHeader {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.previewModalTitle {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.previewModalTime {
+  color: #999;
+  font-size: 12px;
+}
+
+.previewModalBody {
+  padding: 10px 0;
+}
+
+.previewModalText {
+  background: #f9f9f9;
+  border-radius: 4px;
+  padding: 10px;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 16px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.previewModalMedia {
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mediaTypeTag {
+  margin-right: 8px;
+}
+
+.mediaFilename {
+  color: #666;
+  font-size: 13px;
+}
+
+.previewModalFooter {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* 响应式样式 */
 @media (max-width: 768px) {
   .forwardHeader {
     padding: 6px 8px;
   }
-  
+
   .forwardBadge {
     font-size: 11px;
   }
-  
+
   .forwardSource {
     font-size: 11px;
   }
-  
+
   .contentContainer {
     padding: 8px;
   }
-  
+
   .textContent {
     font-size: 13px;
   }
-  
+
   .filename {
     max-width: 150px;
+  }
+
+  .jumpHistoryTitle {
+    max-width: 180px;
+  }
+
+  .previewModalText {
+    max-height: 200px;
   }
 }

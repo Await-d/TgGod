@@ -161,7 +161,9 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
               console.log('Jump to original message:', messageId);
             }}
             onJumpToGroup={onJumpToGroup}
+            onJumpToMessage={onJumpToMessage}
             compact={isMobile}
+            isMobile={isMobile}
           />
         )}
 

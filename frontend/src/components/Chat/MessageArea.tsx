@@ -5,7 +5,8 @@ import {
   SyncOutlined,
   SettingOutlined,
   ArrowDownOutlined,
-  DownOutlined
+  DownOutlined,
+  ArrowLeftOutlined
 } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
@@ -16,6 +17,8 @@ import MediaGallery from './MediaGallery';
 import { messageApi, telegramApi } from '../../services/apiService';
 import { useTelegramStore, useAuthStore, useTelegramUserStore } from '../../store';
 import './MessageArea.css';
+import { useNavigationHistory, NavigationHistoryEntry } from '../../hooks/useNavigationHistory';
+import MessageSearchBar from './MessageSearchBar';
 
 const { Text } = Typography;
 const PAGE_SIZE = 50; // 每次加载消息的数量
@@ -25,6 +28,8 @@ interface MessageAreaProps {
   onReply: (message: TelegramMessage) => void;
   onCreateRule: (message: TelegramMessage) => void;
   onJumpToGroup?: (groupId: number) => void;
+  onNavigateBack?: () => void; // 添加返回导航回调
+  hasNavigationHistory?: boolean; // 是否有导航历史
   searchFilter?: any;
   isMobile?: boolean;
   isTablet?: boolean;
@@ -49,6 +54,8 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   onReply,
   onCreateRule,
   onJumpToGroup,
+  onNavigateBack,
+  hasNavigationHistory = false,
   searchFilter = {},
   isMobile = false,
   isTablet = false,
@@ -77,6 +84,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [jumpToMessageId, setJumpToMessageId] = useState<number | null>(null);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const [localSearchQuery, setLocalSearchQuery] = useState<string>(searchQuery || '');
+  const [localSearchFilter, setLocalSearchFilter] = useState<any>(searchFilter || {});
+
+
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
   const previousMessageCount = useRef(0); // 添加回引用，用于跟踪消息数量变化
 
@@ -506,6 +517,63 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [selectedGroup, removeMessage]);
 
+  // 搜索相关函数
+  const handleSearch = useCallback((query: string) => {
+    // 更新本地搜索查询
+    setLocalSearchQuery(query);
+
+    // 构建新的搜索过滤条件
+    const newFilter = {
+      ...localSearchFilter,
+      query: query.trim() ? query : undefined
+    };
+    setLocalSearchFilter(newFilter);
+
+    // 重新加载消息
+    if (selectedGroup) {
+      setPage(1); // 重置页码
+      setHasMore(true); // 重置加载更多状态
+      fetchMessages(selectedGroup.id, 1, newFilter);
+      // 记录搜索操作到日志
+      console.log('执行搜索:', query, newFilter);
+    }
+  }, [selectedGroup, localSearchFilter, fetchMessages]);
+
+  // 打开过滤器抽屉并应用过滤条件
+  const handleFilter = useCallback(() => {
+    // 这里可以打开过滤抽屉组件
+    // 由于过滤器可能是复杂组件，这里模拟简单的过滤条件变更
+
+    // 示例：切换仅查看媒体消息
+    const mediaFilter = localSearchFilter.media_only === true ?
+      { ...localSearchFilter, media_only: undefined } :
+      { ...localSearchFilter, media_only: true };
+
+    setLocalSearchFilter(mediaFilter);
+
+    if (selectedGroup) {
+      setPage(1);
+      fetchMessages(selectedGroup.id, 1, mediaFilter);
+      antMessage.info(mediaFilter.media_only ? '已过滤：仅显示媒体消息' : '已清除媒体过滤');
+    }
+  }, [selectedGroup, localSearchFilter, fetchMessages]);
+
+  // 清除所有搜索条件并重新加载消息
+  const handleClearSearch = useCallback(() => {
+    // 清除搜索查询
+    setLocalSearchQuery('');
+    // 清除所有过滤条件
+    setLocalSearchFilter({});
+
+    // 重置消息列表
+    if (selectedGroup) {
+      setPage(1);
+      setHasMore(true);
+      fetchMessages(selectedGroup.id, 1, {});
+      antMessage.success('已清除所有搜索和过滤条件');
+    }
+  }, [selectedGroup, fetchMessages]);
+
   // 当选择群组变化时重新加载消息（只依赖selectedGroup）
   useEffect(() => {
     if (selectedGroup) {
@@ -578,6 +646,35 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     };
   }, []);
 
+  // 渲染顶部导航区域（包括返回按钮）
+  const renderTopNavigation = () => {
+    if (!selectedGroup) return null;
+
+    return (
+      <div className="message-area-navigation">
+        {hasNavigationHistory && onNavigateBack && (
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={onNavigateBack}
+            className="back-button"
+            title="返回上一群组"
+          />
+        )}
+        <div className="group-title">
+          <Text strong>
+            {selectedGroup.title}
+          </Text>
+          {selectedGroup.username && (
+            <Text type="secondary" className="group-username">
+              @{selectedGroup.username}
+            </Text>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // 渲染空状态
   if (!selectedGroup) {
     return (
@@ -591,7 +688,32 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   }
 
   return (
-    <div className="message-area">
+    <div
+      className={`message-area-container ${isMobile ? 'mobile' : ''} ${isTablet ? 'tablet' : ''}`}
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}
+    >
+      {/* 添加导航区域 */}
+      {renderTopNavigation()}
+
+      {/* 搜索和过滤区域 */}
+      <MessageSearchBar
+        onSearch={handleSearch}
+        onFilter={handleFilter}
+        onClear={handleClearSearch}
+        query={searchQuery}
+        filter={searchFilter}
+        selectedGroup={selectedGroup}
+        onSync={syncMessages}
+        onJumpToMessage={jumpToMessage}
+        loading={loading}
+        isMobile={isMobile}
+      />
+
       {/* 消息头部 */}
       <MessageHeader
         group={selectedGroup}

@@ -26,6 +26,8 @@ import MediaPreview from '../components/Chat/MediaPreview';
 import VoiceMessage from '../components/Chat/VoiceMessage';
 import MessageQuoteForward, { QuotedMessage } from '../components/Chat/MessageQuoteForward';
 import './ChatInterface.css';
+import { useNavigationHistory } from '../hooks/useNavigationHistory';
+import { Empty } from 'antd';
 
 const { Title } = Typography;
 
@@ -310,6 +312,16 @@ const ChatInterface: React.FC = () => {
     console.log('聊天界面已加载，认证状态:', isAuthenticated);
   }, [isAuthenticated]);
 
+  // 初始化导航历史hook
+  const {
+    addHistory,
+    goBack,
+    canGoBack
+  } = useNavigationHistory({
+    persistHistory: true,
+    maxHistory: 20
+  });
+
   // 处理群组选择 - 现在使用新的selectGroup方法
   const handleGroupSelect = useCallback((group: TelegramGroup) => {
     selectGroup(group);
@@ -320,52 +332,55 @@ const ChatInterface: React.FC = () => {
     }
   }, [isMobile, selectGroup]);
 
+  // 增强群组选择函数，添加历史记录
+  const enhancedSelectGroup = useCallback((group: TelegramGroup | null) => {
+    if (group) {
+      // 添加到导航历史
+      addHistory({
+        type: 'group',
+        groupId: group.id,
+        title: group.title
+      });
+
+      // 调用原有的选择群组函数
+      selectGroup(group);
+    } else {
+      // 清除选择
+      selectGroup(null);
+    }
+  }, [selectGroup, addHistory]);
+
+  // 处理返回导航
+  const handleNavigateBack = useCallback(() => {
+    const previousEntry = goBack();
+    if (previousEntry && previousEntry.groupId) {
+      // 查找群组
+      const group = groups.find(g => g.id === previousEntry.groupId);
+      if (group) {
+        // 选择群组但不添加到历史记录
+        selectGroup(group);
+      }
+    }
+  }, [goBack, groups, selectGroup]);
+
   // 处理跳转到群组
-  const handleJumpToGroup = useCallback(async (groupId: number) => {
-    console.log('ChatInterface - handleJumpToGroup called', {
-      groupId,
-      totalGroups: groups.length,
-      availableGroupIds: groups.map(g => g.id)
-    });
+  const handleJumpToGroup = useCallback((groupId: number) => {
+    console.log('ChatInterface - jumping to group:', groupId);
 
-    // 首先在当前群组列表中查找
-    let targetGroup = groups.find(group => group.id === groupId);
+    // 查找群组
+    const group = groups.find(g => g.id === groupId);
+    if (group) {
+      // 添加到导航历史并选择群组
+      addHistory({
+        type: 'group',
+        groupId: group.id,
+        title: group.title
+      });
 
-    if (targetGroup) {
-      console.log('ChatInterface - found target group in current list:', targetGroup);
-      selectGroup(targetGroup);
-      antMessage.success(`已跳转到${targetGroup!.title}`);
-      return;
+      // 调用原有的选择群组函数
+      selectGroup(group);
     }
-
-    // 如果在当前列表中找不到，尝试从API获取
-    console.log('ChatInterface - target group not found in current list, fetching from API...');
-    try {
-      targetGroup = await telegramApi.getGroup(groupId);
-      console.log('ChatInterface - fetched target group from API:', targetGroup);
-
-      if (!targetGroup) {
-        console.error('ChatInterface - API returned undefined group');
-        antMessage.error('无法获取群组信息');
-        return;
-      }
-
-      // 将获取到的群组添加到当前群组列表中（如果不存在）
-      const existingGroup = groups.find(g => g.id === targetGroup!.id);
-      if (!existingGroup) {
-        // 更新群组列表状态
-        addGroup(targetGroup);
-        console.log('ChatInterface - added new group to list:', targetGroup!.title);
-      }
-
-      selectGroup(targetGroup);
-      antMessage.success(`已跳转到${targetGroup!.title}`);
-
-    } catch (error) {
-      console.error('ChatInterface - failed to fetch group from API:', error);
-      antMessage.error(`无法找到群组 (ID: ${groupId})，可能已被删除或无权限访问`);
-    }
-  }, [groups, selectGroup, addGroup]);
+  }, [groups, selectGroup, addHistory]);
 
   // 处理跳转到消息
   const handleJumpToMessage = useCallback((messageId: number) => {
@@ -513,31 +528,44 @@ const ChatInterface: React.FC = () => {
 
   // 渲染消息区域
   const renderMessageArea = () => (
-    <div className="message-area-container">
-      {/* 消息区域 */}
-      <MessageArea
-        selectedGroup={selectedGroup}
-        onReply={handleReply}
-        onCreateRule={handleCreateQuickRule}
-        searchFilter={chatState.messageFilter}
-        isMobile={isMobile}
-        isTablet={isTablet}
-        searchQuery={chatState.searchQuery}
-        onQuote={handleQuote}
-        onForward={handleForward}
-        contacts={contacts}
-        // 无限滚动属性
-        messages={messages}
-        isLoadingMore={isLoadingMore}
-        hasMore={hasMore}
-        onLoadMore={loadMore}
-        containerRef={chatContainerRef}
-        // 跳转功能
-        jumpToMessageId={jumpToMessageId}
-        onJumpComplete={handleJumpComplete}
-        onJumpToGroup={handleJumpToGroup}
-        onJumpToMessage={handleJumpToMessage}
-      />
+    <div
+      className={`chat-content ${isMobile && !chatState.isGroupListCollapsed ? 'collapsed' : ''} ${isTablet && isGroupListMini ? 'mini-sidebar' : ''}`}
+      ref={chatContainerRef}
+    >
+      {selectedGroup ? (
+        <MessageArea
+          selectedGroup={selectedGroup}
+          onReply={(message) => setReplyTo(message)}
+          onCreateRule={(message) => {
+            setRuleBaseMessage(message);
+            setShowRuleModal(true);
+          }}
+          onJumpToGroup={handleJumpToGroup}
+          onNavigateBack={handleNavigateBack}
+          hasNavigationHistory={canGoBack}
+          searchFilter={chatState.messageFilter || {}}
+          isMobile={isMobile}
+          isTablet={isTablet}
+          searchQuery={chatState.searchQuery || ''}
+          onQuote={setQuotedMessage}
+          onForward={handleForward}
+          messages={messages}
+          isLoadingMore={isLoadingMore}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          containerRef={chatContainerRef}
+          jumpToMessageId={jumpToMessageId}
+          onJumpComplete={() => setJumpToMessageId(null)}
+          onJumpToMessage={handleJumpToMessage}
+        />
+      ) : (
+        <div className="no-group-selected">
+          <Empty
+            image={Empty.PRESENTED_IMAGE_DEFAULT}
+            description="请选择一个群组开始聊天"
+          />
+        </div>
+      )}
     </div>
   );
 

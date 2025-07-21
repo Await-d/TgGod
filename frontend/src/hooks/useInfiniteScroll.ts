@@ -56,7 +56,18 @@ export const useInfiniteScroll = (
     setIsLoadingMore(false);
     setTotalLoaded(0);
     isLoadingRef.current = false;
-    lastGroupId.current = selectedGroup?.id || null;
+    
+    // 更新上一次的群组ID
+    const newGroupId = selectedGroup?.id || null;
+    
+    // 如果群组变更，清除初始加载标记
+    if (lastGroupId.current !== newGroupId && newGroupId) {
+      const initialLoadKey = `initial_load_${newGroupId}`;
+      sessionStorage.removeItem(initialLoadKey);
+      console.log('[InfiniteScroll] 清除群组初始加载标记:', initialLoadKey);
+    }
+    
+    lastGroupId.current = newGroupId;
   }, [selectedGroup?.id]);
 
   // 当群组变化时重置 - 简化初始化逻辑
@@ -70,9 +81,19 @@ export const useInfiniteScroll = (
       // 重置状态
       reset();
       
-      // 重置加载标记，确保可以立即加载
+      // 清理所有相关的全局状态
       (window as any)._lastLoadTrigger = 0;
       (window as any)._lastScrollAdjust = 0;
+      (window as any)._lastInitialLoadTime = 0;
+      
+      // 如果存在容器引用，清理容器上的绑定标记
+      if (containerRef.current) {
+        const oldKey = `scroll_bound_${lastGroupId.current || 'unknown'}`;
+        delete (containerRef.current as any)[oldKey];
+        
+        const newKey = `scroll_bound_${selectedGroup?.id || 'unknown'}`;
+        delete (containerRef.current as any)[newKey];
+      }
       
       // 不再延迟滚动检测，立即启用
       console.log('[InfiniteScroll] 立即启用滚动检测');
@@ -85,9 +106,20 @@ export const useInfiniteScroll = (
       const scrollTop = containerRef.current.scrollTop;
       console.log('[InfiniteScroll] 初始滚动位置检查', { scrollTop });
       
-      // 如果一开始就在顶部附近，主动加载一次历史数据
-      if (scrollTop < 200 && hasMore && !isLoadingRef.current) {
+      // 检查是否已经加载过，以及是否应该加载
+      const shouldLoad = scrollTop < 200 && hasMore && !isLoadingRef.current;
+      
+      // 添加基于时间的检查，确保短时间内不会重复触发
+      const now = Date.now();
+      const lastLoadTime = (window as any)._lastInitialLoadTime || 0;
+      const timeSinceLastLoad = now - lastLoadTime;
+      
+      // 如果一开始就在顶部附近，且满足其他条件，主动加载一次历史数据
+      if (shouldLoad && timeSinceLastLoad > 2000) {
         console.log('[InfiniteScroll] 初始化时接近顶部，主动加载历史数据');
+        
+        // 记录本次加载时间
+        (window as any)._lastInitialLoadTime = now;
         
         // 使用已定义的API直接获取历史消息
         isLoadingRef.current = true;
@@ -125,10 +157,17 @@ export const useInfiniteScroll = (
   useEffect(() => {
     if (!selectedGroup?.id) return;
     
-    // 延迟300ms后检查是否需要预加载，确保UI已更新
-    const timer = setTimeout(checkInitialScroll, 300);
+    // 使用一个临时标记来防止循环加载
+    const initialLoadKey = `initial_load_${selectedGroup.id}`;
+    const hasInitialLoaded = sessionStorage.getItem(initialLoadKey);
     
-    return () => clearTimeout(timer);
+    if (hasInitialLoaded !== "true") {
+      // 只有在没有进行过初始加载的情况下，才进行初始加载检查
+      const timer = setTimeout(checkInitialScroll, 300);
+      // 标记已经进行过初始加载
+      sessionStorage.setItem(initialLoadKey, "true");
+      return () => clearTimeout(timer);
+    }
   }, [selectedGroup?.id, checkInitialScroll]);
 
   // 滚动到顶部
@@ -340,6 +379,16 @@ export const useInfiniteScroll = (
     const container = containerRef.current;
     if (!container) return;
 
+    // 避免多次绑定同一个容器
+    const containerKey = `scroll_bound_${selectedGroup?.id || 'unknown'}`;
+    if ((container as any)[containerKey]) {
+      console.log('[InfiniteScroll] 跳过重复绑定滚动事件');
+      return;
+    }
+    
+    // 标记容器已绑定事件
+    (container as any)[containerKey] = true;
+
     // 使用节流而不是直接绑定，进一步减少触发频率
     let ticking = false;
     const scrollHandler = () => {
@@ -366,12 +415,16 @@ export const useInfiniteScroll = (
     container.addEventListener('scroll', scrollHandler, { passive: true });
 
     return () => {
+      console.log('[InfiniteScroll] 移除滚动事件监听器');
       container.removeEventListener('scroll', scrollHandler);
+      // 移除绑定标记
+      delete (container as any)[containerKey];
+      
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [handleScroll, containerRef]);
+  }, [handleScroll, containerRef, selectedGroup?.id]);
 
   // 当消息数组变化时更新统计
   useEffect(() => {

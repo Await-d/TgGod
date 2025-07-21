@@ -758,3 +758,80 @@
   margin-left: 0;
   margin-right: auto;
 }
+
+/* 顶部导航区域 */
+.message-area-navigation {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  height: 48px;
+}
+
+.message-area-navigation .back-button {
+  margin-right: 12px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.message-area-navigation .back-button:hover {
+  background-color: #f0f0f0;
+  transform: translateX(-2px);
+}
+
+.message-area-navigation .group-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.message-area-navigation .group-title .ant-typography {
+  margin-bottom: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message-area-navigation .group-username {
+  font-size: 12px;
+}
+
+/* 移动端样式调整 */
+@media (max-width: 768px) {
+  .message-area-navigation {
+    padding: 6px 8px;
+    height: 40px;
+  }
+
+  .message-area-navigation .back-button {
+    width: 28px;
+    height: 28px;
+    margin-right: 8px;
+  }
+
+  .message-area-navigation .group-title .ant-typography {
+    font-size: 14px;
+  }
+
+  .message-area-navigation .group-username {
+    font-size: 11px;
+  }
+}
+
+/* 消息区域容器样式 */
+.message-area-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: #f5f5f5;
+  position: relative;
+}

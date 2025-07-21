@@ -46,12 +46,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       status: message.media_downloaded ? 'downloaded' : 'not_downloaded' as DownloadState['status'],
       downloadUrl: message.media_path
     };
-    console.log('MediaDownloadPreview - initial state', {
-      messageId: message.id,
-      mediaDownloaded: message.media_downloaded,
-      mediaPath: message.media_path,
-      initialState
-    });
     return initialState;
   });
 
@@ -67,21 +61,8 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   // 监听 message 变化，更新下载状态
   useEffect(() => {
-    console.log('MediaDownloadPreview - message updated', {
-      messageId: message.id,
-      mediaDownloaded: message.media_downloaded,
-      mediaPath: message.media_path,
-      currentDownloadState: downloadState
-    });
-
     const newStatus = message.media_downloaded ? 'downloaded' : 'not_downloaded';
     if (downloadState.status !== newStatus || downloadState.downloadUrl !== message.media_path) {
-      console.log('MediaDownloadPreview - updating download state', {
-        oldStatus: downloadState.status,
-        newStatus,
-        oldUrl: downloadState.downloadUrl,
-        newUrl: message.media_path
-      });
       setDownloadState({
         status: newStatus,
         downloadUrl: message.media_path
@@ -314,14 +295,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   // 预览媒体
   const handlePreview = () => {
-    console.log('MediaDownloadPreview - handlePreview called', {
-      messageId: message.id,
-      downloadState,
-      onPreview: !!onPreview,
-      mediaType: message.media_type,
-      mediaPath: message.media_path,
-      mediaDownloaded: message.media_downloaded
-    });
+
 
     // 检查是否有可用的媒体URL
     const hasMediaUrl = downloadState.downloadUrl || (message.media_downloaded && message.media_path);
@@ -329,15 +303,12 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
     if (hasMediaUrl && mediaUrlForPreview) {
       if (onPreview) {
-        console.log('MediaDownloadPreview - calling onPreview with URL:', mediaUrlForPreview);
         onPreview(mediaUrlForPreview);
       } else {
-        console.log('MediaDownloadPreview - opening preview modal');
         // 打开预览模态框
         setShowPreviewModal(true);
       }
     } else {
-      console.log('MediaDownloadPreview - media not downloaded, starting download');
       // 需要先下载
       handleDownload();
     }
@@ -347,31 +318,25 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   const getFullMediaUrl = (path: string) => {
     if (!path) return '';
 
-    console.log('getFullMediaUrl - input path:', path);
-
     // 如果已经是完整URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      console.log('getFullMediaUrl - returning complete URL:', path);
       return path;
     }
 
     // 如果路径以 /media/ 开头，直接返回（已经是完整路径）
     if (path.startsWith('/media/')) {
-      console.log('getFullMediaUrl - returning path with /media/ prefix:', path);
       return path;
     }
 
     // 如果路径以 media/ 开头，添加前导斜杠
     if (path.startsWith('media/')) {
       const result = `/${path}`;
-      console.log('getFullMediaUrl - adding leading slash to media/ path:', result);
       return result;
     }
 
     // 如果路径包含 ./media/ 前缀，清理并返回
     if (path.startsWith('./media/')) {
       const result = path.replace('./media/', '/media/');
-      console.log('getFullMediaUrl - cleaning ./media/ prefix:', result);
       return result;
     }
 
@@ -379,14 +344,12 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     // 首先尝试作为媒体文件路径
     if (!path.startsWith('/')) {
       const result = `/media/${path}`;
-      console.log('getFullMediaUrl - adding /media/ prefix to relative path:', result);
       return result;
     }
 
     // 如果是其他相对路径，使用API基础URL
     const apiBase = process.env.REACT_APP_API_URL || '';
     const result = `${apiBase}${path}`;
-    console.log('getFullMediaUrl - using API base URL:', result);
     return result;
   };
 
@@ -459,13 +422,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     const hasMediaUrl = downloadState.downloadUrl || (message.media_downloaded && message.media_path);
     const isActuallyDownloaded = hasMediaUrl || downloadState.status === 'downloaded';
 
-    console.log('renderDownloadStatus called', {
-      downloadStateStatus: downloadState.status,
-      hasMediaUrl,
-      isActuallyDownloaded,
-      messageMediaDownloaded: message.media_downloaded
-    });
-
     // 如果实际上已经下载，显示预览按钮
     if (isActuallyDownloaded) {
       const mediaUrlForDownload = downloadState.downloadUrl || message.media_path;
@@ -475,7 +431,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             type="primary"
             icon={<EyeOutlined />}
             onClick={(e) => {
-              console.log('MediaDownloadPreview - preview button clicked', e);
               handlePreview();
             }}
             style={{ marginRight: 8 }}
@@ -613,14 +568,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     const hasMediaUrl = downloadState.downloadUrl || (message.media_downloaded && message.media_path);
     const mediaUrl = downloadState.downloadUrl || message.media_path;
 
-    console.log('renderMediaThumbnail called', {
-      hasMediaUrl,
-      mediaUrl,
-      downloadStatus: downloadState.status,
-      messageMediaDownloaded: message.media_downloaded,
-      messageMediaPath: message.media_path
-    });
-
     if (!hasMediaUrl || !mediaUrl) {
       return (
         <div className="media-icon">
@@ -635,7 +582,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       case 'photo':
         return (
           <div className="media-thumbnail" onClick={(e) => {
-            console.log('MediaDownloadPreview - photo thumbnail clicked', e);
             handlePreview();
           }} style={{ cursor: 'pointer' }}>
             <img
@@ -665,7 +611,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       case 'video':
         return (
           <div className="media-thumbnail" onClick={(e) => {
-            console.log('MediaDownloadPreview - video thumbnail clicked', e);
             handlePreview();
           }} style={{ cursor: 'pointer' }}>
             <video

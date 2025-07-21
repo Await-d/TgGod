@@ -535,7 +535,10 @@ async def download_media_background(message_id: int, force: bool = False):
             # 检查是否已被取消
             if message_id in cancelled_downloads:
                 logger.info(f"下载已被取消，停止进度更新: 消息 {message_id}")
-                raise Exception("下载已取消")
+                # 使用特定的异常类型而不是通用Exception，便于上层区分
+                class DownloadCancelledException(Exception):
+                    pass
+                raise DownloadCancelledException("下载已取消")
             
             try:
                 current_time = time.time()
@@ -603,6 +606,17 @@ async def download_media_background(message_id: int, force: bool = False):
             if "EOF when reading a line" in str(download_err) or "AuthKeyUnregisteredError" in str(download_err):
                 download_error = "Telegram认证失败，请检查API配置和session状态"
                 logger.error("Telegram认证失败，可能需要重新登录或检查API配置")
+            # 判断是否是取消下载导致的异常
+            elif "下载已取消" in str(download_err):
+                download_error = "下载已被用户取消"
+                logger.info(f"下载正常取消: {download_error}")
+                # 删除可能创建的部分文件
+                if file_path and os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                        logger.info(f"已删除取消下载的不完整文件: {file_path}")
+                    except Exception as del_err:
+                        logger.warning(f"删除不完整文件失败: {del_err}")
             
     except Exception as e:
         download_error = f"下载过程中发生错误: {str(e)}"
