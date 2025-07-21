@@ -12,14 +12,14 @@ import {
 import { TelegramGroup } from '../../types';
 import { telegramApi } from '../../services/apiService';
 import { useMediaDuration } from '../../hooks/useMediaDuration';
-import { Message } from '../../types/telegram';
+import { TelegramMessage } from '../../types';
 import './MessageHeader.css';
 
 const { Title, Text } = Typography;
 
 interface MessageHeaderProps {
   group: TelegramGroup;
-  messages?: Message[]; // 添加消息列表用于计算媒体时长
+  messages?: TelegramMessage[]; // 添加消息列表用于计算媒体时长
   onJumpToMessage?: (messageId: number) => void;
   onRefresh?: () => Promise<void>;
   onSync?: () => Promise<void>;

@@ -122,6 +122,24 @@ export interface TelegramMessage {
   media_download_url?: string;
   media_download_error?: string;
   media_thumbnail_path?: string;
+  // 音频和语音字段
+  audio?: {
+    duration?: number;
+    title?: string;
+    performer?: string;
+    file_name?: string;
+    file_path?: string;
+  };
+  voice?: {
+    duration?: number;
+    file_path?: string;
+  };
+  video?: {
+    duration?: number;
+    width?: number;
+    height?: number;
+    file_path?: string;
+  };
   view_count?: number;
   is_forwarded: boolean;
   forwarded_from?: string;

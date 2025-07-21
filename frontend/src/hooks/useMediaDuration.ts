@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Message } from '../types/telegram';
+import { TelegramMessage } from '../types';
 
 interface MediaDurationState {
   totalDuration: number; // 总时长（秒）
@@ -10,7 +10,7 @@ interface MediaDurationState {
 }
 
 interface UseMediaDurationProps {
-  messages: Message[];
+  messages: TelegramMessage[];
   enabled?: boolean;
 }
 
