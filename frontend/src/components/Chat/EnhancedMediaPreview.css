@@ -60,9 +60,17 @@
 }
 
 @keyframes loading-shimmer {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* 错误状态 */
@@ -397,31 +405,31 @@
   .enhanced-media-preview {
     max-width: 280px;
   }
-  
+
   .enhanced-media-preview.thumbnail-mode {
     max-width: 180px;
   }
-  
+
   .media-thumbnail {
     height: 140px;
   }
-  
+
   .enhanced-media-preview.thumbnail-mode .media-thumbnail {
     height: 100px;
   }
-  
+
   .preview-controls {
     padding: 12px 16px;
   }
-  
+
   .preview-content {
     padding: 16px;
   }
-  
+
   .file-preview {
     padding: 32px 16px;
   }
-  
+
   .file-info h3 {
     font-size: 16px;
   }
@@ -431,31 +439,31 @@
   .enhanced-media-preview {
     max-width: 240px;
   }
-  
+
   .enhanced-media-preview.thumbnail-mode {
     max-width: 160px;
   }
-  
+
   .media-thumbnail {
     height: 120px;
   }
-  
+
   .enhanced-media-preview.thumbnail-mode .media-thumbnail {
     height: 80px;
   }
-  
+
   .media-info {
     padding: 8px 12px;
   }
-  
+
   .media-filename {
     font-size: 12px;
   }
-  
+
   .media-size {
     font-size: 10px;
   }
-  
+
   .media-info .ant-btn {
     font-size: 11px;
     padding: 1px 6px;
@@ -517,4 +525,125 @@
 .enhanced-media-preview[data-file-type="document"] .file-thumbnail {
   background: linear-gradient(135deg, #fffbf0, #fff7e6);
   border-color: #faad14;
+}
+
+/* 文件类型标签样式 */
+.enhanced-media-type {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 5;
+  font-weight: 500;
+  backdrop-filter: blur(2px);
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 时长标签样式 */
+.enhanced-media-duration {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  z-index: 5;
+  font-weight: 500;
+  backdrop-filter: blur(2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 文件信息样式 */
+.enhanced-media-preview .media-info {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.enhanced-media-preview .media-filename {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.enhanced-media-preview .media-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.enhanced-media-preview .media-size,
+.enhanced-media-preview .media-duration,
+.enhanced-media-preview .media-filetype {
+  background-color: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #595959;
+  display: inline-flex;
+  align-items: center;
+}
+
+.enhanced-media-preview .media-filetype {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  font-weight: 500;
+}
+
+/* 缩略图容器样式 */
+.file-thumbnail {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 确保图片和视频使用相同的容器大小 */
+.media-thumbnail,
+.video-thumbnail {
+  width: 200px;
+  height: 150px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background-color: #f5f5f5;
+}
+
+.thumbnail-mode .media-thumbnail,
+.thumbnail-mode .video-thumbnail,
+.thumbnail-mode .file-thumbnail {
+  width: 120px;
+  height: 80px;
+}
+
+/* 媒体覆盖层样式增强 */
+.media-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.media-thumbnail:hover .media-overlay,
+.video-thumbnail:hover .media-overlay {
+  opacity: 1;
 }

@@ -112,110 +112,103 @@
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
-/* 文件类型图标样式 */
-.media-preview .media-type-icon {
+/* 增强媒体类型和大小的显示样式 */
+.media-type-icon {
   position: absolute;
   top: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.7);
+  left: 8px;
+  background-color: rgba(0, 0, 0, 0.6);
   color: white;
-  padding: 4px 6px;
-  border-radius: 6px;
-  font-size: 12px;
-  backdrop-filter: blur(4px);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   z-index: 2;
+  backdrop-filter: blur(2px);
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
-.media-preview .media-type-icon .anticon {
-  margin-right: 4px;
+.media-type-text {
+  margin-left: 2px;
 }
 
-/* 文件大小指示器 */
-.media-preview .media-size-indicator {
+.media-size-indicator {
   position: absolute;
   bottom: 8px;
   left: 8px;
-  background: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.6);
   color: white;
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 11px;
-  backdrop-filter: blur(4px);
+  font-size: 10px;
   z-index: 2;
+  backdrop-filter: blur(2px);
+  font-weight: 500;
 }
 
-/* 改进的媒体信息区域 */
-.media-info {
-  padding: 12px 16px;
-  background: #fafafa;
-  border-top: 1px solid #f0f0f0;
-  position: relative;
-}
-
-.media-info::before {
-  content: '';
+/* 新增视频时长显示样式 */
+.media-duration-indicator {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
+  bottom: 8px;
+  right: 8px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  z-index: 2;
+  backdrop-filter: blur(2px);
+  font-weight: 500;
+}
+
+/* 增强媒体信息显示 */
+.media-info {
+  margin-top: 8px;
+  font-size: 12px;
+  overflow: hidden;
 }
 
 .media-filename {
-  font-size: 13px;
   font-weight: 500;
-  color: #262626;
-  margin-bottom: 4px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.4;
+  margin-bottom: 2px;
+}
+
+.media-meta {
   display: flex;
-  align-items: center;
-}
-
-.media-filename::before {
-  content: '📄';
-  margin-right: 6px;
-  font-size: 14px;
-}
-
-.media-size {
-  font-size: 11px;
+  justify-content: space-between;
   color: #8c8c8c;
-  margin-bottom: 8px;
-  line-height: 1.2;
-  display: flex;
-  align-items: center;
+  margin-bottom: 6px;
 }
 
-.media-size::before {
-  content: '💾';
-  margin-right: 4px;
+.media-size,
+.media-duration {
+  display: inline-block;
+  background-color: #f5f5f5;
+  padding: 1px 5px;
+  border-radius: 3px;
   font-size: 11px;
+  margin-right: 6px;
 }
 
-.media-info .ant-btn {
+/* 模态框中的媒体详情 */
+.media-details {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 8px 0;
+}
+
+.media-details span {
+  background-color: #f5f5f5;
   padding: 2px 8px;
-  height: auto;
-  border: 1px solid #d9d9d9;
-  box-shadow: none;
-  font-size: 12px;
-  line-height: 1.2;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.media-info .ant-btn:hover {
-  color: #1890ff;
-  background: #f0f8ff;
-  border-color: #1890ff;
-  transform: translateY(-1px);
-}
-
-.media-info .ant-space {
-  justify-content: flex-start;
+  border-radius: 4px;
+  font-size: 11px;
 }
 
 /* 消息气泡内的媒体样式 */
@@ -269,29 +262,29 @@
   .media-preview {
     max-width: 220px;
   }
-  
+
   .media-thumbnail img,
   .video-thumbnail video {
     max-width: 200px !important;
     max-height: 130px !important;
   }
-  
+
   .media-overlay {
     opacity: 0.8;
   }
-  
+
   .media-info {
     padding: 8px 12px;
   }
-  
+
   .media-filename {
     font-size: 12px;
   }
-  
+
   .media-size {
     font-size: 10px;
   }
-  
+
   .media-info .ant-btn {
     font-size: 11px;
     padding: 0 2px;
@@ -303,13 +296,13 @@
   .media-preview {
     max-width: 180px;
   }
-  
+
   .media-thumbnail img,
   .video-thumbnail video {
     max-width: 160px !important;
     max-height: 100px !important;
   }
-  
+
   .media-info {
     padding: 6px 10px;
   }
@@ -344,7 +337,8 @@
 }
 
 /* 缩放预览蒙版样式 */
-.zoom-mask, .image-zoom-mask {
+.zoom-mask,
+.image-zoom-mask {
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(2px);
   display: flex !important;
@@ -357,7 +351,8 @@
   transition: all 0.3s ease;
 }
 
-.zoom-mask:hover, .image-zoom-mask:hover {
+.zoom-mask:hover,
+.image-zoom-mask:hover {
   background: rgba(0, 0, 0, 0.7);
 }
 

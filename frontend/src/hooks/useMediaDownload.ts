@@ -228,7 +228,7 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       stopPolling();
       
       // 调用后端API取消下载
-      const response = await fetch(`${API_BASE}/api/media/cancel-download/${messageId}`, {
+      const response = await fetch(`${API_BASE}/media/cancel-download/${messageId}`, {
         method: 'POST'
       });
       
