@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
-import VirtualizedMessageList from './VirtualizedMessageList';
+import VirtualizedMessageList, { VirtualizedMessageListRef } from './VirtualizedMessageList';
 import MessageHeader from './MessageHeader';
 import PinnedMessages from './PinnedMessages';
 import MediaGallery from './MediaGallery';
@@ -18,6 +18,7 @@ import { useTelegramStore, useAuthStore, useTelegramUserStore } from '../../stor
 import './MessageArea.css';
 
 const { Text } = Typography;
+const PAGE_SIZE = 50; // 每次加载消息的数量
 
 interface MessageAreaProps {
   selectedGroup: TelegramGroup | null;
@@ -87,6 +88,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const internalContainerRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = propContainerRef || internalContainerRef;
+  const virtualListRef = useRef<VirtualizedMessageListRef>(null); // 添加虚拟列表引用
 
   // 消息引用映射 - 用于跳转到特定消息
   const messageRefs = useRef<Record<number, HTMLDivElement>>({});
@@ -202,6 +204,17 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const scrollToBottom = useCallback(() => {
     console.log('MessageArea - 执行滚动到底部');
     try {
+      // 优先使用VirtualizedMessageList的滚动方法
+      if (virtualListRef.current) {
+        console.log('MessageArea - 使用virtualListRef滚动');
+        virtualListRef.current.scrollToBottom();
+        // 更新状态
+        setShowScrollToBottom(false);
+        setUnreadCount(0);
+        return;
+      }
+
+      // 后备方法：使用messagesContainerRef滚动
       if (messagesContainerRef.current) {
         const container = messagesContainerRef.current;
         console.log('开始滚动前容器状态:', {
@@ -813,6 +826,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
               onScrollPositionChange={handleScrollPositionChange} // 添加滚动位置变化处理
               hasMore={hasMoreMessages}
               isLoadingMore={isLoadingMore}
+              ref={virtualListRef} // 添加ref，用于控制滚动
             />
           </>
         )}

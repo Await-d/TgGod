@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo, useState, forwardRef, useImperativeHandle } from 'react';
 import { TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
 import { useVirtualScroll } from '../../hooks/useVirtualScroll';
@@ -6,6 +6,11 @@ import { Typography } from 'antd';
 import './VirtualizedMessageList.css';
 
 const { Text } = Typography;
+
+// 向外部暴露的方法接口
+export interface VirtualizedMessageListRef {
+  scrollToBottom: () => void;
+}
 
 interface VirtualizedMessageListProps {
   messages: TelegramMessage[];
@@ -29,33 +34,36 @@ interface VirtualizedMessageListProps {
     clientHeight: number;
     scrollHeight: number;
     hasScrollableContent: boolean;
-  }) => void; // 新增：通知父组件滚动位置变化
+  }) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
 }
 
 const ESTIMATED_MESSAGE_HEIGHT = 120; // 估计的消息高度
 
-const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
-  messages,
-  currentTelegramUser,
-  user,
-  onReply,
-  onCreateRule,
-  onDelete,
-  onJumpToGroup,
-  onJumpToMessage,
-  onOpenGallery,
-  onUpdateDownloadState,
-  isMobile = false,
-  highlightedMessageId,
-  jumpToMessageId,
-  onJumpComplete,
-  onScrollToTop,
-  onScrollPositionChange, // 新增属性
-  hasMore = false,
-  isLoadingMore = false
-}) => {
+const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, VirtualizedMessageListProps>((
+  {
+    messages,
+    currentTelegramUser,
+    user,
+    onReply,
+    onCreateRule,
+    onDelete,
+    onJumpToGroup,
+    onJumpToMessage,
+    onOpenGallery,
+    onUpdateDownloadState,
+    isMobile = false,
+    highlightedMessageId,
+    jumpToMessageId,
+    onJumpComplete,
+    onScrollToTop,
+    onScrollPositionChange,
+    hasMore = false,
+    isLoadingMore = false
+  },
+  ref
+) => {
   const itemHeightCache = useRef<Map<number, number>>(new Map());
   const messageRefs = useRef<{ [key: number]: HTMLDivElement }>({});
   const lastScrollTopRef = useRef<number>(0);
@@ -112,6 +120,43 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
 
   // 消息容器引用
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // 向外暴露方法
+  useImperativeHandle(ref, () => ({
+    scrollToBottom: () => {
+      if (containerRef.current) {
+        const container = containerRef.current;
+        console.log('VirtualizedMessageList - 执行scrollToBottom', {
+          scrollHeight: container.scrollHeight,
+          clientHeight: container.clientHeight,
+          scrollTop: container.scrollTop
+        });
+
+        try {
+          // 方法1: 设置scrollTop
+          container.scrollTop = container.scrollHeight * 2;
+
+          // 方法2: 使用scrollTo
+          container.scrollTo({
+            top: container.scrollHeight * 2,
+            behavior: 'auto'
+          });
+        } catch (error) {
+          console.error('滚动失败:', error);
+        }
+
+        // 延迟检查滚动效果
+        setTimeout(() => {
+          if (!containerRef.current) return;
+          console.log('VirtualizedMessageList - 滚动后状态:', {
+            scrollHeight: containerRef.current.scrollHeight,
+            clientHeight: containerRef.current.clientHeight,
+            scrollTop: containerRef.current.scrollTop
+          });
+        }, 50);
+      }
+    }
+  }));
 
   // 自动滚动到底部（仅在初始加载时）
   useEffect(() => {
@@ -306,7 +351,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       })}
     </div>
   );
-};
+});
 
-// 使用 React.memo 优化重新渲染
-export default React.memo(VirtualizedMessageList);
+// 导出组件
+export default VirtualizedMessageList;
