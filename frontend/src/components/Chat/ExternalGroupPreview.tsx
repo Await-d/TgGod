@@ -123,43 +123,13 @@ const ExternalGroupPreview: React.FC<ExternalGroupPreviewProps> = ({
       if (response) {
         setGroupData(response);
       } else {
-        // 创建模拟数据
-        const mockData: GroupPreviewData = {
-          id: Math.floor(Math.random() * 10000),
-          title: linkInfo.username ? `@${linkInfo.username}` : '私有群组',
-          username: linkInfo.username,
-          description: '这是一个外部Telegram群组的预览信息。点击加入以查看完整内容。',
-          member_count: Math.floor(Math.random() * 10000) + 100,
-          is_joined: false,
-          is_public: !!linkInfo.username,
-          photo_url: undefined,
-          invite_hash: linkInfo.inviteHash,
-          category: '通用',
-          verification_status: 'none',
-          last_activity: '最近活跃'
-        };
-        setGroupData(mockData);
+        setError('无法获取群组信息');
       }
     } catch (error: any) {
       console.error('Failed to fetch group details:', error);
       setError('获取群组信息失败');
       
-      // 即使失败也显示基本信息
-      const linkInfo = parseTelegramUrl(url);
-      if (linkInfo) {
-        const fallbackData: GroupPreviewData = {
-          id: 0,
-          title: linkInfo.username ? `@${linkInfo.username}` : '未知群组',
-          username: linkInfo.username,
-          description: '无法获取群组详细信息',
-          member_count: 0,
-          is_joined: false,
-          is_public: !!linkInfo.username,
-          photo_url: undefined,
-          invite_hash: linkInfo.inviteHash
-        };
-        setGroupData(fallbackData);
-      }
+      // 不显示任何数据，让用户知道获取失败
     } finally {
       setLoading(false);
     }

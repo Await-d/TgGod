@@ -53,6 +53,7 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
   const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
   const [showExternalPreview, setShowExternalPreview] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // 解析Telegram链接
   const parseTelegramUrl = (url: string): TelegramLinkInfo | null => {
@@ -111,6 +112,7 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
     if (linkInfo.type !== 'group') return;
     
     setLoading(true);
+    setApiError(null);
     console.log('TelegramLinkPreview - fetchGroupPreview called', linkInfo);
     
     try {
@@ -129,38 +131,11 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
       if (response) {
         console.log('TelegramLinkPreview - group preview response:', response);
         setGroupPreview(response);
-      } else {
-        console.log('TelegramLinkPreview - no response from API');
-        // 如果API不可用，创建模拟数据用于测试UI
-        const mockPreview: GroupPreviewData = {
-          id: 999,
-          title: linkInfo.username ? `@${linkInfo.username}` : '私有群组',
-          description: '这是一个测试群组 (模拟数据)',
-          member_count: 1234,
-          is_joined: false,
-          is_public: !!linkInfo.username,
-          photo_url: undefined
-        };
-        setGroupPreview(mockPreview);
-        console.log('TelegramLinkPreview - using mock data:', mockPreview);
       }
     } catch (error: any) {
       console.error('Failed to fetch group preview:', error);
-      
-      // 如果API调用失败，也使用模拟数据来测试UI功能
-      const mockPreview: GroupPreviewData = {
-        id: 999,
-        title: linkInfo.username ? `@${linkInfo.username}` : '私有群组',
-        description: 'API不可用，显示模拟数据',
-        member_count: 1234,
-        is_joined: false,
-        is_public: !!linkInfo.username,
-        photo_url: undefined
-      };
-      setGroupPreview(mockPreview);
-      console.log('TelegramLinkPreview - API failed, using mock data:', mockPreview);
-      
-      notification.warning('使用模拟数据显示群组信息 (API不可用)');
+      setApiError(error?.response?.status === 404 ? 'API接口未实现' : '网络错误');
+      // 不使用模拟数据，保持 groupPreview 为 null
     } finally {
       setLoading(false);
     }
@@ -190,19 +165,14 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
         console.log('TelegramLinkPreview - join success response:', response);
         notification.success('成功加入群组！');
         setGroupPreview(prev => prev ? { ...prev, is_joined: true } : null);
-      } else {
-        // 模拟加入成功
-        console.log('TelegramLinkPreview - simulating join success');
-        notification.success('模拟加入群组成功！');
-        setGroupPreview(prev => prev ? { ...prev, is_joined: true } : null);
       }
     } catch (error: any) {
       console.error('Failed to join group:', error);
-      
-      // 即使API失败，也模拟加入成功用于测试UI功能
-      console.log('TelegramLinkPreview - API failed, simulating join success');
-      notification.warning('API不可用，模拟加入群组成功');
-      setGroupPreview(prev => prev ? { ...prev, is_joined: true } : null);
+      if (error?.response?.status === 404) {
+        notification.error('加入群组功能暂未实现');
+      } else {
+        notification.error('加入群组失败: ' + (error.message || '未知错误'));
+      }
     } finally {
       setJoining(false);
     }
@@ -289,7 +259,7 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
         );
       }
 
-      if (!groupPreview) {
+      if (apiError) {
         return (
           <Card size="small" className="telegram-link-preview error">
             <div className="preview-content">
@@ -297,8 +267,52 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
                 <Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#ff4d4f' }} />
               </div>
               <div className="preview-info">
-                <Title level={5} style={{ margin: 0 }}>群组信息获取失败</Title>
-                <Text type="secondary">无法获取群组详情</Text>
+                <Title level={5} style={{ margin: 0 }}>
+                  {linkInfo.username ? `@${linkInfo.username}` : '私有群组'}
+                </Title>
+                <Text type="secondary">{apiError}</Text>
+              </div>
+              <div className="preview-action">
+                <Button 
+                  type="default" 
+                  size="small"
+                  href={url}
+                  target="_blank"
+                  icon={<LinkOutlined />}
+                >
+                  在浏览器中打开
+                </Button>
+              </div>
+            </div>
+          </Card>
+        );
+      }
+
+      if (!groupPreview) {
+        return (
+          <Card size="small" className="telegram-link-preview basic">
+            <div className="preview-content">
+              <div className="preview-icon">
+                <Avatar icon={<TeamOutlined />} style={{ backgroundColor: '#1890ff' }} />
+              </div>
+              <div className="preview-info">
+                <Title level={5} style={{ margin: 0 }}>
+                  {linkInfo.username ? `@${linkInfo.username}` : '私有群组'}
+                </Title>
+                <Text type="secondary">
+                  {linkInfo.isPublic ? '公开群组' : '私有群组'}
+                </Text>
+              </div>
+              <div className="preview-action">
+                <Button 
+                  type="primary" 
+                  size="small"
+                  href={url}
+                  target="_blank"
+                  icon={<LinkOutlined />}
+                >
+                  在Telegram中打开
+                </Button>
               </div>
             </div>
           </Card>
