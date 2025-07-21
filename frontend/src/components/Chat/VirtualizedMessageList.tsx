@@ -21,7 +21,12 @@ interface VirtualizedMessageListProps {
   onJumpComplete?: () => void;
   // 滚动相关回调
   onScrollToTop?: () => void;
-  onScrollPositionChange?: (isNearBottom: boolean) => void; // 新增：通知父组件滚动位置变化
+  onScrollPositionChange?: (isNearBottom: boolean, containerInfo?: {
+    scrollTop: number;
+    clientHeight: number;
+    scrollHeight: number;
+    hasScrollableContent: boolean;
+  }) => void; // 新增：通知父组件滚动位置变化
   hasMore?: boolean;
   isLoadingMore?: boolean;
 }
@@ -187,15 +192,20 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       setIsScrolledFromBottom(newScrolledFromBottom);
     }
 
-    // 通知父组件滚动位置变化 - 只在有足够内容可滚动时才通知
-    if (onScrollPositionChange && hasScrollableContent) {
+    // 通知父组件滚动位置变化 - 传递完整的容器信息
+    if (onScrollPositionChange) {
       // 向上滚动且不在底部，确保通知
       if ((direction === 'up' && !isNearBottom) ||
         // 或者状态变化时通知
         lastNotifiedBottomState.current !== isNearBottom) {
 
         console.log(`通知滚动位置变化: isNearBottom=${isNearBottom}, direction=${direction}`);
-        onScrollPositionChange(isNearBottom);
+        onScrollPositionChange(isNearBottom, {
+          scrollTop,
+          clientHeight,
+          scrollHeight,
+          hasScrollableContent
+        });
         lastNotifiedBottomState.current = isNearBottom;
       }
     }

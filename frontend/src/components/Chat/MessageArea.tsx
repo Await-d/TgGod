@@ -4,7 +4,8 @@ import {
   ReloadOutlined,
   SyncOutlined,
   SettingOutlined,
-  ArrowDownOutlined
+  ArrowDownOutlined,
+  DownOutlined
 } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
@@ -209,41 +210,52 @@ const MessageArea: React.FC<MessageAreaProps> = ({
           scrollTop: container.scrollTop
         });
 
-        // 尝试强制更新滚动位置 - 多种方式结合
-        // 1. 直接设置scrollTop
-        container.scrollTop = container.scrollHeight + 10000; // 设置一个超大值确保滚到底
-
-        // 2. 使用scrollTo
-        try {
-          container.scrollTo({
-            top: container.scrollHeight,
-            behavior: 'auto'
-          });
-        } catch (e) {
-          console.warn('scrollTo方法失败:', e);
-        }
-
-        // 3. 使用scrollIntoView
-        if (messagesEndRef.current) {
-          try {
-            messagesEndRef.current.scrollIntoView({ block: 'end', behavior: 'auto' });
-          } catch (e) {
-            console.warn('scrollIntoView方法失败:', e);
-          }
-        }
-
-        // 延迟检查滚动效果
+        // 确保DOM已完全渲染
         setTimeout(() => {
-          console.log('滚动后容器状态:', {
-            scrollHeight: container.scrollHeight,
-            clientHeight: container.clientHeight,
-            scrollTop: container.scrollTop
-          });
-        }, 100);
+          try {
+            if (!messagesContainerRef.current) return;
 
-        // 更新状态
-        setShowScrollToBottom(false);
-        setUnreadCount(0);
+            // 使用多种方法滚动到底部
+            const container = messagesContainerRef.current;
+
+            // 方法1: 设置scrollTop
+            container.scrollTop = container.scrollHeight * 2; // 确保值足够大
+
+            // 方法2: 使用scrollTo
+            try {
+              container.scrollTo({
+                top: container.scrollHeight * 2,
+                behavior: 'instant' // 使用即时行为
+              });
+            } catch (e) {
+              console.warn('scrollTo方法失败:', e);
+              // 回退方法
+              container.scrollTop = container.scrollHeight * 2;
+            }
+
+            // 方法3: 使用scrollIntoView
+            if (messagesEndRef.current) {
+              try {
+                messagesEndRef.current.scrollIntoView({ block: 'end', behavior: 'instant' });
+              } catch (e) {
+                console.warn('scrollIntoView方法失败:', e);
+              }
+            }
+
+            // 检查滚动效果
+            console.log('滚动后容器状态:', {
+              scrollHeight: container.scrollHeight,
+              clientHeight: container.clientHeight,
+              scrollTop: container.scrollTop
+            });
+
+            // 更新状态
+            setShowScrollToBottom(false);
+            setUnreadCount(0);
+          } catch (error) {
+            console.error('延迟滚动失败:', error);
+          }
+        }, 10); // 极短延迟确保DOM已更新
       } else {
         console.error('消息容器引用为空');
       }
@@ -253,7 +265,12 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   }, []);
 
   // 更新滚动位置处理函数
-  const handleScrollPositionChange = useCallback((isNearBottom: boolean) => {
+  const handleScrollPositionChange = useCallback((isNearBottom: boolean, containerInfo?: {
+    scrollTop: number;
+    clientHeight: number;
+    scrollHeight: number;
+    hasScrollableContent: boolean;
+  }) => {
     console.log('MessageArea - 收到滚动位置变化通知:', {
       isNearBottom,
       containerExists: !!messagesContainerRef.current,
@@ -261,24 +278,20 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         scrollHeight: messagesContainerRef.current.scrollHeight,
         clientHeight: messagesContainerRef.current.clientHeight,
         scrollTop: messagesContainerRef.current.scrollTop
-      } : 'N/A'
+      } : 'N/A',
+      containerInfo // 记录传递的容器信息
     });
 
-    // 只有当不在底部且容器有足够内容可滚动时才显示按钮
-    if (messagesContainerRef.current) {
-      const container = messagesContainerRef.current;
-      const hasScrollableContent = container.scrollHeight > container.clientHeight + 50;
+    // 使用传递过来的容器信息而不是messagesContainerRef
+    const hasScrollableContent = containerInfo ? containerInfo.hasScrollableContent : false;
 
-      console.log('检查是否应显示按钮:', {
-        isNearBottom,
-        hasScrollableContent,
-        shouldShow: !isNearBottom && hasScrollableContent
-      });
+    console.log('检查是否应显示按钮:', {
+      isNearBottom,
+      hasScrollableContent,
+      shouldShow: !isNearBottom && hasScrollableContent
+    });
 
-      setShowScrollToBottom(!isNearBottom && hasScrollableContent);
-    } else {
-      setShowScrollToBottom(!isNearBottom);
-    }
+    setShowScrollToBottom(!isNearBottom && hasScrollableContent);
   }, []);
 
   // 单击事件处理 - 确保只有一个点击处理器
@@ -287,7 +300,31 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     e.stopPropagation(); // 阻止事件冒泡
     console.log('点击滚动按钮');
     scrollToBottom();
+    return false; // 确保不会继续冒泡
   }, [scrollToBottom]);
+
+  // 滚动到底部按钮渲染
+  const renderScrollToBottomButton = () => {
+    if (!showScrollToBottom) return null;
+
+    return (
+      <div
+        className={`scroll-to-bottom`}
+        onClick={handleScrollButtonClick}
+      >
+        <Badge count={unreadCount > 0 ? unreadCount : 0} overflowCount={99}>
+          <Button
+            type="primary"
+            shape="circle"
+            icon={<DownOutlined />}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={handleScrollButtonClick}
+          />
+        </Badge>
+      </div>
+    );
+  };
 
   // 媒体画廊相关函数
   const openMediaGallery = useCallback((targetMessage: TelegramMessage) => {
@@ -789,22 +826,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       </div>
 
       {/* 滚动到底部按钮 - 仅当需要显示时才渲染 */}
-      {showScrollToBottom && (
-        <div
-          className="scroll-to-bottom"
-          onClick={handleScrollButtonClick}
-        >
-          <Badge count={unreadCount} size="small" offset={[-5, 5]}>
-            <Button
-              type="primary"
-              shape="circle"
-              icon={<ArrowDownOutlined />}
-              size="large"
-              title={unreadCount > 0 ? `${unreadCount} 条新消息` : '回到底部'}
-            />
-          </Badge>
-        </div>
-      )}
+      {renderScrollToBottomButton()}
 
       {/* 媒体画廊模态框 */}
       <MediaGallery
