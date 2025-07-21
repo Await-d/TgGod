@@ -767,6 +767,7 @@
   background-color: #fff;
   border-bottom: 1px solid #f0f0f0;
   height: 48px;
+  z-index: 10; /* 添加z-index确保在顶层 */
 }
 
 .message-area-navigation .back-button {
@@ -834,4 +835,15 @@
   overflow: hidden;
   background-color: #f5f5f5;
   position: relative;
+}
+
+/* 确保消息列表和输入框布局正确 */
+.message-list {
+  flex: 1;
+  overflow-y: auto !important; /* 强制启用垂直滚动 */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* 允许flex子元素收缩 */
+  max-height: calc(100vh - 150px); /* 设置最大高度，留出输入框空间 */
 }

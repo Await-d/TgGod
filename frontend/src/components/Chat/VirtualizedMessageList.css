@@ -1,16 +1,12 @@
 .virtualized-message-container {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto !important; /* 强制允许垂直滚动 */
   position: relative;
   scroll-behavior: smooth;
-  min-height: 0;
-  /* 允许flex子元素收缩 */
-  padding: 16px 24px;
-  /* 添加内边距保持一致的间距 */
-  height: 100%;
-  /* 确保占满全部高度 */
-  max-height: 100%;
-  /* 限制最大高度 */
+  min-height: 0; /* 允许flex子元素收缩 */
+  padding: 16px 24px; /* 添加内边距保持一致的间距 */
+  height: 100%; /* 确保占满全部高度 */
+  max-height: calc(100vh - 180px); /* 设置最大高度，留出输入框和标题空间 */
 }
 
 /* 没有更多消息提示样式 */
