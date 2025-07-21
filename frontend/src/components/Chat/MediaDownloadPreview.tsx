@@ -57,7 +57,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
-  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
   
   // 当下载状态改变时，通知父组件
   useEffect(() => {
@@ -96,11 +95,8 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       if (pollInterval) {
         clearInterval(pollInterval);
       }
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
     };
-  }, [pollInterval, timeoutId]);
+  }, [pollInterval]);
 
   // 获取媒体类型图标
   const getMediaIcon = (mediaType: string) => {
@@ -196,10 +192,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       if (pollInterval) {
         clearInterval(pollInterval);
         setPollInterval(null);
-      }
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        setTimeoutId(null);
       }
       
       // 调用后端API取消下载
@@ -306,24 +298,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       }, 1000); // 每1秒轮询一次，更频繁的更新
       
       setPollInterval(newPollInterval);
-      
-      // 设置超时
-      const newTimeoutId = setTimeout(() => {
-        clearInterval(newPollInterval);
-        setPollInterval(null);
-        setDownloadState(prevState => {
-          if (prevState.status === 'downloading') {
-            return {
-              status: 'error',
-              error: '下载超时'
-            };
-          }
-          return prevState;
-        });
-        notification.error('下载超时，请重试');
-      }, 300000); // 5分钟超时
-      
-      setTimeoutId(newTimeoutId);
       
     } catch (error: any) {
       console.error('下载请求失败:', error);

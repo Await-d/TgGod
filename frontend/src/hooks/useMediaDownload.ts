@@ -44,14 +44,19 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       
       const newStatus: MediaDownloadStatus = {
         status: data.status,
-        progress: data.status === 'downloaded' ? 100 : 0,
+        progress: data.progress || (data.status === 'downloaded' ? 100 : 0),
         error: data.error,
-        fileSize: data.file_size,
+        fileSize: data.file_size || data.total_size,
         filePath: data.file_path,
         downloadUrl: data.download_url
       };
 
       setDownloadStatus(newStatus);
+      
+      // 如果检测到正在下载状态，启动轮询监控
+      if (data.status === 'downloading') {
+        startPolling();
+      }
       
       // 如果下载完成，触发回调
       if (data.status === 'downloaded' && data.file_path && onDownloadComplete) {
@@ -73,7 +78,7 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       }));
       return null;
     }
-  }, [messageId, onDownloadComplete, onDownloadError]);
+  }, [messageId, onDownloadComplete, onDownloadError, startPolling]);
 
   // 开始下载
   const startDownload = useCallback(async (force = false) => {
