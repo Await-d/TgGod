@@ -21,7 +21,7 @@ import { useNavigationHistory, NavigationHistoryEntry } from '../../hooks/useNav
 import MessageSearchBar from './MessageSearchBar';
 
 const { Text } = Typography;
-const PAGE_SIZE = 50; // 每次加载消息的数量
+const PAGE_SIZE = 100; // 每次加载消息的数量
 
 interface MessageAreaProps {
   selectedGroup: TelegramGroup | null;
@@ -113,7 +113,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const hasMoreMessages = propHasMore && hasMore;
   const { user } = useAuthStore();
   const { currentTelegramUser, setCurrentTelegramUser } = useTelegramUserStore();
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 100;
 
   // 下载状态管理 - 用于跟踪媒体文件下载进度和URL
   const [downloadStates, setDownloadStates] = useState<Record<number, any>>({});

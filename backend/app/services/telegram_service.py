@@ -157,7 +157,7 @@ class TelegramService:
             db.rollback()
             return None
     
-    async def get_messages(self, group_identifier, limit: int = 100, offset_id: int = 0) -> List[Dict[str, Any]]:
+    async def get_messages(self, group_identifier, limit: int = 200, offset_id: int = 0) -> List[Dict[str, Any]]:
         """获取群组消息 - 支持用户名、ID或实体对象"""
         try:
             await self.initialize()
@@ -790,7 +790,7 @@ class TelegramService:
         try:
             messages = []
             offset_id = 0
-            batch_size = 100
+            batch_size = 200
             max_messages = 10000  # 单月最大消息数限制
             
             while len(messages) < max_messages:

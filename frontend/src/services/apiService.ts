@@ -361,7 +361,7 @@ export const messageApi = {
     groupId: number, 
     messageId: number, 
     skip: number = 0, 
-    limit: number = 50
+    limit: number = 100
   ): Promise<TelegramMessage[]> => {
     return api.get(`/telegram/groups/${groupId}/messages/${messageId}/replies`, {
       params: { skip, limit }
