@@ -55,15 +55,15 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
   const messagesWithMetadata = useMemo(() => {
     return messages.map((message, index) => {
       const prevMessage = index > 0 ? messages[index - 1] : null;
-      
+
       // 计算是否显示头像
-      const showAvatar = !prevMessage || 
+      const showAvatar = !prevMessage ||
         prevMessage.sender_id !== message.sender_id ||
         (new Date(message.date).getTime() - new Date(prevMessage.date).getTime()) > 180000;
 
       // 计算是否为自己的消息
-      const isOwn = currentTelegramUser ? 
-        message.sender_id === currentTelegramUser.id : 
+      const isOwn = currentTelegramUser ?
+        message.sender_id === currentTelegramUser.id :
         user ? message.sender_id === user.id : message.is_own_message === true;
 
       return {
@@ -101,20 +101,6 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
 
   // 移除虚拟滚动相关的渲染函数
 
-  // 滚动事件处理
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLDivElement;
-    const { scrollTop } = target;
-    
-    // 检测是否在底部
-    checkIfAtBottom();
-    
-    // 检查是否滚动到顶部，触发加载更多
-    if (scrollTop <= 50 && hasMore && !isLoadingMore && onScrollToTop) {
-      onScrollToTop();
-    }
-  }, [hasMore, isLoadingMore, onScrollToTop, checkIfAtBottom]);
-
   // 消息容器引用，用于滚动控制
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -133,6 +119,20 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     }
   }, []);
 
+  // 滚动事件处理
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const { scrollTop } = target;
+
+    // 检测是否在底部
+    checkIfAtBottom();
+
+    // 检查是否滚动到顶部，触发加载更多
+    if (scrollTop <= 50 && hasMore && !isLoadingMore && onScrollToTop) {
+      onScrollToTop();
+    }
+  }, [hasMore, isLoadingMore, onScrollToTop, checkIfAtBottom]);
+
   // 自动滚动到底部（只在初始加载或用户在底部时）
   useEffect(() => {
     if (containerRef.current && messages.length > 0 && shouldAutoScroll) {
@@ -146,10 +146,10 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
 
   // 临时简化实现：直接渲染所有消息，避免虚拟滚动复杂性导致的布局问题
   return (
-    <div 
+    <div
       ref={containerRef}
       className="virtualized-message-container"
-      style={{ 
+      style={{
         flex: 1,
         overflow: 'auto',
         position: 'relative',
@@ -160,7 +160,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
       {/* 直接渲染所有消息 */}
       {messagesWithMetadata.map((messageData, index) => {
         const isHighlighted = highlightedMessageId === messageData.id;
-        
+
         return (
           <div
             key={`message-${messageData.id}`}
