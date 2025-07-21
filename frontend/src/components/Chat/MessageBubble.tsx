@@ -446,7 +446,6 @@ export default React.memo(MessageBubble, (prevProps, nextProps) => {
     prevProps.showAvatar === nextProps.showAvatar &&
     prevProps.isOwn === nextProps.isOwn &&
     prevProps.isMobile === nextProps.isMobile &&
-    prevProps.currentTelegramUser?.id === nextProps.currentTelegramUser?.id &&
     JSON.stringify(prevProps.message.reactions) === JSON.stringify(nextProps.message.reactions)
   );
 });
