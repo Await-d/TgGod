@@ -269,7 +269,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
     link.click();
     document.body.removeChild(link);
     notification.success({
-          message: '$1'
+          message: '下载已开始'
         });
   };
 
@@ -290,7 +290,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
               onError={(e) => {
                 console.error('Gallery image load error:', e);
                 notification.error({
-          message: '$1'
+          message: '图片加载失败'
         });
               }}
             />
@@ -310,7 +310,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
               onError={(e) => {
                 console.error('Gallery video load error:', e);
                 notification.error({
-          message: '$1'
+          message: '视频加载失败'
         });
               }}
             >
@@ -329,7 +329,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
               onError={(e) => {
                 console.error('Gallery audio load error:', e);
                 notification.error({
-          message: '$1'
+          message: '音频加载失败'
         });
               }}
             >

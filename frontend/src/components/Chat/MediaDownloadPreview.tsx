@@ -202,18 +202,18 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       if (response.ok) {
         const result = await response.json();
         notification.success({
-          message: '$1'
+          message: '下载已取消'
         });
       } else {
         console.warn('后端取消下载失败，但前端状态已重置');
         notification.info({
-          message: '$1'
+          message: '下载已取消，但后端可能仍在处理'
         });
       }
     } catch (error) {
       console.error('取消下载时发生错误:', error);
       notification.info({
-          message: '$1'
+          message: '下载已取消'
         });
     } finally {
       // 重置前端状态
@@ -246,7 +246,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
           downloadUrl: response.download_url
         });
         notification.success({
-          message: '$1'
+          message: '文件已存在，无需重新下载'
         });
         return;
       }
@@ -266,7 +266,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               totalSize: statusResponse.total_size || statusResponse.file_size
             });
             notification.success({
-          message: '$1'
+          message: '下载完成'
         });
             clearInterval(newPollInterval);
             setPollInterval(null);

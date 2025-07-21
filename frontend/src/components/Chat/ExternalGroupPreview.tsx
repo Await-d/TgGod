@@ -154,7 +154,7 @@ const ExternalGroupPreview: React.FC<ExternalGroupPreviewProps> = ({
 
       if (response || true) { // 总是假设成功，用于演示
         notification.success({
-          message: `$1`
+          message: `已成功加入群组: ${groupData.title}`
         });
         const updatedGroupData = { ...groupData, is_joined: true };
         setGroupData(updatedGroupData);
@@ -352,7 +352,7 @@ const ExternalGroupPreview: React.FC<ExternalGroupPreviewProps> = ({
                   icon={<RightOutlined />}
                   onClick={() => {
                     notification.info({
-          message: '$1'
+          message: '请在Telegram中查看群组消息'
         });
                     onClose();
                   }}

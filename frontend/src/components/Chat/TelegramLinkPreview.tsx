@@ -164,7 +164,7 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
       if (response) {
         console.log('TelegramLinkPreview - join success response:', response);
         notification.success({
-          message: '$1'
+          message: '已成功加入群组'
         });
         setGroupPreview(prev => prev ? { ...prev, is_joined: true } : null);
       }
@@ -172,7 +172,7 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
       console.error('Failed to join group:', error);
       if (error?.response?.status === 404) {
         notification.error({
-          message: '$1'
+          message: 'API接口未实现，请在Telegram中手动加入'
         });
       } else {
         notification.error('加入群组失败: ' + (error.message || '未知错误'));
@@ -431,7 +431,7 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
           console.log('TelegramLinkPreview - group joined from external preview:', groupInfo);
           setGroupPreview(prev => prev ? { ...prev, is_joined: true } : null);
           notification.success({
-          message: `$1`
+          message: `已成功加入群组: ${groupInfo.title}`
         });
         }}
       />
