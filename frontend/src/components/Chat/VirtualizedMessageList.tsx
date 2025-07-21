@@ -20,6 +20,10 @@ interface VirtualizedMessageListProps {
   highlightedMessageId?: number | null;
   jumpToMessageId?: number | null;
   onJumpComplete?: () => void;
+  // 新增滚动相关回调
+  onScrollToTop?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 const ESTIMATED_MESSAGE_HEIGHT = 120; // 估计的消息高度
@@ -39,7 +43,10 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
   isMobile = false,
   highlightedMessageId,
   jumpToMessageId,
-  onJumpComplete
+  onJumpComplete,
+  onScrollToTop,
+  hasMore = false,
+  isLoadingMore = false
 }) => {
   const itemHeightCache = useRef<Map<number, number>>(new Map());
   const messageRefs = useRef<{ [key: number]: HTMLDivElement }>({});
@@ -180,6 +187,17 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     className: 'virtualized-message-container'
   };
 
+  // 滚动事件处理
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const { scrollTop } = target;
+    
+    // 检查是否滚动到顶部，触发加载更多
+    if (scrollTop <= 100 && hasMore && !isLoadingMore && onScrollToTop) {
+      onScrollToTop();
+    }
+  }, [hasMore, isLoadingMore, onScrollToTop]);
+
   // 临时简化实现：直接渲染所有消息，避免虚拟滚动复杂性导致的布局问题
   return (
     <div 
@@ -189,6 +207,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
         overflow: 'auto',
         position: 'relative'
       }}
+      onScroll={handleScroll}
     >
       {/* 直接渲染所有消息 */}
       {messagesWithMetadata.map((messageData, index) => {

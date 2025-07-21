@@ -132,7 +132,7 @@
 /* 消息列表 */
 .message-list {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden; /* 移除外层滚动，让内部组件处理 */
   padding: 16px 24px;
   background: #f9f9f9;
   position: relative;

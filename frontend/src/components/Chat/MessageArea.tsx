@@ -651,23 +651,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     previousMessageCount.current = displayMessages.length;
   }, [displayMessages.length, showScrollToBottom]);
 
-  // 处理滚动加载更多
-  const handleScrollToTop = useCallback(() => {
-    if (!messagesContainerRef.current) return;
-    
-    const container = messagesContainerRef.current;
-    if (container.scrollTop <= 100 && hasMore && !loadingMore) {
-      loadMoreMessages();
-    }
-  }, [hasMore, loadingMore, loadMoreMessages]);
-
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScrollToTop);
-      return () => container.removeEventListener('scroll', handleScrollToTop);
-    }
-  }, [handleScrollToTop]);
+  // 滚动监听已移至VirtualizedMessageList组件内部处理
 
   // 渲染空状态
   if (!selectedGroup) {
@@ -771,6 +755,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
                 highlightedMessageId={highlightedMessageId}
                 jumpToMessageId={jumpToMessageId}
                 onJumpComplete={onJumpComplete}
+                onScrollToTop={loadMoreMessages}
+                hasMore={hasMore}
+                isLoadingMore={loadingMore}
               />
             </div>
           </>
