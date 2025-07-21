@@ -100,23 +100,18 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
   // 初始化时恢复URL状态 - 优先级最高
   useEffect(() => {
     // 只在首次加载时执行，且群组数据已经可用
-    if (groups.length > 0 && searchParams.has('group')) {
+    if (groups.length > 0) {
       const groupId = searchParams.get('group');
-      const group = groups.find(g => g.id.toString() === groupId);
-      
-      if (group) {
-        console.log('初始化：从URL恢复群组:', group.title, 'ID:', groupId);
-        setSelectedGroup(group);
-      }
-    }
-  }, [groups.length]); // 只依赖groups.length，确保只在群组数据首次加载时执行
-
-  // 监听URL参数变化和群组数据变化
-  useEffect(() => {
-    // 只有在没有URL参数的情况下才选择默认群组
-    if (groups.length > 0 && !searchParams.has('group')) {
-      // 只有在当前也没有选中群组时，才选择默认群组
-      if (!selectedGroup) {
+      if (groupId) {
+        const group = groups.find(g => g.id.toString() === groupId);
+        
+        if (group) {
+          console.log('初始化：从URL恢复群组:', group.title, 'ID:', groupId);
+          setSelectedGroup(group);
+        }
+      } 
+      // 如果没有URL参数且没有选中的群组，选择默认群组
+      else if (!selectedGroup) {
         const defaultGroup = groups.find(g => g.is_active) || groups[0];
         if (defaultGroup) {
           console.log('选择默认群组:', defaultGroup.title);
@@ -124,7 +119,21 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
         }
       }
     }
-  }, [groups, selectedGroup, selectGroup, searchParams]);
+  }, [groups.length, searchParams, setSelectedGroup, selectedGroup, selectGroup]); // 添加searchParams依赖
+
+  // 监听URL参数变化和群组数据变化 - 简化此逻辑以避免冲突
+  useEffect(() => {
+    // 如果URL中有group参数变化，处理它
+    const groupId = searchParams.get('group');
+    if (groupId && groups.length > 0) {
+      const group = groups.find(g => g.id.toString() === groupId);
+      // 如果URL中的群组ID与当前选中的不同，则更新选择
+      if (group && (!selectedGroup || selectedGroup.id.toString() !== groupId)) {
+        console.log('URL参数变化，切换群组:', group.title, 'ID:', groupId);
+        setSelectedGroup(group);
+      }
+    }
+  }, [searchParams, groups, selectedGroup, setSelectedGroup]);
 
   // 监听群组变化，同步到URL
   useEffect(() => {
@@ -133,15 +142,23 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     }
   }, [selectedGroup, syncOnGroupChange, syncGroupToUrl]);
 
-  // 页面刷新时保存状态
+  // 页面刷新时保存状态 - 增强此逻辑
   useEffect(() => {
     const handleBeforeUnload = () => {
       // 确保当前状态保存到URL
       if (selectedGroup && persistSelectedGroup) {
-        const params = new URLSearchParams(window.location.search);
-        params.set('group', selectedGroup.id.toString());
-        const newUrl = `${window.location.pathname}?${params.toString()}`;
-        window.history.replaceState(null, '', newUrl);
+        try {
+          const params = new URLSearchParams(window.location.search);
+          params.set('group', selectedGroup.id.toString());
+          const newUrl = `${window.location.pathname}?${params.toString()}`;
+          window.history.replaceState(null, '', newUrl);
+          
+          // 额外保存到sessionStorage作为备份
+          sessionStorage.setItem('last_selected_group_id', selectedGroup.id.toString());
+          console.log('已保存群组状态到URL和sessionStorage:', selectedGroup.id);
+        } catch (error) {
+          console.error('保存群组状态失败:', error);
+        }
       }
     };
 
@@ -151,6 +168,22 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [selectedGroup, persistSelectedGroup]);
+  
+  // 从sessionStorage恢复状态作为备份
+  useEffect(() => {
+    if (groups.length > 0 && !selectedGroup && !searchParams.has('group')) {
+      const lastGroupId = sessionStorage.getItem('last_selected_group_id');
+      if (lastGroupId) {
+        const group = groups.find(g => g.id.toString() === lastGroupId);
+        if (group) {
+          console.log('从sessionStorage恢复群组:', group.title, 'ID:', lastGroupId);
+          setSelectedGroup(group);
+          // 同步到URL
+          syncGroupToUrl(group);
+        }
+      }
+    }
+  }, [groups, selectedGroup, searchParams, setSelectedGroup, syncGroupToUrl]);
 
   // 获取当前URL中的群组ID
   const getCurrentGroupId = () => {

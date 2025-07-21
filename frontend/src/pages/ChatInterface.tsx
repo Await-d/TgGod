@@ -11,6 +11,7 @@ import { useMobileGestures, useIsMobile, useKeyboardHeight } from '../hooks/useM
 import { useChatGroupNavigation } from '../hooks/useGroupNavigation';
 import { useRealTimeMessages } from '../hooks/useRealTimeMessages';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { useLocation, useSearchParams } from 'react-router-dom';  // 新增导入
 import GroupList from '../components/Chat/GroupList';
 import MessageArea from '../components/Chat/MessageArea';
 import MessageInput from '../components/Chat/MessageInput';
@@ -29,9 +30,13 @@ import './ChatInterface.css';
 const { Title } = Typography;
 
 const ChatInterface: React.FC = () => {
+  // 添加URL相关hooks
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // 页面滚动控制 - 移除，允许正常滚动
   // useChatPageScrollControl();
-  
+
   // 移动端和平板检测
   const isMobile = useIsMobile();
   const [isTablet, setIsTablet] = useState(false);
@@ -39,7 +44,7 @@ const ChatInterface: React.FC = () => {
   const [isGroupListMini, setIsGroupListMini] = useState(false);
   const { keyboardHeight, isKeyboardVisible } = useKeyboardHeight();
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // 群组导航和状态管理 - 新增
   const {
     selectedGroup,
@@ -52,10 +57,10 @@ const ChatInterface: React.FC = () => {
     mergeMessages,
     prependMessages
   } = useChatGroupNavigation();
-  
+
   // 从 store 获取 addGroup 方法
   const { addGroup } = useTelegramStore();
-  
+
   // 实时消息管理 - 新增
   const {
     connectionStatus,
@@ -63,7 +68,7 @@ const ChatInterface: React.FC = () => {
     fetchLatestMessages,
     reconnect
   } = useRealTimeMessages(selectedGroup);
-  
+
   // 无限滚动管理 - 新增
   const {
     isLoadingMore,
@@ -92,7 +97,7 @@ const ChatInterface: React.FC = () => {
       maxPages: 50
     }
   );
-  
+
   // 状态管理
   const [chatState, setChatState] = useState<ChatState>({
     selectedGroup: null,
@@ -102,14 +107,14 @@ const ChatInterface: React.FC = () => {
     searchQuery: '',
     messageFilter: {}
   });
-  
+
   // 平板模式检测和响应
   useEffect(() => {
     const checkTabletMode = () => {
       const width = window.innerWidth;
       const newIsTablet = width > 768 && width <= 1200; // 平板模式范围
       setIsTablet(newIsTablet);
-      
+
       // 平板模式下自动调整群组列表宽度
       if (newIsTablet) {
         if (width <= 900) {
@@ -121,7 +126,7 @@ const ChatInterface: React.FC = () => {
         setGroupListWidth(380); // 桌面模式
       }
     };
-    
+
     checkTabletMode();
     window.addEventListener('resize', checkTabletMode);
     return () => window.removeEventListener('resize', checkTabletMode);
@@ -137,7 +142,7 @@ const ChatInterface: React.FC = () => {
     const maxWidth = isTablet ? 400 : 500;
     setGroupListWidth(Math.max(minWidth, Math.min(maxWidth, width)));
   }, [isTablet]);
-  
+
   const [replyTo, setReplyTo] = useState<TelegramMessage | null>(null);
   const [quotedMessage, setQuotedMessage] = useState<TelegramMessage | null>(null);
   const [contacts, setContacts] = useState<any[]>([]);
@@ -150,11 +155,11 @@ const ChatInterface: React.FC = () => {
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [ruleBaseMessage, setRuleBaseMessage] = useState<TelegramMessage | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
-  
+
   // 置顶消息状态 - 移除，不再需要单独的置顶消息组件
   // const [showPinnedMessages, setShowPinnedMessages] = useState(true);
   const [jumpToMessageId, setJumpToMessageId] = useState<number | null>(null);
-  
+
   // 同步选中群组到内部状态
   useEffect(() => {
     setChatState(prev => ({
@@ -171,6 +176,39 @@ const ChatInterface: React.FC = () => {
       groups: groups || []
     }));
   }, [groups]);
+
+  // 确保页面加载完成后，保存当前URL参数
+  useEffect(() => {
+    // 当页面加载时，检查当前URL中是否有group参数
+    const groupParam = searchParams.get('group');
+    console.log('当前URL中的群组参数:', groupParam);
+
+    // 如果有group参数，确保它在selectedGroup变化后依然保留
+    if (groupParam && selectedGroup && groupParam !== selectedGroup.id.toString()) {
+      console.log('同步选中群组到URL:', selectedGroup.id);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('group', selectedGroup.id.toString());
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [selectedGroup, searchParams, setSearchParams]);
+
+  // 监听浏览器前进后退操作
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const groupId = params.get('group');
+
+      if (groupId && (!selectedGroup || selectedGroup.id.toString() !== groupId)) {
+        console.log('检测到浏览器导航操作，恢复群组:', groupId);
+        navigateToGroup(groupId);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [selectedGroup, navigateToGroup]);
 
   // 监听消息加载完成，自动滚动到底部
   useEffect(() => {
@@ -203,7 +241,7 @@ const ChatInterface: React.FC = () => {
   // 更新移动端状态
   useEffect(() => {
     setChatState(prev => ({ ...prev, isMobile }));
-    
+
     // 移动端默认收起群组列表
     if (isMobile && !chatState.selectedGroup) {
       setChatState(prev => ({ ...prev, isGroupListCollapsed: true }));
@@ -218,7 +256,7 @@ const ChatInterface: React.FC = () => {
   // 处理群组选择 - 现在使用新的selectGroup方法
   const handleGroupSelect = useCallback((group: TelegramGroup) => {
     selectGroup(group);
-    
+
     // 在移动端选择群组后关闭侧边栏
     if (isMobile) {
       setChatState(prev => ({ ...prev, isGroupListCollapsed: true }));
@@ -232,29 +270,29 @@ const ChatInterface: React.FC = () => {
       totalGroups: groups.length,
       availableGroupIds: groups.map(g => g.id)
     });
-    
+
     // 首先在当前群组列表中查找
     let targetGroup = groups.find(group => group.id === groupId);
-    
+
     if (targetGroup) {
       console.log('ChatInterface - found target group in current list:', targetGroup);
       selectGroup(targetGroup);
       antMessage.success(`已跳转到${targetGroup!.title}`);
       return;
     }
-    
+
     // 如果在当前列表中找不到，尝试从API获取
     console.log('ChatInterface - target group not found in current list, fetching from API...');
     try {
       targetGroup = await telegramApi.getGroup(groupId);
       console.log('ChatInterface - fetched target group from API:', targetGroup);
-      
+
       if (!targetGroup) {
         console.error('ChatInterface - API returned undefined group');
         antMessage.error('无法获取群组信息');
         return;
       }
-      
+
       // 将获取到的群组添加到当前群组列表中（如果不存在）
       const existingGroup = groups.find(g => g.id === targetGroup!.id);
       if (!existingGroup) {
@@ -262,10 +300,10 @@ const ChatInterface: React.FC = () => {
         addGroup(targetGroup);
         console.log('ChatInterface - added new group to list:', targetGroup!.title);
       }
-      
+
       selectGroup(targetGroup);
       antMessage.success(`已跳转到${targetGroup!.title}`);
-      
+
     } catch (error) {
       console.error('ChatInterface - failed to fetch group from API:', error);
       antMessage.error(`无法找到群组 (ID: ${groupId})，可能已被删除或无权限访问`);
@@ -319,27 +357,27 @@ const ChatInterface: React.FC = () => {
   // 处理发送消息
   const handleSendMessage = useCallback(async (text: string) => {
     if (!chatState.selectedGroup) return;
-    
+
     try {
       setLoading(true);
-      
+
       // 构建消息发送请求
       const messageData = {
         text: text,
         reply_to_message_id: replyTo?.message_id,
       };
-      
+
       // 调用API发送消息
       const response = await messageApi.sendMessage(chatState.selectedGroup.id, messageData);
-      
+
       console.log('消息发送成功:', response);
-      
+
       // 清除回复状态
       setReplyTo(null);
-      
+
       // 可以在这里添加消息到本地状态，或者让MessageArea自动刷新
       // TODO: 可以考虑通过WebSocket实时接收新消息
-      
+
     } catch (error: any) {
       console.error('发送消息失败:', error);
       throw error; // 让MessageInput组件处理错误显示
@@ -351,14 +389,14 @@ const ChatInterface: React.FC = () => {
   // 处理消息刷新
   const handleRefreshMessages = useCallback(async () => {
     if (!selectedGroup) return;
-    
+
     try {
       setLoading(true);
-      
+
       // 重置状态并获取最新消息
       resetInfiniteScroll();
       await fetchLatestMessages(selectedGroup.id, 50);
-      
+
       antMessage.success('消息刷新成功！');
     } catch (error: any) {
       antMessage.error('刷新消息失败: ' + error.message);
@@ -371,17 +409,17 @@ const ChatInterface: React.FC = () => {
   // 处理消息同步
   const handleSyncMessages = useCallback(async () => {
     if (!selectedGroup) return;
-    
+
     try {
       setLoading(true);
-      
+
       // 调用同步API
       await telegramApi.syncGroupMessages(selectedGroup.id, 100);
-      
+
       // 同步完成后刷新消息列表
       resetInfiniteScroll();
       await fetchLatestMessages(selectedGroup.id, 50);
-      
+
       antMessage.success('消息同步成功！');
     } catch (error: any) {
       antMessage.error('同步消息失败: ' + error.message);
@@ -393,9 +431,9 @@ const ChatInterface: React.FC = () => {
 
   // 切换群组列表显示/隐藏
   const toggleGroupList = useCallback(() => {
-    setChatState(prev => ({ 
-      ...prev, 
-      isGroupListCollapsed: !prev.isGroupListCollapsed 
+    setChatState(prev => ({
+      ...prev,
+      isGroupListCollapsed: !prev.isGroupListCollapsed
     }));
   }, []);
 
@@ -474,7 +512,7 @@ const ChatInterface: React.FC = () => {
           allGroups={chatState.groups}
         />
       )}
-      
+
       {/* 引用消息显示 */}
       {quotedMessage && (
         <QuotedMessage
@@ -482,7 +520,7 @@ const ChatInterface: React.FC = () => {
           onRemove={handleRemoveQuote}
         />
       )}
-      
+
       {/* 消息输入组件 */}
       <MessageInput
         selectedGroup={chatState.selectedGroup}
@@ -496,15 +534,15 @@ const ChatInterface: React.FC = () => {
   );
 
   return (
-    <Layout 
-      className="chat-interface" 
+    <Layout
+      className="chat-interface"
       ref={chatContainerRef}
       style={{
         paddingBottom: isKeyboardVisible ? keyboardHeight : 0,
         transition: 'padding-bottom 0.3s ease'
       }}
     >
-      <div 
+      <div
         className="chat-body"
         style={{
           overflow: isSwiping ? 'hidden' : 'auto'
@@ -513,7 +551,7 @@ const ChatInterface: React.FC = () => {
         {/* 桌面端布局 */}
         {!isMobile ? (
           <div className={`desktop-layout ${isTablet ? 'tablet-mode' : ''}`}>
-            <div 
+            <div
               className={`group-list-panel ${chatState.isGroupListCollapsed ? 'collapsed' : ''} ${isGroupListMini ? 'mini-mode' : ''}`}
               style={{
                 width: chatState.isGroupListCollapsed ? 0 : (isGroupListMini ? 80 : groupListWidth),
@@ -544,8 +582,8 @@ const ChatInterface: React.FC = () => {
             >
               {renderGroupList()}
             </Drawer>
-            
-            <div 
+
+            <div
               className="mobile-message-panel"
               style={{
                 marginBottom: isKeyboardVisible ? `${keyboardHeight}px` : 0,
@@ -568,14 +606,14 @@ const ChatInterface: React.FC = () => {
                   <span className="status-dot"></span>
                 </div>
               </div>
-              
+
               {renderMessageArea()}
               {renderMessageInput()}
             </div>
           </>
         )}
       </div>
-      
+
       {/* 消息筛选抽屉 */}
       <MessageFilterDrawer
         visible={showFilterDrawer}
@@ -585,7 +623,7 @@ const ChatInterface: React.FC = () => {
         onApplyFilter={handleApplyFilter}
         isMobile={isMobile}
       />
-      
+
       {/* 消息搜索抽屉 */}
       <MessageSearchDrawer
         visible={showSearchDrawer}
@@ -597,7 +635,7 @@ const ChatInterface: React.FC = () => {
         }}
         isMobile={isMobile}
       />
-      
+
       {/* 消息下载模态框 */}
       <MessageDownloadModal
         visible={showDownloadModal}
@@ -608,7 +646,7 @@ const ChatInterface: React.FC = () => {
         }}
         isMobile={isMobile}
       />
-      
+
       {/* 群组设置模态框 */}
       <GroupSettingsModal
         visible={showGroupSettings}
@@ -621,7 +659,7 @@ const ChatInterface: React.FC = () => {
         }}
         isMobile={isMobile}
       />
-      
+
       {/* 快捷创建规则模态框 */}
       <QuickRuleModal
         visible={showRuleModal}
