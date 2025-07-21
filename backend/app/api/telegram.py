@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from telethon.tl.functions.messages import GetFullChatRequest
-from telethon.tl.functions.channels import GetParticipantRequest
+from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
+from telethon.tl.types import Channel, Chat, User
 from ..database import get_db
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..services.telegram_service import telegram_service
@@ -1480,27 +1481,48 @@ async def get_group_preview(
             # 通过用户名获取群组实体
             entity = await telegram_service.client.get_entity(username)
             
-            # 获取群组详细信息
-            full_info = await telegram_service.client(GetFullChatRequest(entity.id))
+            # 获取群组详细信息，需要根据类型使用不同的请求
+            full_info = None
+            if isinstance(entity, Channel):
+                # 频道或大群组使用 GetFullChannelRequest
+                full_info = await telegram_service.client(GetFullChannelRequest(entity))
+            elif isinstance(entity, Chat):
+                # 普通群组使用 GetFullChatRequest
+                full_info = await telegram_service.client(GetFullChatRequest(entity.id))
+            else:
+                raise HTTPException(status_code=400, detail="不支持的实体类型")
             
             # 检查是否已加入该群组
             is_joined = False
             try:
-                # 尝试获取群组成员状态
-                participant = await telegram_service.client(GetParticipantRequest(
-                    channel=entity,
-                    participant='me'
-                ))
-                is_joined = participant.participant is not None
-            except Exception:
+                if isinstance(entity, Channel):
+                    # 对于频道和大群组
+                    participant = await telegram_service.client(GetParticipantRequest(
+                        channel=entity,
+                        participant='me'
+                    ))
+                    is_joined = participant.participant is not None
+                elif isinstance(entity, Chat):
+                    # 对于普通群组，通过对话列表检查
+                    dialogs = await telegram_service.client.get_dialogs()
+                    is_joined = any(d.entity.id == entity.id for d in dialogs)
+            except Exception as e:
+                logger.warning(f"无法检查成员状态: {e}")
                 # 如果无法获取成员状态，默认为未加入
                 is_joined = False
             
             # 构建响应
+            description = None
+            if full_info:
+                if hasattr(full_info, 'full_chat') and hasattr(full_info.full_chat, 'about'):
+                    description = full_info.full_chat.about
+                elif hasattr(full_info, 'full_channel') and hasattr(full_info.full_channel, 'about'):
+                    description = full_info.full_channel.about
+            
             preview = GroupPreviewResponse(
                 id=entity.id,
                 title=entity.title,
-                description=full_info.full_chat.about if hasattr(full_info.full_chat, 'about') else None,
+                description=description,
                 member_count=getattr(entity, 'participants_count', None),
                 is_joined=is_joined,
                 is_public=True,  # 通过用户名访问的都是公开群组
@@ -1603,9 +1625,16 @@ async def join_group(
             # 获取群组实体
             entity = await telegram_service.client.get_entity(username)
             
-            # 加入群组
-            from telethon.tl.functions.channels import JoinChannelRequest
-            await telegram_service.client(JoinChannelRequest(entity))
+            # 加入群组，根据类型使用不同的方法
+            if isinstance(entity, Channel):
+                # 频道或大群组
+                from telethon.tl.functions.channels import JoinChannelRequest
+                await telegram_service.client(JoinChannelRequest(entity))
+            elif isinstance(entity, Chat):
+                # 普通群组需要邀请链接才能加入
+                raise HTTPException(status_code=400, detail="普通群组需要邀请链接才能加入")
+            else:
+                raise HTTPException(status_code=400, detail="不支持的群组类型")
             
             # 将群组添加到数据库
             group_info = await telegram_service.get_group_info(entity)
