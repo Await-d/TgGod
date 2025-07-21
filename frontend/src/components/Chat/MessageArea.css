@@ -465,29 +465,37 @@
   /* 改为fixed定位，确保始终可见 */
   bottom: 24px;
   right: 24px;
-  z-index: 1000;
-  animation: slideInUp 0.3s ease-out;
+  z-index: 9999 !important;
+  /* 提高z-index确保始终在最上层 */
+  animation: none !important;
+  /* 移除可能导致问题的动画 */
   pointer-events: auto;
   display: block !important;
   /* 强制显示 */
-  transition: transform 0.3s ease, opacity 0.3s ease;
-  will-change: transform, opacity;
-  transform: translateY(0) scale(1);
+  transition: none !important;
+  /* 移除过渡效果，避免干扰 */
+  will-change: auto;
+  transform: none !important;
+  /* 移除可能导致问题的变换 */
+  opacity: 1 !important;
+  /* 确保始终不透明 */
 }
 
 .scroll-to-bottom .ant-btn {
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.35) !important;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.5) !important;
   /* 增强阴影 */
   border: none;
   background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 48px;
-  height: 48px;
+  width: 50px !important;
+  height: 50px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .scroll-to-bottom .ant-btn:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.45) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.6) !important;
   /* 增强悬浮阴影 */
   background: linear-gradient(135deg, #40a9ff 0%, #69c0ff 100%);
 }
@@ -498,9 +506,12 @@
 }
 
 .scroll-to-bottom .ant-btn .anticon {
-  animation: bounce 1.5s ease-in-out infinite;
-  font-size: 20px;
+  font-size: 24px !important;
   /* 增大图标 */
+  animation: none !important;
+  /* 移除可能导致问题的动画 */
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .scroll-to-bottom .ant-badge-count {
@@ -526,17 +537,16 @@
   }
 }
 
+/* 移除自动隐藏类，避免按钮消失 */
 .scroll-to-bottom.auto-hidden {
-  opacity: 0.7;
-  /* 增大半透明状态的不透明度 */
-  transform: scale(0.95);
-  /* 缩小一点但保持可见 */
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
 }
 
 .scroll-to-bottom.auto-hidden:hover {
-  opacity: 1;
-  transform: scale(1);
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 @keyframes slideInUp {

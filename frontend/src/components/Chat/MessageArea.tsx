@@ -197,21 +197,40 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [propJumpToMessageId, jumpToMessage]);
 
+  // 更新滚动位置处理函数
+  const handleScrollPositionChange = useCallback((isNearBottom: boolean) => {
+    console.log('MessageArea - 收到滚动位置变化通知:', { isNearBottom });
+
+    // 强制设置按钮状态，无需使用函数式更新
+    setShowScrollToBottom(!isNearBottom);
+    setButtonVisible(true);
+
+    // 如果滚动到底部，清除未读计数
+    if (isNearBottom) {
+      setUnreadCount(0);
+    }
+
+    // 不再使用超时隐藏按钮
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = undefined;
+    }
+  }, []);
+
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
     console.log('MessageArea - 执行滚动到底部');
     try {
       if (messagesContainerRef.current) {
-        // 使用更可靠的滚动方法
         const container = messagesContainerRef.current;
+
         // 先强制滚动到底部
         container.scrollTop = container.scrollHeight;
 
-        // 然后平滑滚动确保视觉效果
+        // 然后使用平滑滚动确保视觉效果
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-          console.log('MessageArea - 滚动到底部完成');
-        }, 10);
+        }, 0);
 
         setShowScrollToBottom(false);
         setUnreadCount(0);
@@ -444,38 +463,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       }, 5000);
     }
   }, [showScrollToBottom]);
-
-  // 更新滚动位置处理函数
-  const handleScrollPositionChange = useCallback((isNearBottom: boolean) => {
-    console.log('MessageArea - 收到滚动位置变化通知:', { isNearBottom });
-    // 仅当位置变化时才更新状态，避免频繁切换
-    setShowScrollToBottom(prev => {
-      if (prev === !isNearBottom) return prev; // 状态未变，不更新
-      return !isNearBottom;
-    });
-
-    // 如果滚动到底部，清除未读计数
-    if (isNearBottom) {
-      setUnreadCount(0);
-    }
-
-    // 设置按钮可见性，但不要频繁切换或自动隐藏
-    setButtonVisible(true);
-
-    // 清除旧的隐藏计时器
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-      scrollTimeoutRef.current = undefined;
-    }
-
-    // 只有当明确不在底部时才考虑自动半透明
-    if (!isNearBottom) {
-      // 延长计时器时间，让按钮保持更长时间的可见性
-      scrollTimeoutRef.current = setTimeout(() => {
-        setButtonVisible(false);
-      }, 8000); // 增加到8秒
-    }
-  }, []);
 
   // 获取消息列表
   const fetchMessages = useCallback(async (
@@ -801,30 +788,27 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 滚动到底部按钮 - 强制显示，只根据状态控制透明度，添加CSS样式保证显示 */}
-      {showScrollToBottom && (
-        <div
-          className={`scroll-to-bottom ${!buttonVisible ? 'auto-hidden' : ''}`}
-          onMouseEnter={() => setButtonVisible(true)}
-          style={{
-            display: 'block', // 强制显示
-            opacity: showScrollToBottom ? 1 : 0, // 使用透明度控制可见性
-            pointerEvents: showScrollToBottom ? 'auto' : 'none', // 只有在需要显示时允许点击
-            zIndex: 1000, // 确保足够高的层级
-          }}
-        >
-          <Badge count={unreadCount} size="small" offset={[-5, 5]}>
-            <Button
-              type="primary"
-              shape="circle"
-              icon={<ArrowDownOutlined />}
-              onClick={scrollToBottom}
-              size="large"
-              title={unreadCount > 0 ? `${unreadCount} 条新消息` : '回到底部'}
-            />
-          </Badge>
-        </div>
-      )}
+      {/* 滚动到底部按钮 - 简化渲染条件，确保按钮显示 */}
+      <div
+        className={`scroll-to-bottom ${!buttonVisible ? 'auto-hidden' : ''}`}
+        onClick={scrollToBottom}
+        style={{
+          display: showScrollToBottom ? 'flex' : 'none',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}
+      >
+        <Badge count={unreadCount} size="small" offset={[-5, 5]}>
+          <Button
+            type="primary"
+            shape="circle"
+            icon={<ArrowDownOutlined />}
+            onClick={scrollToBottom}
+            size="large"
+            title={unreadCount > 0 ? `${unreadCount} 条新消息` : '回到底部'}
+          />
+        </Badge>
+      </div>
 
       {/* 媒体画廊模态框 */}
       <MediaGallery
