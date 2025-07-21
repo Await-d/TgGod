@@ -3,21 +3,31 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  margin-bottom: 6px; /* 减少底部间距 */
+  margin-bottom: 4px;
+  /* 减少底部间距 */
   animation: pinnedSlideIn 0.3s ease-out;
+  max-height: 40vh;
+  /* 限制最大高度 */
+  overflow: hidden;
 }
 
 .pinned-messages-container.mobile {
   position: sticky;
   top: 0;
   z-index: 20;
-  margin-bottom: 4px; /* 移动端进一步减少间距 */
+  margin-bottom: 2px;
+  /* 移动端进一步减少间距 */
+  max-height: 35vh;
+  /* 移动端更小的最大高度 */
 }
 
 /* 平板模式优化 */
 .pinned-messages-container.tablet {
-  margin-bottom: 4px; /* 减少平板模式间距 */
+  margin-bottom: 3px;
+  /* 减少平板模式间距 */
   z-index: 40;
+  max-height: 35vh;
+  /* 平板模式更小的最大高度 */
 }
 
 /* 置顶消息卡片 - 平板模式紧凑布局 */
@@ -28,6 +38,13 @@
   box-shadow: 0 2px 8px rgba(250, 173, 20, 0.15);
   transition: all 0.3s ease;
   overflow: hidden;
+  transform-origin: top center;
+}
+
+/* 折叠状态的卡片 - 更加紧凑 */
+.pinned-messages-card:not(.expanded) {
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(250, 173, 20, 0.1);
 }
 
 .pinned-messages-card.tablet-mode {
@@ -38,7 +55,8 @@
 }
 
 .pinned-messages-card.tablet-mode .pinned-header {
-  padding: 6px 10px;
+  padding: 4px 8px;
+  /* 进一步减少内边距 */
   background: rgba(250, 173, 20, 0.08);
 }
 
@@ -77,15 +95,34 @@
 .pinned-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px; /* 减少内边距 */
+  gap: 4px;
+  /* 减少间距 */
+  padding: 3px 8px;
+  /* 减少内边距 */
   background: rgba(250, 173, 20, 0.1);
   border-bottom: 1px solid rgba(250, 173, 20, 0.2);
+  min-height: 28px;
+  /* 设置最小高度 */
+  cursor: pointer;
+  /* 让整个头部可点击 */
+  user-select: none;
+  /* 防止文字被选中 */
+}
+
+/* 折叠状态下不显示底部边框 */
+.pinned-messages-card:not(.expanded) .pinned-header {
+  border-bottom: none;
+}
+
+/* 可点击提示 */
+.pinned-header:hover {
+  background-color: rgba(250, 173, 20, 0.15);
 }
 
 .pinned-icon {
   color: #faad14;
-  font-size: 16px;
+  font-size: 14px;
+  /* 减少图标大小 */
   flex-shrink: 0;
 }
 
@@ -93,7 +130,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  /* 减少间距 */
 }
 
 .pinned-pagination {
@@ -150,17 +188,19 @@
 }
 
 @keyframes dotPulse {
-  0% { 
+  0% {
     opacity: 1;
-    transform: scale(1); 
+    transform: scale(1);
   }
-  50% { 
+
+  50% {
     opacity: 0.7;
-    transform: scale(1.1); 
+    transform: scale(1.1);
   }
-  100% { 
+
+  100% {
     opacity: 1;
-    transform: scale(1); 
+    transform: scale(1);
   }
 }
 
@@ -172,12 +212,16 @@
 
 /* 置顶消息内容 */
 .pinned-content {
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
+/* 消息内容部分 - 进一步减少高度 */
 .pinned-content.visible {
-  max-height: 120px; /* 显著减少最大高度 */
+  max-height: 80px;
+  /* 大幅减少最大高度 */
   opacity: 1;
   transform: translateY(0);
 }
@@ -189,10 +233,12 @@
 }
 
 .pinned-message-content {
-  padding: 6px 10px; /* 减少内边距 */
+  padding: 4px 8px;
+  /* 减少内边距 */
   display: flex;
   flex-direction: column;
-  gap: 4px; /* 减少间距 */
+  gap: 2px;
+  /* 减少间距 */
   animation: contentSlideIn 0.3s ease-out;
 }
 
@@ -201,34 +247,40 @@
     opacity: 0;
     transform: translateX(10px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
-/* 发送者信息 */
+/* 发送者信息 - 更紧凑 */
 .pinned-sender {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  /* 减少间距 */
 }
 
 .pinned-date {
-  font-size: 12px;
+  font-size: 11px;
+  /* 减小字体 */
 }
 
-/* 消息文本 - 紧凑显示 */
+/* 消息文本 - 更紧凑 */
 .pinned-text {
   color: #262626;
-  line-height: 1.3; /* 减少行高 */
-  font-size: 13px; /* 减小字体大小 */
+  line-height: 1.2;
+  /* 减少行高 */
+  font-size: 12px;
+  /* 减小字体大小 */
 }
 
 .pinned-text .ant-typography {
   color: inherit;
-  font-size: 13px; /* 保持一致的字体大小 */
+  font-size: 12px;
+  /* 保持一致的字体大小 */
 }
 
 /* 媒体信息 */
@@ -240,18 +292,21 @@
   color: #8c8c8c;
 }
 
-/* 跳转按钮 */
+/* 跳转按钮 - 更小巧 */
 .pinned-jump {
   display: flex;
   justify-content: flex-end;
-  margin-top: 4px;
+  margin-top: 2px;
+  /* 减少上边距 */
 }
 
 .pinned-jump .ant-btn {
-  border-radius: 16px;
-  font-size: 12px;
-  height: 28px;
-  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  /* 减小字体 */
+  height: 22px;
+  /* 减小高度 */
+  padding: 0 8px;
 }
 
 /* 展开状态 */
@@ -266,40 +321,86 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
+/* 添加折叠/展开按钮样式 */
+.pinned-toggle-btn {
+  padding: 0 4px;
+  height: 22px;
+  width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  background-color: rgba(250, 173, 20, 0.1);
+  border: none;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.pinned-toggle-btn:hover {
+  background-color: rgba(250, 173, 20, 0.2);
+  transform: translateY(-1px);
+}
+
+.pinned-toggle-btn:active {
+  transform: translateY(0);
+}
+
 /* 移动端适配 - 更紧凑的布局 */
 @media (max-width: 768px) {
   .pinned-messages-container {
-    margin-bottom: 2px; /* 进一步减少移动端间距 */
+    margin-bottom: 2px;
+    /* 进一步减少移动端间距 */
   }
-  
+
   .pinned-messages-card {
     border-radius: 6px;
   }
-  
+
   .pinned-header {
-    padding: 3px 8px; /* 减少移动端头部内边距 */
+    padding: 2px 6px;
+    /* 减少移动端头部内边距 */
   }
-  
+
+  .pinned-icon {
+    font-size: 12px;
+  }
+
+  .pinned-info .ant-typography {
+    font-size: 12px;
+  }
+
   .pinned-message-content {
-    padding: 4px 8px; /* 减少移动端内容内边距 */
-    gap: 3px; /* 减少移动端间距 */
+    padding: 4px 8px;
+    /* 减少移动端内容内边距 */
+    gap: 3px;
+    /* 减少移动端间距 */
   }
-  
+
   .pinned-text {
-    font-size: 12px; /* 减小移动端字体 */
-    line-height: 1.2; /* 减少移动端行高 */
+    font-size: 12px;
+    /* 减小移动端字体 */
+    line-height: 1.2;
+    /* 减少移动端行高 */
   }
-  
+
   .pinned-jump .ant-btn {
     font-size: 10px;
-    height: 20px; /* 减小按钮高度 */
+    height: 20px;
+    /* 减小按钮高度 */
     padding: 0 6px;
+  }
+
+  .pinned-toggle-btn {
+    height: 20px;
+    width: 20px;
+    padding: 0 2px;
   }
 }
 
@@ -329,9 +430,17 @@
 }
 
 @keyframes pinnedPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* 自动播放进度条 */
@@ -365,9 +474,17 @@
 }
 
 @keyframes autoplayPulse {
-  0% { opacity: 0.8; }
-  50% { opacity: 1; }
-  100% { opacity: 0.8; }
+  0% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.8;
+  }
 }
 
 /* 置顶消息导航按钮 */

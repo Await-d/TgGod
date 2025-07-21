@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Typography, Button, Space, Spin, Empty, message as antMessage } from 'antd';
-import { 
-  PushpinOutlined, 
-  CloseOutlined, 
-  LeftOutlined, 
+import {
+  PushpinOutlined,
+  CloseOutlined,
+  LeftOutlined,
   RightOutlined,
   ArrowDownOutlined,
   PlayCircleOutlined,
@@ -32,20 +32,23 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   isMobile = false,
   isTablet = false
 }) => {
+  // 组件状态和变量声明部分修改
   const [pinnedMessages, setPinnedMessages] = useState<TelegramMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isExpanded, setIsExpanded] = useState(!isMobile); // 移动端默认收起
+  // 默认折叠状态，移动端和桌面端都默认折叠
+  const [isExpanded, setIsExpanded] = useState(false);
   const [autoPlay, setAutoPlay] = useState(false);
   const [autoPlayInterval, setAutoPlayInterval] = useState<NodeJS.Timeout | null>(null);
   const [autoPlayProgress, setAutoPlayProgress] = useState(0);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+  const [hasJumpedToMessage, setHasJumpedToMessage] = useState(false); // 添加跟踪状态
 
   // 获取置顶消息
   const fetchPinnedMessages = useCallback(async () => {
     if (!selectedGroup) return;
-    
+
     setLoading(true);
     try {
       const messages = await messageApi.getPinnedMessages(selectedGroup.id);
@@ -80,7 +83,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   // 切换到上一条置顶消息
   const handlePrevious = useCallback(() => {
     if (pinnedMessages.length <= 1) return;
-    
+
     stopAutoPlay(); // 停止自动播放
     setCurrentIndex(prev => {
       const newIndex = prev > 0 ? prev - 1 : pinnedMessages.length - 1;
@@ -91,7 +94,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   // 切换到下一条置顶消息
   const handleNext = useCallback(() => {
     if (pinnedMessages.length <= 1) return;
-    
+
     stopAutoPlay(); // 停止自动播放
     setCurrentIndex(prev => {
       const newIndex = prev < pinnedMessages.length - 1 ? prev + 1 : 0;
@@ -102,10 +105,10 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   // 自动播放功能
   const startAutoPlay = useCallback(() => {
     if (pinnedMessages.length <= 1) return;
-    
+
     setAutoPlay(true);
     setAutoPlayProgress(0);
-    
+
     // 进度条更新
     let progress = 0;
     const progressInterval = setInterval(() => {
@@ -115,7 +118,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
       }
       setAutoPlayProgress(progress);
     }, 100);
-    
+
     // 主切换间隔
     const interval = setInterval(() => {
       setCurrentIndex(prev => {
@@ -124,9 +127,9 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
         return newIndex;
       });
     }, 4000); // 每4秒切换一次，更快一些
-    
+
     setAutoPlayInterval(interval);
-    
+
     // 清理函数
     return () => {
       clearInterval(progressInterval);
@@ -152,13 +155,13 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (pinnedMessages.length <= 1) return;
-      
+
       // 只在没有焦点在输入框时响应
-      if (document.activeElement?.tagName === 'INPUT' || 
-          document.activeElement?.tagName === 'TEXTAREA') {
+      if (document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA') {
         return;
       }
-      
+
       if (event.key === 'ArrowLeft' && event.ctrlKey) {
         event.preventDefault();
         handlePrevious();
@@ -201,10 +204,10 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
 
   const handleTouchEnd = useCallback(() => {
     if (!touchStart || !touchEnd || pinnedMessages.length <= 1) return;
-    
+
     const deltaX = touchEnd.x - touchStart.x;
     const deltaY = Math.abs(touchEnd.y - touchStart.y);
-    
+
     // 只在水平滑动距离超过50px且垂直滑动小于30px时触发切换
     if (Math.abs(deltaX) > 50 && deltaY < 30) {
       if (deltaX > 0) {
@@ -215,24 +218,37 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
         handleNext();
       }
     }
-    
+
     setTouchStart(null);
     setTouchEnd(null);
   }, [touchStart, touchEnd, pinnedMessages.length, handlePrevious, handleNext]);
+
+  // 修改跳转函数，直接使用message_id
   const handleJumpToMessage = useCallback((messageId: number) => {
     try {
+      console.log('PinnedMessages - 跳转到消息:', messageId);
+
+      // 设置跟踪状态
+      setHasJumpedToMessage(true);
+
+      // 调用父组件提供的跳转函数
       onJumpToMessage(messageId);
-      if (isMobile) {
-        setIsExpanded(false);
-      }
+
+      // 折叠置顶消息
+      setIsExpanded(false);
+
+      // 添加防抖，防止过快多次调用
+      setTimeout(() => {
+        setHasJumpedToMessage(false);
+      }, 1000);
     } catch (error) {
       console.error('跳转到消息失败:', error);
-      // 降级处理：至少关闭移动端展开状态
-      if (isMobile) {
-        setIsExpanded(false);
-      }
+      // 错误处理
+      antMessage.error('跳转失败，请稍后再试');
+      setHasJumpedToMessage(false);
+      setIsExpanded(false);
     }
-  }, [onJumpToMessage, isMobile]);
+  }, [onJumpToMessage]);
 
   // 格式化消息文本
   const formatMessageText = (text: string | undefined, maxLength: number = 100) => {
@@ -250,6 +266,15 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
       minute: '2-digit'
     });
   };
+
+  // 添加一个点击处理函数，用于整个头部
+  const handleHeaderClick = useCallback((e: React.MouseEvent) => {
+    // 避免按钮点击事件重复触发
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    setIsExpanded(!isExpanded);
+  }, [isExpanded]);
 
   if (!visible || !selectedGroup) return null;
 
@@ -272,14 +297,14 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
 
   return (
     <div className={`pinned-messages-container ${isMobile ? 'mobile' : ''} ${isTablet ? 'tablet' : ''}`}>
-      <Card 
+      <Card
         className={`pinned-messages-card ${isExpanded ? 'expanded' : ''} ${autoPlay ? 'autoplay' : ''} ${isTablet ? 'tablet-mode' : ''}`}
         size="small"
       >
         {/* 自动播放进度条 */}
         {autoPlay && (
-          <div 
-            className="pinned-autoplay-progress" 
+          <div
+            className="pinned-autoplay-progress"
             style={{ width: `${autoPlayProgress}%` }}
           />
         )}
@@ -290,10 +315,23 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
           </div>
         )}
         {/* 头部信息 */}
-        <div className="pinned-header">
+        <div className="pinned-header" onClick={handleHeaderClick}>
           <div className="pinned-icon">
             <PushpinOutlined />
           </div>
+
+          {/* 展开/折叠按钮 - 桌面端和移动端都显示 */}
+          <Button
+            type="text"
+            size="small"
+            icon={<ArrowDownOutlined rotate={isExpanded ? 180 : 0} />}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+            className="pinned-toggle-btn"
+          />
+
           <div className="pinned-info">
             <Text strong>置顶消息</Text>
             {pinnedMessages.length > 1 && (
@@ -319,16 +357,8 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
               </div>
             )}
           </div>
+
           <div className="pinned-actions">
-            {/* 展开/收起按钮 (移动端) */}
-            {isMobile && (
-              <Button
-                type="text"
-                size="small"
-                icon={<ArrowDownOutlined rotate={isExpanded ? 180 : 0} />}
-                onClick={() => setIsExpanded(!isExpanded)}
-              />
-            )}
             {/* 自动播放按钮 */}
             {pinnedMessages.length > 1 && !isMobile && (
               <Button
@@ -376,7 +406,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
         </div>
 
         {/* 消息内容 */}
-        <div 
+        <div
           className={`pinned-content ${isExpanded || !isMobile ? 'visible' : 'hidden'}`}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -391,10 +421,10 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                 {formatDate(currentMessage.date)}
               </Text>
             </div>
-            
+
             {/* 消息文本 */}
             <div className="pinned-text">
-              <Paragraph 
+              <Paragraph
                 ellipsis={{ rows: isMobile ? 2 : 3, expandable: false }}
                 style={{ margin: 0 }}
               >
@@ -406,12 +436,12 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
             {currentMessage.media_type && (
               <div className="pinned-media">
                 <Text type="secondary">
-                  📎 {currentMessage.media_type === 'photo' ? '图片' : 
-                       currentMessage.media_type === 'video' ? '视频' : 
-                       currentMessage.media_type === 'document' ? '文档' : 
-                       currentMessage.media_type === 'audio' ? '音频' : 
-                       currentMessage.media_type === 'voice' ? '语音' : 
-                       '媒体文件'}
+                  📎 {currentMessage.media_type === 'photo' ? '图片' :
+                    currentMessage.media_type === 'video' ? '视频' :
+                      currentMessage.media_type === 'document' ? '文档' :
+                        currentMessage.media_type === 'audio' ? '音频' :
+                          currentMessage.media_type === 'voice' ? '语音' :
+                            '媒体文件'}
                 </Text>
               </div>
             )}
@@ -422,6 +452,8 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                 type="primary"
                 size="small"
                 onClick={() => handleJumpToMessage(currentMessage.message_id)}
+                loading={hasJumpedToMessage}
+                disabled={hasJumpedToMessage}
               >
                 跳转到消息
               </Button>
