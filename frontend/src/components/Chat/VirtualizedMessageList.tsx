@@ -153,7 +153,10 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
         flex: 1,
         overflow: 'auto',
         position: 'relative',
-        minHeight: 0 // 重要：允许flex子元素收缩
+        minHeight: 0, // 重要：允许flex子元素收缩
+        height: '100%', // 确保容器高度为100%
+        display: 'flex',
+        flexDirection: 'column'
       }}
       onScroll={handleScroll}
     >

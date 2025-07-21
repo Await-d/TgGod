@@ -2,25 +2,36 @@
 
 /* 基础布局重置 - 完全适配MainLayout，固定高度 */
 .chat-interface {
-  height: 100%;  /* 使用100%而不是100vh，适配MainLayout提供的高度 */
+  height: 100%;
+  /* 使用100%而不是100vh，适配MainLayout提供的高度 */
   display: flex;
   flex-direction: column;
   background: #f5f7fa;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  overflow: hidden; /* 阻止ChatInterface本身滚动 */
+  overflow: hidden;
+  /* 阻止ChatInterface本身滚动 */
 }
 
 /* 聊天界面在MainLayout中的容器设置 - 铺满整个屏幕 */
 .chat-interface-content {
-  margin: 0 !important;        /* 覆盖MainLayout的margin */
-  padding: 0 !important;       /* 覆盖MainLayout的padding */
-  background: #f5f7fa !important;  /* 覆盖MainLayout的background */
-  border-radius: 0 !important; /* 覆盖MainLayout的border-radius */
-  height: 100% !important;     /* 使用MainLayout提供的高度 */
-  overflow: hidden !important; /* 覆盖MainLayout的overflow: auto */
-  min-height: auto !important; /* 覆盖MainLayout的minHeight */
-  width: 100% !important;      /* 确保宽度铺满 */
-  max-width: none !important;  /* 移除最大宽度限制 */
+  margin: 0 !important;
+  /* 覆盖MainLayout的margin */
+  padding: 0 !important;
+  /* 覆盖MainLayout的padding */
+  background: #f5f7fa !important;
+  /* 覆盖MainLayout的background */
+  border-radius: 0 !important;
+  /* 覆盖MainLayout的border-radius */
+  height: 100% !important;
+  /* 使用MainLayout提供的高度 */
+  overflow: hidden !important;
+  /* 覆盖MainLayout的overflow: auto */
+  min-height: auto !important;
+  /* 覆盖MainLayout的minHeight */
+  width: 100% !important;
+  /* 确保宽度铺满 */
+  max-width: none !important;
+  /* 移除最大宽度限制 */
 }
 
 .chat-interface-content .chat-interface {
@@ -31,11 +42,14 @@
 .chat-body {
   flex: 1;
   display: flex;
-  min-height: 0;  /* 关键：允许flex子元素收缩 */
-  height: 100%;   /* 确保有确定的高度 */
+  min-height: 0;
+  /* 关键：允许flex子元素收缩 */
+  height: 100%;
+  /* 确保有确定的高度 */
   background: #f5f7fa;
   position: relative;
-  padding: 0;     /* 移除padding，铺满整个区域 */
+  padding: 0;
+  /* 移除padding，铺满整个区域 */
 }
 
 /* 桌面端布局 - 铺满整个屏幕，支持平板模式 */
@@ -43,14 +57,20 @@
   display: flex;
   width: 100%;
   height: 100%;
-  max-width: none;    /* 移除最大宽度限制 */
-  margin: 0;          /* 移除居中margin */
+  max-width: none;
+  /* 移除最大宽度限制 */
+  margin: 0;
+  /* 移除居中margin */
   background: #ffffff;
-  border-radius: 0;   /* 移除圆角，铺满整个区域 */
-  box-shadow: none;   /* 移除阴影 */
+  border-radius: 0;
+  /* 移除圆角，铺满整个区域 */
+  box-shadow: none;
+  /* 移除阴影 */
   overflow: hidden;
-  border: none;       /* 移除边框 */
-  min-height: 0;      /* 关键：允许flex子元素收缩 */
+  border: none;
+  /* 移除边框 */
+  min-height: 0;
+  /* 关键：允许flex子元素收缩 */
 }
 
 /* 平板模式布局优化 */
@@ -81,7 +101,8 @@
   position: relative;
   flex-shrink: 0;
   transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-  resize: horizontal; /* 允许水平拖拽调整宽度 */
+  resize: horizontal;
+  /* 允许水平拖拽调整宽度 */
   overflow: hidden;
 }
 
@@ -96,7 +117,8 @@
   width: 80px !important;
   min-width: 80px !important;
   max-width: 80px !important;
-  resize: none; /* 迷你模式下禁止调整大小 */
+  resize: none;
+  /* 迷你模式下禁止调整大小 */
 }
 
 .group-list-panel.mini-mode .group-list-header h4 {
@@ -132,28 +154,28 @@
     min-width: 280px;
     max-width: 400px;
   }
-  
+
   .group-list-panel.mini-mode {
     width: 70px !important;
     min-width: 70px !important;
     max-width: 70px !important;
   }
-  
+
   .group-item {
     padding: 12px 14px;
     margin: 2px 8px;
   }
-  
+
   .group-avatar {
     width: 42px;
     height: 42px;
     margin-right: 12px;
   }
-  
+
   .group-name {
     font-size: 14px;
   }
-  
+
   .member-count {
     font-size: 11px;
   }
@@ -314,8 +336,10 @@
   background: #ffffff;
   position: relative;
   min-width: 0;
-  min-height: 0;  /* 关键：允许flex子元素收缩 */
-  height: 100%;   /* 确保有确定的高度 */
+  min-height: 0;
+  /* 关键：允许flex子元素收缩 */
+  height: 100%;
+  /* 确保有确定的高度 */
 }
 
 /* 消息区域容器 - 修复滚动 */
@@ -323,11 +347,17 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  position: relative; /* 确保相对定位作为绝对定位按钮的参考 */
+  position: relative;
+  /* 确保相对定位作为绝对定位按钮的参考 */
   background: #ffffff;
-  overflow: hidden;
-  min-height: 0;  /* 关键：允许flex子元素收缩 */
-  z-index: 1; /* 确保容器层级正确 */
+  overflow: visible;
+  /* 改为visible允许内部元素滚动 */
+  min-height: 0;
+  /* 关键：允许flex子元素收缩 */
+  z-index: 1;
+  /* 确保容器层级正确 */
+  height: 100%;
+  /* 确保占满全高 */
 }
 
 /* 消息区域 - 正确的滚动设置 */
@@ -338,8 +368,10 @@
   padding: 16px;
   background: #ffffff;
   scroll-behavior: smooth;
-  min-height: 0;     /* 关键：允许收缩 */
-  max-height: 100%;  /* 防止超出容器 */
+  min-height: 0;
+  /* 关键：允许收缩 */
+  max-height: 100%;
+  /* 防止超出容器 */
 }
 
 /* 自定义滚动条 */
@@ -482,22 +514,22 @@
     padding: 8px 12px;
     min-height: 60px;
   }
-  
+
   .pinned-inline {
     margin-left: 8px;
   }
-  
+
   .pinned-content {
     padding: 2px 6px;
     font-size: 11px;
   }
-  
+
   .group-title-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
   }
-  
+
   .pinned-inline {
     margin-left: 0;
     width: 100%;
@@ -608,8 +640,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* 加载状态优化 */
@@ -623,8 +662,13 @@
 }
 
 @keyframes loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* 移除置顶消息样式 - 已改为内联显示 */

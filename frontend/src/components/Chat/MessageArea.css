@@ -56,10 +56,12 @@
     background: #faad14;
     transform: scale(1.02);
   }
+
   50% {
     background: #fff8e1;
     transform: scale(1.01);
   }
+
   100% {
     background: linear-gradient(135deg, #fff8e1 0%, #fff3c4 100%);
     transform: scale(1);
@@ -72,8 +74,10 @@
   flex-direction: column;
   height: 100%;
   background: #f9f9f9;
-  min-height: 0; /* 修复flex容器溢出 */
-  overflow: hidden; /* 防止整体溢出 */
+  min-height: 0;
+  /* 修复flex容器溢出 */
+  overflow: hidden;
+  /* 防止整体溢出 */
 }
 
 /* 消息区域空状态 */
@@ -132,12 +136,20 @@
 /* 消息列表 */
 .message-list {
   flex: 1;
-  overflow: hidden; /* 移除外层滚动，让内部组件处理 */
-  padding: 0; /* 移除外层padding，让内部组件处理 */
+  overflow: visible;
+  /* 改为visible，允许内部滚动条生效 */
+  padding: 0;
+  /* 移除外层padding，让内部组件处理 */
   background: #f9f9f9;
   position: relative;
-  min-height: 0; /* 修复flex子元素溢出 */
-  max-height: 100%; /* 限制最大高度 */
+  min-height: 0;
+  /* 修复flex子元素溢出 */
+  max-height: 100%;
+  /* 限制最大高度 */
+  display: flex;
+  /* 确保flex布局 */
+  flex-direction: column;
+  /* 垂直方向排列 */
 }
 
 /* 加载状态 */
@@ -168,6 +180,7 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -191,23 +204,35 @@
   border-radius: 4px;
 }
 
-.loading-skeleton-item:nth-child(1) { width: 70%; }
-.loading-skeleton-item:nth-child(2) { width: 90%; }
-.loading-skeleton-item:nth-child(3) { width: 60%; }
+.loading-skeleton-item:nth-child(1) {
+  width: 70%;
+}
+
+.loading-skeleton-item:nth-child(2) {
+  width: 90%;
+}
+
+.loading-skeleton-item:nth-child(3) {
+  width: 60%;
+}
 
 @keyframes skeletonShimmer {
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
 }
 
 @keyframes skeletonPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.7;
   }
@@ -247,11 +272,13 @@
 /* 消息头像 */
 .message-avatar {
   flex-shrink: 0;
-  align-self: flex-start; /* 改为flex-start使头像显示在左上角 */
+  align-self: flex-start;
+  /* 改为flex-start使头像显示在左上角 */
 }
 
 .message-bubble.own .message-avatar {
-  align-self: flex-start; /* 自己的消息头像也显示在上方 */
+  align-self: flex-start;
+  /* 自己的消息头像也显示在上方 */
 }
 
 /* 消息主体 */
@@ -411,7 +438,7 @@
     opacity: 0.8;
     pointer-events: auto;
   }
-  
+
   .message-bubble.active .message-actions {
     opacity: 1;
   }
@@ -437,9 +464,11 @@
   position: absolute;
   bottom: 24px;
   right: 24px;
-  z-index: 1000; /* 提高z-index确保显示 */
+  z-index: 1000;
+  /* 提高z-index确保显示 */
   animation: slideInUp 0.3s ease-out;
-  pointer-events: auto; /* 确保可点击 */
+  pointer-events: auto;
+  /* 确保可点击 */
   /* 在所有屏幕尺寸下显示 */
   display: block !important;
 }
@@ -476,10 +505,13 @@
 }
 
 @keyframes pulseRed {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     box-shadow: 0 2px 4px rgba(255, 77, 79, 0.3);
   }
+
   50% {
     transform: scale(1.1);
     box-shadow: 0 3px 6px rgba(255, 77, 79, 0.5);
@@ -500,6 +532,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -507,12 +540,19 @@
 }
 
 @keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {
+
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
     transform: translateY(0);
   }
+
   40% {
     transform: translateY(-3px);
   }
+
   60% {
     transform: translateY(-1px);
   }
@@ -523,11 +563,12 @@
   .scroll-to-bottom {
     display: block !important;
     position: absolute !important;
-    z-index: 1001 !important; /* 在宽屏下进一步提高层级 */
+    z-index: 1001 !important;
+    /* 在宽屏下进一步提高层级 */
     bottom: 24px !important;
     right: 24px !important;
   }
-  
+
   .scroll-to-bottom .ant-btn {
     box-shadow: 0 4px 16px rgba(24, 144, 255, 0.4) !important;
   }
@@ -538,53 +579,53 @@
   .message-header {
     padding: 12px 16px;
   }
-  
+
   .header-group-info {
     gap: 8px;
   }
-  
+
   .group-meta {
     flex-wrap: wrap;
   }
-  
+
   .group-description {
     display: none;
   }
-  
+
   .message-list {
     padding: 12px 16px;
   }
-  
+
   .message-bubble {
     margin-bottom: 12px;
     gap: 8px;
   }
-  
+
   .message-body {
     max-width: 85%;
     min-width: 150px;
   }
-  
+
   .message-bubble-content {
     padding: 10px 12px;
     border-radius: 10px;
   }
-  
+
   .message-sender-info {
     padding: 0 8px;
   }
-  
+
   .scroll-to-bottom {
     bottom: 16px;
     right: 16px;
   }
-  
+
   .scroll-to-bottom .ant-btn {
     width: 48px;
     height: 48px;
     font-size: 18px;
   }
-  
+
   .message-actions {
     opacity: 1;
   }
@@ -618,6 +659,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -635,9 +677,12 @@
 }
 
 @keyframes highlight-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     background: linear-gradient(135deg, #fff7e6 0%, #ffd666 50%, #fff7e6 100%);
   }
+
   50% {
     background: linear-gradient(135deg, #fadb14 0%, #ffc53d 50%, #fadb14 100%);
   }

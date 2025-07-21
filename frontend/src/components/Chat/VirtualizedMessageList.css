@@ -3,8 +3,14 @@
   overflow-y: auto;
   position: relative;
   scroll-behavior: smooth;
-  min-height: 0; /* 允许flex子元素收缩 */
-  padding: 16px 24px; /* 添加内边距保持一致的间距 */
+  min-height: 0;
+  /* 允许flex子元素收缩 */
+  padding: 16px 24px;
+  /* 添加内边距保持一致的间距 */
+  height: 100%;
+  /* 确保占满全部高度 */
+  max-height: 100%;
+  /* 限制最大高度 */
 }
 
 .virtual-content {
@@ -28,6 +34,7 @@
   0% {
     background-color: rgba(24, 144, 255, 0.3);
   }
+
   100% {
     background-color: rgba(24, 144, 255, 0.1);
   }
@@ -68,7 +75,7 @@
   .virtualized-message-container::-webkit-scrollbar {
     width: 3px;
   }
-  
+
   .virtual-message-item {
     padding: 0 4px;
   }
