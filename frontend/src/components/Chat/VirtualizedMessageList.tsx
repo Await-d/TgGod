@@ -53,6 +53,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
   const lastScrollTopRef = useRef<number>(0);
   const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('down');
   const [isScrolledFromBottom, setIsScrolledFromBottom] = useState<boolean>(false);
+  const [hasInitialized, setHasInitialized] = useState<boolean>(false); // 添加初始化状态标记
 
   // 缓存消息渲染数据，避免重复计算
   const messagesWithMetadata = useMemo(() => {
@@ -105,68 +106,65 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
 
   // 自动滚动到底部（仅在初始加载时）
   useEffect(() => {
-    if (containerRef.current && messages.length > 0) {
+    // 只在首次渲染且消息加载后执行一次
+    if (!hasInitialized && containerRef.current && messages.length > 0) {
       const container = containerRef.current;
 
-      // 延迟滚动，确保DOM更新完成
-      setTimeout(() => {
+      // 使用requestAnimationFrame确保DOM已更新
+      requestAnimationFrame(() => {
         console.log('VirtualizedMessageList - 初始自动滚动到底部');
         container.scrollTop = container.scrollHeight;
-        // 通知父组件已滚动到底部
-        if (onScrollPositionChange) {
-          onScrollPositionChange(true);
-        }
-      }, 200);
+        // 标记为已初始化
+        setHasInitialized(true);
+      });
     }
-  }, []); // 仅在初始挂载时执行一次
+  }, [messages.length, hasInitialized]);
 
-  // 检测滚动位置是否在底部
+  // 检测滚动位置是否在底部 - 避免在检测函数中调用状态更新
   const checkIfNearBottom = useCallback(() => {
     if (containerRef.current) {
       const container = containerRef.current;
       const threshold = 100; // 增大阈值到100px
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
 
-      console.log('VirtualizedMessageList - 检测滚动位置:', {
-        scrollTop: container.scrollTop,
-        clientHeight: container.clientHeight,
-        scrollHeight: container.scrollHeight,
-        isNearBottom
-      });
-
-      // 如果滚动位置发生变化，通知父组件
-      if (onScrollPositionChange) {
-        setIsScrolledFromBottom(!isNearBottom);
-        onScrollPositionChange(isNearBottom);
+      // 移除调试日志，避免过多输出
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('VirtualizedMessageList - 检测滚动位置:', {
+          scrollTop: container.scrollTop,
+          clientHeight: container.clientHeight,
+          scrollHeight: container.scrollHeight,
+          isNearBottom
+        });
       }
 
       return isNearBottom;
     }
     return true;
-  }, [onScrollPositionChange]);
+  }, []);
 
-  // 处理消息列表变化时的滚动
+  // 处理消息列表变化时的滚动 - 避免重复状态更新
   useEffect(() => {
-    if (containerRef.current && messages.length > 0) {
+    // 只有在已初始化后才处理后续消息变化
+    if (hasInitialized && containerRef.current && messages.length > 0) {
       const container = containerRef.current;
 
       // 检查是否在底部或接近底部
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 100;
+      const isNearBottom = checkIfNearBottom();
 
       // 如果在底部，随着新消息自动滚动
       if (isNearBottom) {
-        console.log('VirtualizedMessageList - 新消息自动滚动到底部');
-        setTimeout(() => {
+        // 使用requestAnimationFrame确保在渲染后执行
+        requestAnimationFrame(() => {
           container.scrollTop = container.scrollHeight;
-        }, 50);
+        });
       }
     }
-  }, [messages.length]);
+  }, [messages.length, hasInitialized, checkIfNearBottom]);
 
-  // 滚动事件处理
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+  // 滚动事件处理 - 添加防抖，避免频繁触发
+  const handleScroll = useCallback(debounce((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
-    const { scrollTop, scrollHeight, clientHeight } = target;
+    const { scrollTop } = target;
 
     // 确定滚动方向
     const direction = scrollTop > lastScrollTopRef.current ? 'down' : 'up';
@@ -175,33 +173,46 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
 
     // 检查是否在底部
     const isNearBottom = checkIfNearBottom();
+    const wasScrolledFromBottom = isScrolledFromBottom;
 
-    // 当用户向上滚动时，显示滚动到底部按钮
-    if (direction === 'up' && !isNearBottom) {
-      // 通过父组件的回调通知需要显示按钮
+    // 只在状态发生变化时更新和通知
+    if (wasScrolledFromBottom !== !isNearBottom) {
+      setIsScrolledFromBottom(!isNearBottom);
+
+      // 只有在状态确实变化时才通知父组件
       if (onScrollPositionChange) {
-        onScrollPositionChange(false);
+        onScrollPositionChange(isNearBottom);
       }
     }
 
     // 检查是否滚动到顶部，触发加载更多
-    console.log(`滚动检测: scrollTop=${scrollTop}, direction=${direction}, isNearBottom=${isNearBottom}, hasMore=${hasMore}, isLoadingMore=${isLoadingMore}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`滚动检测: scrollTop=${scrollTop}, direction=${direction}, isNearBottom=${isNearBottom}, hasMore=${hasMore}, isLoadingMore=${isLoadingMore}`);
+    }
 
     if (scrollTop <= 50 && !isLoadingMore && onScrollToTop) {
       console.log('触发加载更多历史消息!');
       onScrollToTop();
     }
-  }, [isLoadingMore, onScrollToTop, checkIfNearBottom, onScrollPositionChange, hasMore]);
+  }, 100), [isLoadingMore, onScrollToTop, checkIfNearBottom, onScrollPositionChange, hasMore, isScrolledFromBottom]);
 
-  // 初始检查滚动位置
-  useEffect(() => {
-    if (containerRef.current) {
-      // 初始化时检查一次滚动位置
-      setTimeout(() => {
-        checkIfNearBottom();
-      }, 100);
-    }
-  }, [checkIfNearBottom]);
+  // 辅助函数：防抖函数
+  function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
+    let timeout: NodeJS.Timeout | null = null;
+
+    return (...args: Parameters<T>) => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+
+      timeout = setTimeout(() => {
+        func(...args);
+      }, wait);
+    };
+  }
+
+  // 移除可能导致重复状态更新的初始检查
+  // 初始检查滚动位置的useEffect已移除
 
   return (
     <div
