@@ -157,7 +157,7 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
         error: undefined
       }));
 
-      const response = await fetch(`${API_BASE}/api/media/download/${messageId}?force=${force}`, {
+      const response = await fetch(`${API_BASE}/api/media/start-download/${messageId}?force=${force}`, {
         method: 'POST',
         signal: abortControllerRef.current.signal
       });

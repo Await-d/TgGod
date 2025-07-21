@@ -199,7 +199,7 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
       
       // 调用后端API开始下载
       const apiBase = process.env.REACT_APP_API_URL || '';
-      const response = await fetch(`${apiBase}/api/media/download/${messageId}`, {
+      const response = await fetch(`${apiBase}/api/media/start-download/${messageId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

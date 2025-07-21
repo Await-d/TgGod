@@ -580,7 +580,7 @@ export const mediaApi = {
     media_type?: string;
     estimated_size?: number;
   }> => {
-    return api.post(`/media/download/${messageId}`, {}, { params: { force } });
+    return api.post(`/media/start-download/${messageId}`, {}, { params: { force } });
   },
 
   // 获取媒体下载状态

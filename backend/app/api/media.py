@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 import os
 import uuid
 import logging
+import mimetypes
 from ..database import get_db, SessionLocal
 from ..models import TelegramMessage
 from ..services.telegram_service import TelegramService
@@ -48,7 +50,7 @@ def build_media_url(file_path: str) -> str:
     # 如果无法确定，使用文件名
     return f"/media/{os.path.basename(file_path)}"
 
-@router.post("/download/{message_id}")
+@router.post("/start-download/{message_id}")
 async def download_media_file(
     message_id: int,
     background_tasks: BackgroundTasks,
@@ -339,6 +341,75 @@ async def delete_media_file(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"删除文件失败: {str(e)}"
+        )
+
+@router.get("/download/{message_id}")
+async def serve_media_file(
+    message_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    提供媒体文件下载服务
+    
+    Args:
+        message_id: 消息ID
+        db: 数据库会话
+    
+    Returns:
+        媒体文件响应
+    """
+    message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="消息不存在"
+        )
+    
+    if not message.media_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该消息不包含媒体文件"
+        )
+    
+    if not message.media_downloaded or not message.media_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="媒体文件未下载"
+        )
+    
+    if not os.path.exists(message.media_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="媒体文件不存在"
+        )
+    
+    try:
+        # 获取MIME类型
+        mime_type, _ = mimetypes.guess_type(message.media_path)
+        if not mime_type:
+            # 根据媒体类型设置默认MIME类型
+            mime_type_mapping = {
+                'photo': 'image/jpeg',
+                'video': 'video/mp4',
+                'document': 'application/octet-stream',
+                'audio': 'audio/mpeg',
+                'voice': 'audio/ogg'
+            }
+            mime_type = mime_type_mapping.get(message.media_type, 'application/octet-stream')
+        
+        # 设置文件名
+        filename = message.media_filename or f"media_{message_id}"
+        
+        return FileResponse(
+            path=message.media_path,
+            media_type=mime_type,
+            filename=filename
+        )
+    except Exception as e:
+        logger.error(f"提供媒体文件失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"提供媒体文件失败: {str(e)}"
         )
 
 async def start_download_worker():
