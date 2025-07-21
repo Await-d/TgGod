@@ -29,8 +29,15 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
   
   const [isLoading, setIsLoading] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout>();
-  const progressIntervalRef = useRef<NodeJS.Timeout>();
   const abortControllerRef = useRef<AbortController>();
+
+  // 停止轮询
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = undefined;
+    }
+  }, []);
 
   // 获取下载状态
   const fetchDownloadStatus = useCallback(async () => {
@@ -53,11 +60,6 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
 
       setDownloadStatus(newStatus);
       
-      // 如果检测到正在下载状态，启动轮询监控
-      if (data.status === 'downloading') {
-        startPolling();
-      }
-      
       // 如果下载完成，触发回调
       if (data.status === 'downloaded' && data.file_path && onDownloadComplete) {
         onDownloadComplete(data.file_path);
@@ -78,7 +80,61 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       }));
       return null;
     }
-  }, [messageId, onDownloadComplete, onDownloadError, startPolling]);
+  }, [messageId, onDownloadComplete, onDownloadError]);
+
+  // 开始轮询状态 - 仅使用真实后端数据
+  const startPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+    
+    // 每1秒检查一次真实状态
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/media/download-status/${messageId}`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        const newStatus: MediaDownloadStatus = {
+          status: data.status,
+          progress: data.progress || (data.status === 'downloaded' ? 100 : 0),
+          error: data.error,
+          fileSize: data.file_size || data.total_size,
+          filePath: data.file_path,
+          downloadUrl: data.download_url
+        };
+
+        setDownloadStatus(newStatus);
+        
+        if (data.status === 'downloaded' && data.file_path && onDownloadComplete) {
+          onDownloadComplete(data.file_path);
+        }
+        
+        if (data.status === 'download_failed' && data.error && onDownloadError) {
+          onDownloadError(data.error);
+        }
+        
+        if (data.status === 'downloaded' || data.status === 'download_failed') {
+          stopPolling();
+        }
+      } catch (error) {
+        console.error('Failed to poll download status:', error);
+      }
+    }, 1000);
+  }, [messageId, onDownloadComplete, onDownloadError, stopPolling]);
+
+  // 在fetchDownloadStatus中添加轮询启动逻辑
+  const fetchDownloadStatusWithPolling = useCallback(async () => {
+    const data = await fetchDownloadStatus();
+    
+    // 如果检测到正在下载状态，启动轮询监控
+    if (data?.status === 'downloading') {
+      startPolling();
+    }
+    
+    return data;
+  }, [fetchDownloadStatus, startPolling]);
 
   // 开始下载
   const startDownload = useCallback(async (force = false) => {
@@ -153,55 +209,7 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
     } finally {
       setIsLoading(false);
     }
-  }, [messageId, isLoading, onDownloadComplete, onDownloadError]);
-
-  // 开始轮询状态
-  const startPolling = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-    }
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-    }
-    
-    // 模拟进度增长（因为后端没有实时进度）
-    let progress = 0;
-    progressIntervalRef.current = setInterval(() => {
-      progress += Math.random() * 15; // 随机增长
-      if (progress > 95) progress = 95; // 最多到95%，等待实际完成
-      
-      setDownloadStatus(prev => 
-        prev.status === 'downloading' 
-          ? { ...prev, progress: Math.min(progress, 95) }
-          : prev
-      );
-    }, 500);
-
-    // 每2秒检查一次实际状态
-    pollIntervalRef.current = setInterval(async () => {
-      const data = await fetchDownloadStatus();
-      
-      if (data && (data.status === 'downloaded' || data.status === 'download_failed')) {
-        if (progressIntervalRef.current) {
-          clearInterval(progressIntervalRef.current);
-          progressIntervalRef.current = undefined;
-        }
-        stopPolling();
-      }
-    }, 2000);
-  }, [fetchDownloadStatus]);
-
-  // 停止轮询
-  const stopPolling = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = undefined;
-    }
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = undefined;
-    }
-  }, []);
+  }, [messageId, isLoading, onDownloadComplete, onDownloadError, startPolling]);
 
   // 重试下载
   const retryDownload = useCallback(() => {
@@ -266,9 +274,9 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
   // 初始化时获取状态
   useEffect(() => {
     if (messageId && autoRefresh) {
-      fetchDownloadStatus();
+      fetchDownloadStatusWithPolling();
     }
-  }, [messageId, autoRefresh, fetchDownloadStatus]);
+  }, [messageId, autoRefresh, fetchDownloadStatusWithPolling]);
 
   // 清理
   useEffect(() => {
