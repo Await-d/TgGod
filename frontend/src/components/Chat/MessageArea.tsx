@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Space, Button, Empty, Spin, Typography, Badge, message as antMessage } from 'antd';
+import { Space, Button, Empty, Spin, Typography, Badge, message as antMessage, notification } from 'antd';
 import { 
   ReloadOutlined, 
   SyncOutlined, 
@@ -38,6 +38,7 @@ interface MessageAreaProps {
   // 新增：跳转到消息功能
   jumpToMessageId?: number | null;
   onJumpComplete?: () => void;
+  onJumpToMessage?: (messageId: number) => void;
 }
 
 const MessageArea: React.FC<MessageAreaProps> = ({
@@ -60,7 +61,8 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   containerRef: propContainerRef,
   // 跳转功能
   jumpToMessageId,
-  onJumpComplete
+  onJumpComplete,
+  onJumpToMessage
 }) => {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -356,12 +358,18 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         console.log('MessageArea - message element not found in DOM');
       }
     } else {
-      console.log('MessageArea - message not found in current list, may need to load more messages');
-      // TODO: 如果消息不在当前列表中，可能需要向上加载更多消息或者使用API搜索
-      // 暂时显示提示信息
-      // notification.info('正在查找目标消息...');
+      console.log('MessageArea - message not found in current list, delegating to parent handler');
+      // 如果消息不在当前列表中，调用上级的跳转处理器
+      if (onJumpToMessage) {
+        console.log('MessageArea - calling parent onJumpToMessage handler');
+        onJumpToMessage(messageId);
+      } else {
+        console.log('MessageArea - no parent handler available');
+        // 显示提示信息
+        notification.info('目标消息不在当前页面，正在尝试定位...');
+      }
     }
-  }, [displayMessages, messagesContainerRef, messageRefs]);
+  }, [displayMessages, messagesContainerRef, messageRefs, onJumpToMessage]);
 
   // 检查是否需要显示"滚动到底部"按钮
   const handleScroll = useCallback(() => {
@@ -369,7 +377,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     
     const container = messagesContainerRef.current;
     const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100; // 减少阈值到100px
-    const shouldShow = !isNearBottom && container.scrollHeight > container.clientHeight + 100; // 确保有足够内容才显示
+    
+    // 桌面端使用更宽松的条件
+    const isDesktop = window.innerWidth > 768;
+    const contentThreshold = isDesktop ? 50 : 100; // 桌面端降低内容要求
+    const shouldShow = !isNearBottom && container.scrollHeight > container.clientHeight + contentThreshold;
     
     // 调试信息 - 只在状态变化时输出
     if (shouldShow !== showScrollToBottom) {
@@ -381,7 +393,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         isNearBottom,
         shouldShow,
         currentShow: showScrollToBottom,
-        hasEnoughContent: container.scrollHeight > container.clientHeight + 100
+        hasEnoughContent: container.scrollHeight > container.clientHeight + contentThreshold,
+        isDesktop,
+        contentThreshold
       });
     }
     
@@ -545,18 +559,31 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       
       // 额外检查，确保有内容时显示按钮
       setTimeout(() => {
-        if (container.scrollHeight > container.clientHeight + 50) {
-          const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
-          console.log('MessageArea - force check scroll button', {
-            scrollHeight: container.scrollHeight,
-            clientHeight: container.clientHeight,
-            scrollTop: container.scrollTop,
-            isNearBottom,
-            shouldShowButton: !isNearBottom
-          });
-          if (!isNearBottom) {
-            setShowScrollToBottom(true);
-          }
+        // 统一使用与 handleScroll 相同的阈值
+        const hasEnoughContent = container.scrollHeight > container.clientHeight + 100;
+        const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+        const shouldShow = !isNearBottom && hasEnoughContent;
+        
+        console.log('MessageArea - force check scroll button', {
+          scrollHeight: container.scrollHeight,
+          clientHeight: container.clientHeight,
+          scrollTop: container.scrollTop,
+          hasEnoughContent,
+          isNearBottom,
+          shouldShow,
+          // 桌面端强制显示逻辑
+          isDesktop: window.innerWidth > 768,
+          contentDifference: container.scrollHeight - container.clientHeight
+        });
+        
+        // 桌面端：如果内容超过视窗高度且不在底部，强制显示按钮
+        const isDesktop = window.innerWidth > 768;
+        if (isDesktop && container.scrollHeight > container.clientHeight && !isNearBottom) {
+          console.log('MessageArea - forcing scroll button on desktop');
+          setShowScrollToBottom(true);
+        } else {
+          // 移动端或其他情况：使用标准逻辑
+          setShowScrollToBottom(shouldShow);
         }
       }, 500);
       

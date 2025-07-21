@@ -53,6 +53,9 @@ const ChatInterface: React.FC = () => {
     prependMessages
   } = useChatGroupNavigation();
   
+  // 从 store 获取 addGroup 方法
+  const { addGroup } = useTelegramStore();
+  
   // 实时消息管理 - 新增
   const {
     connectionStatus,
@@ -223,24 +226,45 @@ const ChatInterface: React.FC = () => {
   }, [isMobile, selectGroup]);
 
   // 处理跳转到群组
-  const handleJumpToGroup = useCallback((groupId: number) => {
+  const handleJumpToGroup = useCallback(async (groupId: number) => {
     console.log('ChatInterface - handleJumpToGroup called', {
       groupId,
       totalGroups: groups.length,
       availableGroupIds: groups.map(g => g.id)
     });
     
-    const targetGroup = groups.find(group => group.id === groupId);
+    // 首先在当前群组列表中查找
+    let targetGroup = groups.find(group => group.id === groupId);
+    
     if (targetGroup) {
-      console.log('ChatInterface - found target group:', targetGroup);
-      // 使用群组导航逻辑跳转到目标群组
+      console.log('ChatInterface - found target group in current list:', targetGroup);
       selectGroup(targetGroup);
       antMessage.success(`已跳转到${targetGroup.title}`);
-    } else {
-      console.log('ChatInterface - target group not found in current groups list');
-      antMessage.warning(`未找到目标群组 (ID: ${groupId})`);
+      return;
     }
-  }, [groups, selectGroup]);
+    
+    // 如果在当前列表中找不到，尝试从API获取
+    console.log('ChatInterface - target group not found in current list, fetching from API...');
+    try {
+      targetGroup = await telegramApi.getGroup(groupId);
+      console.log('ChatInterface - fetched target group from API:', targetGroup);
+      
+      // 将获取到的群组添加到当前群组列表中（如果不存在）
+      const existingGroup = groups.find(g => g.id === targetGroup.id);
+      if (!existingGroup) {
+        // 更新群组列表状态
+        addGroup(targetGroup);
+        console.log('ChatInterface - added new group to list:', targetGroup.title);
+      }
+      
+      selectGroup(targetGroup);
+      antMessage.success(`已跳转到${targetGroup.title}`);
+      
+    } catch (error) {
+      console.error('ChatInterface - failed to fetch group from API:', error);
+      antMessage.error(`无法找到群组 (ID: ${groupId})，可能已被删除或无权限访问`);
+    }
+  }, [groups, selectGroup, addGroup]);
 
   // 处理跳转到消息
   const handleJumpToMessage = useCallback((messageId: number) => {
@@ -411,6 +435,7 @@ const ChatInterface: React.FC = () => {
         jumpToMessageId={jumpToMessageId}
         onJumpComplete={handleJumpComplete}
         onJumpToGroup={handleJumpToGroup}
+        onJumpToMessage={handleJumpToMessage}
       />
     </div>
   );
