@@ -147,6 +147,24 @@ export const telegramApi = {
     return api.get(`/telegram/groups/${groupId}`);
   },
 
+  // 通过用户名获取群组信息（搜索现有群组）
+  getGroupByUsername: async (username: string): Promise<TelegramGroup | null> => {
+    try {
+      const groups = await api.get('/telegram/groups', { 
+        params: { limit: 1000 } 
+      }) as TelegramGroup[];
+      
+      const group = groups.find(g => 
+        g.username && g.username.toLowerCase() === username.toLowerCase()
+      );
+      
+      return group || null;
+    } catch (error) {
+      console.error('Failed to get group by username:', error);
+      return null;
+    }
+  },
+
   // 更新群组
   updateGroup: (groupId: number, data: Partial<TelegramGroup>): Promise<TelegramGroup> => {
     return api.put(`/telegram/groups/${groupId}`, data);

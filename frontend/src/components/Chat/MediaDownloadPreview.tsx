@@ -201,14 +201,20 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       
       if (response.ok) {
         const result = await response.json();
-        notification.success('下载已取消');
+        notification.success({
+          message: '$1'
+        });
       } else {
         console.warn('后端取消下载失败，但前端状态已重置');
-        notification.info('下载已取消');
+        notification.info({
+          message: '$1'
+        });
       }
     } catch (error) {
       console.error('取消下载时发生错误:', error);
-      notification.info('下载已取消');
+      notification.info({
+          message: '$1'
+        });
     } finally {
       // 重置前端状态
       setDownloadState({
@@ -239,7 +245,9 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
           status: 'downloaded',
           downloadUrl: response.download_url
         });
-        notification.success('文件已存在');
+        notification.success({
+          message: '$1'
+        });
         return;
       }
       
@@ -257,7 +265,9 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               downloadedSize: statusResponse.downloaded_size || statusResponse.file_size,
               totalSize: statusResponse.total_size || statusResponse.file_size
             });
-            notification.success('文件下载完成');
+            notification.success({
+          message: '$1'
+        });
             clearInterval(newPollInterval);
             setPollInterval(null);
           } else if (statusResponse.status === 'download_failed') {
@@ -265,7 +275,9 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               status: 'error',
               error: statusResponse.error || '下载失败'
             });
-            notification.error('下载失败: ' + (statusResponse.error || '未知错误'));
+            notification.error({
+          message: '下载失败: ' + (statusResponse.error || '未知错误')
+        });
             clearInterval(newPollInterval);
             setPollInterval(null);
           } else if (statusResponse.status === 'downloading') {
@@ -305,7 +317,9 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
         status: 'error',
         error: error.response?.data?.detail || '下载请求失败'
       });
-      notification.error('下载失败: ' + (error.response?.data?.detail || '网络错误'));
+      notification.error({
+          message: '下载失败: ' + (error.response?.data?.detail || '网络错误')
+        });
     }
   };
 

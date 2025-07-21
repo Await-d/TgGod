@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
+import VirtualizedMessageList from './VirtualizedMessageList';
 import MessageHeader from './MessageHeader';
 import PinnedMessages from './PinnedMessages';
 import MediaGallery from './MediaGallery';
@@ -366,7 +367,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       } else {
         console.log('MessageArea - no parent handler available');
         // 显示提示信息
-        notification.info('目标消息不在当前页面，正在尝试定位...');
+        notification.info({
+          message: '目标消息不在当前页面，正在尝试定位...'
+        });
       }
     }
   }, [displayMessages, messagesContainerRef, messageRefs, onJumpToMessage]);
@@ -726,55 +729,24 @@ const MessageArea: React.FC<MessageAreaProps> = ({
               </div>
             )}
             
-            {displayMessages.map((message, index) => {
-              const prevMessage = index > 0 ? displayMessages[index - 1] : null;
-              // 简化头像显示逻辑：相同发送者的连续消息只在第一条显示头像
-              const showAvatar = !prevMessage || 
-                prevMessage.sender_id !== message.sender_id ||
-                (new Date(message.date).getTime() - new Date(prevMessage.date).getTime()) > 180000; // 减少到3分钟
-              
-              // 判断消息是否为当前用户发送的
-              // 优先使用 sender_id 进行判断，这是最可靠的方式
-              const isOwn = currentTelegramUser ? (
-                // 使用当前 Telegram 用户的 ID 进行判断
-                message.sender_id === currentTelegramUser.id
-              ) : user ? (
-                // 回退到系统用户信息进行判断
-                message.sender_id === user.id
-              ) : (
-                // 如果都没有用户信息，检查后端标记的字段
-                message.is_own_message === true
-              );
-              
-              // 检查是否为高亮消息
-              const isHighlighted = highlightedMessageId === message.message_id;
-              
-              return (
-                <div
-                  key={message.id}
-                  ref={el => {
-                    if (el) {
-                      messageRefs.current[message.message_id] = el;
-                    }
-                  }}
-                  className={`message-wrapper ${isHighlighted ? 'highlighted' : ''}`}
-                >
-                  <MessageBubble
-                    message={message}
-                    isOwn={isOwn}
-                    showAvatar={showAvatar}
-                    onReply={onReply}
-                    onCreateRule={onCreateRule}
-                    onDelete={handleDeleteMessage}
-                    onJumpToGroup={onJumpToGroup}
-                    onJumpToMessage={handleJumpToMessage}
-                    isMobile={isMobile}
-                    onOpenGallery={openMediaGallery}
-                    onUpdateDownloadState={updateDownloadState}
-                  />
-                </div>
-              );
-            })}
+            {/* 使用虚拟化消息列表组件，只渲染可见消息以优化性能 */}
+            <VirtualizedMessageList
+              messages={displayMessages}
+              containerHeight={500} // 固定容器高度，可根据实际需要调整
+              currentTelegramUser={currentTelegramUser}
+              user={user}
+              onReply={onReply}
+              onCreateRule={onCreateRule}
+              onDelete={handleDeleteMessage}
+              onJumpToGroup={onJumpToGroup}
+              onJumpToMessage={handleJumpToMessage}
+              onOpenGallery={openMediaGallery}
+              onUpdateDownloadState={updateDownloadState}
+              isMobile={isMobile}
+              highlightedMessageId={highlightedMessageId}
+              jumpToMessageId={jumpToMessageId}
+              onJumpComplete={onJumpComplete}
+            />
           </>
         )}
         

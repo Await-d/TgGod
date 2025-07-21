@@ -11,6 +11,78 @@ export const detectTelegramLinks = (text: string): { url: string; text: string }
   }));
 };
 
+// 检测文本中的群组信息（包括非链接格式）
+export const detectGroupMentions = (text: string): { type: 'link' | 'username' | 'id' | 'name', value: string, text: string }[] => {
+  const results: { type: 'link' | 'username' | 'id' | 'name', value: string, text: string }[] = [];
+  
+  // 1. 检测完整链接
+  const linkMatches = text.match(/https?:\/\/t\.me\/[^\s]+/gi);
+  if (linkMatches) {
+    linkMatches.forEach(link => {
+      results.push({
+        type: 'link',
+        value: link.trim(),
+        text: link.trim()
+      });
+    });
+  }
+  
+  // 2. 检测 @username 格式
+  const usernameMatches = text.match(/@([a-zA-Z0-9_]{5,32})\b/g);
+  if (usernameMatches) {
+    usernameMatches.forEach(match => {
+      const username = match.substring(1); // 移除 @
+      results.push({
+        type: 'username',
+        value: username,
+        text: match
+      });
+    });
+  }
+  
+  // 3. 检测群组ID格式 (-100开头的数字)
+  const groupIdMatches = text.match(/-100\d{10,}/g);
+  if (groupIdMatches) {
+    groupIdMatches.forEach(match => {
+      results.push({
+        type: 'id',
+        value: match,
+        text: match
+      });
+    });
+  }
+  
+  // 4. 检测可能的群组名称（中文、英文群组名）
+  // 匹配类似 "加入xxx群" "xxx群组" "xxx频道" 的格式
+  const groupNamePatterns = [
+    /(?:加入|进入|关注)?\s*([^\s]{2,20})\s*(?:群|群组|频道|社区|讨论组)/g,
+    /([^\s]{2,20})\s*(?:官方群|交流群|学习群|技术群|资源群)/g,
+    /(?:群组|频道|社区)[:：]\s*([^\s]{2,20})/g
+  ];
+  
+  groupNamePatterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const groupName = match[1].trim();
+      // 避免匹配到URL或其他已识别的内容
+      if (!groupName.includes('http') && !groupName.includes('@') && !groupName.match(/^\d+$/)) {
+        results.push({
+          type: 'name',
+          value: groupName,
+          text: match[0]
+        });
+      }
+    }
+  });
+  
+  // 去重和过滤
+  const unique = results.filter((item, index, self) => 
+    index === self.findIndex(t => t.value === item.value && t.type === item.type)
+  );
+  
+  return unique;
+};
+
 // 检查是否为Telegram链接
 export const isTelegramLink = (url: string): boolean => {
   try {

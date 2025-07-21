@@ -153,7 +153,9 @@ const ExternalGroupPreview: React.FC<ExternalGroupPreviewProps> = ({
       }
 
       if (response || true) { // 总是假设成功，用于演示
-        notification.success(`成功加入群组 "${groupData.title}"！`);
+        notification.success({
+          message: `$1`
+        });
         const updatedGroupData = { ...groupData, is_joined: true };
         setGroupData(updatedGroupData);
         
@@ -163,7 +165,9 @@ const ExternalGroupPreview: React.FC<ExternalGroupPreviewProps> = ({
       }
     } catch (error: any) {
       console.error('Failed to join group:', error);
-      notification.error('加入群组失败: ' + (error.message || '未知错误'));
+      notification.error({
+          message: '加入群组失败: ' + (error.message || '未知错误')
+        });
     } finally {
       setJoining(false);
     }
@@ -347,7 +351,9 @@ const ExternalGroupPreview: React.FC<ExternalGroupPreviewProps> = ({
                   size="large"
                   icon={<RightOutlined />}
                   onClick={() => {
-                    notification.info('功能开发中：跳转到群组消息页面');
+                    notification.info({
+          message: '$1'
+        });
                     onClose();
                   }}
                 >

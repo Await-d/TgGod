@@ -1,0 +1,62 @@
+.virtualized-message-container {
+  height: 100%;
+  overflow-y: auto;
+  position: relative;
+  scroll-behavior: smooth;
+}
+
+.virtual-content {
+  position: relative;
+  width: 100%;
+}
+
+.virtual-message-item {
+  position: absolute;
+  width: 100%;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.virtual-message-item.highlighted {
+  background-color: rgba(24, 144, 255, 0.1);
+  animation: highlight-pulse 1s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background-color: rgba(24, 144, 255, 0.3);
+  }
+  100% {
+    background-color: rgba(24, 144, 255, 0.1);
+  }
+}
+
+/* 滚动条样式 */
+.virtualized-message-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.virtualized-message-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.virtualized-message-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.virtualized-message-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .virtualized-message-container::-webkit-scrollbar {
+    width: 3px;
+  }
+  
+  .virtual-message-item {
+    padding: 0 4px;
+  }
+}

@@ -435,4 +435,18 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
   );
 };
 
-export default MessageBubble;
+// 使用 React.memo 优化性能，避免不必要的重新渲染
+export default React.memo(MessageBubble, (prevProps, nextProps) => {
+  // 自定义比较函数，只在关键属性变化时重新渲染
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.text === nextProps.message.text &&
+    prevProps.message.media_downloaded === nextProps.message.media_downloaded &&
+    prevProps.message.media_path === nextProps.message.media_path &&
+    prevProps.showAvatar === nextProps.showAvatar &&
+    prevProps.isOwn === nextProps.isOwn &&
+    prevProps.isMobile === nextProps.isMobile &&
+    prevProps.currentTelegramUser?.id === nextProps.currentTelegramUser?.id &&
+    JSON.stringify(prevProps.message.reactions) === JSON.stringify(nextProps.message.reactions)
+  );
+});

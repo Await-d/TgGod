@@ -268,7 +268,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    notification.success('开始下载');
+    notification.success({
+          message: '$1'
+        });
   };
 
   // 渲染媒体内容
@@ -287,7 +289,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
               }}
               onError={(e) => {
                 console.error('Gallery image load error:', e);
-                notification.error('图片加载失败');
+                notification.error({
+          message: '$1'
+        });
               }}
             />
           </div>
@@ -305,7 +309,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
               onPause={() => setVideoPlaying(false)}
               onError={(e) => {
                 console.error('Gallery video load error:', e);
-                notification.error('视频加载失败');
+                notification.error({
+          message: '$1'
+        });
               }}
             >
               您的浏览器不支持视频播放
@@ -322,7 +328,9 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
               style={{ width: '100%' }}
               onError={(e) => {
                 console.error('Gallery audio load error:', e);
-                notification.error('音频加载失败');
+                notification.error({
+          message: '$1'
+        });
               }}
             >
               您的浏览器不支持音频播放
