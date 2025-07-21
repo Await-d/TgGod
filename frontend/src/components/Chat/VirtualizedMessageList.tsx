@@ -6,7 +6,6 @@ import './VirtualizedMessageList.css';
 
 interface VirtualizedMessageListProps {
   messages: TelegramMessage[];
-  containerHeight: number;
   currentTelegramUser?: any;
   user?: any;
   onReply: (message: TelegramMessage) => void;
@@ -30,7 +29,6 @@ const ESTIMATED_MESSAGE_HEIGHT = 120; // 估计的消息高度
 
 const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
   messages,
-  containerHeight,
   currentTelegramUser,
   user,
   onReply,
@@ -51,13 +49,7 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
   const itemHeightCache = useRef<Map<number, number>>(new Map());
   const messageRefs = useRef<{ [key: number]: HTMLDivElement }>({});
 
-  // 虚拟滚动配置
-  const virtualScroll = useVirtualScroll({
-    itemHeight: ESTIMATED_MESSAGE_HEIGHT,
-    containerHeight,
-    overscan: 3,
-    totalItems: messages.length
-  }) as any; // 类型扩展
+  // 暂时移除虚拟滚动逻辑，使用简化实现
 
   // 缓存消息渲染数据，避免重复计算
   const messagesWithMetadata = useMemo(() => {
@@ -83,129 +75,70 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     });
   }, [messages, currentTelegramUser, user]);
 
-  // 处理消息高度变化
-  const handleMessageHeightChange = useCallback((index: number, height: number) => {
-    if (itemHeightCache.current.get(index) !== height) {
-      itemHeightCache.current.set(index, height);
-      virtualScroll.updateItemHeight(index, height);
-    }
-  }, [virtualScroll]);
+  // 暂时移除高度变化处理
 
   // 消息元素引用回调
   const setMessageRef = useCallback((index: number, element: HTMLDivElement | null) => {
     if (element) {
       messageRefs.current[index] = element;
-      
-      // 观察元素高度变化
-      const resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const height = entry.contentRect.height;
-          handleMessageHeightChange(index, height);
-        }
-      });
-      
-      resizeObserver.observe(element);
-      
-      // 初始高度测量
-      const rect = element.getBoundingClientRect();
-      if (rect.height > 0) {
-        handleMessageHeightChange(index, rect.height);
-      }
-      
-      return () => {
-        resizeObserver.disconnect();
-      };
     } else {
       delete messageRefs.current[index];
     }
-  }, [handleMessageHeightChange]);
+  }, []);
 
-  // 跳转到特定消息
+  // 跳转到特定消息（简化实现）
   useEffect(() => {
-    if (jumpToMessageId && onJumpComplete) {
-      const messageIndex = messages.findIndex(msg => msg.id === jumpToMessageId);
-      if (messageIndex >= 0) {
-        virtualScroll.scrollToIndex(messageIndex);
-        
-        // 延迟调用完成回调，确保滚动完成
+    if (jumpToMessageId && onJumpComplete && containerRef.current) {
+      const messageElement = messageRefs.current[messages.findIndex(msg => msg.id === jumpToMessageId)];
+      if (messageElement) {
+        messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setTimeout(() => {
           onJumpComplete();
         }, 300);
       }
     }
-  }, [jumpToMessageId, messages, virtualScroll, onJumpComplete]);
+  }, [jumpToMessageId, messages, onJumpComplete]);
 
-  // 渲染虚拟项目
-  const renderVirtualItem = useCallback((index: number) => {
-    const messageData = messagesWithMetadata[index];
-    if (!messageData) return null;
-
-    const isHighlighted = highlightedMessageId === messageData.id;
-
-    return (
-      <div
-        key={`message-${messageData.id}`}
-        style={virtualScroll.getItemStyle(index)}
-        ref={(el) => setMessageRef(index, el)}
-        className={`virtual-message-item ${isHighlighted ? 'highlighted' : ''}`}
-      >
-        <MessageBubble
-          message={messageData}
-          showAvatar={messageData.showAvatar}
-          isOwn={messageData.isOwn}
-          onReply={onReply}
-          onCreateRule={onCreateRule}
-          onDelete={onDelete}
-          onJumpToGroup={onJumpToGroup}
-          onJumpToMessage={onJumpToMessage}
-          onOpenGallery={onOpenGallery}
-          onUpdateDownloadState={onUpdateDownloadState}
-          isMobile={isMobile}
-        />
-      </div>
-    );
-  }, [
-    messagesWithMetadata,
-    highlightedMessageId,
-    virtualScroll,
-    setMessageRef,
-    currentTelegramUser,
-    user,
-    onReply,
-    onCreateRule,
-    onDelete,
-    onJumpToGroup,
-    onJumpToMessage,
-    onOpenGallery,
-    onUpdateDownloadState,
-    isMobile
-  ]);
-
-  // 扩展容器属性以包含虚拟化内容
-  const containerProps = {
-    ...virtualScroll.containerProps,
-    className: 'virtualized-message-container'
-  };
+  // 移除虚拟滚动相关的渲染函数
 
   // 滚动事件处理
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
     const { scrollTop } = target;
     
+    console.log('Scroll event:', { scrollTop, hasMore, isLoadingMore });
+    
     // 检查是否滚动到顶部，触发加载更多
-    if (scrollTop <= 100 && hasMore && !isLoadingMore && onScrollToTop) {
+    if (scrollTop <= 50 && hasMore && !isLoadingMore && onScrollToTop) {
+      console.log('Triggering scroll to top handler');
       onScrollToTop();
     }
   }, [hasMore, isLoadingMore, onScrollToTop]);
 
+  // 消息容器引用，用于滚动控制
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 自动滚动到底部
+  useEffect(() => {
+    if (containerRef.current && messages.length > 0) {
+      const container = containerRef.current;
+      // 延迟滚动，确保DOM更新完成
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 100);
+    }
+  }, [messages.length]);
+
   // 临时简化实现：直接渲染所有消息，避免虚拟滚动复杂性导致的布局问题
   return (
     <div 
+      ref={containerRef}
       className="virtualized-message-container"
       style={{ 
-        height: containerHeight,
+        flex: 1,
         overflow: 'auto',
-        position: 'relative'
+        position: 'relative',
+        minHeight: 0 // 重要：允许flex子元素收缩
       }}
       onScroll={handleScroll}
     >

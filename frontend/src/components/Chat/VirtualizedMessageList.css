@@ -1,8 +1,10 @@
 .virtualized-message-container {
-  height: 100%;
+  flex: 1;
   overflow-y: auto;
   position: relative;
   scroll-behavior: smooth;
+  min-height: 0; /* 允许flex子元素收缩 */
+  padding: 0; /* 移除内边距，让外层控制 */
 }
 
 .virtual-content {
