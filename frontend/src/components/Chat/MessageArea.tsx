@@ -202,11 +202,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
   // 滚动到底部
   const scrollToBottom = useCallback(() => {
-    console.log('MessageArea - 执行滚动到底部');
     try {
       // 优先使用VirtualizedMessageList的滚动方法
       if (virtualListRef.current) {
-        console.log('MessageArea - 使用virtualListRef滚动');
         virtualListRef.current.scrollToBottom();
         // 更新状态
         setShowScrollToBottom(false);
@@ -217,11 +215,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       // 后备方法：使用messagesContainerRef滚动
       if (messagesContainerRef.current) {
         const container = messagesContainerRef.current;
-        console.log('开始滚动前容器状态:', {
-          scrollHeight: container.scrollHeight,
-          clientHeight: container.clientHeight,
-          scrollTop: container.scrollTop
-        });
 
         // 确保DOM已完全渲染
         setTimeout(() => {
@@ -255,13 +248,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
               }
             }
 
-            // 检查滚动效果
-            console.log('滚动后容器状态:', {
-              scrollHeight: container.scrollHeight,
-              clientHeight: container.clientHeight,
-              scrollTop: container.scrollTop
-            });
-
             // 更新状态
             setShowScrollToBottom(false);
             setUnreadCount(0);
@@ -284,26 +270,8 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     scrollHeight: number;
     hasScrollableContent: boolean;
   }) => {
-    console.log('MessageArea - 收到滚动位置变化通知:', {
-      isNearBottom,
-      containerExists: !!messagesContainerRef.current,
-      containerStats: messagesContainerRef.current ? {
-        scrollHeight: messagesContainerRef.current.scrollHeight,
-        clientHeight: messagesContainerRef.current.clientHeight,
-        scrollTop: messagesContainerRef.current.scrollTop
-      } : 'N/A',
-      containerInfo // 记录传递的容器信息
-    });
-
     // 使用传递过来的容器信息而不是messagesContainerRef
     const hasScrollableContent = containerInfo ? containerInfo.hasScrollableContent : false;
-
-    console.log('检查是否应显示按钮:', {
-      isNearBottom,
-      hasScrollableContent,
-      shouldShow: !isNearBottom && hasScrollableContent
-    });
-
     setShowScrollToBottom(!isNearBottom && hasScrollableContent);
   }, []);
 
@@ -311,7 +279,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const handleScrollButtonClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation(); // 阻止事件冒泡
-    console.log('点击滚动按钮');
     scrollToBottom();
     return false; // 确保不会继续冒泡
   }, [scrollToBottom]);
@@ -341,16 +308,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
   // 媒体画廊相关函数
   const openMediaGallery = useCallback((targetMessage: TelegramMessage) => {
-    console.log('MessageArea - openMediaGallery called', {
-      targetMessage: {
-        id: targetMessage.id,
-        mediaType: targetMessage.media_type,
-        mediaDownloaded: targetMessage.media_downloaded,
-        mediaPath: targetMessage.media_path
-      },
-      totalDisplayMessages: displayMessages.length
-    });
-
     // 筛选出所有有媒体的消息（包括正在下载或已下载的）
     const mediaMessages = displayMessages.filter(msg => {
       const hasMediaType = msg.media_type;
@@ -367,13 +324,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     // 如果目标消息不在过滤后的列表中，但它有媒体类型，强制添加它
     const targetInFilteredList = mediaMessages.some(msg => msg.id === targetMessage.id);
     if (!targetInFilteredList && targetMessage.media_type) {
-      console.log('MessageArea - Target message not in filtered list, adding it', {
-        targetMessageId: targetMessage.id,
-        mediaType: targetMessage.media_type,
-        mediaPath: targetMessage.media_path,
-        downloadState: downloadStates[targetMessage.id || targetMessage.message_id]
-      });
-
       // 如果目标消息有更新的媒体路径，使用更新后的版本
       const updatedTargetMessage = targetMessage.media_path ? targetMessage : {
         ...targetMessage,
@@ -395,54 +345,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       }
     }
 
-    console.log('MessageArea - filtered media messages', {
-      totalMediaMessages: mediaMessages.length,
-      targetMessageId: targetMessage.id,
-      targetMessageHasMediaType: !!targetMessage.media_type,
-      targetMessageMediaPath: targetMessage.media_path,
-      targetDownloadState: downloadStates[targetMessage.id || targetMessage.message_id],
-      mediaMessages: mediaMessages.map(msg => {
-        const messageId = msg.id || msg.message_id;
-        const downloadState = downloadStates[messageId];
-        return {
-          id: msg.id,
-          mediaType: msg.media_type,
-          mediaPath: msg.media_path,
-          downloadUrl: downloadState?.downloadUrl,
-          hasDownloadState: !!downloadState,
-          isTargetMessage: msg.id === targetMessage.id
-        };
-      })
-    });
-
     // 找到目标消息在媒体消息中的索引
     const targetIndex = mediaMessages.findIndex(msg => msg.id === targetMessage.id);
 
-    console.log('MessageArea - target index', {
-      targetIndex,
-      targetMessageId: targetMessage.id,
-      mediaMessagesIds: mediaMessages.map(msg => msg.id),
-      targetMessage: {
-        id: targetMessage.id,
-        mediaPath: targetMessage.media_path,
-        mediaType: targetMessage.media_type
-      },
-      firstMessage: mediaMessages[0] ? {
-        id: mediaMessages[0].id,
-        mediaPath: mediaMessages[0].media_path,
-        mediaType: mediaMessages[0].media_type
-      } : null
-    });
-
     if (targetIndex >= 0) {
-      console.log('MessageArea - opening gallery', {
-        galleryIndex: targetIndex,
-        galleryMessagesCount: mediaMessages.length,
-        targetMessageAtIndex: mediaMessages[targetIndex] ? {
-          id: mediaMessages[targetIndex].id,
-          mediaPath: mediaMessages[targetIndex].media_path
-        } : null
-      });
       setGalleryMessages(mediaMessages);
       setGalleryIndex(targetIndex);
       setGalleryVisible(true);
@@ -464,18 +370,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
   // 处理跳转到消息
   const handleJumpToMessage = useCallback((messageId: number) => {
-    console.log('MessageArea - handleJumpToMessage called', { messageId });
-
     // 查找目标消息在当前消息列表中的位置
     const targetMessageIndex = displayMessages.findIndex(msg => msg.id === messageId);
 
     if (targetMessageIndex >= 0) {
       const targetMessage = displayMessages[targetMessageIndex];
-      console.log('MessageArea - found message in current list', {
-        messageId,
-        targetMessageIndex,
-        targetMessage
-      });
 
       // 滚动到目标消息
       const messageElement = messageRefs.current[messageId];
@@ -493,20 +392,14 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         setTimeout(() => {
           setHighlightedMessageId(null);
         }, 3000);
-
-        console.log('MessageArea - scrolled to message and highlighted');
       } else {
         console.log('MessageArea - message element not found in DOM');
       }
     } else {
-      console.log('MessageArea - message not found in current list, delegating to parent handler');
       // 如果消息不在当前列表中，调用上级的跳转处理器
       if (onJumpToMessage) {
-        console.log('MessageArea - calling parent onJumpToMessage handler');
         onJumpToMessage(messageId);
       } else {
-        console.log('MessageArea - no parent handler available');
-        // 显示提示信息
         notification.info({
           message: '目标消息不在当前页面，正在尝试定位...'
         });
@@ -536,16 +429,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
       const response = await messageApi.getGroupMessages(groupId, params);
 
-      // 打印响应数据，便于调试
-      console.log('MessageArea - fetchMessages 响应数据', {
-        groupId,
-        pageNum,
-        append,
-        responseLength: response.length,
-        pageSize: PAGE_SIZE,
-        hasOlderMessages: response.length === PAGE_SIZE
-      });
-
       if (append && pageNum > 1) {
         // 分页加载：使用智能合并，自动去重和排序
         const currentMessages = displayMessages;
@@ -560,12 +443,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       // 检查是否还有更多消息 - 除非明确获取到少于PAGE_SIZE的消息，否则总是假设还有更多
       // 这样可以确保用户可以一直上拉尝试加载，直到确认没有更多数据
       const mightHaveMore = response.length >= PAGE_SIZE;
-      console.log('MessageArea - 更新hasMore状态', {
-        mightHaveMore,
-        responseLength: response.length,
-        pageSize: PAGE_SIZE,
-        currentPage: pageNum
-      });
       setHasMore(mightHaveMore);
 
       setPage(pageNum);
@@ -581,18 +458,8 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const loadMoreMessages = useCallback(async () => {
     if (!selectedGroup) return;
 
-    // 移除loadingMore和hasMore条件，在这里打印日志
-    console.log('MessageArea - loadMoreMessages 被调用', {
-      groupId: selectedGroup.id,
-      page,
-      loadingMore,
-      hasMore,
-      searchFilter
-    });
-
     // 即使loadingMore为true或hasMore为false也尝试加载，因为这些状态可能不准确
     if (loadingMore) {
-      console.log('MessageArea - 已经在加载中，忽略重复请求');
       return;
     }
 
@@ -642,10 +509,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   // 当选择群组变化时重新加载消息（只依赖selectedGroup）
   useEffect(() => {
     if (selectedGroup) {
-      console.log('MessageArea - 群组改变，重置状态', {
-        groupId: selectedGroup.id,
-        group: selectedGroup
-      });
       setPage(1);
       // 始终设置为true，让用户可以尝试加载历史数据
       setHasMore(true);
@@ -673,22 +536,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     fetchCurrentTelegramUser();
   }, [fetchCurrentTelegramUser]);
 
-  // 添加滚动监听 - 仍然保留这部分以保持兼容性，但主要逻辑通过VirtualizedMessageList组件实现
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      // 初始检查滚动位置
-      setTimeout(() => {
-        // 删除冗余的handleScroll函数，我们使用VirtualizedMessageList中的滚动检测
-      }, 300);
-    }
-  }, []);
 
   // 初始化时确保滚动到底部
   useEffect(() => {
     // 当消息加载完成且有消息时，确保滚动到底部
     if (displayMessages.length > 0 && !loading && !isLoadingMore) {
-      console.log('MessageArea - 初始滚动到底部，消息数量:', displayMessages.length);
       // 使用延时，确保DOM已经更新
       setTimeout(scrollToBottom, 100);
     }
@@ -703,7 +555,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
       if (isNearBottom) {
         // 如果在底部，自动滚动到新消息
-        console.log('MessageArea - 新消息自动滚动到底部');
         setTimeout(scrollToBottom, 50);
       } else {
         // 如果不在底部，增加未读计数

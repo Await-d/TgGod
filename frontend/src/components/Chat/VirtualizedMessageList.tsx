@@ -126,11 +126,6 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
     scrollToBottom: () => {
       if (containerRef.current) {
         const container = containerRef.current;
-        console.log('VirtualizedMessageList - 执行scrollToBottom', {
-          scrollHeight: container.scrollHeight,
-          clientHeight: container.clientHeight,
-          scrollTop: container.scrollTop
-        });
 
         try {
           // 方法1: 设置scrollTop
@@ -144,16 +139,6 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
         } catch (error) {
           console.error('滚动失败:', error);
         }
-
-        // 延迟检查滚动效果
-        setTimeout(() => {
-          if (!containerRef.current) return;
-          console.log('VirtualizedMessageList - 滚动后状态:', {
-            scrollHeight: containerRef.current.scrollHeight,
-            clientHeight: containerRef.current.clientHeight,
-            scrollTop: containerRef.current.scrollTop
-          });
-        }, 50);
       }
     }
   }));
@@ -166,7 +151,6 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
 
       // 使用requestAnimationFrame确保DOM已更新
       requestAnimationFrame(() => {
-        console.log('VirtualizedMessageList - 初始自动滚动到底部');
         container.scrollTop = container.scrollHeight;
         // 标记为已初始化
         setHasInitialized(true);
@@ -190,20 +174,6 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
     const scrollDistance = container.scrollHeight - container.scrollTop - container.clientHeight;
     const isNearBottom = scrollDistance <= threshold;
 
-    // 检查是否有足够内容可滚动
-    const hasScrollableContent = container.scrollHeight > container.clientHeight + 20;
-
-    // 调试信息
-    console.log('VirtualizedMessageList - 检测滚动位置:', {
-      scrollTop: container.scrollTop,
-      clientHeight: container.clientHeight,
-      scrollHeight: container.scrollHeight,
-      scrollDistance,
-      isNearBottom,
-      hasScrollableContent,
-      threshold
-    });
-
     return isNearBottom;
   }, []);
 
@@ -224,16 +194,6 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
     const isNearBottom = scrollDistance <= 100;
     const hasScrollableContent = scrollHeight > clientHeight + 20;
 
-    console.log('VirtualizedMessageList - 滚动事件:', {
-      scrollTop,
-      scrollHeight,
-      clientHeight,
-      scrollDistance,
-      isNearBottom,
-      hasScrollableContent,
-      direction
-    });
-
     // 如果滚动位置变化，更新内部状态
     const newScrolledFromBottom = !isNearBottom && hasScrollableContent;
     if (isScrolledFromBottom !== newScrolledFromBottom) {
@@ -247,7 +207,6 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
         // 或者状态变化时通知
         lastNotifiedBottomState.current !== isNearBottom) {
 
-        console.log(`通知滚动位置变化: isNearBottom=${isNearBottom}, direction=${direction}`);
         onScrollPositionChange(isNearBottom, {
           scrollTop,
           clientHeight,
@@ -260,7 +219,6 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
 
     // 检查是否滚动到顶部，触发加载更多
     if (scrollTop <= 50 && !isLoadingMore && onScrollToTop) {
-      console.log('触发加载更多历史消息!');
       onScrollToTop();
     }
   }, [isLoadingMore, onScrollToTop, onScrollPositionChange, isScrolledFromBottom]);
