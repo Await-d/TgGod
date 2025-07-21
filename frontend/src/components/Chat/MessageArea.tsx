@@ -632,6 +632,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       {/* 消息头部 */}
       <MessageHeader
         group={selectedGroup}
+        messages={displayMessages}
         onRefresh={refreshMessages}
         onSync={syncMessages}
         onJumpToMessage={jumpToMessage}

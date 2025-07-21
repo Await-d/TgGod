@@ -6,16 +6,20 @@ import {
   PauseCircleOutlined,
   MessageOutlined,
   UpOutlined,
-  DownOutlined
+  DownOutlined,
+  PlayCircleOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { telegramApi } from '../../services/apiService';
+import { useMediaDuration } from '../../hooks/useMediaDuration';
+import { Message } from '../../types/telegram';
 import './MessageHeader.css';
 
 const { Title, Text } = Typography;
 
 interface MessageHeaderProps {
   group: TelegramGroup;
+  messages?: Message[]; // 添加消息列表用于计算媒体时长
   onJumpToMessage?: (messageId: number) => void;
   onRefresh?: () => Promise<void>;
   onSync?: () => Promise<void>;
@@ -25,6 +29,7 @@ interface MessageHeaderProps {
 
 const MessageHeader: React.FC<MessageHeaderProps> = ({
   group,
+  messages = [],
   onJumpToMessage,
   onRefresh,
   onSync,
@@ -36,6 +41,19 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   const [groupStats, setGroupStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [showStats, setShowStats] = useState(true); // 统计信息显示状态
+
+  // 使用媒体时长Hook
+  const {
+    totalDuration,
+    audioCount,
+    videoCount,
+    voiceCount,
+    isLoading: durationLoading,
+    formatDuration
+  } = useMediaDuration({ 
+    messages: messages || [],
+    enabled: showStats 
+  });
 
   // 获取群组统计信息
   const fetchGroupStats = useCallback(async () => {
@@ -150,46 +168,92 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
               <Spin size="small" />
             </div>
           ) : (
-            <div className="stats-grid">
-              <div className="stat-item">
-                <div className="stat-value" style={{ color: '#1890ff' }}>
-                  {groupStats.total_messages}
-                </div>
-                <div className="stat-label">总数</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value" style={{ color: '#52c41a' }}>
-                  {groupStats.text_messages}
-                </div>
-                <div className="stat-label">文本</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value" style={{ color: '#faad14' }}>
-                  {groupStats.media_messages}
-                </div>
-                <div className="stat-label">媒体</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value" style={{ color: '#13c2c2' }}>
-                  {groupStats.photo_messages}
-                </div>
-                <div className="stat-label">图片</div>
-              </div>
-              {!isMobile && (
-                <>
-                  <div className="stat-item">
-                    <div className="stat-value" style={{ color: '#722ed1' }}>
-                      {groupStats.video_messages}
-                    </div>
-                    <div className="stat-label">视频</div>
+            <div className="stats-content">
+              {/* 基础统计 */}
+              <div className="stats-grid">
+                <div className="stat-item">
+                  <div className="stat-value" style={{ color: '#1890ff' }}>
+                    {groupStats.total_messages}
                   </div>
-                  <div className="stat-item">
-                    <div className="stat-value" style={{ color: '#fa8c16' }}>
-                      {groupStats.forwarded_messages}
-                    </div>
-                    <div className="stat-label">转发</div>
+                  <div className="stat-label">总数</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-value" style={{ color: '#52c41a' }}>
+                    {groupStats.text_messages}
                   </div>
-                </>
+                  <div className="stat-label">文本</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-value" style={{ color: '#faad14' }}>
+                    {groupStats.media_messages}
+                  </div>
+                  <div className="stat-label">媒体</div>
+                </div>
+                <div className="stat-item">
+                  <div className="stat-value" style={{ color: '#13c2c2' }}>
+                    {groupStats.photo_messages}
+                  </div>
+                  <div className="stat-label">图片</div>
+                </div>
+                {!isMobile && (
+                  <>
+                    <div className="stat-item">
+                      <div className="stat-value" style={{ color: '#722ed1' }}>
+                        {groupStats.video_messages}
+                      </div>
+                      <div className="stat-label">视频</div>
+                    </div>
+                    <div className="stat-item">
+                      <div className="stat-value" style={{ color: '#fa8c16' }}>
+                        {groupStats.forwarded_messages}
+                      </div>
+                      <div className="stat-label">转发</div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 媒体时长统计 */}
+              {(audioCount > 0 || videoCount > 0 || voiceCount > 0) && (
+                <div className="media-duration-section">
+                  <div className="media-duration-header">
+                    <PlayCircleOutlined className="duration-icon" />
+                    <span className="duration-title">媒体时长统计</span>
+                    {durationLoading && <Spin size="small" />}
+                  </div>
+                  <div className="media-duration-grid">
+                    <div className="duration-item total-duration">
+                      <div className="duration-value" style={{ color: '#f5222d' }}>
+                        {formatDuration(totalDuration)}
+                      </div>
+                      <div className="duration-label">总时长</div>
+                    </div>
+                    {voiceCount > 0 && (
+                      <div className="duration-item">
+                        <div className="duration-value" style={{ color: '#722ed1' }}>
+                          {voiceCount}
+                        </div>
+                        <div className="duration-label">语音</div>
+                      </div>
+                    )}
+                    {audioCount > 0 && (
+                      <div className="duration-item">
+                        <div className="duration-value" style={{ color: '#faad14' }}>
+                          {audioCount}
+                        </div>
+                        <div className="duration-label">音频</div>
+                      </div>
+                    )}
+                    {videoCount > 0 && (
+                      <div className="duration-item">
+                        <div className="duration-value" style={{ color: '#52c41a' }}>
+                          {videoCount}
+                        </div>
+                        <div className="duration-label">视频</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           ))}

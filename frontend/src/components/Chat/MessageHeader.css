@@ -310,6 +310,97 @@
   }
 }
 
+/* 媒体时长统计样式 */
+.stats-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.media-duration-section {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.media-duration-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.duration-icon {
+  font-size: 12px;
+  color: #f5222d;
+}
+
+.duration-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+}
+
+.media-duration-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 4px;
+}
+
+.duration-item {
+  text-align: center;
+  min-width: 50px;
+  padding: 2px 4px;
+}
+
+.duration-item.total-duration {
+  border: 1px solid #ffcdd2;
+  border-radius: 4px;
+  background: #ffebee;
+}
+
+.duration-value {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin-bottom: 2px;
+}
+
+.duration-label {
+  font-size: 9px;
+  color: #8c8c8c;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+/* 移动端媒体时长样式 */
+@media (max-width: 768px) {
+  .media-duration-section {
+    margin-top: 6px;
+    padding: 4px 6px;
+  }
+  
+  .media-duration-grid {
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    gap: 2px;
+  }
+  
+  .duration-item {
+    min-width: 40px;
+    padding: 1px 2px;
+  }
+  
+  .duration-value {
+    font-size: 11px;
+  }
+  
+  .duration-label {
+    font-size: 8px;
+  }
+}
+
 /* 过渡动画 */
 .stats-section,
 .pinned-section {
