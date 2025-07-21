@@ -203,21 +203,45 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     try {
       if (messagesContainerRef.current) {
         const container = messagesContainerRef.current;
-
-        // 直接滚动到底部，不使用setTimeout，避免延迟导致问题
-        container.scrollTop = container.scrollHeight;
-        console.log('滚动执行，容器高度:', {
+        console.log('开始滚动前容器状态:', {
           scrollHeight: container.scrollHeight,
           clientHeight: container.clientHeight,
           scrollTop: container.scrollTop
         });
 
-        // 使用更可靠的方法触发滚动
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ block: 'end', behavior: 'auto' });
+        // 尝试强制更新滚动位置 - 多种方式结合
+        // 1. 直接设置scrollTop
+        container.scrollTop = container.scrollHeight + 10000; // 设置一个超大值确保滚到底
+
+        // 2. 使用scrollTo
+        try {
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'auto'
+          });
+        } catch (e) {
+          console.warn('scrollTo方法失败:', e);
         }
 
-        // 在滚动执行后立即更新状态
+        // 3. 使用scrollIntoView
+        if (messagesEndRef.current) {
+          try {
+            messagesEndRef.current.scrollIntoView({ block: 'end', behavior: 'auto' });
+          } catch (e) {
+            console.warn('scrollIntoView方法失败:', e);
+          }
+        }
+
+        // 延迟检查滚动效果
+        setTimeout(() => {
+          console.log('滚动后容器状态:', {
+            scrollHeight: container.scrollHeight,
+            clientHeight: container.clientHeight,
+            scrollTop: container.scrollTop
+          });
+        }, 100);
+
+        // 更新状态
         setShowScrollToBottom(false);
         setUnreadCount(0);
       } else {
@@ -230,10 +254,31 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
   // 更新滚动位置处理函数
   const handleScrollPositionChange = useCallback((isNearBottom: boolean) => {
-    console.log('MessageArea - 收到滚动位置变化通知:', { isNearBottom });
+    console.log('MessageArea - 收到滚动位置变化通知:', {
+      isNearBottom,
+      containerExists: !!messagesContainerRef.current,
+      containerStats: messagesContainerRef.current ? {
+        scrollHeight: messagesContainerRef.current.scrollHeight,
+        clientHeight: messagesContainerRef.current.clientHeight,
+        scrollTop: messagesContainerRef.current.scrollTop
+      } : 'N/A'
+    });
 
-    // 只有当不在底部时才显示按钮
-    setShowScrollToBottom(!isNearBottom);
+    // 只有当不在底部且容器有足够内容可滚动时才显示按钮
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      const hasScrollableContent = container.scrollHeight > container.clientHeight + 50;
+
+      console.log('检查是否应显示按钮:', {
+        isNearBottom,
+        hasScrollableContent,
+        shouldShow: !isNearBottom && hasScrollableContent
+      });
+
+      setShowScrollToBottom(!isNearBottom && hasScrollableContent);
+    } else {
+      setShowScrollToBottom(!isNearBottom);
+    }
   }, []);
 
   // 单击事件处理 - 确保只有一个点击处理器
@@ -419,55 +464,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [displayMessages, messagesContainerRef, messageRefs, onJumpToMessage]);
 
-  // 检查是否需要显示"滚动到底部"按钮
-  const handleScroll = useCallback(() => {
-    if (!messagesContainerRef.current) return;
-
-    const container = messagesContainerRef.current;
-    const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100; // 减少阈值到100px
-
-    // 桌面端使用更宽松的条件
-    const isDesktop = window.innerWidth > 768;
-    const contentThreshold = isDesktop ? 50 : 100; // 桌面端降低内容要求
-    const shouldShow = !isNearBottom && container.scrollHeight > container.clientHeight + contentThreshold;
-
-    // 调试信息 - 只在状态变化时输出
-    if (shouldShow !== showScrollToBottom) {
-      console.log('MessageArea - scroll state changed', {
-        scrollTop: container.scrollTop,
-        clientHeight: container.clientHeight,
-        scrollHeight: container.scrollHeight,
-        threshold: container.scrollHeight - 100,
-        isNearBottom,
-        shouldShow,
-        currentShow: showScrollToBottom,
-        hasEnoughContent: container.scrollHeight > container.clientHeight + contentThreshold,
-        isDesktop,
-        contentThreshold
-      });
-    }
-
-    setShowScrollToBottom(shouldShow);
-
-    // 如果滚动到底部，清除未读计数
-    if (isNearBottom) {
-      setUnreadCount(0);
-    }
-
-    // 重置按钮可见性和超时计时器
-    setButtonVisible(true);
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
-
-    // 5秒后让按钮稍微透明（如果仍不在底部）
-    if (!isNearBottom && shouldShow) {
-      scrollTimeoutRef.current = setTimeout(() => {
-        setButtonVisible(false);
-      }, 5000);
-    }
-  }, [showScrollToBottom]);
-
   // 获取消息列表
   const fetchMessages = useCallback(async (
     groupId: number,
@@ -633,10 +629,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     if (container) {
       // 初始检查滚动位置
       setTimeout(() => {
-        handleScroll();
+        // 删除冗余的handleScroll函数，我们使用VirtualizedMessageList中的滚动检测
       }, 300);
     }
-  }, [handleScroll]);
+  }, []);
 
   // 初始化时确保滚动到底部
   useEffect(() => {

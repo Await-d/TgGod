@@ -462,24 +462,43 @@
 /* 滚动到底部按钮 - 强化显示样式 */
 .scroll-to-bottom {
   position: fixed !important;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999 !important;
+  bottom: 30px;
+  right: 30px;
+  z-index: 99999 !important;
+  /* 使用最高的z-index */
   pointer-events: all !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 50px;
+  width: 56px;
+  height: 56px;
+  opacity: 1 !important;
+  /* 确保始终不透明 */
+  background-color: transparent !important;
+}
+
+/* 添加明显的外轮廓突出按钮 */
+.scroll-to-bottom:before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  z-index: -1;
+  box-shadow: 0 0 10px 2px rgba(24, 144, 255, 0.4);
 }
 
 .scroll-to-bottom .ant-btn {
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.5) !important;
+  box-shadow: 0 4px 16px rgba(24, 144, 255, 0.6) !important;
+  /* 增强阴影 */
   border: none;
   background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
-  width: 50px !important;
-  height: 50px !important;
+  width: 56px !important;
+  height: 56px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -487,50 +506,39 @@
   pointer-events: all !important;
   margin: 0 !important;
   padding: 0 !important;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.2s ease;
 }
 
 .scroll-to-bottom .ant-btn:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.6) !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 6px 20px rgba(24, 144, 255, 0.7) !important;
   /* 增强悬浮阴影 */
   background: linear-gradient(135deg, #40a9ff 0%, #69c0ff 100%);
 }
 
-.scroll-to-bottom .ant-btn:active {
-  transform: translateY(0) scale(1.02);
-  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
-}
-
+/* 增大图标以便于点击 */
 .scroll-to-bottom .ant-btn .anticon {
-  font-size: 24px !important;
-  /* 增大图标 */
-  animation: none !important;
-  /* 移除可能导致问题的动画 */
+  font-size: 28px !important;
+  color: white !important;
   margin: 0 !important;
   padding: 0 !important;
+  line-height: 1 !important;
 }
 
+/* 增强徽章样式 */
 .scroll-to-bottom .ant-badge-count {
-  background: #ff4d4f;
-  border: 2px solid #fff;
-  font-size: 10px;
-  font-weight: 600;
-  box-shadow: 0 2px 4px rgba(255, 77, 79, 0.3);
-  animation: pulseRed 2s ease-in-out infinite;
-}
-
-@keyframes pulseRed {
-
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow: 0 2px 4px rgba(255, 77, 79, 0.3);
-  }
-
-  50% {
-    transform: scale(1.1);
-    box-shadow: 0 3px 6px rgba(255, 77, 79, 0.5);
-  }
+  min-width: 22px !important;
+  height: 22px !important;
+  padding: 0 6px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 22px !important;
+  background-color: #ff4d4f !important;
+  box-shadow: 0 0 0 2px white !important;
+  top: -5px !important;
+  right: -5px !important;
 }
 
 /* 移除自动隐藏类，避免按钮消失 */
@@ -595,13 +603,14 @@
   .scroll-to-bottom {
     bottom: 80px;
     /* 移动端位置更高，避免与其他控件重叠 */
-    right: 16px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
   }
 
   .scroll-to-bottom .ant-btn {
-    width: 44px;
-    /* 移动端按钮略小 */
-    height: 44px;
+    width: 52px !important;
+    height: 52px !important;
   }
 }
 
