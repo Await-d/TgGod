@@ -13,6 +13,38 @@ from datetime import datetime
 import json
 import logging
 import asyncio
+import os
+import time
+import datetime
+import uuid
+import secrets
+import re
+from typing import Dict, Any, Union
+from datetime import datetime, timedelta
+from sqlalchemy import func, desc, asc, and_, or_, text
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Path, Query
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+from telethon import TelegramClient, errors
+from telethon.errors import (
+    SessionPasswordNeededError, 
+    FloodWaitError, 
+    PhoneCodeInvalidError,
+    PhoneCodeExpiredError,
+    PasswordHashInvalidError,
+    ChatIdInvalidError,
+    ChannelPrivateError,
+    ConnectionError
+)
+from telethon.tl.functions.messages import GetDialogsRequest, GetHistoryRequest
+from telethon.tl.functions.channels import GetFullChannelRequest
+from telethon.tl.functions.messages import GetFullChatRequest
+from telethon.tl.functions.channels import GetParticipantRequest
+from telethon.tl.types import InputPeerChannel, InputPeerChat, InputPeerUser, Channel, Chat
+from telethon.tl.types import ChannelParticipantsSearch, PeerChannel
+from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -732,9 +764,6 @@ async def batch_sync_task(active_groups, months_data):
             logger.warning(f"WebSocket推送错误消息失败: {ws_e}")
 
 # 简单的内存缓存
-import time
-from typing import Dict, Any
-
 # 统计信息缓存，格式: {group_id: {"data": stats, "timestamp": time.time()}}
 _stats_cache: Dict[int, Dict[str, Any]] = {}
 CACHE_TTL = 300  # 5分钟缓存
@@ -1387,7 +1416,6 @@ async def get_media_info():
     """获取媒体文件信息"""
     try:
         from ..config import settings
-        import os
         
         media_root = settings.media_root
         
@@ -1478,6 +1506,12 @@ async def get_group_preview(
             raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
         
         try:
+            # 处理特殊情况：非用户名格式的请求（如guanPic）
+            if not username.isalnum() and not all(c.isalnum() or c == '_' for c in username):
+                logger.warning(f"无效的用户名格式: {username}")
+                await telegram_service.disconnect()
+                raise HTTPException(status_code=400, detail=f"无效的用户名格式: {username}")
+            
             # 通过用户名获取群组实体
             entity = await telegram_service.client.get_entity(username)
             
@@ -1490,6 +1524,7 @@ async def get_group_preview(
                 # 普通群组使用 GetFullChatRequest
                 full_info = await telegram_service.client(GetFullChatRequest(entity.id))
             else:
+                await telegram_service.disconnect()
                 raise HTTPException(status_code=400, detail="不支持的实体类型")
             
             # 检查是否已加入该群组
@@ -1535,12 +1570,32 @@ async def get_group_preview(
             
         except ValueError as e:
             # 群组不存在或无法访问
+            logger.warning(f"群组不存在或无法访问: @{username}, 错误: {e}")
             await telegram_service.disconnect()
             raise HTTPException(status_code=404, detail=f"群组 @{username} 不存在或无法访问")
+        except ConnectionError as e:
+            # 连接错误
+            logger.error(f"Telegram连接错误: {e}")
+            await telegram_service.disconnect()
+            raise HTTPException(status_code=503, detail="Telegram服务暂时不可用")
+        except asyncio.TimeoutError:
+            # 超时错误
+            logger.error("Telegram请求超时")
+            await telegram_service.disconnect()
+            raise HTTPException(status_code=504, detail="Telegram请求超时")
+        except Exception as e:
+            # 其他错误
+            logger.error(f"获取群组预览时出现异常: {e}")
+            await telegram_service.disconnect()
+            raise HTTPException(status_code=500, detail=f"获取群组预览失败: {str(e)}")
         
     except Exception as e:
         logger.error(f"获取群组预览失败: {e}")
-        await telegram_service.disconnect()
+        # 确保在任何情况下都断开连接
+        try:
+            await telegram_service.disconnect()
+        except Exception as disconnect_error:
+            logger.error(f"断开Telegram连接时出错: {disconnect_error}")
         raise HTTPException(status_code=500, detail=f"获取群组预览失败: {str(e)}")
 
 @router.get("/groups/preview/invite/{invite_hash}", response_model=GroupPreviewResponse)

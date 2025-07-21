@@ -97,6 +97,28 @@
   animation: highlight-pulse 1s ease-in-out;
 }
 
+/* 消息高亮动画 */
+.message-highlight-animation {
+  animation: highlight-pulse 2s ease-in-out;
+  box-shadow: 0 0 8px 4px rgba(24, 144, 255, 0.5);
+  z-index: 1;
+  position: relative;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background-color: rgba(24, 144, 255, 0.2);
+  }
+
+  50% {
+    background-color: rgba(24, 144, 255, 0.3);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
 /* 移动端优化 */
 @media (max-width: 768px) {
   .virtualized-message-container::-webkit-scrollbar {

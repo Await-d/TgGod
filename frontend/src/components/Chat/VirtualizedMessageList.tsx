@@ -107,13 +107,43 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
 
   // 跳转到特定消息
   useEffect(() => {
-    if (jumpToMessageId && onJumpComplete && containerRef.current) {
-      const messageElement = messageRefs.current[messages.findIndex(msg => msg.id === jumpToMessageId)];
-      if (messageElement) {
-        messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(() => {
+    if (jumpToMessageId && containerRef.current) {
+      console.log('尝试跳转到消息ID:', jumpToMessageId);
+
+      // 查找消息在数组中的索引
+      const messageIndex = messages.findIndex(msg => msg.id === jumpToMessageId);
+
+      if (messageIndex !== -1) {
+        // 如果找到消息引用
+        const messageElement = messageRefs.current[messageIndex];
+
+        if (messageElement) {
+          console.log('找到消息元素，准备滚动到视图中');
+          // 滚动到目标消息
+          messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          // 添加高亮效果
+          messageElement.classList.add('message-highlight-animation');
+
+          // 移除高亮效果
+          setTimeout(() => {
+            messageElement.classList.remove('message-highlight-animation');
+            // 通知跳转完成
+            if (onJumpComplete) {
+              onJumpComplete();
+            }
+          }, 2000);
+        } else {
+          console.error('消息元素不存在，无法跳转');
+          if (onJumpComplete) {
+            onJumpComplete();
+          }
+        }
+      } else {
+        console.error('未找到目标消息ID:', jumpToMessageId);
+        if (onJumpComplete) {
           onJumpComplete();
-        }, 300);
+        }
       }
     }
   }, [jumpToMessageId, messages, onJumpComplete]);
