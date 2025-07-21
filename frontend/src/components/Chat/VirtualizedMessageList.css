@@ -40,6 +40,42 @@
   }
 }
 
+/* 加载更多指示器样式 */
+.loading-more-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  width: 100%;
+  font-size: 14px;
+  color: #666;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(24, 144, 255, 0.2);
+  border-left-color: #1890ff;
+  border-radius: 50%;
+  margin-right: 8px;
+  animation: spinner-rotate 1s linear infinite;
+}
+
+@keyframes spinner-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 /* 滚动条样式 */
 .virtualized-message-container::-webkit-scrollbar {
   width: 6px;

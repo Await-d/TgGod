@@ -59,18 +59,77 @@ export const useInfiniteScroll = (
     lastGroupId.current = selectedGroup?.id || null;
   }, [selectedGroup?.id]);
 
-  // 当群组变化时重置 - 增加延迟避免与MessageArea冲突
+  // 当群组变化时重置 - 简化初始化逻辑
   useEffect(() => {
-    if (selectedGroup?.id !== lastGroupId.current) {
-      reset();
-      // 新群组时，延迟更长时间再开始监听滚动，让MessageArea先完成初始消息加载
-      const timer = setTimeout(() => {
-        (window as any)._scrollReady = true;
-      }, 2000); // 增加到2秒，确保MessageArea完成初始加载
+    if (!selectedGroup?.id || selectedGroup?.id !== lastGroupId.current) {
+      console.log('[InfiniteScroll] 群组变更，重置滚动状态', {
+        newGroupId: selectedGroup?.id,
+        oldGroupId: lastGroupId.current
+      });
       
-      return () => clearTimeout(timer);
+      // 重置状态
+      reset();
+      
+      // 重置加载标记，确保可以立即加载
+      (window as any)._lastLoadTrigger = 0;
+      (window as any)._lastScrollAdjust = 0;
+      
+      // 不再延迟滚动检测，立即启用
+      console.log('[InfiniteScroll] 立即启用滚动检测');
     }
   }, [selectedGroup?.id, reset]);
+  
+  // 创建一个初始检查函数
+  const checkInitialScroll = useCallback(() => {
+    if (containerRef.current && selectedGroup?.id) {
+      const scrollTop = containerRef.current.scrollTop;
+      console.log('[InfiniteScroll] 初始滚动位置检查', { scrollTop });
+      
+      // 如果一开始就在顶部附近，主动加载一次历史数据
+      if (scrollTop < 200 && hasMore && !isLoadingRef.current) {
+        console.log('[InfiniteScroll] 初始化时接近顶部，主动加载历史数据');
+        
+        // 使用已定义的API直接获取历史消息
+        isLoadingRef.current = true;
+        setIsLoadingMore(true);
+        
+        // 调用API获取历史消息
+        messageApi.getGroupMessages(selectedGroup.id, {
+          skip: currentPage * pageSize,
+          limit: pageSize
+        }).then(response => {
+          if (response && Array.isArray(response)) {
+            console.log(`[InfiniteScroll] 初始化时成功加载 ${response.length} 条历史消息`);
+            if (response.length > 0) {
+              // 将新消息添加到现有消息前面
+              onMessagesUpdate([...response.reverse(), ...messages]);
+              setCurrentPage(prev => prev + 1);
+              setTotalLoaded(prev => prev + response.length);
+              setHasMore(response.length === pageSize);
+            } else {
+              setHasMore(false);
+            }
+          }
+        }).catch(error => {
+          console.error('[InfiniteScroll] 初始化加载历史消息出错:', error);
+          setHasMore(false);
+        }).finally(() => {
+          isLoadingRef.current = false;
+          setIsLoadingMore(false);
+        });
+      }
+    }
+  }, [containerRef, selectedGroup, hasMore, currentPage, pageSize, messages, onMessagesUpdate, setIsLoadingMore]);
+  
+  // 分离初始加载检查，避免循环依赖
+  useEffect(() => {
+    if (!selectedGroup?.id) return;
+    
+    // 延迟300ms后检查是否需要预加载，确保UI已更新
+    const timer = setTimeout(checkInitialScroll, 300);
+    
+    return () => clearTimeout(timer);
+  }, [selectedGroup?.id, checkInitialScroll]);
 
   // 滚动到顶部
   const scrollToTop = useCallback(() => {
@@ -189,68 +248,92 @@ export const useInfiniteScroll = (
     maintainScrollPosition
   ]);
 
-  // 统一的滚动事件处理器 - 合并所有滚动逻辑
+  // 统一的滚动事件处理器 - 简化版，更直接地触发加载
   const handleScroll = useCallback(() => {
     if (!containerRef.current || !selectedGroup || isLoadingRef.current || !hasMore) {
+      console.log('[InfiniteScroll] 未满足基本滚动条件，跳过处理', {
+        hasContainer: !!containerRef.current,
+        hasSelectedGroup: !!selectedGroup,
+        isLoading: isLoadingRef.current,
+        hasMore
+      });
       return;
     }
 
-    // 检查是否已经准备好处理滚动事件
-    if (!(window as any)._scrollReady) {
-      return;
-    }
-
+    // 简化滚动条件判断
     const container = containerRef.current;
     const scrollTop = container.scrollTop;
     const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
     
-    // 防止在滚动调整期间触发加载
-    const timeSinceLastAdjust = Date.now() - ((window as any)._lastScrollAdjust || 0);
+    // 记录滚动状态
+    console.log(`[InfiniteScroll] 滚动状态: top=${scrollTop}, height=${scrollHeight}, client=${clientHeight}`);
+    
+    // 更宽松的时间限制
     const timeSinceLastLoad = Date.now() - ((window as any)._lastLoadTrigger || 0);
-    
-    if (timeSinceLastAdjust < 1000 || timeSinceLastLoad < 2000) {
+    if (timeSinceLastLoad < 1000) {
+      console.log('[InfiniteScroll] 距离上次加载时间太短，跳过', { timeSinceLastLoad });
       return;
     }
     
-    // 定义触发区域
-    const immediateThreshold = threshold; // 立即触发区域
-    const preloadThreshold = Math.min(scrollHeight * 0.15, 500); // 预加载区域
+    // 简化触发区域，降低阈值提高灵敏度
+    const topThreshold = Math.min(threshold * 2, 100); // 更宽松的顶部阈值，至少100px
     
-    // 当滚动到立即触发区域时，立即加载
-    if (scrollTop <= immediateThreshold) {
-      console.log('滚动到顶部，立即加载历史消息...', { scrollTop, threshold: immediateThreshold });
+    // 当滚动接近顶部时，直接触发加载
+    if (scrollTop <= topThreshold) {
+      console.log(`[InfiniteScroll] 已滚动到顶部区域(${scrollTop} <= ${topThreshold})，触发加载历史消息...`);
       
-      // 清除现有的防抖定时器
+      // 清除防抖定时器
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
+        debounceTimer.current = null;
       }
       
-      // 记录触发时间，防止重复触发
+      // 记录触发时间
       (window as any)._lastLoadTrigger = Date.now();
-      loadMore();
-    }
-    // 当滚动到预加载区域时，延迟加载（防抖）
-    else if (scrollTop <= preloadThreshold && currentPage < maxPages) {
-      console.log('进入预加载区域...', { scrollTop, threshold: preloadThreshold, currentPage });
       
-      // 防抖处理
+      // 设置正在加载标记
+      isLoadingRef.current = true;
+      setIsLoadingMore(true);
+      
+      // 直接执行加载，确保被调用
+      loadMore().finally(() => {
+        isLoadingRef.current = false;
+        setIsLoadingMore(false);
+      });
+      
+      return;
+    }
+    
+    // 优化预加载逻辑：更大的预加载区域
+    const preloadThreshold = Math.min(scrollHeight * 0.25, 800); // 增加预加载范围
+    
+    if (scrollTop <= preloadThreshold && currentPage < maxPages) {
+      console.log('[InfiniteScroll] 进入预加载区域', { scrollTop, preloadThreshold });
+      
+      // 防抖处理：减少延迟以更快响应
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
       
       debounceTimer.current = setTimeout(() => {
-        // 再次检查条件，避免重复触发
-        if (containerRef.current && 
-            containerRef.current.scrollTop <= preloadThreshold && 
-            !isLoadingRef.current &&
-            Date.now() - ((window as any)._lastLoadTrigger || 0) >= 2000) {
-          console.log('预加载触发...');
+        // 简化条件检查
+        if (containerRef.current && !isLoadingRef.current) {
+          console.log('[InfiniteScroll] 预加载定时器触发');
           (window as any)._lastLoadTrigger = Date.now();
-          loadMore();
+          
+          // 设置加载状态
+          isLoadingRef.current = true;
+          setIsLoadingMore(true);
+          
+          loadMore().finally(() => {
+            isLoadingRef.current = false;
+            setIsLoadingMore(false);
+          });
         }
-      }, debounceDelay);
+      }, debounceDelay / 2); // 减少防抖延迟提高响应速度
     }
-  }, [containerRef, selectedGroup, hasMore, threshold, debounceDelay, loadMore, currentPage, maxPages]);
+  }, [containerRef, selectedGroup, hasMore, threshold, debounceDelay, loadMore, currentPage, maxPages, setIsLoadingMore]);
 
   // 绑定滚动事件 - 只使用统一的handleScroll
   useEffect(() => {
@@ -262,6 +345,16 @@ export const useInfiniteScroll = (
     const scrollHandler = () => {
       if (!ticking) {
         requestAnimationFrame(() => {
+          // 添加更多调试日志
+          const scrollTop = container.scrollTop;
+          const scrollHeight = container.scrollHeight;
+          console.log(`[InfiniteScroll] 滚动处理: scrollTop=${scrollTop}, scrollHeight=${scrollHeight}`);
+          
+          // 检查是否接近顶部
+          if (scrollTop <= 100) {
+            console.log(`[InfiniteScroll] 接近顶部! scrollTop=${scrollTop}`);
+          }
+          
           handleScroll();
           ticking = false;
         });
@@ -269,6 +362,7 @@ export const useInfiniteScroll = (
       }
     };
 
+    console.log(`[InfiniteScroll] 绑定滚动事件到容器:`, container);
     container.addEventListener('scroll', scrollHandler, { passive: true });
 
     return () => {

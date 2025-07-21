@@ -128,7 +128,11 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
     checkIfAtBottom();
 
     // 检查是否滚动到顶部，触发加载更多
+    // 添加debug日志，检查触发条件
+    console.log(`滚动检测: scrollTop=${scrollTop}, hasMore=${hasMore}, isLoadingMore=${isLoadingMore}, onScrollToTop=${!!onScrollToTop}`);
+
     if (scrollTop <= 50 && hasMore && !isLoadingMore && onScrollToTop) {
+      console.log('触发加载更多历史消息!');
       onScrollToTop();
     }
   }, [hasMore, isLoadingMore, onScrollToTop, checkIfAtBottom]);
@@ -156,10 +160,21 @@ const VirtualizedMessageList: React.FC<VirtualizedMessageListProps> = ({
         minHeight: 0, // 重要：允许flex子元素收缩
         height: '100%', // 确保容器高度为100%
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        WebkitOverflowScrolling: 'touch' // 增加iOS滚动流畅度
       }}
       onScroll={handleScroll}
+      data-has-more={hasMore ? 'true' : 'false'} // 添加数据属性便于调试
+      data-loading={isLoadingMore ? 'true' : 'false'}
     >
+      {/* 加载指示器 - 显示在消息列表顶部 */}
+      {isLoadingMore && (
+        <div className="loading-more-indicator">
+          <div className="loading-spinner"></div>
+          <span>正在加载历史消息...</span>
+        </div>
+      )}
+
       {/* 直接渲染所有消息 */}
       {messagesWithMetadata.map((messageData, index) => {
         const isHighlighted = highlightedMessageId === messageData.id;
