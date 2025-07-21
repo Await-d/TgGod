@@ -249,6 +249,12 @@ const ChatInterface: React.FC = () => {
       targetGroup = await telegramApi.getGroup(groupId);
       console.log('ChatInterface - fetched target group from API:', targetGroup);
       
+      if (!targetGroup) {
+        console.error('ChatInterface - API returned undefined group');
+        antMessage.error('无法获取群组信息');
+        return;
+      }
+      
       // 将获取到的群组添加到当前群组列表中（如果不存在）
       const existingGroup = groups.find(g => g.id === targetGroup.id);
       if (!existingGroup) {
