@@ -24,7 +24,7 @@ export const useRealTimeMessages = (
     retryDelay = 3000
   } = options;
 
-  const { messages, setMessages, addMessage, updateMessage } = useTelegramStore();
+  const { setMessages, addMessage } = useTelegramStore();
   const connectionAttempts = useRef(0);
   const reconnectTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -48,17 +48,23 @@ export const useRealTimeMessages = (
     }
   }, [autoConnect, maxRetries, retryDelay]);
 
-  // 处理新消息接收
+  // 处理新消息接收 - 使用ref避免依赖循环
+  const selectedGroupRef = useRef(selectedGroup);
+  useEffect(() => {
+    selectedGroupRef.current = selectedGroup;
+  }, [selectedGroup]);
+
   const handleNewMessage = useCallback((messageData: any) => {
     console.log('收到新消息:', messageData);
     
+    const currentGroup = selectedGroupRef.current;
     // 检查消息是否属于当前选中的群组
-    if (!selectedGroup || !messageData.chat_id) {
+    if (!currentGroup || !messageData.chat_id) {
       return;
     }
 
     // 如果消息来自当前选中的群组，添加到消息列表
-    if (messageData.chat_id.toString() === selectedGroup.id.toString()) {
+    if (messageData.chat_id.toString() === currentGroup.id.toString()) {
       const newMessage: TelegramMessage = {
         id: messageData.id || Date.now(),
         message_id: messageData.message_id || Date.now(),
@@ -82,29 +88,22 @@ export const useRealTimeMessages = (
         edit_date: messageData.edit_date
       };
 
-      // 检查消息是否已存在（避免重复添加）
-      const existingMessage = messages.find(m => m.message_id === newMessage.message_id);
-      if (!existingMessage) {
-        addMessage(newMessage);
-        console.log('新消息已添加到列表');
-      } else {
-        // 如果消息已存在，可能是编辑后的消息，更新它
-        updateMessage(newMessage.id, newMessage);
-        console.log('消息已更新');
-      }
+      addMessage(newMessage);
+      console.log('新消息已添加到列表');
     }
-  }, [selectedGroup, messages, addMessage, updateMessage]);
+  }, [addMessage]);
 
-  // 处理群组状态更新
+  // 处理群组状态更新 - 使用ref避免依赖循环
   const handleGroupStatusUpdate = useCallback((statusData: any) => {
     console.log('群组状态更新:', statusData);
     
+    const currentGroup = selectedGroupRef.current;
     // 如果是当前群组的状态更新，可以处理相关逻辑
-    if (selectedGroup && statusData.group_id === selectedGroup.id) {
+    if (currentGroup && statusData.group_id === currentGroup.id) {
       // 可以更新群组相关状态，比如在线成员数、最后活动时间等
-      console.log(`群组 ${selectedGroup.title} 状态更新:`, statusData);
+      console.log(`群组 ${currentGroup.title} 状态更新:`, statusData);
     }
-  }, [selectedGroup]);
+  }, []);
 
   // 订阅群组实时消息
   const subscribeToGroupMessages = useCallback((groupId: string | number) => {
@@ -155,28 +154,41 @@ export const useRealTimeMessages = (
     }
   }, [setMessages]);
 
-  // 当选中群组变化时的处理 - 避免重复消息获取
+  // 当选中群组变化时的处理 - 使用ref避免重复订阅
+  const lastSubscribedGroupId = useRef<string | number | null>(null);
+  
   useEffect(() => {
-    if (selectedGroup) {
-      // 1. 取消之前群组的订阅
-      // 这里我们简单地取消所有订阅，实际可能需要更精细的控制
-      
-      // 2. 订阅新群组的消息（只订阅，不获取历史消息）
-      subscribeToGroupMessages(selectedGroup.id);
-      
-      // 3. 不自动获取最新消息，让其他hook负责初始消息加载
+    const currentGroupId = selectedGroup?.id;
+    
+    // 如果群组ID没有变化，跳过处理
+    if (currentGroupId === lastSubscribedGroupId.current) {
+      return;
+    }
+    
+    // 取消之前群组的订阅
+    if (lastSubscribedGroupId.current) {
+      unsubscribeFromGroupMessages(lastSubscribedGroupId.current);
+    }
+    
+    // 订阅新群组的消息
+    if (currentGroupId) {
+      subscribeToGroupMessages(currentGroupId);
       console.log('useRealTimeMessages: 已订阅群组消息，等待实时消息推送');
     }
+    
+    // 更新订阅记录
+    lastSubscribedGroupId.current = currentGroupId || null;
 
-    // 清理函数：组件卸载或群组变化时取消订阅
+    // 清理函数：组件卸载时取消订阅
     return () => {
-      if (selectedGroup) {
-        unsubscribeFromGroupMessages(selectedGroup.id);
+      if (lastSubscribedGroupId.current) {
+        unsubscribeFromGroupMessages(lastSubscribedGroupId.current);
+        lastSubscribedGroupId.current = null;
       }
     };
-  }, [selectedGroup, subscribeToGroupMessages, unsubscribeFromGroupMessages]); // 移除fetchLatestMessages依赖
+  }, [selectedGroup?.id]); // 只依赖群组ID
 
-  // WebSocket 消息订阅
+  // WebSocket 消息订阅 - 只在组件挂载时订阅一次
   useEffect(() => {
     const unsubscribeMessages = subscribeToMessages(handleNewMessage);
     const unsubscribeGroupStatus = subscribeToGroupStatus(handleGroupStatusUpdate);
@@ -185,7 +197,7 @@ export const useRealTimeMessages = (
       unsubscribeMessages();
       unsubscribeGroupStatus();
     };
-  }, [handleNewMessage, handleGroupStatusUpdate]);
+  }, []); // 移除依赖，只在挂载时执行一次
 
   // 组件挂载时连接WebSocket
   useEffect(() => {

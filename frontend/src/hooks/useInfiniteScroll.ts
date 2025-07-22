@@ -49,55 +49,57 @@ export const useInfiniteScroll = (
   const isLoadingRef = useRef(false);
   const lastGroupId = useRef<string | number | null>(null);
 
-  // 重置状态
+  // 重置状态 - 简化版本，不依赖selectedGroup
   const reset = useCallback(() => {
     setCurrentPage(1);
     setHasMore(true);
     setIsLoadingMore(false);
     setTotalLoaded(0);
     isLoadingRef.current = false;
+  }, []);
+
+  // 当群组变化时重置 - 使用ref避免频繁重置
+  useEffect(() => {
+    const currentGroupId = selectedGroup?.id;
     
-    // 更新上一次的群组ID
-    const newGroupId = selectedGroup?.id || null;
+    // 如果群组ID没有变化，跳过处理
+    if (currentGroupId === lastGroupId.current) {
+      return;
+    }
     
-    // 如果群组变更，清除初始加载标记
-    if (lastGroupId.current !== newGroupId && newGroupId) {
-      const initialLoadKey = `initial_load_${newGroupId}`;
+    console.log('[InfiniteScroll] 群组变更，重置滚动状态', {
+      newGroupId: currentGroupId,
+      oldGroupId: lastGroupId.current
+    });
+    
+    // 调用重置函数
+    reset();
+    
+    // 清理所有相关的全局状态
+    (window as any)._lastLoadTrigger = 0;
+    (window as any)._lastScrollAdjust = 0;
+    (window as any)._lastInitialLoadTime = 0;
+    
+    // 如果存在容器引用，清理容器上的绑定标记
+    if (containerRef.current) {
+      const oldKey = `scroll_bound_${lastGroupId.current || 'unknown'}`;
+      delete (containerRef.current as any)[oldKey];
+      
+      const newKey = `scroll_bound_${currentGroupId || 'unknown'}`;
+      delete (containerRef.current as any)[newKey];
+    }
+    
+    // 更新群组ID记录
+    lastGroupId.current = currentGroupId || null;
+    
+    // 如果存在新群组，清除初始加载标记
+    if (currentGroupId) {
+      const initialLoadKey = `initial_load_${currentGroupId}`;
       sessionStorage.removeItem(initialLoadKey);
       console.log('[InfiniteScroll] 清除群组初始加载标记:', initialLoadKey);
     }
     
-    lastGroupId.current = newGroupId;
-  }, [selectedGroup?.id]);
-
-  // 当群组变化时重置 - 简化初始化逻辑
-  useEffect(() => {
-    if (!selectedGroup?.id || selectedGroup?.id !== lastGroupId.current) {
-      console.log('[InfiniteScroll] 群组变更，重置滚动状态', {
-        newGroupId: selectedGroup?.id,
-        oldGroupId: lastGroupId.current
-      });
-      
-      // 重置状态
-      reset();
-      
-      // 清理所有相关的全局状态
-      (window as any)._lastLoadTrigger = 0;
-      (window as any)._lastScrollAdjust = 0;
-      (window as any)._lastInitialLoadTime = 0;
-      
-      // 如果存在容器引用，清理容器上的绑定标记
-      if (containerRef.current) {
-        const oldKey = `scroll_bound_${lastGroupId.current || 'unknown'}`;
-        delete (containerRef.current as any)[oldKey];
-        
-        const newKey = `scroll_bound_${selectedGroup?.id || 'unknown'}`;
-        delete (containerRef.current as any)[newKey];
-      }
-      
-      // 不再延迟滚动检测，立即启用
-      console.log('[InfiniteScroll] 立即启用滚动检测');
-    }
+    console.log('[InfiniteScroll] 立即启用滚动检测');
   }, [selectedGroup?.id, reset]);
   
   // 创建一个初始检查函数
@@ -287,47 +289,36 @@ export const useInfiniteScroll = (
     maintainScrollPosition
   ]);
 
-  // 统一的滚动事件处理器 - 简化版，更直接地触发加载
+  // 使用ref存储当前状态避免频繁回调重建
+  const scrollStateRef = useRef({
+    selectedGroup,
+    hasMore,
+    currentPage
+  });
+  
+  useEffect(() => {
+    scrollStateRef.current = { selectedGroup, hasMore, currentPage };
+  }, [selectedGroup, hasMore, currentPage]);
+
+  // 统一的滚动事件处理器 - 稳定版本
   const handleScroll = useCallback(() => {
-    if (!containerRef.current || !selectedGroup || isLoadingRef.current || !hasMore) {
-      console.log('[InfiniteScroll] 未满足基本滚动条件，跳过处理', {
-        hasContainer: !!containerRef.current,
-        hasSelectedGroup: !!selectedGroup,
-        isLoading: isLoadingRef.current,
-        hasMore
-      });
+    const container = containerRef.current;
+    const { selectedGroup, hasMore, currentPage } = scrollStateRef.current;
+    
+    if (!container || !selectedGroup || isLoadingRef.current || !hasMore) {
       return;
     }
 
-    // 简化滚动条件判断
-    const container = containerRef.current;
     const scrollTop = container.scrollTop;
-    const scrollHeight = container.scrollHeight;
-    const clientHeight = container.clientHeight;
-    
-    // 记录滚动状态
-    console.log(`[InfiniteScroll] 滚动状态: top=${scrollTop}, height=${scrollHeight}, client=${clientHeight}`);
-    
-    // 更宽松的时间限制
     const timeSinceLastLoad = Date.now() - ((window as any)._lastLoadTrigger || 0);
+    
     if (timeSinceLastLoad < 1000) {
-      console.log('[InfiniteScroll] 距离上次加载时间太短，跳过', { timeSinceLastLoad });
       return;
     }
     
-    // 简化触发区域，降低阈值提高灵敏度
-    const topThreshold = Math.min(threshold * 2, 100); // 更宽松的顶部阈值，至少100px
+    const topThreshold = Math.min(threshold * 2, 100);
     
-    // 当滚动接近顶部时，直接触发加载
-    if (scrollTop <= topThreshold) {
-      console.log(`[InfiniteScroll] 已滚动到顶部区域(${scrollTop} <= ${topThreshold})，触发加载历史消息...`);
-      
-      // 清除防抖定时器
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-        debounceTimer.current = null;
-      }
-      
+    if (scrollTop <= topThreshold && currentPage < maxPages) {
       // 记录触发时间
       (window as any)._lastLoadTrigger = Date.now();
       
@@ -335,75 +326,38 @@ export const useInfiniteScroll = (
       isLoadingRef.current = true;
       setIsLoadingMore(true);
       
-      // 直接执行加载，确保被调用
+      // 直接执行加载
       loadMore().finally(() => {
         isLoadingRef.current = false;
         setIsLoadingMore(false);
       });
-      
-      return;
     }
-    
-    // 优化预加载逻辑：更大的预加载区域
-    const preloadThreshold = Math.min(scrollHeight * 0.25, 800); // 增加预加载范围
-    
-    if (scrollTop <= preloadThreshold && currentPage < maxPages) {
-      console.log('[InfiniteScroll] 进入预加载区域', { scrollTop, preloadThreshold });
-      
-      // 防抖处理：减少延迟以更快响应
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-      
-      debounceTimer.current = setTimeout(() => {
-        // 简化条件检查
-        if (containerRef.current && !isLoadingRef.current) {
-          console.log('[InfiniteScroll] 预加载定时器触发');
-          (window as any)._lastLoadTrigger = Date.now();
-          
-          // 设置加载状态
-          isLoadingRef.current = true;
-          setIsLoadingMore(true);
-          
-          loadMore().finally(() => {
-            isLoadingRef.current = false;
-            setIsLoadingMore(false);
-          });
-        }
-      }, debounceDelay / 2); // 减少防抖延迟提高响应速度
-    }
-  }, [containerRef, selectedGroup, hasMore, threshold, debounceDelay, loadMore, currentPage, maxPages, setIsLoadingMore]);
+  }, [threshold, maxPages, loadMore]);
 
-  // 绑定滚动事件 - 只使用统一的handleScroll
+  // 绑定滚动事件 - 修复无限循环问题
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    const groupId = selectedGroup?.id;
+    
+    // 如果没有容器或群组，直接返回
+    if (!container || !groupId) {
+      return;
+    }
 
-    // 避免多次绑定同一个容器
-    const containerKey = `scroll_bound_${selectedGroup?.id || 'unknown'}`;
+    // 使用更严格的重复绑定检查
+    const containerKey = `scroll_bound_${groupId}`;
     if ((container as any)[containerKey]) {
-      console.log('[InfiniteScroll] 跳过重复绑定滚动事件');
       return;
     }
     
     // 标记容器已绑定事件
     (container as any)[containerKey] = true;
 
-    // 使用节流而不是直接绑定，进一步减少触发频率
+    // 使用节流减少触发频率
     let ticking = false;
     const scrollHandler = () => {
       if (!ticking) {
         requestAnimationFrame(() => {
-          // 添加更多调试日志
-          const scrollTop = container.scrollTop;
-          const scrollHeight = container.scrollHeight;
-          console.log(`[InfiniteScroll] 滚动处理: scrollTop=${scrollTop}, scrollHeight=${scrollHeight}`);
-          
-          // 检查是否接近顶部
-          if (scrollTop <= 100) {
-            console.log(`[InfiniteScroll] 接近顶部! scrollTop=${scrollTop}`);
-          }
-          
           handleScroll();
           ticking = false;
         });
@@ -422,9 +376,10 @@ export const useInfiniteScroll = (
       
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
+        debounceTimer.current = null;
       }
     };
-  }, [handleScroll, containerRef, selectedGroup?.id]);
+  }, [selectedGroup?.id]); // 移除handleScroll依赖避免循环
 
   // 当消息数组变化时更新统计
   useEffect(() => {
