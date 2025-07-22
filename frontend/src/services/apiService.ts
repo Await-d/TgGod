@@ -8,7 +8,6 @@ import {
   TelegramMessage,
   MessageSendRequest,
   MessageSearchRequest,
-  GroupStats,
   FilterRule,
   DownloadTask,
   PaginatedResponse,
@@ -337,7 +336,7 @@ export const telegramApi = {
 
 // 消息相关API
 export const messageApi = {
-  // 获取群组消息
+  // 获取群组消息 - 支持完整的筛选参数
   getGroupMessages: (
     groupId: number,
     params: {
@@ -348,11 +347,22 @@ export const messageApi = {
       media_type?: string;
       has_media?: boolean;
       is_forwarded?: boolean;
+      is_pinned?: boolean;
       start_date?: string;
       end_date?: string;
     } = {}
   ): Promise<TelegramMessage[]> => {
-    return api.get(`/telegram/groups/${groupId}/messages`, { params });
+    // 过滤掉undefined值，避免发送不必要的参数
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, value]) => value !== undefined)
+    );
+    
+    console.log('API调用 - getGroupMessages:', {
+      groupId,
+      cleanParams
+    });
+    
+    return api.get(`/telegram/groups/${groupId}/messages`, { params: cleanParams });
   },
 
   // 获取群组消息（分页版本，用于Messages页面）
@@ -371,7 +381,12 @@ export const messageApi = {
       end_date?: string;
     } = {}
   ): Promise<{data: TelegramMessage[], pagination: {current: number, pageSize: number, total: number}}> => {
-    return api.get(`/telegram/groups/${groupId}/messages/paginated`, { params });
+    // 过滤掉undefined值，避免发送不必要的参数
+    const cleanParams = Object.fromEntries(
+      Object.entries(params).filter(([_, value]) => value !== undefined)
+    );
+    
+    return api.get(`/telegram/groups/${groupId}/messages/paginated`, { params: cleanParams });
   },
 
   // 获取群组置顶消息

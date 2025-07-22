@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Space, Button, Tooltip, Divider } from 'antd';
+import { Space, Button, Tooltip, Divider, Badge } from 'antd';
 import { 
   FilterOutlined,
   SyncOutlined,
@@ -11,7 +11,8 @@ import {
   CalendarOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
-import { QuickActionsProps } from '../../types/chat';
+import { QuickActionsProps, MessageFilter } from '../../types/chat';
+import { isEmptyFilter, getFilterDescription } from '../../utils/filterUtils';
 import MonthlySyncModal from '../MonthlySyncModal';
 
 interface ExtendedQuickActionsProps extends QuickActionsProps {
@@ -21,7 +22,9 @@ interface ExtendedQuickActionsProps extends QuickActionsProps {
   onSettings?: () => void;
   onRefresh?: () => void;
   loading?: boolean;
-  allGroups?: TelegramGroup[]; // 添加所有群组列表
+  allGroups?: TelegramGroup[];
+  currentFilter?: MessageFilter; // 当前筛选条件
+  onClearFilter?: () => void; // 清除筛选条件回调
 }
 
 const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
@@ -35,9 +38,15 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
   onSettings,
   onRefresh,
   loading = false,
-  allGroups = []
+  allGroups = [],
+  currentFilter,
+  onClearFilter
 }) => {
   const [monthlySyncVisible, setMonthlySyncVisible] = useState(false);
+
+  // 检查是否有活跃的筛选条件
+  const hasActiveFilter = currentFilter && !isEmptyFilter(currentFilter);
+  const filterDescription = currentFilter ? getFilterDescription(currentFilter) : '';
 
   const handleMonthlySync = () => {
     setMonthlySyncVisible(true);
@@ -73,13 +82,15 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
               />
             </Tooltip>
             
-            <Tooltip title="筛选消息">
-              <Button
-                type="text"
-                icon={<FilterOutlined />}
-                onClick={onFilter}
-                size="small"
-              />
+            <Tooltip title={hasActiveFilter ? `筛选: ${filterDescription}` : "筛选消息"}>
+              <Badge dot={hasActiveFilter} offset={[-2, 2]}>
+                <Button
+                  type={hasActiveFilter ? "primary" : "text"}
+                  icon={<FilterOutlined />}
+                  onClick={onFilter}
+                  size="small"
+                />
+              </Badge>
             </Tooltip>
             
             <Tooltip title="创建规则">
@@ -137,14 +148,16 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
             </Button>
           </Tooltip>
           
-          <Tooltip title="筛选消息">
-            <Button
-              type="text"
-              icon={<FilterOutlined />}
-              onClick={onFilter}
-            >
-              筛选
-            </Button>
+          <Tooltip title={hasActiveFilter ? `筛选: ${filterDescription}` : "筛选消息"}>
+            <Badge dot={hasActiveFilter} offset={[-2, 2]}>
+              <Button
+                type={hasActiveFilter ? "primary" : "text"}
+                icon={<FilterOutlined />}
+                onClick={onFilter}
+              >
+                筛选
+              </Button>
+            </Badge>
           </Tooltip>
           
           <Tooltip title="创建规则">

@@ -7,8 +7,6 @@ import {
   DatePicker, 
   Button, 
   Space, 
-  Switch,
-  InputNumber,
   Row,
   Col,
   message 
@@ -16,6 +14,7 @@ import {
 import { FilterOutlined, ClearOutlined } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { MessageFilter } from '../../types/chat';
+import { validateFilter, getFilterDescription, clearFilter } from '../../utils/filterUtils';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -47,13 +46,13 @@ const MessageFilterDrawer: React.FC<MessageFilterDrawerProps> = ({
       const filter: MessageFilter = {};
       
       // 搜索关键词
-      if (values.search) {
+      if (values.search?.trim()) {
         filter.search = values.search.trim();
       }
       
-      // 发送者过滤
-      if (values.sender_username) {
-        filter.sender_username = values.sender_username.trim();
+      // 发送者过滤 - 移除@符号
+      if (values.sender_username?.trim()) {
+        filter.sender_username = values.sender_username.trim().replace(/^@/, '');
       }
       
       // 媒体类型
@@ -70,19 +69,33 @@ const MessageFilterDrawer: React.FC<MessageFilterDrawerProps> = ({
       if (values.is_forwarded !== undefined) {
         filter.is_forwarded = values.is_forwarded;
       }
+
+      // 是否为置顶消息
+      if (values.is_pinned !== undefined) {
+        filter.is_pinned = values.is_pinned;
+      }
       
-      // 时间范围
+      // 时间范围 - 转换为ISO字符串格式
       if (values.date_range && values.date_range.length === 2) {
         filter.date_range = [
           values.date_range[0].toISOString(),
           values.date_range[1].toISOString()
         ];
       }
+
+      // 验证筛选条件
+      const validation = validateFilter(filter);
+      if (!validation.valid) {
+        message.error(`筛选条件无效: ${validation.errors.join(', ')}`);
+        return;
+      }
       
       onApplyFilter(filter);
-      message.success('筛选条件已应用');
+      const description = getFilterDescription(filter);
+      message.success(`筛选条件已应用: ${description}`);
       onClose();
     } catch (error) {
+      console.error('应用筛选失败:', error);
       message.error('应用筛选失败');
     } finally {
       setLoading(false);
@@ -92,7 +105,8 @@ const MessageFilterDrawer: React.FC<MessageFilterDrawerProps> = ({
   // 清除筛选
   const handleClearFilter = () => {
     form.resetFields();
-    onApplyFilter({});
+    const emptyFilter = clearFilter();
+    onApplyFilter(emptyFilter);
     message.success('筛选条件已清除');
     onClose();
   };
@@ -120,6 +134,10 @@ const MessageFilterDrawer: React.FC<MessageFilterDrawerProps> = ({
       
       if (currentFilter.is_forwarded !== undefined) {
         initialValues.is_forwarded = currentFilter.is_forwarded;
+      }
+
+      if (currentFilter.is_pinned !== undefined) {
+        initialValues.is_pinned = currentFilter.is_pinned;
       }
       
       if (currentFilter.date_range && currentFilter.date_range.length === 2) {
@@ -240,6 +258,21 @@ const MessageFilterDrawer: React.FC<MessageFilterDrawerProps> = ({
                 <Select placeholder="选择" allowClear>
                   <Option value={true}>转发消息</Option>
                   <Option value={false}>原创消息</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="is_pinned"
+                label="置顶消息"
+                tooltip="筛选置顶或普通消息"
+              >
+                <Select placeholder="选择" allowClear>
+                  <Option value={true}>置顶消息</Option>
+                  <Option value={false}>普通消息</Option>
                 </Select>
               </Form.Item>
             </Col>

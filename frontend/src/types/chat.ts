@@ -10,13 +10,29 @@ export interface ChatState {
   messageFilter: MessageFilter;
 }
 
+// 前端筛选条件格式（用于UI组件）
 export interface MessageFilter {
   search?: string;
   sender_username?: string;
   media_type?: string;
   has_media?: boolean;
   is_forwarded?: boolean;
-  date_range?: [string, string];
+  is_pinned?: boolean;
+  date_range?: [string, string]; // 前端日期范围格式
+}
+
+// 后端API筛选参数格式（用于API调用）
+export interface MessageAPIFilter {
+  search?: string;
+  sender_username?: string;
+  media_type?: string;
+  has_media?: boolean;
+  is_forwarded?: boolean;
+  is_pinned?: boolean;
+  start_date?: string; // 后端单独的开始日期
+  end_date?: string;   // 后端单独的结束日期
+  skip?: number;
+  limit?: number;
 }
 
 export interface GroupListItemProps {

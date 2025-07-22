@@ -3,6 +3,7 @@ import { Layout, Typography, Drawer, Button, message as antMessage } from 'antd'
 import { MenuOutlined, CloseOutlined } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../types';
 import { ChatState, MessageFilter } from '../types/chat';
+import { clearFilter } from '../utils/filterUtils';
 import { useTelegramStore, useAuthStore } from '../store';
 import { webSocketService } from '../services/websocket';
 import { messageApi, telegramApi } from '../services/apiService';
@@ -426,7 +427,16 @@ const ChatInterface: React.FC = () => {
 
   // 处理筛选应用
   const handleApplyFilter = useCallback((filter: MessageFilter) => {
+    console.log('ChatInterface - 应用筛选条件:', filter);
     setChatState(prev => ({ ...prev, messageFilter: filter }));
+  }, []);
+
+  // 处理清除筛选条件
+  const handleClearFilter = useCallback(() => {
+    console.log('ChatInterface - 清除筛选条件');
+    const emptyFilter = clearFilter();
+    setChatState(prev => ({ ...prev, messageFilter: emptyFilter }));
+    antMessage.success('已清除所有筛选条件');
   }, []);
 
   // 处理发送消息
@@ -598,6 +608,8 @@ const ChatInterface: React.FC = () => {
           }}
           isMobile={isMobile}
           allGroups={chatState.groups}
+          currentFilter={chatState.messageFilter}
+          onClearFilter={handleClearFilter}
         />
       )}
 

@@ -17,6 +17,8 @@ import { messageApi, telegramApi } from '../../services/apiService';
 import { useTelegramStore, useAuthStore, useTelegramUserStore } from '../../store';
 import './MessageArea.css';
 import { useNavigationHistory, NavigationHistoryEntry } from '../../hooks/useNavigationHistory';
+import { convertFilterToAPIParams, isEmptyFilter } from '../../utils/filterUtils';
+import { MessageFilter } from '../../types/chat';
 // 移除MessageSearchBar导入
 
 const { Text } = Typography;
@@ -29,7 +31,7 @@ interface MessageAreaProps {
   onJumpToGroup?: (groupId: number) => void;
   onNavigateBack?: () => void; // 添加返回导航回调
   hasNavigationHistory?: boolean; // 是否有导航历史
-  searchFilter?: any;
+  searchFilter?: MessageFilter;
   isMobile?: boolean;
   isTablet?: boolean;
   searchQuery?: string;
@@ -83,8 +85,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [jumpToMessageId, setJumpToMessageId] = useState<number | null>(null);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
-  const [localSearchQuery, setLocalSearchQuery] = useState<string>(searchQuery || '');
-  const [localSearchFilter, setLocalSearchFilter] = useState<any>(searchFilter || {});
 
 
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
@@ -417,11 +417,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [displayMessages, messagesContainerRef, messageRefs, onJumpToMessage]);
 
-  // 获取消息列表
+  // 获取消息列表 - 使用标准化的筛选条件转换
   const fetchMessages = useCallback(async (
     groupId: number,
     pageNum: number = 1,
-    filters: any = {},
+    filter: MessageFilter = {},
     append: boolean = false
   ) => {
     if (!groupId) return;
@@ -431,13 +431,18 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
     try {
       const skip = (pageNum - 1) * PAGE_SIZE;
-      const params = {
-        skip,
-        limit: PAGE_SIZE,
-        ...filters,
-      };
+      
+      // 使用工具函数转换筛选条件为API参数格式
+      const apiParams = convertFilterToAPIParams(filter, { skip, limit: PAGE_SIZE });
 
-      const response = await messageApi.getGroupMessages(groupId, params);
+      console.log('MessageArea - 调用API获取消息:', {
+        groupId,
+        pageNum,
+        filter,
+        apiParams
+      });
+
+      const response = await messageApi.getGroupMessages(groupId, apiParams);
 
       if (append && pageNum > 1) {
         // 分页加载：使用智能合并，自动去重和排序
@@ -450,8 +455,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         setTimeout(scrollToBottom, 100);
       }
 
-      // 检查是否还有更多消息 - 除非明确获取到少于PAGE_SIZE的消息，否则总是假设还有更多
-      // 这样可以确保用户可以一直上拉尝试加载，直到确认没有更多数据
+      // 检查是否还有更多消息
       const mightHaveMore = response.length >= PAGE_SIZE;
       setHasMore(mightHaveMore);
 
@@ -462,7 +466,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     } finally {
       loadingState(false);
     }
-  }, [setMessages, scrollToBottom, displayMessages]);
+  }, [setMessages, scrollToBottom, displayMessages, mergeMessages]);
 
   // 加载更多消息
   const loadMoreMessages = useCallback(async () => {
@@ -480,9 +484,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       return;
     }
 
-    // 重要：使用本地筛选条件而不是上层传递的searchFilter
-    await fetchMessages(selectedGroup.id, page + 1, localSearchFilter, true);
-  }, [selectedGroup, onLoadMore, loadingMore, page, localSearchFilter, fetchMessages]); // 添加onLoadMore依赖
+    // 使用上层传递的searchFilter，确保筛选条件一致
+    await fetchMessages(selectedGroup.id, page + 1, searchFilter || {}, true);
+  }, [selectedGroup, onLoadMore, loadingMore, page, searchFilter, fetchMessages]);
 
   // 刷新消息
   const refreshMessages = useCallback(async () => {
@@ -490,9 +494,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
     setPage(1);
     setHasMore(true);
-    // 使用本地筛选条件而不是上层传递的searchFilter
-    await fetchMessages(selectedGroup.id, 1, localSearchFilter);
-  }, [selectedGroup, localSearchFilter, fetchMessages]); // 使用localSearchFilter和fetchMessages作为依赖
+    // 使用上层传递的searchFilter，确保筛选条件一致
+    await fetchMessages(selectedGroup.id, 1, searchFilter || {});
+  }, [selectedGroup, searchFilter, fetchMessages]);
 
   // 同步消息
   const syncMessages = useCallback(async () => {
@@ -501,16 +505,16 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     try {
       await telegramApi.syncGroupMessages(selectedGroup.id, 100);
       antMessage.success('消息同步成功！');
-      // 直接调用fetchMessages而不依赖refreshMessages
+      // 直接调用fetchMessages
       setPage(1);
       setHasMore(true);
-      // 使用本地筛选条件而不是上层传递的searchFilter
-      await fetchMessages(selectedGroup.id, 1, localSearchFilter);
+      // 使用上层传递的searchFilter，确保筛选条件一致
+      await fetchMessages(selectedGroup.id, 1, searchFilter || {});
     } catch (error: any) {
       antMessage.error('同步消息失败: ' + error.message);
       console.error('同步消息失败:', error);
     }
-  }, [selectedGroup, localSearchFilter, fetchMessages]); // 使用localSearchFilter和fetchMessages作为依赖
+  }, [selectedGroup, searchFilter, fetchMessages]);
 
   // 删除消息
   const handleDeleteMessage = useCallback(async (messageId: number) => {
@@ -526,64 +530,9 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [selectedGroup, removeMessage]);
 
-  // 搜索相关函数
-  const handleSearch = useCallback((query: string) => {
-    // 更新本地搜索查询
-    setLocalSearchQuery(query);
+  // 移除本地搜索相关函数，现在由上层统一管理筛选条件
 
-    // 构建新的搜索过滤条件
-    const newFilter = {
-      ...localSearchFilter,
-      query: query.trim() ? query : undefined
-    };
-    setLocalSearchFilter(newFilter);
-
-    // 重新加载消息
-    if (selectedGroup) {
-      setPage(1); // 重置页码
-      setHasMore(true); // 重置加载更多状态
-      fetchMessages(selectedGroup.id, 1, newFilter);
-      // 记录搜索操作到日志
-      console.log('执行搜索:', query, newFilter);
-    }
-  }, [selectedGroup, localSearchFilter, fetchMessages]);
-
-  // 打开过滤器抽屉并应用过滤条件
-  const handleFilter = useCallback(() => {
-    // 这里可以打开过滤抽屉组件
-    // 由于过滤器可能是复杂组件，这里模拟简单的过滤条件变更
-
-    // 示例：切换仅查看媒体消息
-    const mediaFilter = localSearchFilter.media_only === true ?
-      { ...localSearchFilter, media_only: undefined } :
-      { ...localSearchFilter, media_only: true };
-
-    setLocalSearchFilter(mediaFilter);
-
-    if (selectedGroup) {
-      setPage(1);
-      fetchMessages(selectedGroup.id, 1, mediaFilter);
-      antMessage.info(mediaFilter.media_only ? '已过滤：仅显示媒体消息' : '已清除媒体过滤');
-    }
-  }, [selectedGroup, localSearchFilter, fetchMessages]);
-
-  // 清除所有搜索条件并重新加载消息
-  const handleClearSearch = useCallback(() => {
-    // 清除搜索查询
-    setLocalSearchQuery('');
-    // 清除所有过滤条件
-    setLocalSearchFilter({});
-
-    // 重置消息列表
-    if (selectedGroup) {
-      setPage(1);
-      setHasMore(true);
-      fetchMessages(selectedGroup.id, 1, {});
-      antMessage.success('已清除所有搜索和过滤条件');
-    }
-  }, [selectedGroup, fetchMessages]);
-
-  // 当选择群组变化时重新加载消息（只依赖selectedGroup）
+  // 当选择群组变化时重新加载消息
   useEffect(() => {
     // 如果有传入的messages（来自上层管理），则不自己获取消息
     if (propMessages) {
@@ -593,37 +542,32 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     
     if (selectedGroup) {
       setPage(1);
-      // 始终设置为true，让用户可以尝试加载历史数据
       setHasMore(true);
-      // 使用本地筛选条件而不是上层传递的searchFilter
-      fetchMessages(selectedGroup.id, 1, localSearchFilter);
+      // 使用上层传递的searchFilter，确保筛选条件一致
+      fetchMessages(selectedGroup.id, 1, searchFilter || {});
     } else {
       setMessages([]);
     }
-  }, [selectedGroup, localSearchFilter, fetchMessages, propMessages]); // 添加propMessages依赖
+  }, [selectedGroup, searchFilter, fetchMessages, propMessages, setMessages]);
 
-  // 当外部搜索过滤条件变化时同步到本地状态
+  // 当外部搜索过滤条件变化时重新加载消息
   useEffect(() => {
     // 如果有传入的messages，不处理搜索过滤（由上层管理）
     if (propMessages) {
       return;
     }
     
-    // 只有当外部searchFilter与当前localSearchFilter不同时才更新
-    if (selectedGroup && JSON.stringify(searchFilter) !== JSON.stringify(localSearchFilter)) {
-      // 更新本地搜索过滤条件
-      setLocalSearchFilter(searchFilter);
-      
+    // 当searchFilter变化时重新加载消息（防抖处理）
+    if (selectedGroup) {
       const timeoutId = setTimeout(() => {
         setPage(1);
         setHasMore(true);
-        // 使用更新后的本地过滤条件
-        fetchMessages(selectedGroup.id, 1, searchFilter);
+        fetchMessages(selectedGroup.id, 1, searchFilter || {});
       }, 300); // 300ms防抖
 
       return () => clearTimeout(timeoutId);
     }
-  }, [searchFilter, selectedGroup, localSearchFilter, fetchMessages, propMessages]); // 添加propMessages依赖
+  }, [searchFilter, selectedGroup, fetchMessages, propMessages]);
 
   // 获取当前 Telegram 用户信息
   useEffect(() => {
