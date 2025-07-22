@@ -855,6 +855,11 @@ const MessagesPage: React.FC = () => {
                   placeholder="选择群组"
                   value={selectedGroup?.id}
                   style={{ width: isMobile ? 120 : 200 }}
+                  showSearch
+                  optionFilterProp="children"
+                  filterOption={(input, option) => 
+                    (option?.children as unknown as string)?.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  }
                   onChange={(value) => {
                     const group = groups.find(g => g.id === value);
                     setSelectedGroup(group || null);

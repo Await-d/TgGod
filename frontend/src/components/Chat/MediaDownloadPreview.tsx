@@ -55,9 +55,9 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   // 当下载状态改变时，通知父组件
   useEffect(() => {
     if (onUpdateDownloadState) {
-      onUpdateDownloadState(message.id, downloadState);
+      onUpdateDownloadState(message.message_id, downloadState);
     }
-  }, [downloadState, message.id, onUpdateDownloadState]);
+  }, [downloadState, message.message_id, onUpdateDownloadState]);
 
   // 监听 message 变化，更新下载状态
   useEffect(() => {
@@ -68,7 +68,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
         downloadUrl: message.media_path
       });
     }
-  }, [message.media_downloaded, message.media_path, message.id]);
+  }, [message.media_downloaded, message.media_path, message.message_id]);
 
   // 组件卸载时清理
   useEffect(() => {
@@ -179,7 +179,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       }
 
       // 调用后端API取消下载
-      const response = await mediaApi.cancelDownload(message.id);
+      const response = await mediaApi.cancelDownload(message.message_id);
 
       if (response.status === 'cancelled') {
         notification.success('下载已取消');
@@ -213,7 +213,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
     try {
       // 启动下载任务
-      const response = await mediaApi.downloadMedia(message.id);
+      const response = await mediaApi.downloadMedia(message.message_id);
 
       if (response.status === 'already_downloaded') {
         setDownloadState({
@@ -227,7 +227,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       // 开始轮询下载状态
       const newPollInterval = setInterval(async () => {
         try {
-          const statusResponse = await mediaApi.getDownloadStatus(message.id);
+          const statusResponse = await mediaApi.getDownloadStatus(message.message_id);
           const now = Date.now();
 
           if (statusResponse.status === 'downloaded') {
@@ -675,9 +675,9 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
           <div className="media-details">
             <div
               className="media-filename"
-              title={message.media_filename || `${message.media_type}_${message.id}`} // 悬浮显示完整文件名
+              title={message.media_filename || `${message.media_type}_${message.message_id}`} // 悬浮显示完整文件名
             >
-              {message.media_filename || `${message.media_type}_${message.id}`}
+              {message.media_filename || `${message.media_type}_${message.message_id}`}
             </div>
             <div className="media-meta">
               <span className="media-size">{formatFileSize(message.media_size)}</span>
