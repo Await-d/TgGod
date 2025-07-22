@@ -5,6 +5,25 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
+/* 导航区域样式 */
+.navigation-section {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.navigation-section .back-button {
+  color: #1890ff;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 8px;
+}
+
+.navigation-section .back-button:hover {
+  color: #40a9ff;
+  background: rgba(24, 144, 255, 0.1);
+}
+
 /* 群组信息区域 - 紧凑布局 */
 .group-info-section {
   padding: 8px 12px; /* 减少内边距 */

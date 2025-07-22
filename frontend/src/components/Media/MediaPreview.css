@@ -81,6 +81,19 @@
   color: #666;
 }
 
+/* 媒体不可用状态样式 */
+.media-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 20px;
+  color: #666;
+  background-color: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+}
+
 .media-icon-large {
   font-size: 64px;
   color: #d9d9d9;

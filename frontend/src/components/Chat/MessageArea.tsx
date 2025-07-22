@@ -5,8 +5,7 @@ import {
   SyncOutlined,
   SettingOutlined,
   ArrowDownOutlined,
-  DownOutlined,
-  ArrowLeftOutlined
+  DownOutlined
 } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
@@ -655,34 +654,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     };
   }, []);
 
-  // 渲染顶部导航区域（包括返回按钮）
-  const renderTopNavigation = () => {
-    if (!selectedGroup) return null;
-
-    return (
-      <div className="message-area-navigation">
-        {hasNavigationHistory && onNavigateBack && (
-          <Button
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            onClick={onNavigateBack}
-            className="back-button"
-            title="返回上一群组"
-          />
-        )}
-        <div className="group-title">
-          <Text strong>
-            {selectedGroup.title}
-          </Text>
-          {selectedGroup.username && (
-            <Text type="secondary" className="group-username">
-              @{selectedGroup.username}
-            </Text>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   // 渲染空状态
   if (!selectedGroup) {
@@ -706,11 +677,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         overflow: 'hidden'
       }}
     >
-      {/* 添加导航区域 */}
-      {renderTopNavigation()}
-
-      {/* 移除搜索和过滤区域 */}
-
       {/* 消息头部 */}
       <MessageHeader
         group={selectedGroup}
@@ -720,6 +686,8 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         onJumpToMessage={jumpToMessage}
         loading={loading}
         isMobile={isMobile}
+        onNavigateBack={onNavigateBack}
+        hasNavigationHistory={hasNavigationHistory}
       />
 
       {/* 置顶消息已移动到MessageHeader组件中 */}

@@ -100,7 +100,8 @@
       "Bash(env)",
       "Bash(pip3 install:*)",
       "Bash(source:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(true)"
     ],
     "deny": []
   }

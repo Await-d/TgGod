@@ -73,6 +73,18 @@ def process_message_json_fields(message):
         else:
             message.hashtags = []
         
+        # 处理媒体URL - 为已下载的文件设置正确的访问URL
+        if message.media_type and message.media_downloaded and message.media_path:
+            # 如果文件已下载且有本地路径，设置文件服务URL
+            import os
+            if os.path.exists(message.media_path):
+                message.media_download_url = f"/api/media/download/{message.message_id}"
+            else:
+                # 文件记录存在但实际文件丢失，重置状态
+                message.media_downloaded = False
+                message.media_path = None
+                message.media_download_url = None
+        
         # 处理urls字段
         if message.urls:
             if isinstance(message.urls, str):
@@ -141,6 +153,9 @@ class MessageResponse(BaseModel):
     media_path: Optional[str]
     media_size: Optional[int]
     media_filename: Optional[str]
+    media_downloaded: bool = False
+    media_download_url: Optional[str]
+    media_thumbnail_path: Optional[str]
     view_count: int
     is_forwarded: bool
     forwarded_from: Optional[str]

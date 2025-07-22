@@ -10,7 +10,8 @@ import {
   PlayCircleOutlined,
   PushpinOutlined,
   LeftOutlined,
-  RightOutlined
+  RightOutlined,
+  ArrowLeftOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { telegramApi, messageApi } from '../../services/apiService';
@@ -28,6 +29,9 @@ interface MessageHeaderProps {
   onSync?: () => Promise<void>;
   loading?: boolean;
   isMobile?: boolean;
+  // 添加导航相关属性
+  onNavigateBack?: () => void;
+  hasNavigationHistory?: boolean;
 }
 
 const MessageHeader: React.FC<MessageHeaderProps> = ({
@@ -37,7 +41,9 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   onRefresh,
   onSync,
   loading = false,
-  isMobile = false
+  isMobile = false,
+  onNavigateBack,
+  hasNavigationHistory = false
 }) => {
   
   // 群组统计信息状态
@@ -155,6 +161,20 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
 
   return (
     <div className="message-header-container">
+      {/* 导航区域 */}
+      {hasNavigationHistory && onNavigateBack && (
+        <div className="navigation-section">
+          <Button
+            type="text"
+            icon={<ArrowLeftOutlined />}
+            onClick={onNavigateBack}
+            className="back-button"
+            title="返回上一群组"
+            size={isMobile ? 'small' : 'middle'}
+          />
+        </div>
+      )}
+      
       {/* 群组基本信息 */}
       <div className="group-info-section">
         <div className="group-main-info">

@@ -174,6 +174,31 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
 
   // 检查是否为可预览的媒体类型
   const isPreviewable = ['photo', 'video'].includes(message.media_type);
+  
+  // 获取媒体文件URL
+  const getMediaUrl = () => {
+    console.log('MediaPreview - getMediaUrl:', {
+      message_id: message.message_id,
+      media_downloaded: message.media_downloaded,
+      media_path: message.media_path,
+      media_download_url: message.media_download_url,
+      media_thumbnail_path: message.media_thumbnail_path
+    });
+    
+    // 如果文件已下载且有本地路径，使用后端提供的文件服务
+    if (message.media_downloaded && message.media_path) {
+      const fileUrl = `/api/media/download/${message.message_id}`;
+      console.log('MediaPreview - using file service URL:', fileUrl);
+      return fileUrl;
+    }
+    
+    // 否则使用现有的URL字段
+    const fallbackUrl = message.media_download_url || message.media_thumbnail_path || null;
+    console.log('MediaPreview - using fallback URL:', fallbackUrl);
+    return fallbackUrl;
+  };
+  
+  const mediaUrl = getMediaUrl();
 
   return (
     <div className={`media-preview ${size} ${className || ''}`}>
@@ -264,9 +289,9 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
         centered
       >
         <div className="media-preview-content">
-          {message.media_type === 'photo' && (message.media_download_url || message.media_thumbnail_path) && (
+          {message.media_type === 'photo' && mediaUrl && (
             <Image
-              src={message.media_download_url || message.media_thumbnail_path}
+              src={mediaUrl}
               alt={message.media_filename || '图片'}
               width="100%"
               placeholder={
@@ -278,15 +303,28 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
             />
           )}
 
-          {message.media_type === 'video' && (message.media_download_url || message.video?.file_path) && (
+          {message.media_type === 'video' && mediaUrl && (
             <video
-              src={message.media_download_url || message.video?.file_path}
+              src={mediaUrl}
               controls
               width="100%"
               style={{ maxHeight: '70vh' }}
             >
               您的浏览器不支持视频播放。
             </video>
+          )}
+          
+          {/* 如果没有可用的媒体URL，显示错误信息 */}
+          {isPreviewable && !mediaUrl && (
+            <div className="media-unavailable">
+              <div className="media-icon-large">
+                {getMediaIcon(message.media_type)}
+              </div>
+              <Text>媒体文件不可用，请先下载文件</Text>
+              <Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} loading={downloadLoading}>
+                下载文件
+              </Button>
+            </div>
           )}
 
           {!isPreviewable && (

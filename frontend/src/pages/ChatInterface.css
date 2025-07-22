@@ -344,6 +344,16 @@
   /* 防止内容溢出 */
 }
 
+/* chat-content容器样式 - 确保消息区域正确占用剩余空间 */
+.chat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: #ffffff;
+}
+
 /* 消息输入区域包装器 - 确保输入框始终显示在底部 */
 .message-input-wrapper {
   flex-shrink: 0;
@@ -353,6 +363,10 @@
   position: relative;
   z-index: 10;
   /* 确保显示在其他内容之上 */
+  min-height: 60px;
+  /* 确保最小高度 */
+  max-height: 200px;
+  /* 限制最大高度 */
 }
 
 /* 消息区域容器 - 修复滚动 */
@@ -363,14 +377,14 @@
   position: relative;
   /* 确保相对定位作为绝对定位按钮的参考 */
   background: #ffffff;
-  overflow: visible;
-  /* 改为visible允许内部元素滚动 */
+  overflow: hidden;
+  /* 防止内容溢出 */
   min-height: 0;
   /* 关键：允许flex子元素收缩 */
+  max-height: calc(100vh - 180px);
+  /* 限制最大高度，留出输入框空间 */
   z-index: 1;
   /* 确保容器层级正确 */
-  height: 100%;
-  /* 确保占满全高 */
 }
 
 /* 消息区域 - 正确的滚动设置 */
@@ -577,6 +591,15 @@
   border-radius: 12px;
   margin: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+/* 移动端消息区域容器 */
+.mobile-message-panel .chat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 
