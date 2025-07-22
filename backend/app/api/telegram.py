@@ -383,6 +383,11 @@ async def get_group_messages(
             query = query.filter(TelegramMessage.date <= end_date)
         
         # 排序和分页逻辑：
+        # 1. 对于Messages页面：最新消息应该排在前面（降序排列）
+        # 2. 对于聊天界面：最老消息在前，最新消息在后（正序排列）
+        # 3. 这里针对Messages页面的需求，统一使用降序排列
+        
+        # 排序和分页逻辑：
         # 1. 如果是置顶消息，按照置顶时间排序（最新置顶的在前）
         # 2. 普通消息按照日期排序，先获取最新的消息（倒序），然后对结果进行正序排列
         # 3. 这样前端就不需要做任何排序操作
@@ -406,6 +411,104 @@ async def get_group_messages(
         
     except Exception as e:
         logger.error(f"获取群组 {group_id} 消息失败: {e}")
+        
+        # 特殊处理数据库锁定错误
+        if "database is locked" in str(e).lower():
+            raise HTTPException(
+                status_code=503, 
+                detail="数据库正忙，请稍后重试。可能有同步任务正在进行中。"
+            )
+        elif "timeout" in str(e).lower():
+            raise HTTPException(
+                status_code=504, 
+                detail="数据库查询超时，请尝试缩小查询范围或稍后重试。"
+            )
+        else:
+            # 其他数据库错误
+            raise HTTPException(
+                status_code=500, 
+                detail=f"数据库查询失败: {str(e)}"
+            )
+
+
+@router.get("/groups/{group_id}/messages/paginated", response_model=dict)
+async def get_group_messages_paginated(
+    group_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    search: Optional[str] = Query(None, description="搜索消息内容"),
+    sender_username: Optional[str] = Query(None, description="按发送者用户名过滤"),
+    media_type: Optional[str] = Query(None, description="按媒体类型过滤"),
+    has_media: Optional[bool] = Query(None, description="是否包含媒体"),
+    is_forwarded: Optional[bool] = Query(None, description="是否为转发消息"),
+    is_pinned: Optional[bool] = Query(None, description="是否为置顶消息"),
+    start_date: Optional[datetime] = Query(None, description="开始日期"),
+    end_date: Optional[datetime] = Query(None, description="结束日期"),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """获取群组消息（支持搜索和过滤）- 专门用于Messages页面的分页版本"""
+    
+    try:
+        # 检查群组是否存在
+        group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+        if not group:
+            raise HTTPException(status_code=404, detail="群组不存在")
+        
+        # 构建查询
+        query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group_id)
+        
+        # 应用过滤条件
+        if search:
+            query = query.filter(TelegramMessage.text.contains(search))
+        
+        if sender_username:
+            query = query.filter(TelegramMessage.sender_username == sender_username)
+        
+        if media_type:
+            query = query.filter(TelegramMessage.media_type == media_type)
+        
+        if has_media is not None:
+            if has_media:
+                query = query.filter(TelegramMessage.media_type.isnot(None))
+            else:
+                query = query.filter(TelegramMessage.media_type.is_(None))
+        
+        if is_forwarded is not None:
+            query = query.filter(TelegramMessage.is_forwarded == is_forwarded)
+        
+        if is_pinned is not None:
+            query = query.filter(TelegramMessage.is_pinned == is_pinned)
+        
+        if start_date:
+            query = query.filter(TelegramMessage.date >= start_date)
+        
+        if end_date:
+            query = query.filter(TelegramMessage.date <= end_date)
+        
+        # 获取总数（用于分页）
+        total_count = query.count()
+        
+        # 消息按照日期降序排列（最新消息在前）- 适合Messages页面展示
+        messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+        
+        # 转换为响应字典格式
+        result_messages = []
+        for message in messages:
+            result_messages.append(convert_message_to_response_dict(message))
+        
+        # 返回分页信息
+        return {
+            "data": result_messages,
+            "pagination": {
+                "current": (skip // limit) + 1,
+                "pageSize": limit,
+                "total": total_count
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取群组 {group_id} 分页消息失败: {e}")
         
         # 特殊处理数据库锁定错误
         if "database is locked" in str(e).lower():

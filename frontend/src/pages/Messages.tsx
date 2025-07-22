@@ -149,13 +149,14 @@ const MessagesPage: React.FC = () => {
         ...searchParams,
       };
 
-      const response = await messageApi.getGroupMessages(groupId, params);
-      setMessages(response);
+      const response = await messageApi.getGroupMessagesPaginated(groupId, params);
+      setMessages(response.data);
 
       setPagination(prev => ({
         ...prev,
-        current: page,
-        total: response.length === pagination.pageSize ? prev.total + response.length : skip + response.length
+        current: response.pagination.current,
+        pageSize: response.pagination.pageSize,
+        total: response.pagination.total
       }));
     } catch (error: any) {
       message.error('获取消息失败: ' + error.message);

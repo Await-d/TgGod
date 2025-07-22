@@ -339,6 +339,25 @@ export const messageApi = {
     return api.get(`/telegram/groups/${groupId}/messages`, { params });
   },
 
+  // 获取群组消息（分页版本，用于Messages页面）
+  getGroupMessagesPaginated: (
+    groupId: number,
+    params: {
+      skip?: number;
+      limit?: number;
+      search?: string;
+      sender_username?: string;
+      media_type?: string;
+      has_media?: boolean;
+      is_forwarded?: boolean;
+      is_pinned?: boolean;
+      start_date?: string;
+      end_date?: string;
+    } = {}
+  ): Promise<{data: TelegramMessage[], pagination: {current: number, pageSize: number, total: number}}> => {
+    return api.get(`/telegram/groups/${groupId}/messages/paginated`, { params });
+  },
+
   // 获取群组置顶消息
   getPinnedMessages: (groupId: number): Promise<TelegramMessage[]> => {
     return api.get(`/telegram/groups/${groupId}/messages`, { 
