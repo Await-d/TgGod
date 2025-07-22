@@ -478,7 +478,7 @@ const Logs: React.FC = () => {
         items={[
           {
             label: (
-              <Badge count={filteredLogs.length} showZero>
+              <Badge count={(filteredLogs || []).length} showZero>
                 <Space>
                   实时日志
                   {autoRefresh && activeTab === 'realtime' && <Badge status="processing" />}
@@ -488,7 +488,7 @@ const Logs: React.FC = () => {
             key: 'realtime',
             children: (
               <Card 
-                title={`实时日志 (${filteredLogs.length})`}
+                title={`实时日志 (${(filteredLogs || []).length})`}
                 extra={
                   <Space>
                     <Button 
@@ -502,7 +502,7 @@ const Logs: React.FC = () => {
                   </Space>
                 }
               >
-                {filteredLogs.length === 0 ? (
+                {(filteredLogs || []).length === 0 ? (
                   <Empty description="暂无日志数据" />
                 ) : (
                   <List
@@ -590,14 +590,14 @@ const Logs: React.FC = () => {
           ,
           {
             label: (
-              <Badge count={taskLogs.length} showZero>
+              <Badge count={(taskLogs || []).length} showZero>
                 任务日志
               </Badge>
             ),
             key: 'task',
             children: (
               <Card 
-                title={`任务日志 (${taskLogs.length})`}
+                title={`任务日志 (${(taskLogs || []).length})`}
                 extra={
                   <Button 
                     type="text" 
@@ -609,7 +609,7 @@ const Logs: React.FC = () => {
                   </Button>
                 }
               >
-                {taskLogs.length === 0 ? (
+                {(taskLogs || []).length === 0 ? (
                   <Empty description="暂无任务日志" />
                 ) : (
                   <List
@@ -628,14 +628,14 @@ const Logs: React.FC = () => {
           },
           {
             label: (
-              <Badge count={systemLogs.length} showZero>
+              <Badge count={(systemLogs || []).length} showZero>
                 系统日志
               </Badge>
             ),
             key: 'system',
             children: (
               <Card 
-                title={`系统日志 (${systemLogs.length})`}
+                title={`系统日志 (${(systemLogs || []).length})`}
                 extra={
                   <Button 
                     type="text" 
@@ -647,7 +647,7 @@ const Logs: React.FC = () => {
                   </Button>
                 }
               >
-                {systemLogs.length === 0 ? (
+                {(systemLogs || []).length === 0 ? (
                   <Empty description="暂无系统日志" />
                 ) : (
                   <List
