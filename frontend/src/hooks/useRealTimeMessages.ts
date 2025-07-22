@@ -1,5 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { TelegramMessage, TelegramGroup } from '../types';
+import { MessageFilter } from '../types/chat';
+import { convertFilterToAPIParams } from '../utils/filterUtils';
 import { useTelegramStore } from '../store';
 import { subscribeToMessages, subscribeToGroupStatus, webSocketService } from '../services/websocket';
 import { messageApi } from '../services/apiService';
@@ -133,14 +135,23 @@ export const useRealTimeMessages = (
     }
   }, [selectedGroup]);
 
-  // 自动获取最新消息
-  const fetchLatestMessages = useCallback(async (groupId: string | number, limit: number = 50, shouldScrollToBottom: boolean = true) => {
+  // 自动获取最新消息 - 支持筛选参数
+  const fetchLatestMessages = useCallback(async (
+    groupId: string | number, 
+    limit: number = 50, 
+    shouldScrollToBottom: boolean = true, 
+    filter: MessageFilter = {}
+  ) => {
     try {
-      console.log('获取最新消息:', groupId);
-      const response = await messageApi.getGroupMessages(Number(groupId), {
-        skip: 0,
-        limit: limit
+      console.log('获取最新消息:', { groupId, limit, filter });
+      
+      // 使用工具函数转换筛选条件
+      const apiParams = convertFilterToAPIParams(filter, { 
+        skip: 0, 
+        limit: limit 
       });
+      
+      const response = await messageApi.getGroupMessages(Number(groupId), apiParams);
 
       if (response && Array.isArray(response)) {
         setMessages(response);

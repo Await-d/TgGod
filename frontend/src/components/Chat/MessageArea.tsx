@@ -550,10 +550,12 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [selectedGroup, searchFilter, fetchMessages, propMessages, setMessages]);
 
-  // 当外部搜索过滤条件变化时重新加载消息
+  // 当外部搜索过滤条件变化时的处理逻辑
   useEffect(() => {
-    // 如果有传入的messages，不处理搜索过滤（由上层管理）
+    // 如果有传入的messages，说明由上层管理消息加载，不需要自主加载
+    // 但仍然需要记录筛选条件变化，以便在需要时使用
     if (propMessages) {
+      console.log('MessageArea - 检测到筛选条件变化，但消息由上层管理:', searchFilter);
       return;
     }
     

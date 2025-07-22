@@ -1,5 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { TelegramMessage, TelegramGroup } from '../types';
+import { MessageFilter } from '../types/chat';
+import { convertFilterToAPIParams } from '../utils/filterUtils';
 import { messageApi } from '../services/apiService';
 
 export interface InfiniteScrollOptions {
@@ -31,7 +33,8 @@ export const useInfiniteScroll = (
   selectedGroup: TelegramGroup | null,
   messages: TelegramMessage[],
   onMessagesUpdate: (messages: TelegramMessage[]) => void,
-  options: InfiniteScrollOptions = {}
+  options: InfiniteScrollOptions = {},
+  currentFilter: MessageFilter = {} // 新增筛选条件参数
 ): InfiniteScrollResult => {
   const {
     threshold = 50, // 减少触发距离，提升响应
@@ -190,11 +193,15 @@ export const useInfiniteScroll = (
       
       console.log(`[InfiniteScroll] 加载前状态: scrollTop=${previousScrollTop}, scrollHeight=${previousScrollHeight}`);
 
-      // 调用API获取历史消息 - 使用实际消息数量作为skip
-      const response = await messageApi.getGroupMessages(selectedGroup.id, {
+      // 使用筛选条件构建API参数
+      const apiParams = convertFilterToAPIParams(currentFilter, {
         skip: skipCount,
         limit: pageSize
       });
+
+      // 调用API获取历史消息 - 使用实际消息数量作为skip
+      console.log(`[InfiniteScroll] API参数:`, apiParams);
+      const response = await messageApi.getGroupMessages(selectedGroup.id, apiParams);
 
       if (response && Array.isArray(response)) {
         const newMessages = response;

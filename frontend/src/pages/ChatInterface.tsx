@@ -72,6 +72,16 @@ const ChatInterface: React.FC = () => {
     reconnect
   } = useRealTimeMessages(selectedGroup);
 
+  // 状态管理
+  const [chatState, setChatState] = useState<ChatState>({
+    selectedGroup: null,
+    groups: [],
+    isGroupListCollapsed: false,
+    isMobile: false,
+    searchQuery: '',
+    messageFilter: {}
+  });
+
   // 无限滚动管理 - 新增
   const {
     isLoadingMore,
@@ -98,18 +108,9 @@ const ChatInterface: React.FC = () => {
       pageSize: 50,
       preloadThreshold: 3,
       maxPages: 50
-    }
+    },
+    chatState.messageFilter // 传递当前筛选条件
   );
-
-  // 状态管理
-  const [chatState, setChatState] = useState<ChatState>({
-    selectedGroup: null,
-    groups: [],
-    isGroupListCollapsed: false,
-    isMobile: false,
-    searchQuery: '',
-    messageFilter: {}
-  });
 
   // 平板模式检测和响应
   useEffect(() => {
@@ -429,15 +430,35 @@ const ChatInterface: React.FC = () => {
   const handleApplyFilter = useCallback((filter: MessageFilter) => {
     console.log('ChatInterface - 应用筛选条件:', filter);
     setChatState(prev => ({ ...prev, messageFilter: filter }));
-  }, []);
+    
+    // 重置无限滚动状态并重新加载消息
+    if (selectedGroup) {
+      console.log('ChatInterface - 重置无限滚动状态并重新加载消息');
+      resetInfiniteScroll();
+      // 使用新的筛选条件重新加载消息
+      setTimeout(() => {
+        fetchLatestMessages(selectedGroup.id, 50, true, filter);
+      }, 100);
+    }
+  }, [selectedGroup, resetInfiniteScroll, fetchLatestMessages]);
 
   // 处理清除筛选条件
   const handleClearFilter = useCallback(() => {
     console.log('ChatInterface - 清除筛选条件');
     const emptyFilter = clearFilter();
     setChatState(prev => ({ ...prev, messageFilter: emptyFilter }));
+    
+    // 重置无限滚动状态并重新加载消息（不带筛选条件）
+    if (selectedGroup) {
+      console.log('ChatInterface - 清除筛选后重新加载消息');
+      resetInfiniteScroll();
+      setTimeout(() => {
+        fetchLatestMessages(selectedGroup.id, 50, true, emptyFilter);
+      }, 100);
+    }
+    
     antMessage.success('已清除所有筛选条件');
-  }, []);
+  }, [selectedGroup, resetInfiniteScroll, fetchLatestMessages]);
 
   // 处理发送消息
   const handleSendMessage = useCallback(async (text: string) => {
