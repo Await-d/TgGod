@@ -9,11 +9,10 @@ import {
   AudioOutlined,
   EyeOutlined,
   LoadingOutlined,
-  CloseOutlined,
-  PauseOutlined
+  CloseOutlined
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
-import apiService, { mediaApi } from '../../services/apiService';
+import { mediaApi } from '../../services/apiService';
 import './MediaDownloadPreview.css';
 
 interface MediaDownloadPreviewProps {
@@ -51,6 +50,10 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  // 状态管理 - 添加缩略图加载失败状态
+  const [thumbnailError, setThumbnailError] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(0); // 强制刷新计数器
 
   // 当下载状态改变时，通知父组件
   useEffect(() => {
@@ -58,6 +61,18 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       onUpdateDownloadState(message.message_id, downloadState);
     }
   }, [downloadState, message.message_id, onUpdateDownloadState]);
+
+  // 监听强制刷新，确保下载完成后UI立即更新
+  useEffect(() => {
+    if (forceRefresh > 0) {
+      console.log('Force refresh triggered', { forceRefresh, downloadState });
+      // 强制重新评估组件状态
+      setTimeout(() => {
+        // 延迟执行确保状态更新完成
+        console.log('Force refresh completed');
+      }, 100);
+    }
+  }, [forceRefresh, downloadState]);
 
   // 监听 message 变化，更新下载状态
   useEffect(() => {
@@ -189,6 +204,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   const handleDownload = async () => {
     if (downloadState.status === 'downloading') return;
 
+    console.log('Starting download for message:', message.message_id);
     setDownloadState({
       status: 'downloading',
       progress: 0,
@@ -212,17 +228,40 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       const newPollInterval = setInterval(async () => {
         try {
           const statusResponse = await mediaApi.getDownloadStatus(message.message_id);
-          const now = Date.now();
 
           if (statusResponse.status === 'downloaded') {
-            setDownloadState({
-              status: 'downloaded',
+            const newDownloadState = {
+              status: 'downloaded' as const,
               downloadUrl: statusResponse.download_url,
               progress: 100,
               downloadedSize: statusResponse.downloaded_size || statusResponse.file_size,
               totalSize: statusResponse.total_size || statusResponse.file_size
+            };
+            
+            setDownloadState(newDownloadState);
+            
+            // 重置缩略图错误状态，允许重新尝试显示
+            setThumbnailError(false);
+            
+            // 强制组件重新渲染以确保UI更新
+            setForceRefresh(prev => prev + 1);
+            
+            // 通知父组件更新消息状态
+            if (onUpdateDownloadState) {
+              onUpdateDownloadState(message.message_id, {
+                ...newDownloadState,
+                media_downloaded: true,
+                media_path: statusResponse.download_url
+              });
+            }
+            
+            console.log('Download completed successfully', {
+              messageId: message.message_id,
+              downloadUrl: statusResponse.download_url,
+              newState: newDownloadState
             });
-            notification.success('下载完成');
+            
+            notification.success('下载完成，可以预览了！');
             clearInterval(newPollInterval);
             setPollInterval(null);
           } else if (statusResponse.status === 'download_failed') {
@@ -235,18 +274,18 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             setPollInterval(null);
           } else if (statusResponse.status === 'downloading') {
             // 使用后端返回的真实进度数据
-            setDownloadState(prevState => {
-              return {
-                ...prevState,
-                status: 'downloading' as const,
-                progress: statusResponse.progress || 0,
-                downloadedSize: statusResponse.downloaded_size || 0,
-                totalSize: statusResponse.total_size || message.media_size || 0,
-                downloadSpeed: statusResponse.download_speed || 0,
-                estimatedTimeRemaining: statusResponse.estimated_time_remaining || 0,
-                lastProgressUpdate: Date.now()
-              };
-            });
+            const newState = {
+              status: 'downloading' as const,
+              progress: statusResponse.progress || 0,
+              downloadedSize: statusResponse.downloaded_size || 0,
+              totalSize: statusResponse.total_size || message.media_size || 0,
+              downloadSpeed: statusResponse.download_speed || 0,
+              estimatedTimeRemaining: statusResponse.estimated_time_remaining || 0,
+              lastProgressUpdate: Date.now()
+            };
+            
+            console.log('Updating download progress:', newState);
+            setDownloadState(prevState => ({ ...prevState, ...newState }));
           }
           // 继续轮询其他状态
         } catch (error) {
@@ -274,13 +313,31 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   // 预览媒体
   const handlePreview = () => {
+    console.log('handlePreview called', {
+      messageId: message.message_id,
+      downloadState,
+      message_media_downloaded: message.media_downloaded,
+      message_media_path: message.media_path
+    });
 
-
-    // 检查是否有可用的媒体URL
-    const hasMediaUrl = downloadState.downloadUrl || (message.media_downloaded && message.media_path);
+    // 检查是否有可用的媒体URL - 优先使用downloadState
+    const hasDownloadUrl = !!downloadState.downloadUrl;
+    const hasMessageMediaPath = message.media_downloaded && message.media_path;
+    const hasMediaUrl = hasDownloadUrl || hasMessageMediaPath;
+    
+    // 优先使用downloadState中的URL，然后使用message中的path
     const mediaUrlForPreview = downloadState.downloadUrl || message.media_path;
 
+    console.log('Preview check result', {
+      hasDownloadUrl,
+      hasMessageMediaPath,
+      hasMediaUrl,
+      mediaUrlForPreview,
+      downloadStatus: downloadState.status
+    });
+
     if (hasMediaUrl && mediaUrlForPreview) {
+      console.log('Starting preview with URL:', mediaUrlForPreview);
       if (onPreview) {
         onPreview(mediaUrlForPreview);
       } else {
@@ -288,6 +345,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
         setShowPreviewModal(true);
       }
     } else {
+      console.log('No media URL available, starting download');
       // 需要先下载
       handleDownload();
     }
@@ -397,7 +455,82 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   // 渲染下载状态
   const renderDownloadStatus = () => {
-    // 优先检查实际的文件状态
+    console.log('renderDownloadStatus called', {
+      messageId: message.message_id,
+      downloadStatus: downloadState.status,
+      progress: downloadState.progress,
+      downloadedSize: downloadState.downloadedSize,
+      totalSize: downloadState.totalSize
+    });
+
+    // 首先检查是否正在下载，优先显示进度条
+    if (downloadState.status === 'downloading') {
+      return (
+        <div className="download-progress">
+          <Card size="small" style={{ width: '100%' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ marginBottom: 8 }}>
+                <LoadingOutlined style={{ fontSize: 16, color: '#1890ff' }} spin />
+                <span style={{ marginLeft: 8, fontWeight: 500 }}>下载中...</span>
+              </div>
+
+              {/* 进度条 */}
+              <Progress
+                percent={downloadState.progress || 0}
+                size="small"
+                strokeColor={{
+                  '0%': '#108ee9',
+                  '100%': '#87d068',
+                }}
+                trailColor="#f5f5f5"
+                style={{ marginBottom: 8 }}
+              />
+
+              {/* 下载信息 */}
+              <div className="download-info">
+                <span>
+                  {downloadState.downloadedSize && downloadState.totalSize ? (
+                    `${formatFileSize(downloadState.downloadedSize)} / ${formatFileSize(downloadState.totalSize)}`
+                  ) : (
+                    `${downloadState.progress || 0}%`
+                  )}
+                </span>
+                <span className="download-speed">
+                  {downloadState.downloadSpeed && downloadState.downloadSpeed > 0 ? (
+                    formatDownloadSpeed(downloadState.downloadSpeed)
+                  ) : (
+                    '计算中...'
+                  )}
+                </span>
+              </div>
+
+              {/* 预计剩余时间 */}
+              {downloadState.estimatedTimeRemaining && downloadState.estimatedTimeRemaining > 0 && (
+                <div className="remaining-time">
+                  剩余时间: {formatTimeRemaining(downloadState.estimatedTimeRemaining)}
+                </div>
+              )}
+
+              {/* 取消下载按钮 */}
+              <div style={{ marginTop: 8, textAlign: 'center' }}>
+                <Button
+                  size="small"
+                  type="text"
+                  danger
+                  icon={<CloseOutlined />}
+                  onClick={handleCancelDownload}
+                  style={{ fontSize: '11px' }}
+                >
+                  取消下载
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // 检查是否已下载完成
     const hasDownloadedFile = downloadState.downloadUrl || (message.media_downloaded && message.media_path);
     const isDownloadStatusComplete = downloadState.status === 'downloaded';
     const isActuallyDownloaded = hasDownloadedFile || isDownloadStatusComplete;
@@ -445,71 +578,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     }
 
     switch (downloadState.status) {
-      case 'downloading':
-        return (
-          <div className="download-progress">
-            <Card size="small" style={{ width: '100%' }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ marginBottom: 8 }}>
-                  <LoadingOutlined style={{ fontSize: 16, color: '#1890ff' }} spin />
-                  <span style={{ marginLeft: 8, fontWeight: 500 }}>下载中...</span>
-                </div>
-
-                {/* 进度条 */}
-                <Progress
-                  percent={downloadState.progress || 0}
-                  size="small"
-                  strokeColor={{
-                    '0%': '#108ee9',
-                    '100%': '#87d068',
-                  }}
-                  trailColor="#f5f5f5"
-                  style={{ marginBottom: 8 }}
-                />
-
-                {/* 下载信息 */}
-                <div className="download-info">
-                  <span>
-                    {downloadState.downloadedSize && downloadState.totalSize ? (
-                      `${formatFileSize(downloadState.downloadedSize)} / ${formatFileSize(downloadState.totalSize)}`
-                    ) : (
-                      `${downloadState.progress || 0}%`
-                    )}
-                  </span>
-                  <span className="download-speed">
-                    {downloadState.downloadSpeed && downloadState.downloadSpeed > 0 ? (
-                      formatDownloadSpeed(downloadState.downloadSpeed)
-                    ) : (
-                      '计算中...'
-                    )}
-                  </span>
-                </div>
-
-                {/* 预计剩余时间 */}
-                {downloadState.estimatedTimeRemaining && downloadState.estimatedTimeRemaining > 0 && (
-                  <div className="remaining-time">
-                    剩余时间: {formatTimeRemaining(downloadState.estimatedTimeRemaining)}
-                  </div>
-                )}
-
-                {/* 取消下载按钮 */}
-                <div style={{ marginTop: 8, textAlign: 'center' }}>
-                  <Button
-                    size="small"
-                    type="text"
-                    danger
-                    icon={<CloseOutlined />}
-                    onClick={handleCancelDownload}
-                    style={{ fontSize: '11px' }}
-                  >
-                    取消下载
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
-        );
-
       case 'error':
         return (
           <div className="download-error">
@@ -574,9 +642,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     
     return null;
   };
-
-  // 状态管理 - 添加缩略图加载失败状态
-  const [thumbnailError, setThumbnailError] = useState(false);
 
   // 渲染媒体缩略图（对于已下载的图片和视频）
   const renderMediaThumbnail = () => {
@@ -735,7 +800,10 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   return (
     <>
-      <div className={`media-download-preview ${className}`}>
+      <div 
+        className={`media-download-preview ${className}`}
+        key={`media-${message.message_id}-${forceRefresh}-${downloadState.status}`}
+      >
         {/* 媒体信息 */}
         <div className="media-info">
           {renderMediaThumbnail()}
