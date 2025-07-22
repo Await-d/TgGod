@@ -501,7 +501,7 @@ const MessagesPage: React.FC = () => {
             )}
 
             {record.media_type && (
-              <MediaPreview 
+              <MediaPreview
                 message={record}
                 size={isMobile ? 'small' : 'default'}
                 showPreview={true}
@@ -712,8 +712,8 @@ const MessagesPage: React.FC = () => {
           });
         }
       } else {
-        // 使用自定义选择的月份
-        monthsToSync = values.months || [];
+        // 使用自定义选择的月份，需要解析JSON字符串
+        monthsToSync = (values.months || []).map((monthStr: string) => JSON.parse(monthStr));
       }
 
       if (monthsToSync.length === 0) {
@@ -1237,7 +1237,7 @@ const MessagesPage: React.FC = () => {
               )}
 
               {selectedMessage.media_type && (
-                <MediaPreview 
+                <MediaPreview
                   message={selectedMessage}
                   size="large"
                   showPreview={true}
@@ -1629,7 +1629,7 @@ const MessagesPage: React.FC = () => {
                     {syncMonths.map((month) => (
                       <Option
                         key={`${month.year}-${month.month}`}
-                        value={month}
+                        value={JSON.stringify(month)}
                       >
                         {month.year}年{month.month}月
                       </Option>

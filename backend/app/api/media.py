@@ -114,7 +114,7 @@ async def start_batch_download(
     failed_to_start = []
     
     for message_id in request.message_ids:
-        message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+        message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
         if not message:
             failed_to_start.append({
                 "message_id": message_id,
@@ -236,7 +236,7 @@ async def get_batch_download_status(
     pending = 0
     
     for message_id in message_ids:
-        message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+        message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
         if not message:
             files_status.append({
                 "message_id": message_id,
@@ -344,7 +344,7 @@ async def cancel_batch_download(
             
             # 更新数据库状态
             try:
-                message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+                message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
                 if message and not message.media_downloaded:
                     message.download_progress = 0
                     message.downloaded_size = 0
@@ -475,8 +475,8 @@ async def download_media_file(
     Returns:
         下载状态和文件信息
     """
-    # 查找消息
-    message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+    # 查找消息 - 使用Telegram消息ID查找
+    message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
     if not message:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -556,7 +556,7 @@ async def get_download_status(
     Returns:
         下载状态信息
     """
-    message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+    message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
     if not message:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -641,7 +641,7 @@ async def cancel_download(
     Returns:
         取消下载结果
     """
-    message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+    message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
     if not message:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -706,7 +706,7 @@ async def delete_media_file(
     Returns:
         删除结果
     """
-    message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+    message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
     if not message:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -765,7 +765,7 @@ async def serve_media_file(
     Returns:
         媒体文件响应
     """
-    message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+    message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
     if not message:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -866,7 +866,7 @@ async def download_media_background(message_id: int, force: bool = False):
     # 使用短连接获取消息信息
     db = SessionLocal()
     try:
-        message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+        message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
         if not message:
             logger.error(f"下载任务: 消息 {message_id} 不存在")
             return
@@ -876,6 +876,7 @@ async def download_media_background(message_id: int, force: bool = False):
             return
         
         # 获取必要的信息后立即关闭连接
+        db_id = message.id  # 数据库主键ID，用于更新进度
         media_file_id = message.media_file_id
         media_type = message.media_type
         media_filename = message.media_filename
@@ -889,7 +890,7 @@ async def download_media_background(message_id: int, force: bool = False):
     # 清除之前的错误信息（单独的数据库操作）
     db = SessionLocal()
     try:
-        message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+        message = db.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
         if message:
             message.media_download_error = None
             db.commit()
@@ -963,7 +964,7 @@ async def download_media_background(message_id: int, force: bool = False):
                     # 更新数据库
                     db_update = SessionLocal()
                     try:
-                        msg = db_update.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+                        msg = db_update.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
                         if msg:
                             msg.download_progress = progress_percent
                             msg.downloaded_size = current_bytes
@@ -1031,7 +1032,7 @@ async def download_media_background(message_id: int, force: bool = False):
     # 最后更新数据库状态（单独的短连接）
     db = SessionLocal()
     try:
-        message = db.query(TelegramMessage).filter(TelegramMessage.id == message_id).first()
+        message = db.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
         if message:
             if download_success and file_path:
                 message.media_downloaded = True
