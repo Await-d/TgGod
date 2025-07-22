@@ -99,7 +99,7 @@ class Settings:
                 return int(env_value)
             except ValueError:
                 pass
-        return self._get_int_config("telegram_api_id", 0)
+        return self._get_int_config("telegram_api_id")
     
     @property
     def telegram_api_hash(self) -> str:
@@ -115,11 +115,11 @@ class Settings:
     
     @property
     def secret_key(self) -> str:
-        return self._get_config("secret_key", "your-secret-key-here")
+        return self._get_config("secret_key", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7")
     
     @property
     def jwt_secret_key(self) -> str:
-        return self._get_config("jwt_secret_key", "your-jwt-secret-key-here-change-in-production")
+        return self._get_config("jwt_secret_key", "88e8d3e709d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b")
     
     @property
     def default_admin_username(self) -> str:
@@ -192,6 +192,25 @@ class Settings:
     @property
     def ws_port(self) -> int:
         return 8001
+    
+    @property
+    def default_user_settings(self) -> dict:
+        """默认用户设置配置"""
+        return {
+            "language": "zh_CN",
+            "theme": "system",
+            "notification_enabled": True,
+            "auto_download": False,
+            "auto_download_max_size": 10,
+            "thumbnails_enabled": True,
+            "timezone": "Asia/Shanghai",
+            "date_format": "YYYY-MM-DD HH:mm",
+            "default_download_path": "downloads",
+            "display_density": "default",
+            "preview_files_inline": True,
+            "default_page_size": 20,
+            "developer_mode": False
+        }
 
 # 创建全局设置实例
 settings = Settings()
@@ -216,9 +235,21 @@ def init_settings():
         from .services.config_service import config_service
         config_service.init_default_configs(db)
         
+        # 确保用户设置表存在
+        try:
+            from .services.user_settings_service import user_settings_service
+            user_settings_service.ensure_user_settings_table_exists(db)
+            print("用户设置表检查完成")
+        except Exception as e:
+            print(f"用户设置表检查失败: {e}")
+        
         print("设置初始化完成")
     except Exception as e:
         print(f"设置初始化失败: {e}")
     finally:
         if db:
             db.close()
+
+def get_default_user_settings():
+    """获取默认用户设置"""
+    return settings.default_user_settings

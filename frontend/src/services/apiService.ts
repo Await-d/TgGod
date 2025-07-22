@@ -681,6 +681,50 @@ export const mediaApi = {
     return api.post(`/media/cancel-download/${messageId}`);
   },
 
+  // 🔥 新增：获取并发下载统计
+  getDownloadStats: (): Promise<{
+    status: string;
+    stats: {
+      total_active_downloads: number;
+      user_active_downloads: Record<string, number>;
+      max_concurrent_downloads: number;
+      user_concurrent_limit: number;
+      started_at: string | null;
+      current_downloads: number[];
+      available_slots: number;
+    };
+  }> => {
+    return api.get('/media/download-stats');
+  },
+
+  // 🔥 新增：取消并发下载
+  cancelConcurrentDownload: (messageId: number): Promise<{
+    status: string;
+    message: string;
+    message_id?: number;
+  }> => {
+    return api.post(`/media/cancel-concurrent-download/${messageId}`);
+  },
+
+  // 🔥 新增：批量并发下载
+  batchConcurrentDownload: (messageIds: number[], force: boolean = false): Promise<{
+    status: string;
+    message: string;
+    total_requested: number;
+    successfully_started: number;
+    already_downloading: number;
+    failed_to_start: number;
+    started_downloads: number[];
+    already_downloading_list: number[];
+    failed_downloads: Array<{ message_id: number; error: string }>;
+    current_concurrent_downloads: number;
+  }> => {
+    return api.post('/media/batch-concurrent-download', {
+      message_ids: messageIds,
+      force
+    });
+  },
+
   // 删除本地媒体文件
   deleteMediaFile: (messageId: number): Promise<{
     status: string;

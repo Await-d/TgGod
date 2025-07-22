@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .config import settings, init_settings
 from .database import engine, Base
-from .api import telegram, rule, log, task, config, auth
+from .api import telegram, rule, log, task, config, auth, user_settings
 from .tasks.message_sync import message_sync_task
 import logging
 import os
@@ -125,6 +125,9 @@ app.include_router(task.router, prefix="/api/task", tags=["task"])
 app.include_router(config.router, prefix="/api/config", tags=["config"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
+# 用户设置API
+app.include_router(user_settings.router, prefix="/api/user", tags=["user"])
+
 # 媒体文件API
 from .api import media
 app.include_router(media.router, prefix="/api/media", tags=["media"])
@@ -230,6 +233,16 @@ async def startup_event():
             logger.info("✅ 数据库字段检查和修复完成")
         else:
             logger.error("❌ 数据库字段修复失败")
+        
+        # 运行用户设置表迁移
+        logger.info("🔧 正在检查用户设置表...")
+        from migrations.add_user_settings_table import run_migration
+        
+        user_settings_success, user_settings_message = run_migration()
+        if user_settings_success:
+            logger.info(f"✅ 用户设置表检查完成: {user_settings_message}")
+        else:
+            logger.warning(f"⚠️ 用户设置表检查警告: {user_settings_message}")
             
     except Exception as e:
         logger.error(f"数据库检查过程中发生错误: {e}")
@@ -237,6 +250,32 @@ async def startup_event():
         
         # 创建数据库表（传统方式）
         Base.metadata.create_all(bind=engine)
+        
+    # 执行其他数据库检查和自动修复
+    try:
+        from .utils.db_utils import check_and_fix_database_on_startup
+        from .database import SessionLocal
+        
+        db = SessionLocal()
+        try:
+            # 检查和修复数据库
+            db_check_results = check_and_fix_database_on_startup(db)
+            logger.info(f"🔧 数据库自动检查结果: {db_check_results['status']}")
+            
+            # 输出详细信息
+            for table, detail in db_check_results.get("details", {}).items():
+                if detail["status"] == "error":
+                    logger.error(f"❌ 表 {table}: {detail['message']}")
+                elif detail["status"] == "fixed":
+                    logger.info(f"✅ 表 {table}: {detail['message']}")
+                else:
+                    logger.debug(f"✓ 表 {table}: {detail['message']}")
+                    
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"数据库自动检查和修复过程中出现错误: {e}")
+        logger.warning("系统将继续启动，但数据库结构可能不完整")
     
     # 启动消息同步任务
     message_sync_task.start()

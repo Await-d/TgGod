@@ -52,8 +52,10 @@ export const userSettingsService = {
   // 保存用户设置
   saveUserSettings: async (settings: Partial<UserSettings>): Promise<UserSettings> => {
     try {
-      // 尝试保存到后端
-      const response = await api.post('/user/settings', settings);
+      // 尝试保存到后端（需要包装为API期望的格式）
+      const response = await api.post('/user/settings', { 
+        settings_data: settings 
+      });
       const savedSettings = { ...defaultSettings, ...response.data };
       
       // 同时保存到本地存储作为备份

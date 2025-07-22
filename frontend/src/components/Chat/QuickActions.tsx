@@ -8,7 +8,8 @@ import {
   SearchOutlined,
   DownloadOutlined,
   ReloadOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  CheckSquareOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
 import { QuickActionsProps, MessageFilter } from '../../types/chat';
@@ -25,6 +26,13 @@ interface ExtendedQuickActionsProps extends QuickActionsProps {
   allGroups?: TelegramGroup[];
   currentFilter?: MessageFilter; // 当前筛选条件
   onClearFilter?: () => void; // 清除筛选条件回调
+  // 🔥 新增：批量下载相关属性
+  selectionMode?: boolean;
+  selectedMessages?: Set<number>;
+  onToggleSelection?: () => void;
+  onBatchDownload?: (force?: boolean) => void;
+  onSelectAllMedia?: () => void;
+  batchDownloading?: boolean;
 }
 
 const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
@@ -40,7 +48,14 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
   loading = false,
   allGroups = [],
   currentFilter,
-  onClearFilter
+  onClearFilter,
+  // 🔥 新增：批量下载相关props
+  selectionMode = false,
+  selectedMessages = new Set<number>(),
+  onToggleSelection,
+  onBatchDownload,
+  onSelectAllMedia,
+  batchDownloading = false
 }) => {
   const [monthlySyncVisible, setMonthlySyncVisible] = useState(false);
 
@@ -119,6 +134,19 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
                 onClick={handleMonthlySync}
                 size="small"
               />
+            </Tooltip>
+            
+            {/* 🔥 批量下载切换按钮 */}
+            <Tooltip title={selectionMode ? "退出选择模式" : "多选下载"}>
+              <Badge count={selectedMessages.size} size="small" offset={[-2, 2]}>
+                <Button
+                  type={selectionMode ? "primary" : "text"}
+                  icon={<CheckSquareOutlined />}
+                  onClick={onToggleSelection}
+                  size="small"
+                  loading={batchDownloading}
+                />
+              </Badge>
             </Tooltip>
           </Space>
         </div>
@@ -199,6 +227,20 @@ const QuickActions: React.FC<ExtendedQuickActionsProps> = ({
             >
               下载
             </Button>
+          </Tooltip>
+          
+          {/* 🔥 批量下载切换按钮 */}
+          <Tooltip title={selectionMode ? "退出选择模式" : "多选下载"}>
+            <Badge count={selectedMessages.size} size="small" offset={[-2, 2]}>
+              <Button
+                type={selectionMode ? "primary" : "text"}
+                icon={<CheckSquareOutlined />}
+                onClick={onToggleSelection}
+                loading={batchDownloading}
+              >
+                {selectionMode ? `多选 (${selectedMessages.size})` : "多选"}
+              </Button>
+            </Badge>
           </Tooltip>
           
           <Tooltip title="设置">

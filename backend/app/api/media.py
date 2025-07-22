@@ -7,6 +7,7 @@ import os
 import uuid
 import logging
 import mimetypes
+from datetime import datetime
 from ..database import get_db, SessionLocal
 from ..models import TelegramMessage
 import asyncio
@@ -52,6 +53,20 @@ cancelled_downloads = set()
 # 批量下载管理
 batch_downloads = {}  # batch_id -> {message_ids, status, started_at, max_concurrent}
 batch_semaphores = {}  # batch_id -> asyncio.Semaphore for controlling concurrency
+
+# 🔥 新增：并发下载管理系统
+MAX_CONCURRENT_DOWNLOADS = 10  # 全局最大并发下载数
+USER_CONCURRENT_LIMIT = 5      # 每用户最大并发下载数
+
+# 并发下载控制
+concurrent_downloads = {}       # message_id -> download_task
+global_download_semaphore = asyncio.Semaphore(MAX_CONCURRENT_DOWNLOADS)
+user_download_semaphores = {}   # user_id -> Semaphore 
+concurrent_download_stats = {   # 统计信息
+    "total_active": 0,
+    "user_active": {},          # user_id -> count
+    "started_at": None
+}
 
 def build_media_url(file_path: str, is_thumbnail: bool = False) -> str:
     """构建媒体文件的访问URL"""
@@ -373,6 +388,129 @@ async def cancel_batch_download(
         "total_files": len(message_ids)
     }
 
+# 🔥 新增：并发下载管理器
+def get_user_semaphore(user_id: int = None) -> asyncio.Semaphore:
+    """获取用户下载信号量，用于控制每用户并发数"""
+    if user_id is None:
+        user_id = 0  # 默认用户
+    
+    if user_id not in user_download_semaphores:
+        user_download_semaphores[user_id] = asyncio.Semaphore(USER_CONCURRENT_LIMIT)
+    
+    return user_download_semaphores[user_id]
+
+def update_download_stats(message_id: int, user_id: int = None, operation: str = "start"):
+    """更新下载统计信息"""
+    global concurrent_download_stats
+    
+    if user_id is None:
+        user_id = 0
+    
+    if operation == "start":
+        concurrent_download_stats["total_active"] += 1
+        if user_id not in concurrent_download_stats["user_active"]:
+            concurrent_download_stats["user_active"][user_id] = 0
+        concurrent_download_stats["user_active"][user_id] += 1
+        
+        if concurrent_download_stats["started_at"] is None:
+            concurrent_download_stats["started_at"] = datetime.now()
+    
+    elif operation == "finish":
+        concurrent_download_stats["total_active"] = max(0, concurrent_download_stats["total_active"] - 1)
+        if user_id in concurrent_download_stats["user_active"]:
+            concurrent_download_stats["user_active"][user_id] = max(0, concurrent_download_stats["user_active"][user_id] - 1)
+            if concurrent_download_stats["user_active"][user_id] == 0:
+                del concurrent_download_stats["user_active"][user_id]
+
+async def concurrent_download_manager(message_id: int, force: bool = False, user_id: int = None):
+    """
+    并发下载管理器 - 替代原有的串行队列系统
+    
+    Args:
+        message_id: 消息ID
+        force: 是否强制重新下载
+        user_id: 用户ID（用于并发限制）
+    """
+    global concurrent_downloads
+    
+    # 检查是否已在下载中
+    if message_id in concurrent_downloads:
+        logger.warning(f"消息 {message_id} 已在下载中，跳过重复请求")
+        return
+    
+    # 获取信号量
+    global_semaphore = global_download_semaphore
+    user_semaphore = get_user_semaphore(user_id)
+    
+    try:
+        # 使用双层信号量控制并发
+        async with global_semaphore:  # 全局并发限制
+            async with user_semaphore:  # 用户并发限制
+                
+                # 更新统计信息
+                update_download_stats(message_id, user_id, "start")
+                
+                # 创建下载任务
+                download_task = asyncio.create_task(
+                    concurrent_download_single_file(message_id, force, user_id)
+                )
+                concurrent_downloads[message_id] = download_task
+                
+                logger.info(f"开始并发下载: 消息 {message_id}, 用户 {user_id}, 当前并发数: {concurrent_download_stats['total_active']}")
+                
+                try:
+                    # 执行下载
+                    await download_task
+                except Exception as e:
+                    logger.error(f"并发下载异常: 消息 {message_id}, 错误: {str(e)}")
+                    raise
+                finally:
+                    # 清理任务
+                    if message_id in concurrent_downloads:
+                        del concurrent_downloads[message_id]
+                    update_download_stats(message_id, user_id, "finish")
+                    
+                    logger.info(f"完成并发下载: 消息 {message_id}, 剩余并发数: {concurrent_download_stats['total_active']}")
+    
+    except Exception as e:
+        logger.error(f"并发下载管理器异常: 消息 {message_id}, 错误: {str(e)}")
+        raise
+
+async def concurrent_download_single_file(message_id: int, force: bool = False, user_id: int = None):
+    """
+    单个文件的并发下载处理 - 不再依赖串行队列
+    
+    Args:
+        message_id: 消息ID
+        force: 是否强制重新下载
+        user_id: 用户ID
+    """
+    logger.info(f"执行并发下载: 消息 {message_id}, force={force}, user={user_id}")
+    
+    try:
+        # 直接调用下载背景任务，绕过串行队列
+        await download_media_background(message_id, force)
+        logger.info(f"并发下载成功: 消息 {message_id}")
+    
+    except Exception as e:
+        logger.error(f"并发下载失败: 消息 {message_id}, 错误: {str(e)}")
+        # 更新数据库状态为失败
+        try:
+            from app.database import get_db
+            db = next(get_db())
+            message = db.query(TelegramMessage).filter(
+                TelegramMessage.message_id == message_id
+            ).first()
+            
+            if message:
+                message.media_download_error = str(e)
+                message.download_progress = 0
+                db.commit()
+        except Exception as db_error:
+            logger.error(f"更新下载失败状态时数据库错误: {str(db_error)}")
+        
+        raise
+
 async def batch_download_manager(batch_id: str):
     """
     批量下载管理器，负责控制并发下载
@@ -517,27 +655,29 @@ async def download_media_file(
                 db.rollback()
                 # 即使提交失败，也继续执行下载任务
     
-    # 检查是否已经在下载队列中
-    global downloading_messages
-    if message_id in downloading_messages:
+    # 🔥 新系统：检查是否已经在并发下载中
+    global concurrent_downloads
+    if message_id in concurrent_downloads:
         return {
-            "status": "download_in_progress",
+            "status": "download_in_progress", 
             "message": "该文件正在下载中，请稍候",
             "message_id": message_id,
             "media_type": message.media_type
         }
     
-    # 启动下载工作进程（如果还没启动）
-    global download_worker_started
-    if not download_worker_started:
-        background_tasks.add_task(start_download_worker)
-        download_worker_started = True
-    
-    # 添加到下载中的集合
-    downloading_messages.add(message_id)
-    
-    # 将下载任务添加到队列
-    await download_queue.put((message_id, force))
+    # 🔥 使用新的并发下载管理器替代串行队列
+    try:
+        # 启动并发下载任务
+        background_tasks.add_task(concurrent_download_manager, message_id, force, None)
+        
+        logger.info(f"已启动并发下载任务: 消息 {message_id}, 当前并发下载数: {len(concurrent_downloads)}")
+        
+    except Exception as e:
+        logger.error(f"启动并发下载任务失败: 消息 {message_id}, 错误: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"启动下载任务失败: {str(e)}"
+        )
     
     return {
         "status": "download_started",
@@ -696,6 +836,162 @@ async def cancel_download(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"取消下载失败: {str(e)}"
         )
+
+# 🔥 新增：并发下载统计和管理端点
+@router.get("/download-stats")
+async def get_download_stats():
+    """
+    获取当前并发下载统计信息
+    
+    Returns:
+        并发下载统计数据
+    """
+    global concurrent_download_stats, concurrent_downloads
+    
+    return {
+        "status": "success",
+        "stats": {
+            "total_active_downloads": concurrent_download_stats["total_active"],
+            "user_active_downloads": concurrent_download_stats["user_active"],
+            "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
+            "user_concurrent_limit": USER_CONCURRENT_LIMIT,
+            "started_at": concurrent_download_stats["started_at"],
+            "current_downloads": list(concurrent_downloads.keys()),
+            "available_slots": MAX_CONCURRENT_DOWNLOADS - concurrent_download_stats["total_active"]
+        }
+    }
+
+@router.post("/cancel-concurrent-download/{message_id}")
+async def cancel_concurrent_download(
+    message_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    取消并发下载任务
+    
+    Args:
+        message_id: 消息ID
+        db: 数据库会话
+    
+    Returns:
+        取消状态
+    """
+    global concurrent_downloads
+    
+    # 检查是否在并发下载中
+    if message_id not in concurrent_downloads:
+        return {
+            "status": "not_downloading",
+            "message": "该文件未在下载中",
+            "message_id": message_id
+        }
+    
+    try:
+        # 取消下载任务
+        download_task = concurrent_downloads[message_id]
+        if not download_task.done():
+            download_task.cancel()
+            logger.info(f"已取消并发下载任务: 消息 {message_id}")
+        
+        # 从并发下载字典中移除
+        del concurrent_downloads[message_id]
+        
+        # 更新数据库状态
+        message = db.query(TelegramMessage).filter(
+            TelegramMessage.message_id == message_id
+        ).first()
+        
+        if message:
+            message.media_download_error = "下载已取消"
+            message.download_progress = 0
+            db.commit()
+        
+        return {
+            "status": "cancelled",
+            "message": "并发下载已取消",
+            "message_id": message_id
+        }
+        
+    except Exception as e:
+        logger.error(f"取消并发下载失败: 消息 {message_id}, 错误: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"取消并发下载失败: {str(e)}"
+        )
+
+@router.post("/batch-concurrent-download")
+async def start_batch_concurrent_download(
+    request: BatchDownloadRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    启动批量并发下载 - 新的批量下载接口，支持更高的并发
+    
+    Args:
+        request: 批量下载请求
+        background_tasks: 后台任务
+        db: 数据库会话
+    
+    Returns:
+        批量下载状态
+    """
+    if not request.message_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="消息ID列表不能为空"
+        )
+    
+    if len(request.message_ids) > 50:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="一次最多可下载50个文件"
+        )
+    
+    # 过滤已在下载中的文件
+    valid_message_ids = []
+    already_downloading = []
+    
+    for message_id in request.message_ids:
+        if message_id in concurrent_downloads:
+            already_downloading.append(message_id)
+        else:
+            valid_message_ids.append(message_id)
+    
+    if not valid_message_ids:
+        return {
+            "status": "all_already_downloading",
+            "message": "所有文件都已在下载中",
+            "already_downloading": already_downloading
+        }
+    
+    # 启动并发下载任务
+    failed_to_start = []
+    successfully_started = []
+    
+    for message_id in valid_message_ids:
+        try:
+            background_tasks.add_task(concurrent_download_manager, message_id, request.force, None)
+            successfully_started.append(message_id)
+        except Exception as e:
+            failed_to_start.append({"message_id": message_id, "error": str(e)})
+            logger.error(f"启动并发下载失败: 消息 {message_id}, 错误: {str(e)}")
+    
+    logger.info(f"批量并发下载启动: {len(successfully_started)} 个文件成功, {len(failed_to_start)} 个文件失败")
+    
+    return {
+        "status": "started",
+        "message": f"批量并发下载已启动",
+        "total_requested": len(request.message_ids),
+        "successfully_started": len(successfully_started),
+        "already_downloading": len(already_downloading),
+        "failed_to_start": len(failed_to_start),
+        "started_downloads": successfully_started,
+        "already_downloading_list": already_downloading,
+        "failed_downloads": failed_to_start,
+        "current_concurrent_downloads": len(concurrent_downloads)
+    }
 
 @router.delete("/media/{message_id}")
 async def delete_media_file(

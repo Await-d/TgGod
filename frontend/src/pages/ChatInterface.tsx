@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Layout, Typography, Drawer, Button, message as antMessage } from 'antd';
+import { Layout, Typography, Drawer, Button, message as antMessage, Modal } from 'antd';
 import { MenuOutlined, CloseOutlined } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../types';
 import { ChatState, MessageFilter } from '../types/chat';
 import { clearFilter } from '../utils/filterUtils';
 import { useTelegramStore, useAuthStore } from '../store';
 import { webSocketService } from '../services/websocket';
-import { messageApi, telegramApi } from '../services/apiService';
+import { messageApi, telegramApi, mediaApi } from '../services/apiService';
 import { useMobileGestures, useIsMobile, useKeyboardHeight } from '../hooks/useMobileGestures';
 // import { useChatPageScrollControl } from '../hooks/usePageScrollControl';
 import { useChatGroupNavigation } from '../hooks/useGroupNavigation';
@@ -26,6 +26,7 @@ import MessageHighlight from '../components/Chat/MessageHighlight';
 import MediaPreview from '../components/Chat/MediaPreview';
 import VoiceMessage from '../components/Chat/VoiceMessage';
 import MessageQuoteForward, { QuotedMessage } from '../components/Chat/MessageQuoteForward';
+import ConcurrentDownloadManager from '../components/Download/ConcurrentDownloadManager';
 import './ChatInterface.css';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
 import { Empty } from 'antd';
@@ -157,8 +158,90 @@ const ChatInterface: React.FC = () => {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [showRuleModal, setShowRuleModal] = useState(false);
+  const [showConcurrentDownloadManager, setShowConcurrentDownloadManager] = useState(false);
   const [ruleBaseMessage, setRuleBaseMessage] = useState<TelegramMessage | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  
+  // 🔥 新增：多选下载功能
+  const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [batchDownloading, setBatchDownloading] = useState(false);
+
+  // 🔥 批量下载处理函数
+  const handleBatchDownload = useCallback(async (force: boolean = false) => {
+    if (selectedMessages.size === 0) {
+      antMessage.warning('请选择要下载的消息');
+      return;
+    }
+
+    setBatchDownloading(true);
+    try {
+      const messageIds = Array.from(selectedMessages);
+      console.log('开始批量下载:', messageIds);
+
+      const response = await mediaApi.batchConcurrentDownload(messageIds, force);
+      
+      // 显示下载结果
+      if (response.successfully_started > 0) {
+        antMessage.success(
+          `成功启动 ${response.successfully_started} 个下载任务${
+            response.already_downloading > 0 ? `，${response.already_downloading} 个已在下载中` : ''
+          }`
+        );
+      }
+      
+      if (response.failed_to_start > 0) {
+        antMessage.warning(`${response.failed_to_start} 个下载任务启动失败`);
+      }
+
+      // 清空选中状态并退出选择模式
+      setSelectedMessages(new Set());
+      setSelectionMode(false);
+
+    } catch (error: any) {
+      console.error('批量下载失败:', error);
+      antMessage.error('批量下载失败: ' + (error.message || '未知错误'));
+    } finally {
+      setBatchDownloading(false);
+    }
+  }, [selectedMessages]);
+
+  // 🔥 消息选择处理函数
+  const handleMessageSelect = useCallback((messageId: number) => {
+    setSelectedMessages(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // 🔥 切换选择模式
+  const toggleSelectionMode = useCallback(() => {
+    setSelectionMode(prev => !prev);
+    if (selectionMode) {
+      // 退出选择模式时清空选中
+      setSelectedMessages(new Set());
+    }
+  }, [selectionMode]);
+
+  // 🔥 全选/取消全选媒体消息
+  const handleSelectAllMedia = useCallback(() => {
+    const mediaMessages = messages.filter(msg => 
+      msg.media_type && ['photo', 'video', 'document', 'audio'].includes(msg.media_type)
+    );
+    
+    if (selectedMessages.size === mediaMessages.length) {
+      // 全部已选中，取消全选
+      setSelectedMessages(new Set());
+    } else {
+      // 全选媒体消息
+      setSelectedMessages(new Set(mediaMessages.map(msg => msg.message_id)));
+    }
+  }, [messages, selectedMessages.size]);
 
   // 置顶消息状态 - 移除，不再需要单独的置顶消息组件
   // const [showPinnedMessages, setShowPinnedMessages] = useState(true);
@@ -591,6 +674,10 @@ const ChatInterface: React.FC = () => {
           jumpToMessageId={jumpToMessageId}
           onJumpComplete={() => setJumpToMessageId(null)}
           onJumpToMessage={handleJumpToMessage}
+          // 🔥 新增：批量下载相关props
+          selectionMode={selectionMode}
+          selectedMessages={selectedMessages}
+          onMessageSelect={handleMessageSelect}
         />
       ) : (
         <div className="no-group-selected">
@@ -631,6 +718,13 @@ const ChatInterface: React.FC = () => {
           allGroups={chatState.groups}
           currentFilter={chatState.messageFilter}
           onClearFilter={handleClearFilter}
+          // 🔥 新增：批量下载相关props
+          selectionMode={selectionMode}
+          selectedMessages={selectedMessages}
+          onToggleSelection={toggleSelectionMode}
+          onBatchDownload={handleBatchDownload}
+          onSelectAllMedia={handleSelectAllMedia}
+          batchDownloading={batchDownloading}
         />
       )}
 
@@ -683,6 +777,50 @@ const ChatInterface: React.FC = () => {
               {renderGroupList()}
             </div>
             <div className="message-panel">
+              {/* 🔥 批量下载状态栏 - 桌面版 */}
+              {selectionMode && (
+                <div className="batch-download-bar" style={{
+                  background: '#f0f2f5',
+                  padding: '12px 24px',
+                  borderBottom: '1px solid #e8e8e8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '14px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <span style={{ fontWeight: 500 }}>
+                      已选择 {selectedMessages.size} 个媒体文件
+                    </span>
+                    <Button 
+                      size="small" 
+                      onClick={handleSelectAllMedia}
+                      type="text"
+                    >
+                      {selectedMessages.size > 0 ? '取消全选' : '全选媒体'}
+                    </Button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <Button 
+                      type="primary"
+                      loading={batchDownloading}
+                      disabled={selectedMessages.size === 0}
+                      onClick={() => handleBatchDownload()}
+                    >
+                      批量下载 ({selectedMessages.size})
+                    </Button>
+                    <Button 
+                      type="default"
+                      onClick={() => setShowConcurrentDownloadManager(true)}
+                    >
+                      下载管理器
+                    </Button>
+                    <Button onClick={toggleSelectionMode}>
+                      退出选择模式
+                    </Button>
+                  </div>
+                </div>
+              )}
               {renderMessageArea()}
               {renderMessageInput()}
             </div>
@@ -724,6 +862,54 @@ const ChatInterface: React.FC = () => {
                   <span className="status-dot"></span>
                 </div>
               </div>
+
+              {/* 🔥 批量下载状态栏 */}
+              {selectionMode && (
+                <div className="batch-download-bar" style={{
+                  background: '#f0f2f5',
+                  padding: '8px 16px',
+                  borderBottom: '1px solid #e8e8e8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '14px'
+                }}>
+                  <span>
+                    已选择 {selectedMessages.size} 个媒体文件
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <Button 
+                      size="small" 
+                      onClick={handleSelectAllMedia}
+                      type="text"
+                    >
+                      {selectedMessages.size > 0 ? '取消全选' : '全选媒体'}
+                    </Button>
+                    <Button 
+                      size="small" 
+                      type="primary"
+                      loading={batchDownloading}
+                      disabled={selectedMessages.size === 0}
+                      onClick={() => handleBatchDownload()}
+                    >
+                      批量下载
+                    </Button>
+                    <Button 
+                      size="small" 
+                      type="default"
+                      onClick={() => setShowConcurrentDownloadManager(true)}
+                    >
+                      管理器
+                    </Button>
+                    <Button 
+                      size="small" 
+                      onClick={toggleSelectionMode}
+                    >
+                      取消
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {renderMessageArea()}
               {renderMessageInput()}
@@ -792,6 +978,19 @@ const ChatInterface: React.FC = () => {
         }}
         isMobile={isMobile}
       />
+
+      {/* 🔥 并发下载管理器模态框 */}
+      <Modal
+        title="并发下载管理器"
+        open={showConcurrentDownloadManager}
+        onCancel={() => setShowConcurrentDownloadManager(false)}
+        footer={null}
+        width={isMobile ? '95%' : '800px'}
+        style={{ maxWidth: isMobile ? 'none' : '800px' }}
+        centered
+      >
+        <ConcurrentDownloadManager />
+      </Modal>
     </Layout>
   );
 };

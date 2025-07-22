@@ -48,6 +48,10 @@ interface MessageAreaProps {
   jumpToMessageId?: number | null;
   onJumpComplete?: () => void;
   onJumpToMessage?: (messageId: number) => void;
+  // 🔥 新增：批量下载相关属性
+  selectionMode?: boolean;
+  selectedMessages?: Set<number>;
+  onMessageSelect?: (messageId: number) => void;
 }
 
 const MessageArea: React.FC<MessageAreaProps> = ({
@@ -73,7 +77,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   // 跳转功能
   jumpToMessageId: propJumpToMessageId,
   onJumpComplete,
-  onJumpToMessage
+  onJumpToMessage,
+  // 🔥 新增：批量下载相关props
+  selectionMode = false,
+  selectedMessages = new Set<number>(),
+  onMessageSelect
 }) => {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
