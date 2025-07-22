@@ -559,13 +559,35 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     }
   };
 
+  // 获取缩略图URL - 优先使用新的缩略图URL字段
+  const getThumbnailUrl = () => {
+    // 优先使用新的缩略图URL
+    if (message.media_thumbnail_url) {
+      console.log('Using thumbnail URL:', message.media_thumbnail_url);
+      return message.media_thumbnail_url;
+    }
+    
+    // 如果文件已下载，使用下载的文件
+    if (downloadState.downloadUrl) {
+      console.log('Using downloaded file URL:', downloadState.downloadUrl);
+      return getFullMediaUrl(downloadState.downloadUrl);
+    }
+    
+    if (message.media_downloaded && message.media_path) {
+      console.log('Using media path URL:', message.media_path);
+      return getFullMediaUrl(message.media_path);
+    }
+    
+    return null;
+  };
+
   // 渲染媒体缩略图（对于已下载的图片和视频）
   const renderMediaThumbnail = () => {
-    // 检查是否有可用的媒体URL（已下载或有路径）
-    const hasMediaUrl = downloadState.downloadUrl || (message.media_downloaded && message.media_path);
-    const mediaUrl = downloadState.downloadUrl || message.media_path;
+    const thumbnailUrl = getThumbnailUrl();
+    // 检查是否有可用的媒体URL（缩略图或已下载）
+    const hasMediaUrl = thumbnailUrl || downloadState.downloadUrl || (message.media_downloaded && message.media_path);
 
-    if (!hasMediaUrl || !mediaUrl) {
+    if (!hasMediaUrl) {
       return (
         <div className="media-icon">
           {getMediaIcon(message.media_type || 'document')}
@@ -573,72 +595,74 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       );
     }
 
-    const fullUrl = getFullMediaUrl(mediaUrl);
-
-    switch (message.media_type) {
-      case 'photo':
-        return (
-          <div className="media-thumbnail" onClick={(e) => {
-            handlePreview();
-          }} style={{ cursor: 'pointer' }}>
-            <img
-              src={fullUrl}
-              alt={message.media_filename || '图片'}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                borderRadius: '8px'
-              }}
-              onError={(e) => {
-                console.error('Thumbnail load error:', e, 'URL:', fullUrl);
-                // 回退到图标显示
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement!.innerHTML = getMediaIcon(message.media_type || 'document')?.props?.children || '';
-              }}
-              onLoad={() => {
-                console.log('Thumbnail loaded successfully');
-              }}
-            />
-            <div className="thumbnail-overlay">
-              <EyeOutlined style={{ color: 'white', fontSize: '16px' }} />
+    // 如果有缩略图URL，使用缩略图进行预览
+    if (thumbnailUrl && ['photo', 'video'].includes(message.media_type || '')) {
+      switch (message.media_type) {
+        case 'photo':
+          return (
+            <div className="media-thumbnail" onClick={(e) => {
+              handlePreview();
+            }} style={{ cursor: 'pointer' }}>
+              <img
+                src={thumbnailUrl}
+                alt={message.media_filename || '图片'}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  borderRadius: '8px'
+                }}
+                onError={(e) => {
+                  console.error('Thumbnail load error:', e, 'URL:', thumbnailUrl);
+                  // 回退到图标显示
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = getMediaIcon(message.media_type || 'document')?.props?.children || '';
+                }}
+                onLoad={() => {
+                  console.log('Thumbnail loaded successfully');
+                }}
+              />
+              <div className="thumbnail-overlay">
+                <EyeOutlined style={{ color: 'white', fontSize: '16px' }} />
+              </div>
             </div>
-          </div>
-        );
-      case 'video':
-        return (
-          <div className="media-thumbnail" onClick={(e) => {
-            handlePreview();
-          }} style={{ cursor: 'pointer' }}>
-            <video
-              src={fullUrl}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                borderRadius: '6px'
-              }}
-              muted
-              preload="metadata"
-              onError={(e) => {
-                console.error('Video thumbnail load error:', e, 'URL:', fullUrl);
-                // 回退到图标显示
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement!.innerHTML = getMediaIcon(message.media_type || 'document')?.props?.children || '';
-              }}
-            />
-            <div className="thumbnail-overlay">
-              <PlayCircleOutlined style={{ color: 'white', fontSize: '20px' }} />
+          );
+        case 'video':
+          return (
+            <div className="media-thumbnail" onClick={(e) => {
+              handlePreview();
+            }} style={{ cursor: 'pointer' }}>
+              <video
+                src={thumbnailUrl}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  borderRadius: '6px'
+                }}
+                muted
+                preload="metadata"
+                onError={(e) => {
+                  console.error('Video thumbnail load error:', e, 'URL:', thumbnailUrl);
+                  // 回退到图标显示
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = getMediaIcon(message.media_type || 'document')?.props?.children || '';
+                }}
+              />
+              <div className="thumbnail-overlay">
+                <PlayCircleOutlined style={{ color: 'white', fontSize: '20px' }} />
+              </div>
             </div>
-          </div>
-        );
-      default:
-        return (
-          <div className="media-icon">
-            {getMediaIcon(message.media_type || 'document')}
-          </div>
-        );
+          );
+      }
     }
+
+    // 如果没有缩略图但有完整文件，使用图标显示
+    return (
+      <div className="media-icon">
+        {getMediaIcon(message.media_type || 'document')}
+      </div>
+    );
   };
 
   return (

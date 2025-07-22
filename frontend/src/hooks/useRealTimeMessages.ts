@@ -134,7 +134,7 @@ export const useRealTimeMessages = (
   }, [selectedGroup]);
 
   // 自动获取最新消息
-  const fetchLatestMessages = useCallback(async (groupId: string | number, limit: number = 50) => {
+  const fetchLatestMessages = useCallback(async (groupId: string | number, limit: number = 50, shouldScrollToBottom: boolean = true) => {
     try {
       console.log('获取最新消息:', groupId);
       const response = await messageApi.getGroupMessages(Number(groupId), {
@@ -146,8 +146,10 @@ export const useRealTimeMessages = (
         setMessages(response);
         console.log(`成功加载 ${response.length} 条消息`);
         
-        // 标记需要滚动到底部
-        (window as any)._shouldScrollToBottom = true;
+        // 根据参数决定是否需要滚动到底部
+        if (shouldScrollToBottom) {
+          (window as any)._shouldScrollToBottom = true;
+        }
       }
     } catch (error) {
       console.error('获取最新消息失败:', error);

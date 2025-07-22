@@ -175,15 +175,22 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
   // 检查是否为可预览的媒体类型
   const isPreviewable = ['photo', 'video'].includes(message.media_type);
   
-  // 获取媒体文件URL
+  // 获取媒体文件URL - 针对预览使用缩略图
   const getMediaUrl = () => {
     console.log('MediaPreview - getMediaUrl:', {
       message_id: message.message_id,
       media_downloaded: message.media_downloaded,
       media_path: message.media_path,
       media_download_url: message.media_download_url,
-      media_thumbnail_path: message.media_thumbnail_path
+      media_thumbnail_path: message.media_thumbnail_path,
+      media_thumbnail_url: message.media_thumbnail_url
     });
+    
+    // 优先使用新的缩略图URL（用于预览）
+    if (message.media_thumbnail_url) {
+      console.log('MediaPreview - using thumbnail URL:', message.media_thumbnail_url);
+      return message.media_thumbnail_url;
+    }
     
     // 如果文件已下载且有本地路径，使用后端提供的文件服务
     if (message.media_downloaded && message.media_path) {
@@ -196,6 +203,17 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
     const fallbackUrl = message.media_download_url || message.media_thumbnail_path || null;
     console.log('MediaPreview - using fallback URL:', fallbackUrl);
     return fallbackUrl;
+  };
+
+  // 获取完整媒体文件URL - 用于下载和完整预览
+  const getFullMediaUrl = () => {
+    // 如果文件已下载且有本地路径，使用后端提供的文件服务
+    if (message.media_downloaded && message.media_path) {
+      return `/api/media/download/${message.message_id}`;
+    }
+    
+    // 否则使用下载URL
+    return message.media_download_url || null;
   };
   
   const mediaUrl = getMediaUrl();
@@ -289,9 +307,9 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
         centered
       >
         <div className="media-preview-content">
-          {message.media_type === 'photo' && mediaUrl && (
+          {message.media_type === 'photo' && (getFullMediaUrl() || mediaUrl) && (
             <Image
-              src={mediaUrl}
+              src={(getFullMediaUrl() || mediaUrl) || undefined}
               alt={message.media_filename || '图片'}
               width="100%"
               placeholder={
@@ -303,9 +321,9 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
             />
           )}
 
-          {message.media_type === 'video' && mediaUrl && (
+          {message.media_type === 'video' && (getFullMediaUrl() || mediaUrl) && (
             <video
-              src={mediaUrl}
+              src={(getFullMediaUrl() || mediaUrl) || undefined}
               controls
               width="100%"
               style={{ maxHeight: '70vh' }}

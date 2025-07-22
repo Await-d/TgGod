@@ -53,7 +53,7 @@ cancelled_downloads = set()
 batch_downloads = {}  # batch_id -> {message_ids, status, started_at, max_concurrent}
 batch_semaphores = {}  # batch_id -> asyncio.Semaphore for controlling concurrency
 
-def build_media_url(file_path: str) -> str:
+def build_media_url(file_path: str, is_thumbnail: bool = False) -> str:
     """构建媒体文件的访问URL"""
     if not file_path:
         return ""
@@ -74,10 +74,16 @@ def build_media_url(file_path: str) -> str:
         if media_index >= 0 and media_index < len(parts) - 1:
             # 获取media目录后的路径部分
             relative_parts = parts[media_index + 1:]
-            return f"/media/{'/'.join(relative_parts)}"
+            if is_thumbnail:
+                return f"/media/thumbnail/{'/'.join(relative_parts)}"
+            else:
+                return f"/media/{'/'.join(relative_parts)}"
     
     # 如果无法确定，使用文件名
-    return f"/media/{os.path.basename(file_path)}"
+    if is_thumbnail:
+        return f"/media/thumbnail/{os.path.basename(file_path)}"
+    else:
+        return f"/media/{os.path.basename(file_path)}"
 
 @router.post("/batch-download", response_model=BatchDownloadResponse)
 async def start_batch_download(
@@ -817,6 +823,90 @@ async def serve_media_file(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"提供媒体文件失败: {str(e)}"
+        )
+
+@router.get("/thumbnail/{message_id}")
+async def serve_media_thumbnail(
+    message_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    提供媒体文件缩略图服务
+    
+    Args:
+        message_id: 消息ID
+        db: 数据库会话
+    
+    Returns:
+        缩略图文件响应
+    """
+    message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="消息不存在"
+        )
+    
+    if not message.media_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该消息不包含媒体文件"
+        )
+    
+    # 检查是否有缩略图
+    if not message.media_thumbnail_path:
+        # 如果没有缩略图但有原文件，对于图片可以返回原文件
+        if message.media_type == "photo" and message.media_downloaded and message.media_path:
+            if os.path.exists(message.media_path):
+                try:
+                    # 获取MIME类型
+                    mime_type, _ = mimetypes.guess_type(message.media_path)
+                    if not mime_type:
+                        mime_type = 'image/jpeg'
+                    
+                    # 设置文件名
+                    filename = f"thumbnail_{message_id}.jpg"
+                    
+                    return FileResponse(
+                        path=message.media_path,
+                        media_type=mime_type,
+                        filename=filename
+                    )
+                except Exception as e:
+                    logger.error(f"提供图片缩略图失败: {str(e)}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"提供缩略图失败: {str(e)}"
+                    )
+        
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="缩略图不存在"
+        )
+    
+    if not os.path.exists(message.media_thumbnail_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="缩略图文件不存在"
+        )
+    
+    try:
+        # 获取MIME类型 - 缩略图通常是JPEG
+        mime_type = 'image/jpeg'
+        
+        # 设置文件名
+        filename = f"thumbnail_{message_id}.jpg"
+        
+        return FileResponse(
+            path=message.media_thumbnail_path,
+            media_type=mime_type,
+            filename=filename
+        )
+    except Exception as e:
+        logger.error(f"提供缩略图失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"提供缩略图失败: {str(e)}"
         )
 
 async def start_download_worker():

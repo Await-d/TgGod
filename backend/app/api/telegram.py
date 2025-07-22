@@ -85,6 +85,11 @@ def process_message_json_fields(message):
                 message.media_path = None
                 message.media_download_url = None
         
+        # 处理缩略图URL - 为媒体文件设置缩略图访问URL
+        if message.media_type:
+            # 构建缩略图URL - 总是尝试提供缩略图端点，让端点决定是否有缩略图可用
+            message.media_thumbnail_url = f"/api/media/thumbnail/{message.message_id}"
+        
         # 处理urls字段
         if message.urls:
             if isinstance(message.urls, str):
@@ -156,6 +161,7 @@ class MessageResponse(BaseModel):
     media_downloaded: bool = False
     media_download_url: Optional[str]
     media_thumbnail_path: Optional[str]
+    media_thumbnail_url: Optional[str]  # 缩略图访问URL
     view_count: int
     is_forwarded: bool
     forwarded_from: Optional[str]

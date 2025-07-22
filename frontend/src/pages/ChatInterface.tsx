@@ -273,7 +273,10 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     if ((window as any)._shouldScrollToBottom && messages.length > 0) {
       console.log('自动滚动到底部');
-      autoScrollToBottom();
+      // 延迟执行，确保DOM已更新
+      setTimeout(() => {
+        autoScrollToBottom();
+      }, 100);
       (window as any)._shouldScrollToBottom = false;
     }
   }, [messages, autoScrollToBottom]);

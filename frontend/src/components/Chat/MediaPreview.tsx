@@ -71,6 +71,7 @@ const formatDuration = (seconds: number): string => {
 interface MediaPreviewProps {
   messageId: number; // 消息ID，用于下载状态追踪
   url: string;
+  thumbnailUrl?: string; // 新增：缩略图URL
   type: 'image' | 'video';
   filename?: string;
   size?: string | number;
@@ -82,6 +83,7 @@ interface MediaPreviewProps {
 const MediaPreview: React.FC<MediaPreviewProps> = ({
   messageId,
   url,
+  thumbnailUrl,
   type,
   filename,
   size,
@@ -143,9 +145,14 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
     return Array.from(new Set(urls)); // 去重
   };
 
-  // 确定要使用的媒体URL
-  // 优先使用已下载文件的URL，然后是备选URLs，最后是原始URL
+  // 确定要使用的媒体URL - 用于缩略图预览
   const getDisplayUrl = () => {
+    // 如果有缩略图URL，优先使用缩略图进行预览
+    if (thumbnailUrl && !downloadStatus.downloadUrl && !downloadStatus.filePath) {
+      console.log('Using thumbnail URL for preview:', thumbnailUrl);
+      return getMediaUrl(thumbnailUrl);
+    }
+    
     // 优先使用下载状态中的URL
     if (downloadStatus.downloadUrl) {
       console.log('Using downloadStatus.downloadUrl:', downloadStatus.downloadUrl);
@@ -164,6 +171,24 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
     // 最后使用原始URL
     const originalUrl = getMediaUrl(url);
     console.log('Using original URL:', originalUrl);
+    return originalUrl;
+  };
+
+  // 确定要使用的完整媒体URL - 用于模态框完整预览
+  const getFullMediaUrl = () => {
+    // 对于模态框预览，始终使用完整文件URL
+    if (downloadStatus.downloadUrl) {
+      console.log('Using downloadStatus.downloadUrl for full preview:', downloadStatus.downloadUrl);
+      return downloadStatus.downloadUrl;
+    }
+    if (downloadStatus.filePath) {
+      const filePathUrl = getMediaUrl(downloadStatus.filePath);
+      console.log('Using downloadStatus.filePath as full URL:', filePathUrl);
+      return filePathUrl;
+    }
+    // 如果没有下载的文件，使用原始完整URL
+    const originalUrl = getMediaUrl(url);
+    console.log('Using original URL for full preview:', originalUrl);
     return originalUrl;
   };
 
@@ -404,7 +429,7 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
           >
             <div style={{ textAlign: 'center' }}>
               <Image
-                src={mediaUrl}
+                src={getFullMediaUrl()}
                 alt={filename}
                 style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain' }}
                 preview={{
@@ -644,7 +669,7 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
           >
             <div style={{ textAlign: 'center' }}>
               <video
-                src={mediaUrl}
+                src={getFullMediaUrl()}
                 controls
                 style={{ width: '100%', maxHeight: '80vh', borderRadius: '8px' }}
                 controlsList="nodownload"
