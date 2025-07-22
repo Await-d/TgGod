@@ -45,9 +45,9 @@ import { message } from 'antd';
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TabPane } = Tabs;
-const [messageApi, contextHolder] = message.useMessage();
 
 const Logs: React.FC = () => {
+  const [messageApi, contextHolder] = message.useMessage();
   const { logs, addLog, clearLogs } = useLogStore();
   const { setLoading, setError } = useGlobalStore();
   const [filteredLogs, setFilteredLogs] = React.useState<LogEntry[]>([]);
