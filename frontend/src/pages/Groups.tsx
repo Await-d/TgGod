@@ -186,12 +186,12 @@ const Groups: React.FC = () => {
       } else {
         message.warning(`批量同步完成！成功: ${successCount}, 失败: ${failedCount}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('批量同步API调用失败:', error);
       message.error(`批量同步失败: ${error.response?.data?.detail || '请求处理过程中出现错误'}`);
       
       // 回退到逐个同步
-        console.warn('批量API不可用，使用逐个同步:', batchError);
+      console.warn('批量API不可用，使用逐个同步:', error);
         
         let successCount = 0;
         let failedCount = 0;
@@ -221,7 +221,6 @@ const Groups: React.FC = () => {
         } else {
           message.warning(`批量同步完成！成功: ${successCount}, 失败: ${failedCount}`);
         }
-      }
     } finally {
       setBatchSyncing(false);
       
