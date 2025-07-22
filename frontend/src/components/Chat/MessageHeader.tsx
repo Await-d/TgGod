@@ -188,7 +188,7 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                       title="点击跳转到置顶消息"
                     >
                       {pinnedMessages[currentPinnedIndex]?.text?.substring(0, 50) || '(媒体消息)'}
-                      {pinnedMessages[currentPinnedIndex]?.text?.length > 50 && '...'}
+                      {(pinnedMessages[currentPinnedIndex]?.text?.length || 0) > 50 && '...'}
                     </span>
                     {pinnedMessages.length > 1 && (
                       <div className="pinned-nav">

@@ -99,7 +99,8 @@
       "Bash(npx tsc:*)",
       "Bash(env)",
       "Bash(pip3 install:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": []
   }

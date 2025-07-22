@@ -46,6 +46,8 @@ import {
   CloudSyncOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../store';
+import MediaPreview from '../components/Media/MediaPreview';
+import MediaButton from '../components/Media/MediaButton';
 import { messageApi, telegramApi, ruleApi } from '../services/apiService';
 import { TelegramMessage, TelegramGroup, MessageSendRequest } from '../types';
 import { useNormalPageScrollControl } from '../hooks/usePageScrollControl';
@@ -499,17 +501,12 @@ const MessagesPage: React.FC = () => {
             )}
 
             {record.media_type && (
-              <Space>
-                {getMediaIcon(record.media_type)}
-                {!isMobile && (
-                  <Text type="secondary">{record.media_type}</Text>
-                )}
-                {record.media_filename && !isMobile && (
-                  <Text code style={{ fontSize: 12 }}>
-                    {record.media_filename}
-                  </Text>
-                )}
-              </Space>
+              <MediaPreview 
+                message={record}
+                size={isMobile ? 'small' : 'default'}
+                showPreview={true}
+                showDownload={true}
+              />
             )}
 
             {record.is_forwarded && (
@@ -616,6 +613,25 @@ const MessagesPage: React.FC = () => {
               onClick={() => handleCreateQuickRule(record)}
             />
           </Tooltip>
+
+          {record.media_type && (
+            <>
+              <MediaButton
+                message={record}
+                action="preview"
+                size={isMobile ? 'small' : 'middle'}
+                onPreview={() => {
+                  setSelectedMessage(record);
+                  setMessageDetailVisible(true);
+                }}
+              />
+              <MediaButton
+                message={record}
+                action="download"
+                size={isMobile ? 'small' : 'middle'}
+              />
+            </>
+          )}
 
           {!isMobile && (
             <Popconfirm
@@ -1221,13 +1237,12 @@ const MessagesPage: React.FC = () => {
               )}
 
               {selectedMessage.media_type && (
-                <Space>
-                  {getMediaIcon(selectedMessage.media_type)}
-                  <Text>媒体类型: {selectedMessage.media_type}</Text>
-                  {selectedMessage.media_filename && (
-                    <Text code>{selectedMessage.media_filename}</Text>
-                  )}
-                </Space>
+                <MediaPreview 
+                  message={selectedMessage}
+                  size="large"
+                  showPreview={true}
+                  showDownload={true}
+                />
               )}
             </Card>
 
