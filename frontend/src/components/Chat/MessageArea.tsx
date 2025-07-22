@@ -468,14 +468,21 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const loadMoreMessages = useCallback(async () => {
     if (!selectedGroup) return;
 
-    // 即使loadingMore为true或hasMore为false也尝试加载，因为这些状态可能不准确
+    // 如果有传入的onLoadMore函数，使用传入的函数
+    if (onLoadMore) {
+      console.log('[MessageArea] 使用上层传入的loadMore函数');
+      onLoadMore();
+      return;
+    }
+
+    // 否则使用自己的fetchMessages逻辑
     if (loadingMore) {
       return;
     }
 
     // 重要：使用本地筛选条件而不是上层传递的searchFilter
     await fetchMessages(selectedGroup.id, page + 1, localSearchFilter, true);
-  }, [selectedGroup, loadingMore, page, localSearchFilter, fetchMessages]); // 使用localSearchFilter作为依赖
+  }, [selectedGroup, onLoadMore, loadingMore, page, localSearchFilter, fetchMessages]); // 添加onLoadMore依赖
 
   // 刷新消息
   const refreshMessages = useCallback(async () => {
@@ -578,6 +585,12 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
   // 当选择群组变化时重新加载消息（只依赖selectedGroup）
   useEffect(() => {
+    // 如果有传入的messages（来自上层管理），则不自己获取消息
+    if (propMessages) {
+      console.log('[MessageArea] 使用上层传入的消息数据，跳过自主加载');
+      return;
+    }
+    
     if (selectedGroup) {
       setPage(1);
       // 始终设置为true，让用户可以尝试加载历史数据
@@ -587,10 +600,15 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     } else {
       setMessages([]);
     }
-  }, [selectedGroup, localSearchFilter, fetchMessages]); // 添加localSearchFilter和fetchMessages作为依赖，确保使用最新筛选条件
+  }, [selectedGroup, localSearchFilter, fetchMessages, propMessages]); // 添加propMessages依赖
 
   // 当外部搜索过滤条件变化时同步到本地状态
   useEffect(() => {
+    // 如果有传入的messages，不处理搜索过滤（由上层管理）
+    if (propMessages) {
+      return;
+    }
+    
     // 只有当外部searchFilter与当前localSearchFilter不同时才更新
     if (selectedGroup && JSON.stringify(searchFilter) !== JSON.stringify(localSearchFilter)) {
       // 更新本地搜索过滤条件
@@ -605,7 +623,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
       return () => clearTimeout(timeoutId);
     }
-  }, [searchFilter, selectedGroup, localSearchFilter, fetchMessages]); // 添加必要的依赖
+  }, [searchFilter, selectedGroup, localSearchFilter, fetchMessages, propMessages]); // 添加propMessages依赖
 
   // 获取当前 Telegram 用户信息
   useEffect(() => {
