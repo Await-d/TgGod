@@ -336,3 +336,6 @@ export const useStatisticsStore = create<StatisticsState>((set) => ({
   statistics: null,
   setStatistics: (statistics) => set({ statistics }),
 }));
+
+// 导出用户设置Store (导入自userSettingsStore.ts)
+export { useUserSettingsStore } from './userSettingsStore';

@@ -17,7 +17,9 @@ import MediaDownloadTestPage from './pages/MediaDownloadTestPage';
 import TelegramLinkTestPage from './pages/TelegramLinkTestPage';
 import WebSocketTest from './components/WebSocketTest';
 import { webSocketService } from './services/websocket';
-import { useGlobalStore, useAuthStore } from './store';
+import { useGlobalStore, useAuthStore, useUserSettingsStore } from './store';
+import ThemeProvider from './components/UserSettings/ThemeProvider';
+import './styles/themes.css';
 // 导入StagewiseToolbar和ReactPlugin
 import { StagewiseToolbar } from '@stagewise/toolbar-react';
 import reactPlugin from '@stagewise-plugins/react';
@@ -25,6 +27,13 @@ import reactPlugin from '@stagewise-plugins/react';
 const { Content } = Layout;
 
 const App: React.FC = () => {
+  // 获取用户设置以应用布局密度
+  const { settings } = useUserSettingsStore();
+  
+  // 应用布局密度设置
+  useEffect(() => {
+    document.documentElement.setAttribute('data-density', settings.displayDensity);
+  }, [settings.displayDensity]);
   const { setError } = useGlobalStore();
   const { isAuthenticated, initializeAuth } = useAuthStore();
 
@@ -49,10 +58,11 @@ const App: React.FC = () => {
   }, [setError, isAuthenticated, initializeAuth]);
 
   return (
-    <div className="app-container">
-      {/* 集成StagewiseToolbar组件 - 只在开发环境下显示 */}
-      <StagewiseToolbar config={{ plugins: [reactPlugin] }} />
-      <Routes>
+    <ThemeProvider>
+      <div className="app-container">
+        {/* 集成StagewiseToolbar组件 - 只在开发环境下显示 */}
+        <StagewiseToolbar config={{ plugins: [reactPlugin] }} />
+        <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={
           <ProtectedRoute>
@@ -172,7 +182,8 @@ const App: React.FC = () => {
           </ProtectedRoute>
         } />
       </Routes>
-    </div>
+      </div>
+    </ThemeProvider>
   );
 };
 

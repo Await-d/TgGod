@@ -77,17 +77,33 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   // 监听 message 变化，更新下载状态
   useEffect(() => {
     const newStatus = message.media_downloaded ? 'downloaded' : 'not_downloaded';
-    if (downloadState.status !== newStatus || downloadState.downloadUrl !== message.media_path) {
+    
+    // 🔥 重要修复：只在非下载状态时才更新状态，避免打断正在进行的下载
+    const shouldUpdateState = (
+      downloadState.status !== 'downloading' && // 不打断正在下载的状态
+      (downloadState.status !== newStatus || downloadState.downloadUrl !== message.media_path)
+    );
+    
+    if (shouldUpdateState) {
+      console.log('Message state changed, updating download state', {
+        messageId: message.message_id,
+        oldStatus: downloadState.status,
+        newStatus,
+        mediaDownloaded: message.media_downloaded,
+        mediaPath: message.media_path
+      });
+      
       setDownloadState({
         status: newStatus,
         downloadUrl: message.media_path
       });
+      
       // 当下载状态改变时，重置缩略图错误状态
       if (newStatus === 'downloaded') {
         setThumbnailError(false);
       }
     }
-  }, [message.media_downloaded, message.media_path, message.message_id, downloadState.status, downloadState.downloadUrl]);
+  }, [message.media_downloaded, message.media_path, message.message_id]);
 
   // 组件卸载时清理
   useEffect(() => {
@@ -205,11 +221,14 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     if (downloadState.status === 'downloading') return;
 
     console.log('Starting download for message:', message.message_id);
-    setDownloadState({
-      status: 'downloading',
+    const initialDownloadState = {
+      status: 'downloading' as const,
       progress: 0,
       lastProgressUpdate: Date.now()
-    });
+    };
+    
+    console.log('Setting initial download state:', initialDownloadState);
+    setDownloadState(initialDownloadState);
 
     try {
       // 启动下载任务
@@ -285,7 +304,11 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             };
             
             console.log('Updating download progress:', newState);
-            setDownloadState(prevState => ({ ...prevState, ...newState }));
+            setDownloadState(prevState => {
+              const updatedState = { ...prevState, ...newState };
+              console.log('Download state will be updated from', prevState, 'to', updatedState);
+              return updatedState;
+            });
           }
           // 继续轮询其他状态
         } catch (error) {
@@ -802,7 +825,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     <>
       <div 
         className={`media-download-preview ${className}`}
-        key={`media-${message.message_id}-${forceRefresh}-${downloadState.status}`}
+        key={`media-${message.message_id}-${forceRefresh}`}
       >
         {/* 媒体信息 */}
         <div className="media-info">

@@ -1,0 +1,58 @@
+/* 主题样式变量 */
+
+/* 浅色主题 */
+:root[data-theme="light"] {
+  --bg-color: #f0f2f5;
+  --component-bg: #ffffff;
+  --text-color: rgba(0, 0, 0, 0.85);
+  --text-secondary: rgba(0, 0, 0, 0.45);
+  --border-color: #d9d9d9;
+  --highlight-color: #1890ff;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 深色主题 */
+:root[data-theme="dark"] {
+  --bg-color: #121212;
+  --component-bg: #1f1f1f;
+  --text-color: rgba(255, 255, 255, 0.85);
+  --text-secondary: rgba(255, 255, 255, 0.45);
+  --border-color: #303030;
+  --highlight-color: #177ddc;
+  --shadow-color: rgba(0, 0, 0, 0.15);
+  
+  /* Ant Design暗色主题覆盖 */
+  --ant-primary-color: #177ddc;
+  --ant-link-color: #177ddc;
+  --ant-success-color: #49aa19;
+  --ant-warning-color: #d89614;
+  --ant-error-color: #d32029;
+  --ant-heading-color: rgba(255, 255, 255, 0.85);
+  --ant-text-color: rgba(255, 255, 255, 0.85);
+  --ant-text-color-secondary: rgba(255, 255, 255, 0.45);
+  --ant-disabled-color: rgba(255, 255, 255, 0.3);
+  --ant-component-background: #1f1f1f;
+  --ant-body-background: #121212;
+  --ant-border-color-split: #303030;
+  --ant-card-background: #1f1f1f;
+  --ant-card-actions-background: #141414;
+}
+
+/* 自适应布局间距 */
+:root[data-density="comfortable"] {
+  --base-spacing: 24px;
+  --card-padding: 24px;
+  --form-item-margin: 24px;
+}
+
+:root[data-density="default"] {
+  --base-spacing: 16px;
+  --card-padding: 16px;
+  --form-item-margin: 16px;
+}
+
+:root[data-density="compact"] {
+  --base-spacing: 8px;
+  --card-padding: 12px;
+  --form-item-margin: 12px;
+}

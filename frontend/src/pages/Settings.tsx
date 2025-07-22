@@ -23,8 +23,10 @@ import {
   WifiOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  UserOutlined
 } from '@ant-design/icons';
+import UserSettingsForm from '../components/UserSettings/UserSettingsForm';
 import { apiService } from '../services/api';
 import { useGlobalStore } from '../store';
 import TelegramAuth from '../components/TelegramAuth';
@@ -472,6 +474,16 @@ const Settings: React.FC = () => {
               </span>
             ),
             children: telegramAuthTab,
+          },
+          {
+            key: 'user',
+            label: (
+              <span>
+                <UserOutlined />
+                用户设置
+              </span>
+            ),
+            children: <UserSettingsForm />,
           },
         ]}
       />
