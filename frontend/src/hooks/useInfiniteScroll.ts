@@ -93,85 +93,10 @@ export const useInfiniteScroll = (
     // 更新群组ID记录
     lastGroupId.current = currentGroupId || null;
     
-    // 如果存在新群组，清除初始加载标记
-    if (currentGroupId) {
-      const initialLoadKey = `initial_load_${currentGroupId}`;
-      sessionStorage.removeItem(initialLoadKey);
-      console.log('[InfiniteScroll] 清除群组初始加载标记:', initialLoadKey);
-    }
-    
-    console.log('[InfiniteScroll] 立即启用滚动检测');
+    console.log('[InfiniteScroll] 滚动状态重置完成，等待消息数据加载');
   }, [selectedGroup?.id, reset]);
   
-  // 创建一个初始检查函数
-  const checkInitialScroll = useCallback(() => {
-    if (containerRef.current && selectedGroup?.id) {
-      const scrollTop = containerRef.current.scrollTop;
-      console.log('[InfiniteScroll] 初始滚动位置检查', { scrollTop });
-      
-      // 检查是否已经加载过，以及是否应该加载
-      const shouldLoad = scrollTop < 200 && hasMore && !isLoadingRef.current;
-      
-      // 添加基于时间的检查，确保短时间内不会重复触发
-      const now = Date.now();
-      const lastLoadTime = (window as any)._lastInitialLoadTime || 0;
-      const timeSinceLastLoad = now - lastLoadTime;
-      
-      // 如果一开始就在顶部附近，且满足其他条件，主动加载一次历史数据
-      if (shouldLoad && timeSinceLastLoad > 2000) {
-        console.log('[InfiniteScroll] 初始化时接近顶部，主动加载历史数据');
-        
-        // 记录本次加载时间
-        (window as any)._lastInitialLoadTime = now;
-        
-        // 使用已定义的API直接获取历史消息
-        isLoadingRef.current = true;
-        setIsLoadingMore(true);
-        
-        // 调用API获取历史消息 - 修复分页计算
-        messageApi.getGroupMessages(selectedGroup.id, {
-          skip: (currentPage - 1) * pageSize,
-          limit: pageSize
-        }).then(response => {
-          if (response && Array.isArray(response)) {
-            console.log(`[InfiniteScroll] 初始化时成功加载 ${response.length} 条历史消息`);
-            if (response.length > 0) {
-              // 将新消息添加到现有消息前面
-              onMessagesUpdate([...response.reverse(), ...messages]);
-              setCurrentPage(prev => prev + 1);
-              setTotalLoaded(prev => prev + response.length);
-              setHasMore(response.length === pageSize);
-            } else {
-              setHasMore(false);
-            }
-          }
-        }).catch(error => {
-          console.error('[InfiniteScroll] 初始化加载历史消息出错:', error);
-          setHasMore(false);
-        }).finally(() => {
-          isLoadingRef.current = false;
-          setIsLoadingMore(false);
-        });
-      }
-    }
-  }, [containerRef, selectedGroup, hasMore, currentPage, pageSize, messages, onMessagesUpdate, setIsLoadingMore]);
-  
-  // 分离初始加载检查，避免循环依赖
-  useEffect(() => {
-    if (!selectedGroup?.id) return;
-    
-    // 使用一个临时标记来防止循环加载
-    const initialLoadKey = `initial_load_${selectedGroup.id}`;
-    const hasInitialLoaded = sessionStorage.getItem(initialLoadKey);
-    
-    if (hasInitialLoaded !== "true") {
-      // 只有在没有进行过初始加载的情况下，才进行初始加载检查
-      const timer = setTimeout(checkInitialScroll, 300);
-      // 标记已经进行过初始加载
-      sessionStorage.setItem(initialLoadKey, "true");
-      return () => clearTimeout(timer);
-    }
-  }, [selectedGroup?.id, checkInitialScroll]);
+  // 移除初始检查函数，简化逻辑，让正常的滚动事件处理即可
 
   // 滚动到顶部
   const scrollToTop = useCallback(() => {
@@ -225,7 +150,20 @@ export const useInfiniteScroll = (
   // 加载更多消息
   const loadMore = useCallback(async () => {
     if (!selectedGroup || isLoadingRef.current || !hasMore || currentPage >= maxPages) {
-      console.log('[InfiniteScroll] 跳过加载', { selectedGroup: !!selectedGroup, isLoading: isLoadingRef.current, hasMore, currentPage, maxPages });
+      console.log('[InfiniteScroll] 跳过加载', { 
+        selectedGroup: !!selectedGroup, 
+        isLoading: isLoadingRef.current, 
+        hasMore, 
+        currentPage, 
+        maxPages,
+        messagesCount: messages.length 
+      });
+      return;
+    }
+
+    // 确保有现有消息才允许加载更多（防止与初始加载冲突）
+    if (messages.length === 0) {
+      console.log('[InfiniteScroll] 等待初始消息加载完成');
       return;
     }
 
@@ -241,7 +179,9 @@ export const useInfiniteScroll = (
     setIsLoadingMore(true);
 
     try {
-      console.log(`[InfiniteScroll] 加载第 ${currentPage + 1} 页历史消息 (skip=${(currentPage - 1) * pageSize}, limit=${pageSize})`);
+      // 使用消息数量作为skip，确保不会重复获取已有消息
+      const skipCount = messages.length;
+      console.log(`[InfiniteScroll] 加载更多历史消息 (skip=${skipCount}, limit=${pageSize})`);
       
       // 保存当前滚动位置和高度
       const container = containerRef.current;
@@ -250,9 +190,9 @@ export const useInfiniteScroll = (
       
       console.log(`[InfiniteScroll] 加载前状态: scrollTop=${previousScrollTop}, scrollHeight=${previousScrollHeight}`);
 
-      // 调用API获取历史消息 - 修复分页计算
+      // 调用API获取历史消息 - 使用实际消息数量作为skip
       const response = await messageApi.getGroupMessages(selectedGroup.id, {
-        skip: (currentPage - 1) * pageSize,
+        skip: skipCount,
         limit: pageSize
       });
 
@@ -308,6 +248,26 @@ export const useInfiniteScroll = (
     containerRef,
     maintainScrollPosition
   ]);
+
+  // 初始滚动检查 - 放在loadMore定义之后
+  useEffect(() => {
+    if (!selectedGroup?.id || messages.length === 0) return;
+    
+    const timer = setTimeout(() => {
+      if (containerRef.current && selectedGroup?.id) {
+        const scrollTop = containerRef.current.scrollTop;
+        console.log('[InfiniteScroll] 初始滚动位置检查', { scrollTop });
+        
+        // 只在接近顶部且有消息时触发加载更多
+        if (scrollTop < 100 && hasMore && !isLoadingRef.current && messages.length > 0) {
+          console.log('[InfiniteScroll] 检测到需要加载更多历史消息');
+          loadMore();
+        }
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [selectedGroup?.id, messages.length, hasMore, loadMore]);
 
   // 使用ref存储当前状态避免频繁回调重建
   const scrollStateRef = useRef({

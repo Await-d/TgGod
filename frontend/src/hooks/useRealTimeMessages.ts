@@ -172,10 +172,15 @@ export const useRealTimeMessages = (
       unsubscribeFromGroupMessages(lastSubscribedGroupId.current);
     }
     
-    // 订阅新群组的消息
+    // 订阅新群组的消息并加载初始消息
     if (currentGroupId) {
       subscribeToGroupMessages(currentGroupId);
-      console.log('useRealTimeMessages: 已订阅群组消息，等待实时消息推送');
+      console.log('useRealTimeMessages: 已订阅群组消息，开始加载初始消息');
+      
+      // 延迟加载初始消息，确保其他状态已经重置
+      setTimeout(() => {
+        fetchLatestMessages(currentGroupId, 50, true);
+      }, 100);
     }
     
     // 更新订阅记录
@@ -188,7 +193,7 @@ export const useRealTimeMessages = (
         lastSubscribedGroupId.current = null;
       }
     };
-  }, [selectedGroup?.id]); // 只依赖群组ID
+  }, [selectedGroup?.id, fetchLatestMessages]); // 添加fetchLatestMessages依赖
 
   // WebSocket 消息订阅 - 只在组件挂载时订阅一次
   useEffect(() => {
