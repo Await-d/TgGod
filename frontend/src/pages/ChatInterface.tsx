@@ -675,7 +675,7 @@ const ChatInterface: React.FC = () => {
                 transition: 'margin-bottom 0.3s ease'
               }}
             >
-              {/* 移动端头部 */}
+              {/* 移动端头部 - 移除群组标题，只保留菜单和连接状态 */}
               <div className="mobile-header">
                 <Button
                   type="text"
@@ -683,9 +683,6 @@ const ChatInterface: React.FC = () => {
                   onClick={toggleGroupList}
                   className="mobile-menu-btn"
                 />
-                <Title level={4} style={{ margin: 0, flex: 1, textAlign: 'center' }}>
-                  {chatState.selectedGroup ? chatState.selectedGroup.title : '请选择群组'}
-                </Title>
                 {/* 连接状态指示器 */}
                 <div className={`connection-status ${connectionStatus}`}>
                   <span className="status-dot"></span>

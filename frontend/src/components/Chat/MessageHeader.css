@@ -25,8 +25,17 @@
 .group-title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 4px;
+  flex-wrap: wrap; /* 允许换行，适应移动端 */
+}
+
+.group-title-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .group-title {
@@ -65,6 +74,85 @@
 .group-username {
   font-size: 12px !important;
   line-height: 18px !important;
+}
+
+/* 置顶消息内联显示样式 */
+.pinned-inline {
+  flex: 1;
+  margin-left: 16px;
+  min-width: 0;
+  max-width: 400px; /* 限制最大宽度 */
+}
+
+.pinned-inline .pinned-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff9c4;
+  border: 1px solid #ffd54f;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  max-width: 100%;
+  transition: all 0.2s ease;
+}
+
+.pinned-inline .pinned-content:hover {
+  background: #fff8e1;
+  border-color: #ffcc02;
+}
+
+.pinned-inline .pinned-icon {
+  color: #fa8c16;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.pinned-inline .pinned-text {
+  color: #666;
+  cursor: pointer;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.pinned-inline .pinned-text:hover {
+  color: #1890ff;
+}
+
+.pinned-inline .pinned-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.pinned-inline .pinned-nav-btn {
+  padding: 0 4px !important;
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 2px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #999 !important;
+  font-size: 10px !important;
+  min-width: auto !important;
+}
+
+.pinned-inline .pinned-nav-btn:hover {
+  background: rgba(250, 173, 20, 0.2) !important;
+  color: #fa8c16 !important;
+}
+
+.pinned-inline .pinned-count {
+  font-size: 10px;
+  color: #999;
+  margin: 0 2px;
+  white-space: nowrap;
 }
 
 /* 统计信息区域 - 紧凑显示 */
@@ -264,6 +352,39 @@
   
   .group-username {
     font-size: 10px !important; /* 减小字体 */
+  }
+  
+  /* 移动端置顶消息适配 */
+  .group-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .pinned-inline {
+    margin-left: 0;
+    width: 100%;
+    max-width: none;
+  }
+  
+  .pinned-inline .pinned-content {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+  
+  .pinned-inline .pinned-text {
+    font-size: 11px;
+    line-height: 14px;
+  }
+  
+  .pinned-inline .pinned-nav-btn {
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 9px !important;
+  }
+  
+  .pinned-inline .pinned-count {
+    font-size: 9px;
   }
   
   .stats-section {

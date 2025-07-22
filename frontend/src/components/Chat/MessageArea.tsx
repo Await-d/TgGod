@@ -12,7 +12,7 @@ import { TelegramGroup, TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
 import VirtualizedMessageList, { VirtualizedMessageListRef } from './VirtualizedMessageList';
 import MessageHeader from './MessageHeader';
-import PinnedMessages from './PinnedMessages';
+// PinnedMessages component moved to MessageHeader
 import MediaGallery from './MediaGallery';
 import { messageApi, telegramApi } from '../../services/apiService';
 import { useTelegramStore, useAuthStore, useTelegramUserStore } from '../../store';
@@ -722,14 +722,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         isMobile={isMobile}
       />
 
-      {/* 置顶消息 */}
-      <PinnedMessages
-        selectedGroup={selectedGroup}
-        onJumpToMessage={jumpToMessage}
-        visible={true}
-        isMobile={isMobile}
-        isTablet={isTablet}
-      />
+      {/* 置顶消息已移动到MessageHeader组件中 */}
 
       {/* 消息列表 */}
       <div

@@ -22,6 +22,8 @@ import {
   Switch,
   Drawer,
   Progress,
+  Alert,
+  Radio,
 } from 'antd';
 import {
   SendOutlined,
@@ -41,11 +43,13 @@ import {
   PlusOutlined,
   ClearOutlined,
   ExclamationCircleOutlined,
+  CloudSyncOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../store';
 import { messageApi, telegramApi, ruleApi } from '../services/apiService';
 import { TelegramMessage, TelegramGroup, MessageSendRequest } from '../types';
 import { useNormalPageScrollControl } from '../hooks/usePageScrollControl';
+import { webSocketService } from '../services/websocket';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -55,7 +59,7 @@ const { RangePicker } = DatePicker;
 const MessagesPage: React.FC = () => {
   // 恢复正常页面滚动
   useNormalPageScrollControl();
-  
+
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<TelegramMessage[]>([]);
   const [groups, setGroups] = useState<TelegramGroup[]>([]);
@@ -74,16 +78,33 @@ const MessagesPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [replyTo, setReplyTo] = useState<TelegramMessage | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  
+
   // 批量选择相关状态
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [selectedRows, setSelectedRows] = useState<TelegramMessage[]>([]);
   const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
-  
+
   // 清空群组消息相关状态
   const [clearGroupLoading, setClearGroupLoading] = useState(false);
-  const [clearGroupProgress, setClearGroupProgress] = useState<{current: number; total: number} | null>(null);
-  
+  const [clearGroupProgress, setClearGroupProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // 批量同步相关状态
+  const [batchSyncModalVisible, setBatchSyncModalVisible] = useState(false);
+  const [syncMonths, setSyncMonths] = useState<{ year: number, month: number }[]>([]);
+  const [syncMonthsLoading, setSyncMonthsLoading] = useState(false);
+  const [syncAllGroupsLoading, setSyncAllGroupsLoading] = useState(false);
+  const [syncForm] = Form.useForm();
+
+  // 批量同步进度相关状态
+  const [batchSyncProgress, setBatchSyncProgress] = useState<{
+    synced_groups: number;
+    total_groups: number;
+    total_messages: number;
+    failed_groups: any[];
+    group_results: any[];
+  } | null>(null);
+  const [batchSyncStatus, setBatchSyncStatus] = useState<'idle' | 'running' | 'completed' | 'failed'>('idle');
+
   const { user } = useAuthStore();
 
   // 检查是否为移动设备
@@ -91,10 +112,10 @@ const MessagesPage: React.FC = () => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -116,7 +137,7 @@ const MessagesPage: React.FC = () => {
   // 获取群组消息
   const fetchMessages = async (groupId: number, page: number = 1, searchParams: any = {}) => {
     if (!groupId) return;
-    
+
     setLoading(true);
     try {
       const skip = (page - 1) * pagination.pageSize;
@@ -125,10 +146,10 @@ const MessagesPage: React.FC = () => {
         limit: pagination.pageSize,
         ...searchParams,
       };
-      
+
       const response = await messageApi.getGroupMessages(groupId, params);
       setMessages(response);
-      
+
       setPagination(prev => ({
         ...prev,
         current: page,
@@ -154,24 +175,24 @@ const MessagesPage: React.FC = () => {
   // 发送消息
   const handleSendMessage = async (values: { text: string }) => {
     if (!selectedGroup) return;
-    
+
     try {
       const messageData: MessageSendRequest = {
         text: values.text,
         reply_to_message_id: replyTo?.message_id,
       };
-      
+
       await messageApi.sendMessage(selectedGroup.id, messageData);
       message.success('消息发送成功！');
-      
+
       // 刷新消息列表
       await fetchMessages(selectedGroup.id, 1, filters);
-      
+
       // 重置表单和状态
       form.resetFields();
       setSendModalVisible(false);
       setReplyTo(null);
-      
+
     } catch (error: any) {
       message.error('发送消息失败: ' + error.message);
     }
@@ -180,18 +201,18 @@ const MessagesPage: React.FC = () => {
   // 删除消息
   const handleDeleteMessage = async (messageId: number) => {
     if (!selectedGroup) return;
-    
+
     try {
       await messageApi.deleteMessage(selectedGroup.id, messageId);
       message.success('消息删除成功！');
-      
+
       // 刷新消息列表
       await fetchMessages(selectedGroup.id, pagination.current, filters);
-      
+
       // 移除已删除的消息从选中列表
       setSelectedRowKeys(prevKeys => prevKeys.filter(key => key !== messageId));
       setSelectedRows(prevRows => prevRows.filter(row => row.message_id !== messageId));
-      
+
     } catch (error: any) {
       message.error('删除消息失败: ' + error.message);
     }
@@ -200,13 +221,13 @@ const MessagesPage: React.FC = () => {
   // 批量删除消息
   const handleBatchDeleteMessages = async () => {
     if (!selectedGroup || selectedRowKeys.length === 0) return;
-    
+
     setBatchDeleteLoading(true);
-    
+
     try {
       let successCount = 0;
       let failCount = 0;
-      
+
       // 批量删除：并发调用单个删除API
       const deletePromises = selectedRowKeys.map(async (messageId) => {
         try {
@@ -217,9 +238,9 @@ const MessagesPage: React.FC = () => {
           console.error(`删除消息 ${messageId} 失败:`, error);
         }
       });
-      
+
       await Promise.all(deletePromises);
-      
+
       // 显示结果消息
       if (successCount > 0 && failCount === 0) {
         message.success(`成功删除 ${successCount} 条消息！`);
@@ -228,14 +249,14 @@ const MessagesPage: React.FC = () => {
       } else {
         message.error(`删除失败，${failCount} 条消息删除失败`);
       }
-      
+
       // 清空选择
       setSelectedRowKeys([]);
       setSelectedRows([]);
-      
+
       // 刷新消息列表
       await fetchMessages(selectedGroup.id, pagination.current, filters);
-      
+
     } catch (error: any) {
       message.error('批量删除失败: ' + error.message);
     } finally {
@@ -245,7 +266,7 @@ const MessagesPage: React.FC = () => {
 
   // 选择变化处理
   const handleRowSelectionChange = (
-    selectedKeys: React.Key[], 
+    selectedKeys: React.Key[],
     selectedRows: TelegramMessage[]
   ) => {
     setSelectedRowKeys(selectedKeys);
@@ -275,10 +296,10 @@ const MessagesPage: React.FC = () => {
   // 清空群组所有消息
   const handleClearGroupMessages = async () => {
     if (!selectedGroup) return;
-    
+
     setClearGroupLoading(true);
     setClearGroupProgress(null);
-    
+
     try {
       const result = await messageApi.clearGroupMessages(
         selectedGroup.id,
@@ -286,7 +307,7 @@ const MessagesPage: React.FC = () => {
           setClearGroupProgress(progress);
         }
       );
-      
+
       // 显示结果
       if (result.success && result.failedCount === 0) {
         message.success(result.message);
@@ -295,15 +316,15 @@ const MessagesPage: React.FC = () => {
       } else {
         message.error(result.message);
       }
-      
+
       // 清空选择状态
       setSelectedRowKeys([]);
       setSelectedRows([]);
-      
+
       // 刷新消息列表
       await fetchMessages(selectedGroup.id, 1, filters);
       setPagination(prev => ({ ...prev, current: 1 }));
-      
+
     } catch (error: any) {
       message.error('清空群组消息失败: ' + error.message);
     } finally {
@@ -315,16 +336,16 @@ const MessagesPage: React.FC = () => {
   // 同步消息
   const handleSyncMessages = async () => {
     if (!selectedGroup) return;
-    
+
     setLoading(true);
     try {
       await telegramApi.syncGroupMessages(selectedGroup.id, 100);
       message.success('消息同步成功！');
-      
+
       // 刷新消息列表
       await fetchMessages(selectedGroup.id, 1, filters);
       await fetchGroupStats(selectedGroup.id);
-      
+
     } catch (error: any) {
       message.error('同步消息失败: ' + error.message);
     } finally {
@@ -335,7 +356,7 @@ const MessagesPage: React.FC = () => {
   // 搜索消息
   const handleSearch = async (values: any) => {
     const searchParams: any = {};
-    
+
     if (values.search) searchParams.search = values.search;
     if (values.sender_username) searchParams.sender_username = values.sender_username;
     if (values.media_type) searchParams.media_type = values.media_type;
@@ -345,7 +366,7 @@ const MessagesPage: React.FC = () => {
       searchParams.start_date = values.date_range[0].toISOString();
       searchParams.end_date = values.date_range[1].toISOString();
     }
-    
+
     setFilters(searchParams);
     await fetchMessages(selectedGroup?.id || 0, 1, searchParams);
     setFilterDrawerVisible(false);
@@ -354,13 +375,13 @@ const MessagesPage: React.FC = () => {
   // 快捷创建规则
   const handleCreateQuickRule = (messageData: TelegramMessage) => {
     setSelectedMessageForRule(messageData);
-    
+
     // 预填充表单数据
     const ruleName = `基于消息 #${messageData.message_id} 的规则`;
     const keywords = messageData.text ? [messageData.text.substring(0, 50)] : [];
     const senderFilter = messageData.sender_username ? [messageData.sender_username] : [];
     const mediaTypes = messageData.media_type ? [messageData.media_type] : [];
-    
+
     ruleForm.setFieldsValue({
       name: ruleName,
       keywords: keywords,
@@ -369,14 +390,14 @@ const MessagesPage: React.FC = () => {
       include_forwarded: messageData.is_forwarded,
       is_active: true,
     });
-    
+
     setQuickRuleModalVisible(true);
   };
 
   // 提交快捷规则
   const handleQuickRuleSubmit = async (values: any) => {
     if (!selectedGroup) return;
-    
+
     try {
       const ruleData = {
         ...values,
@@ -386,15 +407,15 @@ const MessagesPage: React.FC = () => {
         sender_filter: values.sender_filter || [],
         media_types: values.media_types || [],
       };
-      
+
       await ruleApi.createRule(ruleData);
       message.success('规则创建成功！');
-      
+
       // 重置表单和状态
       ruleForm.resetFields();
       setQuickRuleModalVisible(false);
       setSelectedMessageForRule(null);
-      
+
     } catch (error: any) {
       message.error('创建规则失败: ' + error.message);
     }
@@ -460,23 +481,23 @@ const MessagesPage: React.FC = () => {
                 回复 #{record.reply_to_message_id}
               </Tag>
             )}
-            
+
             {record.text && (
-              <Paragraph 
-                ellipsis={{ 
-                  rows: isMobile ? 1 : 2, 
-                  expandable: !isMobile, 
-                  symbol: 'more' 
+              <Paragraph
+                ellipsis={{
+                  rows: isMobile ? 1 : 2,
+                  expandable: !isMobile,
+                  symbol: 'more'
                 }}
-                style={{ 
-                  margin: 0, 
-                  fontSize: isMobile ? 12 : 14 
+                style={{
+                  margin: 0,
+                  fontSize: isMobile ? 12 : 14
                 }}
               >
                 {record.text}
               </Paragraph>
             )}
-            
+
             {record.media_type && (
               <Space>
                 {getMediaIcon(record.media_type)}
@@ -490,19 +511,19 @@ const MessagesPage: React.FC = () => {
                 )}
               </Space>
             )}
-            
+
             {record.is_forwarded && (
               <Tag color="orange">
                 <ShareAltOutlined /> {isMobile ? '转发' : '转发'}
               </Tag>
             )}
-            
+
             {record.is_pinned && (
               <Tag color="red">
                 <PushpinOutlined /> {isMobile ? '置顶' : '置顶'}
               </Tag>
             )}
-            
+
             {record.reactions && Object.keys(record.reactions).length > 0 && !isMobile && (
               <Space size="small">
                 {Object.entries(record.reactions).map(([emoji, count]) => (
@@ -564,8 +585,8 @@ const MessagesPage: React.FC = () => {
       render: (record: TelegramMessage) => (
         <Space size="small" direction={isMobile ? 'vertical' : 'horizontal'}>
           <Tooltip title="查看详情">
-            <Button 
-              type="text" 
+            <Button
+              type="text"
               icon={<EyeOutlined />}
               size={isMobile ? 'small' : 'middle'}
               onClick={() => {
@@ -574,10 +595,10 @@ const MessagesPage: React.FC = () => {
               }}
             />
           </Tooltip>
-          
+
           <Tooltip title="回复">
-            <Button 
-              type="text" 
+            <Button
+              type="text"
               icon={<MessageOutlined />}
               size={isMobile ? 'small' : 'middle'}
               onClick={() => {
@@ -586,24 +607,24 @@ const MessagesPage: React.FC = () => {
               }}
             />
           </Tooltip>
-          
+
           <Tooltip title="创建规则">
-            <Button 
-              type="text" 
+            <Button
+              type="text"
               icon={<PlusOutlined />}
               size={isMobile ? 'small' : 'middle'}
               onClick={() => handleCreateQuickRule(record)}
             />
           </Tooltip>
-          
+
           {!isMobile && (
             <Popconfirm
               title="确认删除这条消息吗？"
               onConfirm={() => handleDeleteMessage(record.message_id)}
             >
               <Tooltip title="删除">
-                <Button 
-                  type="text" 
+                <Button
+                  type="text"
                   danger
                   icon={<DeleteOutlined />}
                   size="small"
@@ -629,6 +650,128 @@ const MessagesPage: React.FC = () => {
     }
   }, [selectedGroup]);
 
+  // 获取默认同步月份
+  const fetchDefaultSyncMonths = async (count: number = 3) => {
+    if (!selectedGroup) return;
+
+    try {
+      setSyncMonthsLoading(true);
+      const response = await telegramApi.getDefaultSyncMonths(selectedGroup.id, count);
+      setSyncMonths(response.months);
+
+      // 设置表单默认值
+      syncForm.setFieldsValue({
+        months: response.months
+      });
+    } catch (error: any) {
+      message.error(`获取默认同步月份失败: ${error.message}`);
+    } finally {
+      setSyncMonthsLoading(false);
+    }
+  };
+
+  // 批量同步所有群组
+  const handleBatchSyncAllGroups = async (values: any) => {
+    try {
+      setSyncAllGroupsLoading(true);
+      setBatchSyncStatus('running');
+      setBatchSyncProgress(null);
+
+      let monthsToSync: { year: number, month: number }[] = [];
+
+      // 根据模式确定要同步的月份
+      if (values.mode === 'recent') {
+        // 获取最近N个月
+        const count = values.recentMonths || 3;
+        const currentDate = new Date();
+
+        // 生成最近N个月的数据
+        for (let i = 0; i < count; i++) {
+          const targetDate = new Date(currentDate);
+          targetDate.setMonth(currentDate.getMonth() - i);
+
+          monthsToSync.push({
+            year: targetDate.getFullYear(),
+            month: targetDate.getMonth() + 1 // JavaScript月份从0开始
+          });
+        }
+      } else {
+        // 使用自定义选择的月份
+        monthsToSync = values.months || [];
+      }
+
+      if (monthsToSync.length === 0) {
+        message.error('请至少选择一个月份');
+        setSyncAllGroupsLoading(false);
+        setBatchSyncStatus('idle');
+        return;
+      }
+
+      // 执行批量同步
+      const response = await telegramApi.syncAllGroupsMonthly(monthsToSync);
+
+      if (response.success) {
+        message.success(`批量同步任务已启动，同步 ${response.total_groups} 个群组，${monthsToSync.length} 个月的数据`);
+      } else {
+        message.error('批量同步启动失败');
+        setBatchSyncStatus('failed');
+      }
+    } catch (error: any) {
+      message.error(`启动批量同步失败: ${error.message}`);
+      setBatchSyncStatus('failed');
+    } finally {
+      setSyncAllGroupsLoading(false);
+    }
+  };
+
+  // 当批量同步模态框打开时，获取默认月份
+  useEffect(() => {
+    if (batchSyncModalVisible) {
+      fetchDefaultSyncMonths(3);
+      setBatchSyncStatus('idle');
+      setBatchSyncProgress(null);
+    }
+  }, [batchSyncModalVisible]);
+
+  // WebSocket 消息处理
+  useEffect(() => {
+    // 批量同步完成的处理函数
+    const handleBatchSyncComplete = (data: any) => {
+      if (data) {
+        // 更新同步进度和状态
+        setBatchSyncProgress(data);
+        setBatchSyncStatus(data.success ? 'completed' : 'failed');
+
+        // 显示通知
+        if (data.success) {
+          message.success(`批量同步完成，成功同步 ${data.synced_groups}/${data.total_groups} 个群组，共 ${data.total_messages} 条消息`);
+        } else {
+          message.error(`批量同步失败: ${data.error || '未知错误'}`);
+        }
+      }
+    };
+
+    // 单群组同步完成的处理函数
+    const handleMonthlySyncComplete = (data: any) => {
+      if (data && selectedGroup && data.group_id === selectedGroup.id) {
+        // 如果是当前选中的群组，刷新消息
+        fetchMessages(selectedGroup.id, 1, filters);
+        fetchGroupStats(selectedGroup.id);
+        message.success(`群组 ${selectedGroup.title} 同步完成，共同步 ${data.total_messages} 条消息`);
+      }
+    };
+
+    // 订阅WebSocket消息
+    const batchSyncUnsubscribe = webSocketService.subscribe('batch_monthly_sync_complete', handleBatchSyncComplete);
+    const monthlySyncUnsubscribe = webSocketService.subscribe('monthly_sync_complete', handleMonthlySyncComplete);
+
+    // 清理函数
+    return () => {
+      batchSyncUnsubscribe();
+      monthlySyncUnsubscribe();
+    };
+  }, [selectedGroup, filters]);
+
   return (
     <div style={{ padding: isMobile ? 16 : 24 }}>
       <Row gutter={[16, 16]}>
@@ -638,8 +781,8 @@ const MessagesPage: React.FC = () => {
             <Row gutter={16}>
               <Col xs={12} sm={6}>
                 <Card>
-                  <Statistic 
-                    title="总消息数" 
+                  <Statistic
+                    title="总消息数"
                     value={stats.total_messages}
                     valueStyle={{ fontSize: isMobile ? 16 : 24 }}
                   />
@@ -647,8 +790,8 @@ const MessagesPage: React.FC = () => {
               </Col>
               <Col xs={12} sm={6}>
                 <Card>
-                  <Statistic 
-                    title="媒体消息" 
+                  <Statistic
+                    title="媒体消息"
                     value={stats.media_messages}
                     valueStyle={{ fontSize: isMobile ? 16 : 24 }}
                   />
@@ -656,8 +799,8 @@ const MessagesPage: React.FC = () => {
               </Col>
               <Col xs={12} sm={6}>
                 <Card>
-                  <Statistic 
-                    title="文字消息" 
+                  <Statistic
+                    title="文字消息"
                     value={stats.text_messages}
                     valueStyle={{ fontSize: isMobile ? 16 : 24 }}
                   />
@@ -665,8 +808,8 @@ const MessagesPage: React.FC = () => {
               </Col>
               <Col xs={12} sm={6}>
                 <Card>
-                  <Statistic 
-                    title="群组成员" 
+                  <Statistic
+                    title="群组成员"
                     value={stats.member_count}
                     valueStyle={{ fontSize: isMobile ? 16 : 24 }}
                   />
@@ -706,9 +849,9 @@ const MessagesPage: React.FC = () => {
                     </Option>
                   ))}
                 </Select>
-                
-                <Button 
-                  type="primary" 
+
+                <Button
+                  type="primary"
                   icon={<SendOutlined />}
                   onClick={() => setSendModalVisible(true)}
                   disabled={!selectedGroup}
@@ -716,16 +859,16 @@ const MessagesPage: React.FC = () => {
                 >
                   {isMobile ? '发送' : '发送消息'}
                 </Button>
-                
-                <Button 
+
+                <Button
                   icon={<FilterOutlined />}
                   onClick={() => setFilterDrawerVisible(true)}
                   size={isMobile ? 'small' : 'middle'}
                 >
                   筛选
                 </Button>
-                
-                <Button 
+
+                <Button
                   icon={<SyncOutlined />}
                   onClick={handleSyncMessages}
                   loading={loading}
@@ -734,8 +877,17 @@ const MessagesPage: React.FC = () => {
                 >
                   {isMobile ? '同步' : '同步消息'}
                 </Button>
-                
-                <Button 
+
+                <Button
+                  icon={<CloudSyncOutlined />}
+                  onClick={() => setBatchSyncModalVisible(true)}
+                  loading={syncAllGroupsLoading}
+                  size={isMobile ? 'small' : 'middle'}
+                >
+                  {isMobile ? '批量同步' : '批量同步'}
+                </Button>
+
+                <Button
                   icon={<ReloadOutlined />}
                   onClick={() => selectedGroup && fetchMessages(selectedGroup.id, 1, filters)}
                   loading={loading}
@@ -743,7 +895,7 @@ const MessagesPage: React.FC = () => {
                 >
                   刷新
                 </Button>
-                
+
                 {/* 清空群组消息按钮 */}
                 <Popconfirm
                   title="清空群组所有消息"
@@ -760,13 +912,13 @@ const MessagesPage: React.FC = () => {
                   onConfirm={handleClearGroupMessages}
                   okText="确认清空"
                   cancelText="取消"
-                  okButtonProps={{ 
+                  okButtonProps={{
                     danger: true,
                     loading: clearGroupLoading
                   }}
                   icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
                 >
-                  <Button 
+                  <Button
                     danger
                     icon={<ClearOutlined />}
                     disabled={!selectedGroup || clearGroupLoading}
@@ -781,27 +933,27 @@ const MessagesPage: React.FC = () => {
           >
             {/* 批量操作工具栏 */}
             {selectedRowKeys.length > 0 && (
-              <div style={{ 
-                marginBottom: 16, 
-                padding: '12px 16px', 
-                background: '#f6f8fa', 
-                borderRadius: 8, 
-                border: '1px solid #d0d7de' 
+              <div style={{
+                marginBottom: 16,
+                padding: '12px 16px',
+                background: '#f6f8fa',
+                borderRadius: 8,
+                border: '1px solid #d0d7de'
               }}>
                 <Row align="middle" justify="space-between">
                   <Col>
                     <Space>
                       <Text strong>已选择 {selectedRowKeys.length} 条消息</Text>
-                      <Button 
-                        size="small" 
-                        type="link" 
+                      <Button
+                        size="small"
+                        type="link"
                         onClick={handleSelectAll}
                       >
                         {selectedRowKeys.length === messages.length ? '取消全选' : '全选当前页'}
                       </Button>
-                      <Button 
-                        size="small" 
-                        type="link" 
+                      <Button
+                        size="small"
+                        type="link"
                         onClick={handleClearSelection}
                       >
                         清空选择
@@ -818,9 +970,9 @@ const MessagesPage: React.FC = () => {
                         cancelText="取消"
                         okButtonProps={{ danger: true }}
                       >
-                        <Button 
-                          type="primary" 
-                          danger 
+                        <Button
+                          type="primary"
+                          danger
                           icon={<DeleteOutlined />}
                           loading={batchDeleteLoading}
                           size={isMobile ? 'small' : 'middle'}
@@ -833,7 +985,7 @@ const MessagesPage: React.FC = () => {
                 </Row>
               </div>
             )}
-            
+
             <Table
               columns={columns}
               dataSource={messages}
@@ -871,9 +1023,9 @@ const MessagesPage: React.FC = () => {
                 total: pagination.total,
                 showSizeChanger: !isMobile,
                 showQuickJumper: !isMobile,
-                showTotal: (total, range) => 
-                  isMobile ? 
-                    `${range[0]}-${range[1]} / ${total}` : 
+                showTotal: (total, range) =>
+                  isMobile ?
+                    `${range[0]}-${range[1]} / ${total}` :
                     `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
                 onChange: (page, pageSize) => {
                   setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 50 }));
@@ -917,7 +1069,7 @@ const MessagesPage: React.FC = () => {
             </Paragraph>
           </Card>
         )}
-        
+
         <Form
           form={form}
           onFinish={handleSendMessage}
@@ -935,7 +1087,7 @@ const MessagesPage: React.FC = () => {
               maxLength={4000}
             />
           </Form.Item>
-          
+
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
@@ -969,11 +1121,11 @@ const MessagesPage: React.FC = () => {
           <Form.Item name="search" label="搜索内容">
             <Input placeholder="搜索消息文本..." />
           </Form.Item>
-          
+
           <Form.Item name="sender_username" label="发送者">
             <Input placeholder="输入发送者用户名..." />
           </Form.Item>
-          
+
           <Form.Item name="media_type" label="媒体类型">
             <Select placeholder="选择媒体类型" allowClear>
               <Option value="photo">图片</Option>
@@ -982,25 +1134,25 @@ const MessagesPage: React.FC = () => {
               <Option value="audio">音频</Option>
             </Select>
           </Form.Item>
-          
+
           <Form.Item name="has_media" label="包含媒体">
             <Select placeholder="选择是否包含媒体" allowClear>
               <Option value={true}>包含媒体</Option>
               <Option value={false}>不包含媒体</Option>
             </Select>
           </Form.Item>
-          
+
           <Form.Item name="is_forwarded" label="转发消息">
             <Select placeholder="选择是否为转发消息" allowClear>
               <Option value={true}>转发消息</Option>
               <Option value={false}>原创消息</Option>
             </Select>
           </Form.Item>
-          
+
           <Form.Item name="date_range" label="时间范围">
             <RangePicker showTime style={{ width: '100%' }} />
           </Form.Item>
-          
+
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
@@ -1035,18 +1187,18 @@ const MessagesPage: React.FC = () => {
                   <p><strong>查看次数:</strong> {selectedMessage.view_count || 0}</p>
                 </Card>
               </Col>
-              
+
               <Col xs={24} md={12}>
                 <Card size="small" title="消息状态">
                   <Space direction="vertical">
                     <div>
-                      <strong>转发:</strong> 
+                      <strong>转发:</strong>
                       <Tag color={selectedMessage.is_forwarded ? 'orange' : 'green'}>
                         {selectedMessage.is_forwarded ? '是' : '否'}
                       </Tag>
                     </div>
                     <div>
-                      <strong>置顶:</strong> 
+                      <strong>置顶:</strong>
                       <Tag color={selectedMessage.is_pinned ? 'red' : 'default'}>
                         {selectedMessage.is_pinned ? '是' : '否'}
                       </Tag>
@@ -1060,14 +1212,14 @@ const MessagesPage: React.FC = () => {
                 </Card>
               </Col>
             </Row>
-            
+
             <Divider />
-            
+
             <Card size="small" title="消息内容">
               {selectedMessage.text && (
                 <Paragraph>{selectedMessage.text}</Paragraph>
               )}
-              
+
               {selectedMessage.media_type && (
                 <Space>
                   {getMediaIcon(selectedMessage.media_type)}
@@ -1078,7 +1230,7 @@ const MessagesPage: React.FC = () => {
                 </Space>
               )}
             </Card>
-            
+
             {selectedMessage.reactions && Object.keys(selectedMessage.reactions).length > 0 && (
               <Card size="small" title="消息反应" style={{ marginTop: 16 }}>
                 <Space>
@@ -1090,49 +1242,49 @@ const MessagesPage: React.FC = () => {
                 </Space>
               </Card>
             )}
-            
+
             {((selectedMessage.mentions && selectedMessage.mentions.length > 0) ||
               (selectedMessage.hashtags && selectedMessage.hashtags.length > 0) ||
               (selectedMessage.urls && selectedMessage.urls.length > 0)) && (
-              <Card size="small" title="提及和标签" style={{ marginTop: 16 }}>
-                <Space direction="vertical">
-                  {selectedMessage.mentions && selectedMessage.mentions.length > 0 && (
-                    <div>
-                      <strong>提及:</strong>
-                      <Space>
-                        {selectedMessage.mentions.map(mention => (
-                          <Tag key={mention} color="purple">@{mention}</Tag>
-                        ))}
-                      </Space>
-                    </div>
-                  )}
-                  
-                  {selectedMessage.hashtags && selectedMessage.hashtags.length > 0 && (
-                    <div>
-                      <strong>标签:</strong>
-                      <Space>
-                        {selectedMessage.hashtags.map(hashtag => (
-                          <Tag key={hashtag} color="green">#{hashtag}</Tag>
-                        ))}
-                      </Space>
-                    </div>
-                  )}
-                  
-                  {selectedMessage.urls && selectedMessage.urls.length > 0 && (
-                    <div>
-                      <strong>链接:</strong>
-                      <Space direction="vertical">
-                        {selectedMessage.urls.map(url => (
-                          <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                            {url}
-                          </a>
-                        ))}
-                      </Space>
-                    </div>
-                  )}
-                </Space>
-              </Card>
-            )}
+                <Card size="small" title="提及和标签" style={{ marginTop: 16 }}>
+                  <Space direction="vertical">
+                    {selectedMessage.mentions && selectedMessage.mentions.length > 0 && (
+                      <div>
+                        <strong>提及:</strong>
+                        <Space>
+                          {selectedMessage.mentions.map(mention => (
+                            <Tag key={mention} color="purple">@{mention}</Tag>
+                          ))}
+                        </Space>
+                      </div>
+                    )}
+
+                    {selectedMessage.hashtags && selectedMessage.hashtags.length > 0 && (
+                      <div>
+                        <strong>标签:</strong>
+                        <Space>
+                          {selectedMessage.hashtags.map(hashtag => (
+                            <Tag key={hashtag} color="green">#{hashtag}</Tag>
+                          ))}
+                        </Space>
+                      </div>
+                    )}
+
+                    {selectedMessage.urls && selectedMessage.urls.length > 0 && (
+                      <div>
+                        <strong>链接:</strong>
+                        <Space direction="vertical">
+                          {selectedMessage.urls.map(url => (
+                            <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                              {url}
+                            </a>
+                          ))}
+                        </Space>
+                      </div>
+                    )}
+                  </Space>
+                </Card>
+              )}
           </div>
         )}
       </Modal>
@@ -1165,14 +1317,14 @@ const MessagesPage: React.FC = () => {
               <div style={{ marginTop: 8 }}>
                 <Space direction="vertical" size="small">
                   <div>
-                    <Text strong>发送者:</Text> {selectedMessageForRule.sender_name} 
+                    <Text strong>发送者:</Text> {selectedMessageForRule.sender_name}
                     {selectedMessageForRule.sender_username && (
                       <Text type="secondary">(@{selectedMessageForRule.sender_username})</Text>
                     )}
                   </div>
                   {selectedMessageForRule.text && (
                     <div>
-                      <Text strong>内容:</Text> 
+                      <Text strong>内容:</Text>
                       <Paragraph style={{ margin: '4px 0' }}>
                         {selectedMessageForRule.text}
                       </Paragraph>
@@ -1189,7 +1341,7 @@ const MessagesPage: React.FC = () => {
                 </Space>
               </div>
             </Card>
-            
+
             <Form
               form={ruleForm}
               onFinish={handleQuickRuleSubmit}
@@ -1202,7 +1354,7 @@ const MessagesPage: React.FC = () => {
               >
                 <Input placeholder="请输入规则名称" />
               </Form.Item>
-              
+
               <Row gutter={16}>
                 <Col xs={24} sm={12}>
                   <Form.Item
@@ -1217,7 +1369,7 @@ const MessagesPage: React.FC = () => {
                     />
                   </Form.Item>
                 </Col>
-                
+
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="exclude_keywords"
@@ -1232,7 +1384,7 @@ const MessagesPage: React.FC = () => {
                   </Form.Item>
                 </Col>
               </Row>
-              
+
               <Row gutter={16}>
                 <Col xs={24} sm={12}>
                   <Form.Item
@@ -1247,7 +1399,7 @@ const MessagesPage: React.FC = () => {
                     />
                   </Form.Item>
                 </Col>
-                
+
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="media_types"
@@ -1269,34 +1421,34 @@ const MessagesPage: React.FC = () => {
                   </Form.Item>
                 </Col>
               </Row>
-              
+
               <Row gutter={16}>
                 <Col xs={24} sm={8}>
                   <Form.Item
                     name="min_views"
                     label="最小查看数"
                   >
-                    <Input 
-                      type="number" 
+                    <Input
+                      type="number"
                       placeholder="最小查看数"
                       min={0}
                     />
                   </Form.Item>
                 </Col>
-                
+
                 <Col xs={24} sm={8}>
                   <Form.Item
                     name="max_views"
                     label="最大查看数"
                   >
-                    <Input 
-                      type="number" 
+                    <Input
+                      type="number"
                       placeholder="最大查看数"
                       min={0}
                     />
                   </Form.Item>
                 </Col>
-                
+
                 <Col xs={24} sm={8}>
                   <Form.Item
                     name="include_forwarded"
@@ -1307,7 +1459,7 @@ const MessagesPage: React.FC = () => {
                   </Form.Item>
                 </Col>
               </Row>
-              
+
               <Form.Item
                 name="is_active"
                 label="启用规则"
@@ -1316,7 +1468,7 @@ const MessagesPage: React.FC = () => {
               >
                 <Switch />
               </Form.Item>
-              
+
               <Form.Item>
                 <Space>
                   <Button type="primary" htmlType="submit">
@@ -1335,7 +1487,7 @@ const MessagesPage: React.FC = () => {
           </>
         )}
       </Modal>
-      
+
       {/* 清空群组消息进度模态框 */}
       <Modal
         title="清空群组消息"
@@ -1353,7 +1505,7 @@ const MessagesPage: React.FC = () => {
               <p style={{ color: '#666' }}>群组：{selectedGroup.title}</p>
             )}
           </div>
-          
+
           {clearGroupProgress && (
             <div style={{ margin: '20px 0' }}>
               <Progress
@@ -1369,13 +1521,204 @@ const MessagesPage: React.FC = () => {
               </p>
             </div>
           )}
-          
+
           <div style={{ marginTop: 16, padding: 12, background: '#fff2f0', borderRadius: 6 }}>
             <p style={{ margin: 0, color: '#cf1322', fontSize: 12 }}>
               ⚠️ 正在执行删除操作，请勿关闭页面
             </p>
           </div>
         </div>
+      </Modal>
+
+      {/* 批量同步模态框 */}
+      <Modal
+        title={
+          <Space>
+            <CloudSyncOutlined />
+            批量同步消息
+          </Space>
+        }
+        open={batchSyncModalVisible}
+        onCancel={() => {
+          if (!syncAllGroupsLoading) {
+            setBatchSyncModalVisible(false);
+          }
+        }}
+        footer={null}
+        width={isMobile ? '100%' : 600}
+        style={isMobile ? { top: 20 } : {}}
+        maskClosable={!syncAllGroupsLoading}
+      >
+        <Form
+          form={syncForm}
+          onFinish={handleBatchSyncAllGroups}
+          layout="vertical"
+          initialValues={{
+            mode: 'recent',
+            recentMonths: 3
+          }}
+        >
+          <Alert
+            message="批量同步功能"
+            description={
+              <div>
+                <p>此功能将按照选择的月份对所有活跃群组进行消息同步</p>
+                <p>• 同步任务将在后台运行，不会阻塞界面</p>
+                <p>• 同步进度和结果将通过WebSocket推送</p>
+                <p>• 请注意：同步大量数据可能需要较长时间</p>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
+          <Form.Item name="mode" label="选择模式">
+            <Radio.Group>
+              <Radio value="recent">最近几个月</Radio>
+              <Radio value="custom">自定义月份</Radio>
+            </Radio.Group>
+          </Form.Item>
+
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => prevValues.mode !== currentValues.mode}
+          >
+            {({ getFieldValue }) => {
+              const mode = getFieldValue('mode');
+
+              return mode === 'recent' ? (
+                <Form.Item
+                  name="recentMonths"
+                  label="最近月份数量"
+                  rules={[{ required: true, message: '请选择同步最近几个月' }]}
+                >
+                  <Select placeholder="选择同步最近几个月">
+                    {[1, 2, 3, 6, 12].map(num => (
+                      <Option key={num} value={num}>最近 {num} 个月</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              ) : (
+                <Form.Item
+                  name="months"
+                  label="选择要同步的月份"
+                  rules={[{ required: true, message: '请选择至少一个月份' }]}
+                >
+                  <Select
+                    mode="multiple"
+                    placeholder="选择要同步的月份"
+                    loading={syncMonthsLoading}
+                    style={{ width: '100%' }}
+                  >
+                    {syncMonths.map((month) => (
+                      <Option
+                        key={`${month.year}-${month.month}`}
+                        value={month}
+                      >
+                        {month.year}年{month.month}月
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              );
+            }}
+          </Form.Item>
+
+          {/* 同步进度显示区域 */}
+          {batchSyncStatus !== 'idle' && (
+            <div style={{ marginBottom: 16 }}>
+              <Divider orientation="left">同步进度</Divider>
+
+              {batchSyncStatus === 'running' && !batchSyncProgress && (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <SyncOutlined spin style={{ fontSize: 24, color: '#1890ff', marginBottom: 16 }} />
+                    <p>同步任务正在运行中，请稍候...</p>
+                  </div>
+                </div>
+              )}
+
+              {batchSyncProgress && (
+                <div>
+                  <Row gutter={[16, 16]}>
+                    <Col span={24}>
+                      <Progress
+                        percent={Math.round((batchSyncProgress.synced_groups / Math.max(1, batchSyncProgress.total_groups)) * 100)}
+                        status={batchSyncStatus === 'completed' ? 'success' : batchSyncStatus === 'failed' ? 'exception' : 'active'}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic
+                        title="已同步群组"
+                        value={batchSyncProgress.synced_groups}
+                        suffix={`/ ${batchSyncProgress.total_groups}`}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <Statistic
+                        title="已同步消息"
+                        value={batchSyncProgress.total_messages}
+                      />
+                    </Col>
+                  </Row>
+
+                  {batchSyncProgress.failed_groups.length > 0 && (
+                    <div style={{ marginTop: 16 }}>
+                      <Alert
+                        message={`${batchSyncProgress.failed_groups.length} 个群组同步失败`}
+                        type="warning"
+                        showIcon
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <Form.Item>
+            <Space>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={syncAllGroupsLoading}
+                icon={<CloudSyncOutlined />}
+                disabled={batchSyncStatus === 'running'}
+              >
+                开始批量同步
+              </Button>
+              <Button
+                onClick={() => {
+                  if (batchSyncStatus !== 'running') {
+                    setBatchSyncModalVisible(false);
+                  }
+                }}
+                disabled={batchSyncStatus === 'running'}
+              >
+                {batchSyncStatus === 'completed' || batchSyncStatus === 'failed' ? '关闭' : '取消'}
+              </Button>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prevValues, currentValues) => prevValues.mode !== currentValues.mode}
+              >
+                {({ getFieldValue }) => {
+                  const mode = getFieldValue('mode');
+
+                  return mode === 'custom' ? (
+                    <Button
+                      onClick={() => fetchDefaultSyncMonths(6)}
+                      loading={syncMonthsLoading}
+                      disabled={batchSyncStatus === 'running'}
+                    >
+                      加载更多月份
+                    </Button>
+                  ) : null;
+                }}
+              </Form.Item>
+            </Space>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

@@ -340,6 +340,19 @@
   /* 关键：允许flex子元素收缩 */
   height: 100%;
   /* 确保有确定的高度 */
+  overflow: hidden;
+  /* 防止内容溢出 */
+}
+
+/* 消息输入区域包装器 - 确保输入框始终显示在底部 */
+.message-input-wrapper {
+  flex-shrink: 0;
+  /* 防止输入区域被压缩 */
+  background: #ffffff;
+  border-top: 1px solid #f0f0f0;
+  position: relative;
+  z-index: 10;
+  /* 确保显示在其他内容之上 */
 }
 
 /* 消息区域容器 - 修复滚动 */
@@ -592,12 +605,7 @@
   transform: scale(1.05);
 }
 
-.mobile-header h4 {
-  color: #ffffff !important;
-  margin: 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  font-weight: 600;
-}
+/* Mobile header title styles removed - no longer needed */
 
 /* 连接状态 */
 .connection-status {

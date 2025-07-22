@@ -7,10 +7,13 @@ import {
   MessageOutlined,
   UpOutlined,
   DownOutlined,
-  PlayCircleOutlined
+  PlayCircleOutlined,
+  PushpinOutlined,
+  LeftOutlined,
+  RightOutlined
 } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
-import { telegramApi } from '../../services/apiService';
+import { telegramApi, messageApi } from '../../services/apiService';
 import { useMediaDuration } from '../../hooks/useMediaDuration';
 import { TelegramMessage } from '../../types';
 import './MessageHeader.css';
@@ -42,6 +45,11 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   const [loadingStats, setLoadingStats] = useState(false);
   const [showStats, setShowStats] = useState(true); // 统计信息显示状态
 
+  // 置顶消息状态
+  const [pinnedMessages, setPinnedMessages] = useState<TelegramMessage[]>([]);
+  const [loadingPinned, setLoadingPinned] = useState(false);
+  const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
+
   // 使用媒体时长Hook
   const {
     totalDuration,
@@ -71,12 +79,49 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
     }
   }, [group]);
 
+  // 获取置顶消息
+  const fetchPinnedMessages = useCallback(async () => {
+    if (!group) return;
+    
+    setLoadingPinned(true);
+    try {
+      const messages = await messageApi.getPinnedMessages(group.id);
+      setPinnedMessages(messages);
+      setCurrentPinnedIndex(0);
+    } catch (error: any) {
+      console.error('获取置顶消息失败:', error);
+      setPinnedMessages([]);
+    } finally {
+      setLoadingPinned(false);
+    }
+  }, [group]);
+
+  // 置顶消息导航
+  const handlePinnedPrevious = useCallback(() => {
+    if (pinnedMessages.length <= 1) return;
+    setCurrentPinnedIndex(prev => prev > 0 ? prev - 1 : pinnedMessages.length - 1);
+  }, [pinnedMessages.length]);
+
+  const handlePinnedNext = useCallback(() => {
+    if (pinnedMessages.length <= 1) return;
+    setCurrentPinnedIndex(prev => prev < pinnedMessages.length - 1 ? prev + 1 : 0);
+  }, [pinnedMessages.length]);
+
+  // 跳转到置顶消息
+  const handleJumpToPinnedMessage = useCallback(() => {
+    if (pinnedMessages.length > 0 && onJumpToMessage) {
+      const currentMessage = pinnedMessages[currentPinnedIndex];
+      onJumpToMessage(currentMessage.id || currentMessage.message_id);
+    }
+  }, [pinnedMessages, currentPinnedIndex, onJumpToMessage]);
+
   // 当群组变化时获取信息
   useEffect(() => {
     if (group) {
       fetchGroupStats();
+      fetchPinnedMessages();
     }
-  }, [group, fetchGroupStats]);
+  }, [group, fetchGroupStats, fetchPinnedMessages]);
 
   // 获取群组头像
   const getGroupAvatar = () => {
@@ -119,16 +164,56 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
           {/* 群组信息 */}
           <div className="group-details">
             <div className="group-title-row">
-              <Title level={4} className="group-title">
-                {group.title}
-              </Title>
-              <Tag 
-                color={group.is_active ? 'success' : 'error'} 
-                icon={group.is_active ? <CheckCircleOutlined /> : <PauseCircleOutlined />}
-                className="group-status-tag"
-              >
-                {group.is_active ? '活跃' : '暂停'}
-              </Tag>
+              <div className="group-title-section">
+                <Title level={4} className="group-title">
+                  {group.title}
+                </Title>
+                <Tag 
+                  color={group.is_active ? 'success' : 'error'} 
+                  icon={group.is_active ? <CheckCircleOutlined /> : <PauseCircleOutlined />}
+                  className="group-status-tag"
+                >
+                  {group.is_active ? '活跃' : '暂停'}
+                </Tag>
+              </div>
+              
+              {/* 置顶消息内联显示 */}
+              {pinnedMessages.length > 0 && (
+                <div className="pinned-inline">
+                  <div className="pinned-content">
+                    <PushpinOutlined className="pinned-icon" />
+                    <span 
+                      className="pinned-text"
+                      onClick={handleJumpToPinnedMessage}
+                      title="点击跳转到置顶消息"
+                    >
+                      {pinnedMessages[currentPinnedIndex]?.text?.substring(0, 50) || '(媒体消息)'}
+                      {pinnedMessages[currentPinnedIndex]?.text?.length > 50 && '...'}
+                    </span>
+                    {pinnedMessages.length > 1 && (
+                      <div className="pinned-nav">
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<LeftOutlined />}
+                          onClick={handlePinnedPrevious}
+                          className="pinned-nav-btn"
+                        />
+                        <span className="pinned-count">
+                          {currentPinnedIndex + 1}/{pinnedMessages.length}
+                        </span>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<RightOutlined />}
+                          onClick={handlePinnedNext}
+                          className="pinned-nav-btn"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="group-meta-row">
