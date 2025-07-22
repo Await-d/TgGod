@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import { useMediaDownload } from '../../hooks/useMediaDownload';
 import MediaDownloadOverlay from './MediaDownloadOverlay';
+import { mediaApi } from '../../services/apiService';
 import './EnhancedMediaPreview.css';
 
 // 获取完整的媒体URL
@@ -229,20 +230,8 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
       setOnDemandDownloading(true);
 
       // 调用后端API开始下载
-      const apiBase = process.env.REACT_APP_API_URL || '';
-      const response = await fetch(`${apiBase}/api/media/start-download/${messageId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ force: false })
-      });
-
-      if (!response.ok) {
-        throw new Error('下载请求失败');
-      }
-
-      const result = await response.json();
+      const response = await mediaApi.downloadMedia(messageId, false);
+      const result = response;
 
       if (result.status === 'already_downloaded') {
         // 文件已存在，更新本地路径
@@ -255,16 +244,15 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
         // 轮询检查下载状态
         const checkStatus = async () => {
           try {
-            const statusResponse = await fetch(`${apiBase}/api/media/download-status/${messageId}`);
-            const statusResult = await statusResponse.json();
+            const statusResponse = await mediaApi.getDownloadStatus(messageId);
 
-            if (statusResult.status === 'downloaded') {
-              setCurrentMediaPath(statusResult.file_path);
+            if (statusResponse.status === 'downloaded') {
+              setCurrentMediaPath(statusResponse.file_path);
               message.success('文件下载完成');
               setOnDemandDownloading(false);
               return;
-            } else if (statusResult.status === 'download_failed') {
-              message.error(`下载失败: ${statusResult.error}`);
+            } else if (statusResponse.status === 'download_failed') {
+              message.error(`下载失败: ${statusResponse.error}`);
               setOnDemandDownloading(false);
               return;
             }

@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import './TelegramAuth.css';
+import { apiService } from '../services/api';
+
+interface UserInfo {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  phone?: string;
+}
 
 interface AuthStatus {
   is_authorized: boolean;
-  user_info?: {
-    id: number;
-    first_name: string;
-    last_name?: string;
-    username?: string;
-    phone?: string;
-  };
+  user_info?: UserInfo;
   message: string;
+}
+
+interface LoginResponse {
+  user_info: UserInfo;
+  message?: string;
 }
 
 interface TelegramAuthProps {
@@ -35,15 +43,20 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
   const checkAuthStatus = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/telegram/auth/status');
-      const data: AuthStatus = await response.json();
-      setAuthStatus(data);
-      
-      if (data.is_authorized) {
-        setStep('success');
-        onAuthSuccess?.(data.user_info);
+      const response = await apiService.get('/telegram/auth/status');
+      if (response.success && response.data) {
+        const data = response.data as AuthStatus;
+        setAuthStatus(data);
+
+        if (data.is_authorized) {
+          setStep('success');
+          onAuthSuccess?.(data.user_info);
+        } else {
+          setStep('phone');
+        }
       } else {
-        setStep('phone');
+        setError(response.message || '检查认证状态失败');
+        onAuthError?.('检查认证状态失败');
       }
     } catch (err) {
       setError('检查认证状态失败');
@@ -61,22 +74,15 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
 
     setLoading(true);
     setError('');
-    
-    try {
-      const response = await fetch('/api/telegram/auth/send-code', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ phone }),
-      });
 
-      if (response.ok) {
+    try {
+      const response = await apiService.post('/telegram/auth/send-code', { phone });
+
+      if (response.success) {
         setStep('code');
       } else {
-        const errorData = await response.json();
-        setError(errorData.detail || '发送验证码失败');
-        onAuthError?.(errorData.detail || '发送验证码失败');
+        setError(response.message || '发送验证码失败');
+        onAuthError?.(response.message || '发送验证码失败');
       }
     } catch (err) {
       setError('发送验证码失败');
@@ -101,35 +107,30 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
     setError('');
 
     try {
-      const response = await fetch('/api/telegram/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone,
-          code,
-          password: needsPassword ? password : undefined,
-        }),
-      });
+      const payload = {
+        phone,
+        code,
+        password: needsPassword ? password : undefined,
+      };
 
-      if (response.ok) {
-        const data = await response.json();
+      const response = await apiService.post('/telegram/auth/login', payload);
+
+      if (response.success && response.data) {
+        const userData = response.data as LoginResponse;
         setStep('success');
         setAuthStatus({
           is_authorized: true,
-          user_info: data.user_info,
-          message: data.message,
+          user_info: userData.user_info,
+          message: userData.message || '认证成功',
         });
-        onAuthSuccess?.(data.user_info);
+        onAuthSuccess?.(userData.user_info);
       } else {
-        const errorData = await response.json();
-        if (errorData.detail === '需要两步验证密码') {
+        if (response.message === '需要两步验证密码') {
           setNeedsPassword(true);
           setStep('password');
         } else {
-          setError(errorData.detail || '登录失败');
-          onAuthError?.(errorData.detail || '登录失败');
+          setError(response.message || '登录失败');
+          onAuthError?.(response.message || '登录失败');
         }
       }
     } catch (err) {
@@ -143,11 +144,9 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
   const logout = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/telegram/auth/logout', {
-        method: 'POST',
-      });
+      const response = await apiService.post('/telegram/auth/logout');
 
-      if (response.ok) {
+      if (response.success) {
         setAuthStatus(null);
         setStep('phone');
         setPhone('');
@@ -156,8 +155,7 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
         setNeedsPassword(false);
         setError('');
       } else {
-        const errorData = await response.json();
-        setError(errorData.detail || '登出失败');
+        setError(response.message || '登出失败');
       }
     } catch (err) {
       setError('登出失败');

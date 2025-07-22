@@ -179,12 +179,9 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       }
 
       // 调用后端API取消下载
-      const response = await fetch(`${process.env.REACT_APP_API_URL || ''}/media/cancel-download/${message.id}`, {
-        method: 'POST'
-      });
+      const response = await mediaApi.cancelDownload(message.id);
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.status === 'cancelled') {
         notification.success('下载已取消');
       } else {
         console.warn('后端取消下载失败，但前端状态已重置');

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button, Progress, Space, message as antMessage, Slider, Tooltip } from 'antd';
-import { 
-  PlayCircleOutlined, 
-  PauseCircleOutlined, 
+import {
+  PlayCircleOutlined,
+  PauseCircleOutlined,
   AudioOutlined,
   DownloadOutlined,
   SoundOutlined,
@@ -17,16 +17,16 @@ import './EnhancedVoiceMessage.css';
 // 获取完整的媒体URL
 const getMediaUrl = (path: string): string => {
   if (!path) return '';
-  
+
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
-  
+
   // 如果路径以 media/ 开头，直接使用 /media/ 前缀（静态文件服务）
   if (path.startsWith('media/')) {
     return `/${path}`;
   }
-  
+
   const apiBase = process.env.REACT_APP_API_URL || '';
   return `${apiBase}/${path.startsWith('/') ? path.slice(1) : path}`;
 };
@@ -38,7 +38,7 @@ const formatFileSize = (bytes: number | string): string => {
     if (isNaN(parsed)) return bytes;
     bytes = parsed;
   }
-  
+
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -48,7 +48,7 @@ const formatFileSize = (bytes: number | string): string => {
 // 格式化时间
 const formatTime = (seconds: number): string => {
   if (!isFinite(seconds) || seconds < 0) return '0:00';
-  
+
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -85,9 +85,9 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  
+
   const audioRef = useRef<HTMLAudioElement>(null);
-  
+
   // 下载状态管理
   const {
     downloadStatus,
@@ -104,10 +104,10 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
       antMessage.error(`下载失败: ${error}`);
     }
   });
-  
+
   const mediaUrl = getMediaUrl(url);
   const formattedSize = size ? formatFileSize(size) : undefined;
-  
+
   // 判断是否应该显示音频控件
   const shouldShowAudio = downloaded || downloadStatus.status === 'downloaded';
 
@@ -139,7 +139,7 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
   // 播放/暂停
   const handlePlayPause = useCallback(async () => {
     if (!audioRef.current || !shouldShowAudio) return;
-    
+
     try {
       if (isPlaying) {
         audioRef.current.pause();
@@ -186,10 +186,10 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
   // 渲染波形
   const renderWaveform = () => {
     if (compact || !waveformData) return null;
-    
+
     const bars = waveformData || Array.from({ length: 30 }, () => Math.random() * 100);
     const playedBars = Math.floor((progressPercent / 100) * bars.length);
-    
+
     return (
       <div className="waveform-container">
         <div className="waveform">
@@ -215,7 +215,7 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
     try {
       const response = await fetch(mediaUrl);
       if (!response.ok) throw new Error('下载失败');
-      
+
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -225,7 +225,7 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
-      
+
       antMessage.success('文件下载完成');
     } catch (error) {
       antMessage.error('下载失败，请检查网络连接');
@@ -250,9 +250,9 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
   return (
     <div className={`enhanced-voice-message ${isPlaying ? 'playing' : ''} ${compact ? 'compact' : ''} ${className}`} style={{ position: 'relative' }}>
       {shouldShowAudio && (
-        <audio 
-          ref={audioRef} 
-          src={mediaUrl} 
+        <audio
+          ref={audioRef}
+          src={mediaUrl}
           preload="metadata"
           onLoadedData={handleLoadedData}
           onTimeUpdate={handleTimeUpdate}
@@ -260,7 +260,7 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
           onError={handleError}
         />
       )}
-      
+
       {shouldShowAudio ? (
         <div className="voice-content">
           {/* 主要控制区域 */}
@@ -274,11 +274,11 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
               loading={loading}
               disabled={error}
             />
-            
+
             <div className="voice-progress-area">
               {/* 波形或进度条 */}
               {renderWaveform()}
-              
+
               {/* 进度条（紧凑模式或作为备选） */}
               {(compact || !waveformData) && (
                 <div className="progress-container">
@@ -292,7 +292,7 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
                   />
                 </div>
               )}
-              
+
               <div className="voice-time-info">
                 <span className="current-time">{formatTime(currentTime)}</span>
                 <span className="separator">/</span>
@@ -300,40 +300,40 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
               </div>
             </div>
           </div>
-          
+
           {/* 扩展控制区域（非紧凑模式） */}
           {!compact && (
             <div className="voice-extended-controls">
               <Space size="small">
                 <Tooltip title="快退10秒">
-                  <Button 
-                    type="text" 
-                    icon={<FastBackwardOutlined />} 
+                  <Button
+                    type="text"
+                    icon={<FastBackwardOutlined />}
                     size="small"
                     onClick={() => handleSkip(-10)}
                     disabled={!audioDuration}
                   />
                 </Tooltip>
-                
+
                 <Tooltip title="快进10秒">
-                  <Button 
-                    type="text" 
-                    icon={<FastForwardOutlined />} 
+                  <Button
+                    type="text"
+                    icon={<FastForwardOutlined />}
                     size="small"
                     onClick={() => handleSkip(10)}
                     disabled={!audioDuration}
                   />
                 </Tooltip>
-                
+
                 <Tooltip title={isMuted ? "取消静音" : "静音"}>
-                  <Button 
-                    type="text" 
+                  <Button
+                    type="text"
                     icon={isMuted ? <MutedOutlined /> : <SoundOutlined />}
                     size="small"
                     onClick={handleMuteToggle}
                   />
                 </Tooltip>
-                
+
                 <div className="volume-control">
                   <Slider
                     min={0}
@@ -345,10 +345,10 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
                     style={{ width: 60 }}
                   />
                 </div>
-                
-                <Button 
-                  type="text" 
-                  icon={<DownloadOutlined />} 
+
+                <Button
+                  type="text"
+                  icon={<DownloadOutlined />}
                   size="small"
                   onClick={handleDownload}
                   className="download-button"
@@ -380,7 +380,7 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
           </div>
         </>
       )}
-      
+
       {/* 下载遮罩层 */}
       {!shouldShowAudio && messageId && (
         <MediaDownloadOverlay

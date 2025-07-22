@@ -1,13 +1,13 @@
 import React from 'react';
-import { 
-  Card, 
-  Form, 
-  Input, 
-  Button, 
-  Space, 
-  message, 
-  Typography, 
-  Alert, 
+import {
+  Card,
+  Form,
+  Input,
+  Button,
+  Space,
+  message,
+  Typography,
+  Alert,
   Divider,
   Row,
   Col,
@@ -15,8 +15,8 @@ import {
   Badge,
   Tabs
 } from 'antd';
-import { 
-  SettingOutlined, 
+import {
+  SettingOutlined,
   SaveOutlined,
   ReloadOutlined,
   ClearOutlined,
@@ -50,6 +50,23 @@ interface TelegramStatus {
   message: string;
 }
 
+interface TelegramTestConnectionResponse {
+  stats: {
+    total_groups: number;
+    groups_preview: Array<{
+      name: string;
+      id: number;
+    }>;
+  };
+  user_info: {
+    id: number;
+    first_name: string;
+    last_name?: string;
+    username?: string;
+  };
+  connection_status?: string;
+}
+
 const Settings: React.FC = () => {
   const [form] = Form.useForm();
   const { connectionStatus } = useGlobalStore();
@@ -66,7 +83,7 @@ const Settings: React.FC = () => {
       const response = await apiService.get('/config/configs');
       if (response.success && response.data) {
         setConfigs(response.data as Record<string, ConfigItem> || {});
-        
+
         // 设置表单初始值
         const formValues: Record<string, string> = {};
         Object.entries(response.data).forEach(([key, config]) => {
@@ -84,9 +101,15 @@ const Settings: React.FC = () => {
 
   const checkTelegramStatus = React.useCallback(async () => {
     try {
-      const response = await fetch('/api/telegram/auth/status');
-      const data: TelegramStatus = await response.json();
-      setTelegramStatus(data);
+      const response = await apiService.get('/telegram/auth/status');
+      if (response.success && response.data) {
+        setTelegramStatus(response.data as TelegramStatus);
+      } else {
+        setTelegramStatus({
+          is_authorized: false,
+          message: response.message || '获取Telegram状态失败'
+        } as TelegramStatus);
+      }
     } catch (error) {
       console.error('Check Telegram status error:', error);
       setTelegramStatus({
@@ -105,11 +128,11 @@ const Settings: React.FC = () => {
     try {
       setSaving(true);
       const values = await form.validateFields();
-      
+
       const response = await apiService.post('/config/configs', {
         configs: values
       });
-      
+
       if (response.success) {
         message.success(response.message || '保存成功');
         await loadConfigs(); // 重新加载配置
@@ -133,54 +156,53 @@ const Settings: React.FC = () => {
   const handleTestConnection = async () => {
     try {
       setTestingConnection(true);
-      
+
       // 先保存当前配置
       const values = await form.validateFields(['telegram_api_id', 'telegram_api_hash']);
-      
+
       const saveResponse = await apiService.post('/config/configs', {
         configs: values
       });
-      
+
       if (!saveResponse.success) {
         message.error('保存配置失败');
         return;
       }
 
       // 测试连接
-      const response = await fetch('/api/telegram/test-connection', {
-        method: 'POST'
-      });
-      const data = await response.json();
-      
-      if (data.success) {
+      const response = await apiService.post('/telegram/test-connection');
+
+      if (response.success && response.data) {
+        const data = response.data as TelegramTestConnectionResponse;
         message.success(`连接测试成功！找到 ${data.stats.total_groups} 个群组`);
         setTelegramStatus({
           is_authorized: true,
           user_info: data.user_info,
           message: '连接成功'
         });
-        
+
         // 显示群组预览
         if (data.stats.groups_preview && data.stats.groups_preview.length > 0) {
-          const groupNames = data.stats.groups_preview.map((g: any) => g.name).join(', ');
+          const groupNames = data.stats.groups_preview.map(g => g.name).join(', ');
           message.info(`群组预览: ${groupNames}`, 5);
         }
       } else {
-        if (data.connection_status === 'unauthorized') {
+        const connectionStatus = (response.data as Partial<TelegramTestConnectionResponse>)?.connection_status;
+        if (connectionStatus === 'unauthorized') {
           message.warning('API配置正确，但需要完成Telegram认证');
           setTelegramStatus({
             is_authorized: false,
             message: '未授权'
           });
         } else {
-          message.error(data.message || '连接测试失败');
+          message.error(response.message || '连接测试失败');
           setTelegramStatus({
             is_authorized: false,
-            message: data.message || '连接失败'
+            message: response.message || '连接失败'
           });
         }
       }
-      
+
     } catch (error) {
       message.error('连接测试失败');
       console.error('Test connection error:', error);
@@ -228,6 +250,8 @@ const Settings: React.FC = () => {
       message: '认证成功'
     });
     message.success('Telegram认证成功');
+    // 刷新连接状态
+    checkTelegramStatus();
   };
 
   const handleTelegramAuthError = (error: string) => {
@@ -256,9 +280,9 @@ const Settings: React.FC = () => {
   };
 
   const renderConfigSection = (title: string, configKeys: string[]) => (
-    <Card 
-      title={title} 
-      size="small" 
+    <Card
+      title={title}
+      size="small"
       style={{ marginBottom: 16 }}
       extra={title === 'Telegram 配置' && (
         <Space>
@@ -279,7 +303,7 @@ const Settings: React.FC = () => {
         {configKeys.map(key => {
           const config = configs[key];
           if (!config) return null;
-          
+
           return (
             <Col span={24} key={key} style={{ marginBottom: 16 }}>
               <Form.Item
@@ -287,19 +311,19 @@ const Settings: React.FC = () => {
                 name={key}
                 help={config.description}
                 rules={[
-                  { 
+                  {
                     required: ['telegram_api_id', 'telegram_api_hash', 'secret_key'].includes(key),
                     message: '此字段为必填项'
                   }
                 ]}
               >
                 {config.is_encrypted ? (
-                  <Input.Password 
+                  <Input.Password
                     placeholder={config.value === '***' ? '不修改请留空' : '请输入'}
                     autoComplete="new-password"
                   />
                 ) : key === 'allowed_origins' ? (
-                  <TextArea 
+                  <TextArea
                     rows={3}
                     placeholder='JSON数组格式，例如：["http://localhost:3000"]'
                   />
@@ -391,7 +415,7 @@ const Settings: React.FC = () => {
         style={{ marginBottom: 24 }}
       />
 
-      <TelegramAuth 
+      <TelegramAuth
         onAuthSuccess={handleTelegramAuthSuccess}
         onAuthError={handleTelegramAuthError}
       />
