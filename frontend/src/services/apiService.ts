@@ -206,6 +206,21 @@ export const telegramApi = {
     return api.post('/telegram/sync-all-groups-monthly', { months });
   },
 
+  // 批量同步指定群组消息
+  batchSyncGroupMessages: (groupIds: number[], limit: number = 100): Promise<{
+    success: boolean;
+    message: string;
+    results: Array<{
+      group_id: number;
+      group_title: string;
+      success: boolean;
+      message: string;
+      sync_count?: number;
+    }>;
+  }> => {
+    return api.post('/telegram/batch-sync-messages', { group_ids: groupIds, limit });
+  },
+
   // 从Telegram同步群组列表
   syncGroups: (): Promise<{
     success: boolean;
