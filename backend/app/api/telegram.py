@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, desc, asc, and_, or_, text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Path, Query, Body
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from telethon import TelegramClient, errors
 from telethon.errors import (
@@ -775,6 +775,95 @@ async def get_default_sync_months(
     except Exception as e:
         logger.error(f"获取默认同步月份失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取默认同步月份失败: {str(e)}")
+
+@router.post("/batch-sync-messages", response_model=dict)
+async def batch_sync_group_messages(
+    request: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    """批量同步多个群组的消息"""
+    try:
+        group_ids = request.get("group_ids", [])
+        limit = request.get("limit", 100)
+        
+        if not group_ids:
+            raise HTTPException(status_code=400, detail="未提供群组ID列表")
+            
+        if not isinstance(group_ids, list):
+            raise HTTPException(status_code=400, detail="群组ID必须是数组")
+            
+        # 检查所有群组是否存在
+        groups = db.query(TelegramGroup).filter(TelegramGroup.id.in_(group_ids)).all()
+        if len(groups) != len(group_ids):
+            found_ids = [g.id for g in groups]
+            missing_ids = [id for id in group_ids if id not in found_ids]
+            raise HTTPException(status_code=404, detail=f"以下群组不存在: {missing_ids}")
+        
+        # 批量同步结果
+        results = []
+        success_count = 0
+        
+        for group in groups:
+            try:
+                # 决定使用哪个标识符来获取消息
+                group_identifier = None
+                
+                # 优先使用username
+                if group.username:
+                    group_identifier = group.username
+                    logger.info(f"使用群组用户名获取消息: {group.username}")
+                # 其次使用telegram_id
+                elif group.telegram_id:
+                    group_identifier = group.telegram_id
+                    logger.info(f"使用群组ID获取消息: {group.telegram_id}")
+                else:
+                    logger.warning(f"群组 {group.title} (ID: {group.id}) 缺少标识符，跳过同步")
+                    results.append({
+                        "group_id": group.id,
+                        "group_title": group.title,
+                        "success": False,
+                        "message": "群组缺少标识符"
+                    })
+                    continue
+                
+                # 获取消息
+                messages = await telegram_service.get_messages(group_identifier, limit=limit)
+                
+                # 保存到数据库
+                saved_count = await telegram_service.save_messages_to_db(group.id, messages, db)
+                
+                # 记录结果
+                results.append({
+                    "group_id": group.id,
+                    "group_title": group.title,
+                    "success": True,
+                    "message": f"成功同步 {saved_count} 条消息",
+                    "sync_count": saved_count
+                })
+                
+                success_count += 1
+                
+                # 添加延迟以避免API限制
+                await asyncio.sleep(2)
+                
+            except Exception as e:
+                logger.error(f"同步群组 {group.title} (ID: {group.id}) 消息失败: {e}")
+                results.append({
+                    "group_id": group.id,
+                    "group_title": group.title,
+                    "success": False,
+                    "message": f"同步失败: {str(e)}"
+                })
+        
+        return {
+            "success": success_count > 0,
+            "message": f"批量同步完成: {success_count}/{len(groups)} 个群组",
+            "results": results
+        }
+        
+    except Exception as e:
+        logger.error(f"批量同步消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"批量同步消息失败: {str(e)}")
 
 @router.post("/sync-all-groups-monthly", response_model=dict)
 async def sync_all_groups_monthly(

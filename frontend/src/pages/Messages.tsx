@@ -47,6 +47,7 @@ import {
 } from '@ant-design/icons';
 import { useAuthStore } from '../store';
 import MediaPreview from '../components/Media/MediaPreview';
+import InlineMediaPreview from '../components/Media/InlineMediaPreview';
 import MediaButton from '../components/Media/MediaButton';
 import { messageApi, telegramApi, ruleApi } from '../services/apiService';
 import { TelegramMessage, TelegramGroup, MessageSendRequest } from '../types';
@@ -502,12 +503,27 @@ const MessagesPage: React.FC = () => {
             )}
 
             {record.media_type && (
-              <MediaPreview
-                message={record}
-                size={isMobile ? 'small' : 'default'}
-                showPreview={true}
-                showDownload={true}
-              />
+              <>
+                {/* 直接在列表中显示媒体预览 */}
+                {['photo', 'video'].includes(record.media_type) ? (
+                  <InlineMediaPreview
+                    message={record}
+                    size={isMobile ? 'small' : 'default'}
+                    lazyLoad={true}
+                    onClick={() => {
+                      setSelectedMessage(record);
+                      setMessageDetailVisible(true);
+                    }}
+                  />
+                ) : (
+                  <MediaPreview
+                    message={record}
+                    size={isMobile ? 'small' : 'default'}
+                    showPreview={true}
+                    showDownload={true}
+                  />
+                )}
+              </>
             )}
 
             {record.is_forwarded && (
@@ -1243,12 +1259,23 @@ const MessagesPage: React.FC = () => {
               )}
 
               {selectedMessage.media_type && (
-                <MediaPreview
-                  message={selectedMessage}
-                  size="large"
-                  showPreview={true}
-                  showDownload={true}
-                />
+                <>
+                  {/* 详情弹窗中的媒体预览 */}
+                  {['photo', 'video'].includes(selectedMessage.media_type) ? (
+                    <InlineMediaPreview
+                      message={selectedMessage}
+                      size="large"
+                      lazyLoad={false}
+                    />
+                  ) : (
+                    <MediaPreview
+                      message={selectedMessage}
+                      size="large"
+                      showPreview={true}
+                      showDownload={true}
+                    />
+                  )}
+                </>
               )}
             </Card>
 

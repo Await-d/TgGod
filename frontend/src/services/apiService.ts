@@ -11,7 +11,8 @@ import {
   GroupStats,
   FilterRule,
   DownloadTask,
-  PaginatedResponse
+  PaginatedResponse,
+  LogEntry
 } from '../types';
 
 // 创建axios实例
@@ -685,6 +686,107 @@ export const groupApi = {
   // 更新群组设置
   updateGroup: (groupId: number, data: Partial<TelegramGroup>): Promise<TelegramGroup> => {
     return api.put(`/telegram/groups/${groupId}`, data);
+  },
+};
+
+// 日志管理相关API
+export const logApi = {
+  // 获取日志列表
+  getLogs: (params?: {
+    level?: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+    search?: string;
+    start_time?: string;
+    end_time?: string;
+    task_id?: number;
+    skip?: number;
+    limit?: number;
+  }): Promise<{
+    logs: LogEntry[];
+    total: number;
+    page: number;
+    size: number;
+  }> => {
+    return api.get('/logs', { params });
+  },
+
+  // 获取任务日志
+  getTaskLogs: (params?: {
+    level?: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+    search?: string;
+    start_time?: string;
+    end_time?: string;
+    task_id?: number;
+    skip?: number;
+    limit?: number;
+  }): Promise<LogEntry[]> => {
+    return api.get('/logs/task', { params });
+  },
+
+  // 获取系统日志
+  getSystemLogs: (params?: {
+    level?: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+    search?: string;
+    start_time?: string;
+    end_time?: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<LogEntry[]> => {
+    return api.get('/logs/system', { params });
+  },
+
+  // 清除日志
+  clearLogs: (type: 'task' | 'system' | 'all'): Promise<{
+    success: boolean;
+    message: string;
+    cleared_count?: number;
+  }> => {
+    return api.delete(`/logs/${type}`);
+  },
+
+  // 导出日志
+  exportLogs: (params: {
+    type: 'task' | 'system' | 'all';
+    level?: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+    search?: string;
+    start_time?: string;
+    end_time?: string;
+    format: 'json' | 'csv' | 'txt';
+  }): Promise<{
+    download_url: string;
+    filename: string;
+    size: number;
+  }> => {
+    return api.post('/logs/export', params);
+  },
+
+  // 获取日志统计
+  getLogStats: (params?: {
+    start_time?: string;
+    end_time?: string;
+  }): Promise<{
+    total_logs: number;
+    error_count: number;
+    warning_count: number;
+    info_count: number;
+    debug_count: number;
+    task_log_count: number;
+    system_log_count: number;
+  }> => {
+    return api.get('/logs/stats', { params });
+  },
+
+  // 获取最新日志
+  getRecentLogs: (limit: number = 100): Promise<LogEntry[]> => {
+    return api.get('/logs/recent', { params: { limit } });
+  },
+
+  // 批量删除日志
+  deleteLogs: (logIds: number[]): Promise<{
+    success: boolean;
+    message: string;
+    deleted_count: number;
+  }> => {
+    return api.delete('/logs/batch', { data: { log_ids: logIds } });
   },
 };
 

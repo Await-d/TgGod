@@ -1,0 +1,213 @@
+.inline-media-preview {
+  position: relative;
+  margin: 4px 0;
+  overflow: hidden;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+/* 不同尺寸的容器 */
+.inline-media-preview.small {
+  max-height: 120px;
+}
+
+.inline-media-preview.default {
+  max-height: 180px;
+}
+
+.inline-media-preview.large {
+  max-height: 240px;
+}
+
+.inline-media-preview.expanded {
+  max-height: 400px;
+}
+
+/* 媒体容器 */
+.media-preview-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* 图片样式 */
+.media-preview-container .ant-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.media-preview-container .ant-image-img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s ease;
+}
+
+.media-preview-container .ant-image:hover .ant-image-img {
+  transform: scale(1.05);
+}
+
+/* 视频容器 */
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.video-container video {
+  width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+
+/* 播放按钮样式 */
+.video-play-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease;
+}
+
+.video-play-overlay:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.play-button {
+  font-size: 48px;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 60px;
+  height: 60px;
+  transition: all 0.3s ease;
+}
+
+.inline-media-preview.small .play-button {
+  font-size: 32px;
+  width: 40px;
+  height: 40px;
+}
+
+.play-button:hover {
+  transform: scale(1.1);
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* 加载状态 */
+.image-placeholder,
+.video-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  background-color: #f5f5f5;
+}
+
+/* 媒体控制栏 */
+.media-controls {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 6px 0 0 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.media-preview-container:hover .media-controls {
+  opacity: 1;
+}
+
+.media-controls .ant-btn {
+  padding: 0 8px;
+  height: 24px;
+  border: none;
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+/* 文件信息 */
+.file-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  padding: 2px 6px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 0 6px 0 0;
+}
+
+.file-size {
+  font-size: 10px !important;
+  color: #fff !important;
+}
+
+/* 下载进度条 */
+.download-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 2px;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* 媒体不可用样式 */
+.media-unavailable {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background-color: #f5f5f5;
+  color: #999;
+  font-size: 32px;
+  min-height: 80px;
+  border-radius: 6px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .inline-media-preview.small {
+    max-height: 90px;
+  }
+  
+  .inline-media-preview.default {
+    max-height: 120px;
+  }
+  
+  .inline-media-preview.large {
+    max-height: 180px;
+  }
+  
+  .play-button {
+    font-size: 32px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .inline-media-preview.small .play-button {
+    font-size: 24px;
+    width: 30px;
+    height: 30px;
+  }
+}
