@@ -85,10 +85,7 @@ def process_message_json_fields(message):
                 message.media_path = None
                 message.media_download_url = None
         
-        # 处理缩略图URL - 为媒体文件设置缩略图访问URL
-        if message.media_type:
-            # 构建缩略图URL - 总是尝试提供缩略图端点，让端点决定是否有缩略图可用
-            message.media_thumbnail_url = f"/api/media/thumbnail/{message.message_id}"
+        # 注意：media_thumbnail_url 字段将在序列化时动态生成，不在此处设置
         
         # 处理urls字段
         if message.urls:
@@ -115,6 +112,54 @@ def process_message_json_fields(message):
         message.hashtags = []
         message.urls = []
         message.reactions = {}
+
+def convert_message_to_response_dict(message):
+    """将SQLAlchemy消息对象转换为响应字典，包含所有必需字段"""
+    # 首先处理JSON字段
+    process_message_json_fields(message)
+    
+    # 转换为字典以便添加计算字段
+    message_dict = {
+        'id': message.id,
+        'group_id': message.group_id,
+        'message_id': message.message_id,
+        'sender_id': message.sender_id,
+        'sender_username': message.sender_username,
+        'sender_name': message.sender_name,
+        'text': message.text,
+        'media_type': message.media_type,
+        'media_path': message.media_path,
+        'media_size': message.media_size,
+        'media_filename': message.media_filename,
+        'media_downloaded': message.media_downloaded,
+        'media_download_url': message.media_download_url,
+        'media_thumbnail_path': message.media_thumbnail_path,
+        'view_count': message.view_count,
+        'is_forwarded': message.is_forwarded,
+        'forwarded_from': message.forwarded_from,
+        'forwarded_from_id': message.forwarded_from_id,
+        'forwarded_from_type': message.forwarded_from_type,
+        'forwarded_date': message.forwarded_date,
+        'is_own_message': message.is_own_message,
+        'reply_to_message_id': message.reply_to_message_id,
+        'edit_date': message.edit_date,
+        'is_pinned': message.is_pinned,
+        'reactions': message.reactions,
+        'mentions': message.mentions,
+        'hashtags': message.hashtags,
+        'urls': message.urls,
+        'date': message.date,
+        'created_at': message.created_at,
+        'updated_at': message.updated_at
+    }
+    
+    # 添加缩略图URL字段
+    if message.media_type:
+        message_dict['media_thumbnail_url'] = f"/api/media/thumbnail/{message.message_id}"
+    else:
+        message_dict['media_thumbnail_url'] = None
+        
+    return message_dict
 
 # Pydantic模型
 class GroupCreate(BaseModel):
@@ -352,11 +397,12 @@ async def get_group_messages(
             # 反转为正序（最老消息在前，最新消息在后）
             messages = list(reversed(messages_desc))
         
-        # 处理JSON字段的数据类型转换
+        # 转换为响应字典格式
+        result_messages = []
         for message in messages:
-            process_message_json_fields(message)
+            result_messages.append(convert_message_to_response_dict(message))
         
-        return messages
+        return result_messages
         
     except Exception as e:
         logger.error(f"获取群组 {group_id} 消息失败: {e}")
@@ -380,7 +426,6 @@ async def get_group_messages(
             )
 
 
-@router.get("/groups/{group_id}/messages/{message_id}", response_model=MessageResponse)
 async def get_message_detail(
     group_id: int,
     message_id: int,
@@ -403,10 +448,8 @@ async def get_message_detail(
     if not message:
         raise HTTPException(status_code=404, detail="消息不存在")
     
-    # 处理JSON字段的数据类型转换
-    process_message_json_fields(message)
-    
-    return message
+    # 转换为响应字典格式
+    return convert_message_to_response_dict(message)
 
 
 @router.get("/groups/search-by-id/{telegram_id}", response_model=Optional[GroupResponse])
@@ -424,7 +467,6 @@ async def search_group_by_telegram_id(
     return group
 
 
-@router.get("/groups/{group_id}/messages/{message_id}/replies", response_model=List[MessageResponse])
 async def get_message_replies(
     group_id: int,
     message_id: int,
@@ -446,11 +488,12 @@ async def get_message_replies(
         TelegramMessage.reply_to_message_id == message_id
     ).order_by(TelegramMessage.date.asc()).offset(skip).limit(limit).all()
     
-    # 处理JSON字段的数据类型转换
+    # 转换为响应字典格式
+    result_messages = []
     for reply in replies:
-        process_message_json_fields(reply)
+        result_messages.append(convert_message_to_response_dict(reply))
     
-    return replies
+    return result_messages
 
 @router.post("/groups/{group_id}/sync")
 async def sync_group_messages(
@@ -1030,7 +1073,6 @@ async def delete_message(
         raise HTTPException(status_code=500, detail=f"删除消息失败: {str(e)}")
 
 
-@router.post("/groups/{group_id}/messages/search", response_model=List[MessageResponse])
 async def search_messages(
     group_id: int,
     search_request: MessageSearchRequest,
@@ -1077,7 +1119,12 @@ async def search_messages(
     # 排序和分页
     messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
     
-    return messages
+    # 转换为响应字典格式
+    result_messages = []
+    for message in messages:
+        result_messages.append(convert_message_to_response_dict(message))
+    
+    return result_messages
 
 
 # Telegram认证相关API
