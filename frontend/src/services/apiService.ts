@@ -706,7 +706,7 @@ export const logApi = {
     page: number;
     size: number;
   }> => {
-    return api.get('/logs', { params });
+    return api.get('/log/logs/system', { params });
   },
 
   // 获取任务日志
@@ -719,7 +719,7 @@ export const logApi = {
     skip?: number;
     limit?: number;
   }): Promise<LogEntry[]> => {
-    return api.get('/logs/task', { params });
+    return api.get('/log/logs/task', { params });
   },
 
   // 获取系统日志
@@ -731,7 +731,7 @@ export const logApi = {
     skip?: number;
     limit?: number;
   }): Promise<LogEntry[]> => {
-    return api.get('/logs/system', { params });
+    return api.get('/log/logs/system', { params });
   },
 
   // 清除日志
@@ -740,7 +740,7 @@ export const logApi = {
     message: string;
     cleared_count?: number;
   }> => {
-    return api.delete(`/logs/${type}`);
+    return api.delete(`/log/logs/${type}`);
   },
 
   // 导出日志
@@ -756,7 +756,7 @@ export const logApi = {
     filename: string;
     size: number;
   }> => {
-    return api.post('/logs/export', params);
+    return api.post('/log/logs/export', params);
   },
 
   // 获取日志统计
@@ -772,12 +772,12 @@ export const logApi = {
     task_log_count: number;
     system_log_count: number;
   }> => {
-    return api.get('/logs/stats', { params });
+    return api.get('/log/logs/stats', { params });
   },
 
   // 获取最新日志
   getRecentLogs: (limit: number = 100): Promise<LogEntry[]> => {
-    return api.get('/logs/recent', { params: { limit } });
+    return api.get('/log/logs/recent', { params: { limit } });
   },
 
   // 批量删除日志
@@ -786,7 +786,7 @@ export const logApi = {
     message: string;
     deleted_count: number;
   }> => {
-    return api.delete('/logs/batch', { data: { log_ids: logIds } });
+    return api.delete('/log/logs/batch', { data: { log_ids: logIds } });
   },
 };
 
