@@ -153,36 +153,44 @@ const Groups: React.FC = () => {
     });
 
     try {
-      // 尝试使用批量API（如果后端支持）
-      try {
-        const response = await telegramApi.batchSyncGroupMessages(selectedGroupIds, values.limit);
-        
-        let successCount = 0;
-        let failedCount = 0;
-        
-        response.results.forEach(result => {
-          if (result.success) {
-            successCount++;
-          } else {
-            failedCount++;
-          }
-        });
-        
-        setSyncProgress({
-          current: selectedGroups.length,
-          total: selectedGroups.length,
-          success: successCount,
-          failed: failedCount
-        });
-        
-        // 显示结果
-        if (failedCount === 0) {
-          message.success(`批量同步完成！成功同步 ${successCount} 个群组`);
+      // 使用后端批量同步API
+      const response = await telegramApi.batchSyncGroupMessages(selectedGroupIds, values.limit);
+      
+      // 验证响应格式
+      if (!response || !Array.isArray(response.results)) {
+        throw new Error('服务器返回了无效的响应格式');
+      }
+      
+      // 统计成功和失败的数量
+      let successCount = 0;
+      let failedCount = 0;
+      
+      response.results.forEach(result => {
+        if (result.success) {
+          successCount++;
         } else {
-          message.warning(`批量同步完成！成功: ${successCount}, 失败: ${failedCount}`);
+          failedCount++;
         }
-      } catch (batchError) {
-        // 如果批量API不可用，回退到逐个同步
+      });
+      
+      setSyncProgress({
+        current: selectedGroups.length,
+        total: selectedGroups.length,
+        success: successCount,
+        failed: failedCount
+      });
+      
+      // 显示结果
+      if (failedCount === 0) {
+        message.success(`批量同步完成！成功同步 ${successCount} 个群组`);
+      } else {
+        message.warning(`批量同步完成！成功: ${successCount}, 失败: ${failedCount}`);
+      }
+    } catch (error) {
+      console.error('批量同步API调用失败:', error);
+      message.error(`批量同步失败: ${error.response?.data?.detail || '请求处理过程中出现错误'}`);
+      
+      // 回退到逐个同步
         console.warn('批量API不可用，使用逐个同步:', batchError);
         
         let successCount = 0;

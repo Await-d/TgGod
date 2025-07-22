@@ -169,7 +169,7 @@ const InlineMediaPreview: React.FC<InlineMediaPreviewProps> = ({
   };
 
   // 检查是否为可预览的媒体类型
-  const isPreviewable = ['photo', 'video'].includes(message.media_type);
+  const isPreviewable = message.media_type ? ['photo', 'video'].includes(message.media_type) : false;
   const mediaUrl = inView ? getMediaUrl() : null;
 
   // 如果不是媒体消息或不支持预览，不显示
