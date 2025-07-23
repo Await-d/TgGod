@@ -1,17 +1,12 @@
-from .telegram import TelegramGroup, TelegramMessage
-from .rule import FilterRule, DownloadTask
-from .log import TaskLog, SystemLog, NotificationSetting
-from .config import SystemConfig
+"""
+模型初始化 - 确保SQLAlchemy能够正确解析模型关系
+"""
+# 先导入User
 from .user import User
-
-__all__ = [
-    "TelegramGroup",
-    "TelegramMessage", 
-    "FilterRule",
-    "DownloadTask",
-    "TaskLog",
-    "SystemLog",
-    "NotificationSetting",
-    "SystemConfig",
-    "User"
-]
+# 再导入依赖于User的模型
+from .user_settings import UserSettings
+# 其他模型
+from .rule import *
+from .log import *
+from .telegram import *
+from .config import *

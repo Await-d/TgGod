@@ -31,13 +31,11 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
     
-    # 用户设置关联 - 使用字符串引用完整路径避免循环导入问题
-    @declared_attr
-    def settings(cls):
-        return relationship("app.models.user_settings.UserSettings", 
-                          back_populates="user", 
-                          uselist=False,
-                          lazy="joined")
+    # 用户设置关联 - 使用字符串避免循环导入问题
+    settings = relationship("UserSettings", 
+                           back_populates="user", 
+                           uselist=False,
+                           lazy="joined")
     
     def __repr__(self):
         return f"<User(username='{self.username}', email='{self.email}')>"

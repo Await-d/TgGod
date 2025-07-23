@@ -2,14 +2,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from .config import settings
+import os
+
+# 基础模型类先创建，避免循环导入
+Base = declarative_base()
+
+# 直接使用环境变量获取数据库URL，避免循环导入
+database_url = os.environ.get("DATABASE_URL", "sqlite:////app/data/tggod.db")
 
 # 同步数据库引擎
-if "sqlite" in settings.database_url:
+if "sqlite" in database_url:
     # SQLite特殊配置，增加超时和WAL模式
     engine = create_engine(
-        settings.database_url,
+        database_url,
         connect_args={
             "check_same_thread": False,
             "timeout": 30,  # 30秒超时
@@ -21,7 +26,7 @@ if "sqlite" in settings.database_url:
     )
 else:
     engine = create_engine(
-        settings.database_url,
+        database_url,
         pool_pre_ping=True,
         pool_recycle=3600,
         echo=False
@@ -30,10 +35,10 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # 异步数据库引擎
-if "sqlite" in settings.database_url:
-    async_database_url = settings.database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+if "sqlite" in database_url:
+    async_database_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
 else:
-    async_database_url = settings.database_url
+    async_database_url = database_url
 
 async_engine = create_async_engine(
     async_database_url,
@@ -44,8 +49,7 @@ AsyncSessionLocal = sessionmaker(
     async_engine, class_=AsyncSession, expire_on_commit=False
 )
 
-# 基础模型类
-Base = declarative_base()
+# Base已在文件顶部定义
 
 # 数据库依赖
 def get_db():

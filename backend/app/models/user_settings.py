@@ -16,5 +16,5 @@ class UserSettings(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # 关联用户 - 使用字符串完整路径避免循环导入
-    user = relationship("app.models.user.User", back_populates="settings")
+    # 关联用户 - 使用字符串避免循环导入
+    user = relationship("User", back_populates="settings")

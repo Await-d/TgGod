@@ -1,8 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from .config import settings, init_settings
 from .database import engine, Base
+from .config import settings, init_settings
 from .api import telegram, rule, log, task, config, auth, user_settings
 from .tasks.message_sync import message_sync_task
 import logging
@@ -11,11 +11,25 @@ import json
 import time
 
 # 配置日志
+try:
+    log_level = settings.log_level.upper()
+except Exception as e:
+    log_level = "INFO"
+    print(f"获取日志级别失败，使用默认INFO: {e}")
+
+try:
+    log_file = settings.log_file
+except Exception as e:
+    log_file = "/app/logs/app.log"
+    print(f"获取日志文件路径失败，使用默认路径: {e}")
+    # 确保日志目录存在
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
 logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
+    level=getattr(logging, log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(settings.log_file),
+        logging.FileHandler(log_file),
         logging.StreamHandler()
     ]
 )
