@@ -3,6 +3,9 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from ..database import Base
 
+# 避免循环导入
+from sqlalchemy.ext.declarative import declared_attr
+
 
 class User(Base):
     """用户模型"""
@@ -28,8 +31,13 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
     
-    # 用户设置关联
-    settings = relationship("UserSettings", back_populates="user", uselist=False)
+    # 用户设置关联 - 使用字符串引用完整路径避免循环导入问题
+    @declared_attr
+    def settings(cls):
+        return relationship("app.models.user_settings.UserSettings", 
+                          back_populates="user", 
+                          uselist=False,
+                          lazy="joined")
     
     def __repr__(self):
         return f"<User(username='{self.username}', email='{self.email}')>"
