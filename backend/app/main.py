@@ -236,13 +236,30 @@ async def startup_event():
         
         # 运行用户设置表迁移
         logger.info("🔧 正在检查用户设置表...")
-        from migrations.add_user_settings_table import run_migration
-        
-        user_settings_success, user_settings_message = run_migration()
-        if user_settings_success:
-            logger.info(f"✅ 用户设置表检查完成: {user_settings_message}")
-        else:
-            logger.warning(f"⚠️ 用户设置表检查警告: {user_settings_message}")
+        try:
+            # 尝试导入迁移模块
+            migration_file = project_root / "migrations" / "add_user_settings_table.py"
+            
+            if migration_file.exists():
+                logger.info(f"找到用户设置迁移脚本: {migration_file}")
+                from importlib.util import spec_from_file_location, module_from_spec
+                
+                # 动态导入迁移模块
+                spec = spec_from_file_location("add_user_settings_table", migration_file)
+                migration_module = module_from_spec(spec)
+                spec.loader.exec_module(migration_module)
+                
+                # 运行迁移
+                user_settings_success, user_settings_message = migration_module.run_migration()
+                if user_settings_success:
+                    logger.info(f"✅ 用户设置表检查完成: {user_settings_message}")
+                else:
+                    logger.warning(f"⚠️ 用户设置表检查警告: {user_settings_message}")
+            else:
+                logger.warning(f"未找到用户设置迁移脚本，将跳过自动迁移")
+        except Exception as e:
+            logger.error(f"运行用户设置迁移时出错: {e}")
+            logger.warning("将继续启动，但用户设置表可能不存在")
             
     except Exception as e:
         logger.error(f"数据库检查过程中发生错误: {e}")
@@ -253,26 +270,39 @@ async def startup_event():
         
     # 执行其他数据库检查和自动修复
     try:
-        from .utils.db_utils import check_and_fix_database_on_startup
-        from .database import SessionLocal
+        # 检查utils/db_utils.py是否存在
+        db_utils_file = Path(__file__).parent / "utils" / "db_utils.py"
         
-        db = SessionLocal()
-        try:
-            # 检查和修复数据库
-            db_check_results = check_and_fix_database_on_startup(db)
-            logger.info(f"🔧 数据库自动检查结果: {db_check_results['status']}")
+        if db_utils_file.exists():
+            logger.info(f"找到数据库工具脚本: {db_utils_file}")
             
-            # 输出详细信息
-            for table, detail in db_check_results.get("details", {}).items():
-                if detail["status"] == "error":
-                    logger.error(f"❌ 表 {table}: {detail['message']}")
-                elif detail["status"] == "fixed":
-                    logger.info(f"✅ 表 {table}: {detail['message']}")
-                else:
-                    logger.debug(f"✓ 表 {table}: {detail['message']}")
-                    
-        finally:
-            db.close()
+            # 导入工具模块
+            from .utils.db_utils import check_and_fix_database_on_startup
+            from .database import SessionLocal
+            
+            db = SessionLocal()
+            try:
+                # 检查和修复数据库
+                db_check_results = check_and_fix_database_on_startup(db)
+                logger.info(f"🔧 数据库自动检查结果: {db_check_results['status']}")
+                
+                # 输出详细信息
+                for table, detail in db_check_results.get("details", {}).items():
+                    if detail["status"] == "error":
+                        logger.error(f"❌ 表 {table}: {detail['message']}")
+                    elif detail["status"] == "fixed":
+                        logger.info(f"✅ 表 {table}: {detail['message']}")
+                    else:
+                        logger.debug(f"✓ 表 {table}: {detail['message']}")
+                        
+            finally:
+                db.close()
+        else:
+            logger.warning("未找到数据库工具脚本，跳过自动检查")
+            
+            # 确保基本表结构存在
+            logger.info("创建基本表结构...")
+            Base.metadata.create_all(bind=engine)
     except Exception as e:
         logger.error(f"数据库自动检查和修复过程中出现错误: {e}")
         logger.warning("系统将继续启动，但数据库结构可能不完整")
