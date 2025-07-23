@@ -31,8 +31,17 @@ api.interceptors.response.use(
     return response.data;
   },
   (error) => {
-    const message = error.response?.data?.message || error.message || '请求失败';
-    return Promise.reject(new Error(message));
+    console.error('API Error:', error);
+    // 格式化错误信息
+    const errorResponse = {
+      success: false,
+      data: null,
+      message: error.response?.data?.message || error.message || '请求失败',
+      error: error.toString()
+    };
+    // 返回格式化的错误响应而不是Promise.reject
+    // 这样前端组件可以统一处理响应格式
+    return errorResponse;
   }
 );
 

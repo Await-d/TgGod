@@ -42,3 +42,7 @@ class UserSettingsOut(BaseModel):
     previewFilesInline: bool = True
     defaultPageSize: int = 20
     developerMode: bool = False
+    
+    class Config:
+        # 允许额外字段
+        extra = "allow"

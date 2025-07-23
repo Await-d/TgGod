@@ -43,9 +43,15 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
   const checkAuthStatus = async () => {
     setLoading(true);
     try {
+      console.log('正在检查Telegram认证状态...');
       const response = await apiService.get('/telegram/auth/status');
+      
+      // 详细日志记录API响应
+      console.log('Telegram auth status response:', response);
+      
       if (response.success && response.data) {
         const data = response.data as AuthStatus;
+        console.log('Telegram auth status data:', data);
         setAuthStatus(data);
 
         if (data.is_authorized) {
@@ -55,12 +61,25 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
           setStep('phone');
         }
       } else {
-        setError(response.message || '检查认证状态失败');
-        onAuthError?.('检查认证状态失败');
+        // 记录错误信息以便调试
+        console.warn('Telegram认证状态检查失败:', response);
+        const errorMsg = response.message || '检查认证状态失败';
+        setError(errorMsg);
+        
+        // 如果响应中包含更具体的错误信息，则使用它
+        const responseData = response.data as any;
+        if (responseData?.message) {
+          setError(responseData.message);
+          onAuthError?.(responseData.message);
+        } else {
+          onAuthError?.(errorMsg);
+        }
       }
-    } catch (err) {
-      setError('检查认证状态失败');
-      onAuthError?.('检查认证状态失败');
+    } catch (err: any) {
+      console.error('Telegram认证状态检查异常:', err);
+      const errorMsg = err.message || '检查认证状态失败';
+      setError(errorMsg);
+      onAuthError?.(errorMsg);
     } finally {
       setLoading(false);
     }

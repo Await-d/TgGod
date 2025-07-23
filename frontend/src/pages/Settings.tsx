@@ -103,20 +103,48 @@ const Settings: React.FC = () => {
 
   const checkTelegramStatus = React.useCallback(async () => {
     try {
+      console.log('Settings页面 - 检查Telegram认证状态...');
       const response = await apiService.get('/telegram/auth/status');
+      console.log('Settings页面 - Telegram API响应:', response);
+      
       if (response.success && response.data) {
-        setTelegramStatus(response.data as TelegramStatus);
+        console.log('Settings页面 - Telegram状态数据:', response.data);
+        // 确保响应数据是预期的格式
+        const statusData = response.data as TelegramStatus;
+        
+        // 即使后端返回数据，也确保数据结构符合预期
+        if (typeof statusData.is_authorized === 'boolean') {
+          setTelegramStatus(statusData);
+          
+          // 如果认证成功但没有用户信息，尝试添加默认用户信息避免UI错误
+          if (statusData.is_authorized && !statusData.user_info) {
+            console.warn('后端返回认证成功但无用户信息');
+          }
+        } else {
+          console.warn('Telegram状态数据格式不正确:', statusData);
+          // 构造一个安全的默认状态
+          setTelegramStatus({
+            is_authorized: false,
+            message: '返回的认证数据格式不正确'
+          });
+        }
       } else {
+        console.warn('Telegram状态API返回失败响应', response);
+        // 使用更友好的错误消息
+        const errorMessage = response.message || '获取Telegram认证状态失败';
+        message.warning(`Telegram认证状态检查: ${errorMessage}`);
         setTelegramStatus({
           is_authorized: false,
-          message: response.message || '获取Telegram状态失败'
+          message: errorMessage
         } as TelegramStatus);
       }
-    } catch (error) {
-      console.error('Check Telegram status error:', error);
+    } catch (error: any) {
+      console.error('检查Telegram状态时出错:', error);
+      const errorMessage = error.message || '无法检查Telegram认证状态';
+      message.error(`Telegram认证状态错误: ${errorMessage}`);
       setTelegramStatus({
         is_authorized: false,
-        message: '无法检查Telegram连接状态'
+        message: errorMessage
       });
     }
   }, []);
@@ -268,16 +296,16 @@ const Settings: React.FC = () => {
     if (telegramStatus.is_authorized) {
       return (
         <Space>
-          <Badge status="success" text="已连接" />
+          <Badge status="success" text="已认证" />
           {telegramStatus.user_info && (
             <Text type="secondary">
-              ({telegramStatus.user_info.first_name} @{telegramStatus.user_info.username})
+              ({telegramStatus.user_info.first_name} {telegramStatus.user_info.username ? `@${telegramStatus.user_info.username}` : ''})
             </Text>
           )}
         </Space>
       );
     } else {
-      return <Badge status="error" text="未连接" />;
+      return <Badge status="error" text="未认证" />;
     }
   };
 
