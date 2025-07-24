@@ -849,5 +849,144 @@ export const logApi = {
   },
 };
 
+// 仪表盘相关API
+export const dashboardApi = {
+  // 获取仪表盘概览数据
+  getOverview: (forceRefresh: boolean = false): Promise<{
+    basic_stats: {
+      total_groups: number;
+      active_groups: number;
+      total_messages: number;
+      media_messages: number;
+      text_messages: number;
+    };
+    download_stats: {
+      downloaded_media: number;
+      total_media_size: number;
+      downloading_tasks: number;
+      download_completion_rate: number;
+    };
+    today_stats: {
+      new_messages: number;
+      new_downloads: number;
+    };
+    media_distribution: Record<string, number>;
+    last_updated: string;
+  }> => {
+    return api.get('/dashboard/overview', { params: { force_refresh: forceRefresh } });
+  },
+
+  // 获取群组汇总信息
+  getGroupsSummary: (limit: number = 10, forceRefresh: boolean = false): Promise<{
+    groups: Array<{
+      group_id: number;
+      title: string;
+      username?: string;
+      member_count: number;
+      is_active: boolean;
+      message_count: number;
+      media_count: number;
+      downloaded_count: number;
+      download_rate: number;
+      last_message_date?: string;
+    }>;
+    total_groups: number;
+    last_updated: string;
+  }> => {
+    return api.get('/dashboard/groups-summary', { 
+      params: { limit, force_refresh: forceRefresh } 
+    });
+  },
+
+  // 获取最近活动
+  getRecentActivity: (hours: number = 24, limit: number = 20, forceRefresh: boolean = false): Promise<{
+    recent_messages: Array<{
+      id: number;
+      group_id: number;
+      group_title: string;
+      message_id: number;
+      sender_name?: string;
+      text?: string;
+      media_type?: string;
+      date: string;
+      type: 'message';
+    }>;
+    recent_downloads: Array<{
+      id: number;
+      group_id: number;
+      group_title: string;
+      message_id: number;
+      filename?: string;
+      media_type?: string;
+      size?: number;
+      date: string;
+      type: 'download';
+    }>;
+    time_range_hours: number;
+    last_updated: string;
+  }> => {
+    return api.get('/dashboard/recent-activity', { 
+      params: { hours, limit, force_refresh: forceRefresh } 
+    });
+  },
+
+  // 获取下载统计信息
+  getDownloadStatistics: (days: number = 7, forceRefresh: boolean = false): Promise<{
+    daily_downloads: Array<{
+      date: string;
+      count: number;
+      total_size: number;
+    }>;
+    downloads_by_type: Record<string, {
+      count: number;
+      total_size: number;
+    }>;
+    average_download_speed: number;
+    time_range_days: number;
+    last_updated: string;
+  }> => {
+    return api.get('/dashboard/download-stats', { 
+      params: { days, force_refresh: forceRefresh } 
+    });
+  },
+
+  // 获取系统信息
+  getSystemInfo: (forceRefresh: boolean = false): Promise<{
+    database: {
+      total_groups: number;
+      total_messages: number;
+      media_files: number;
+    };
+    disk_usage?: {
+      total: number;
+      used: number;
+      free: number;
+      usage_percent: number;
+    };
+    memory: {
+      total: number;
+      available: number;
+      used: number;
+      usage_percent: number;
+    };
+    cpu_percent: number;
+    media_root: string;
+    last_updated: string;
+  }> => {
+    return api.get('/dashboard/system-info', { 
+      params: { force_refresh: forceRefresh } 
+    });
+  },
+
+  // 清除仪表盘缓存
+  clearCache: (): Promise<{
+    success: boolean;
+    message: string;
+    timestamp: string;
+  }> => {
+    return api.delete('/dashboard/cache');
+  }
+};
+
 // 导出默认API实例
 export default api;

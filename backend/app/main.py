@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .database import engine, Base
 from .config import settings, init_settings
-from .api import telegram, rule, log, task, config, auth, user_settings
+from .api import telegram, rule, log, task, config, auth, user_settings, dashboard
 from .tasks.message_sync import message_sync_task
 import logging
 import os
@@ -141,6 +141,9 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 # 用户设置API
 app.include_router(user_settings.router, prefix="/api/user", tags=["user"])
+
+# 仪表盘API
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 
 # 媒体文件API
 from .api import media
