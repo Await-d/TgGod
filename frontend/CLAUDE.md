@@ -330,6 +330,24 @@ src/components/Chat/
 - 前端白屏问题：已解决，WebSocket连接和路由配置正常
 - 移动端测试：需要在实际移动设备上测试用户体验
 - 规则测试：需要后端API支持规则测试功能
+- API路由问题：已修复规则API和任务API的路由匹配问题
+
+## 最新问题修复 (2025-07-24)
+**修复API路由404错误：**
+
+1. **任务API路由冲突修复**
+   - 原因：`/tasks/{task_id}` 路由在 `/tasks/stats` 之前定义
+   - 解决：调整路由定义顺序，具体路径优先于参数路径
+   - 修复文件：`backend/app/api/task.py`
+
+2. **规则API路径不匹配修复**
+   - 原因：前端调用 `/rule` 但后端定义为 `/rules`
+   - 解决：更新前端API调用使用正确的复数形式路径
+   - 修复API：
+     - `/rule` → `/rules`
+     - `/rule/group/{groupId}` → `/rules?group_id={groupId}`
+     - `/rule/test` → `/rules/{ruleId}/test`
+   - 修复文件：`frontend/src/services/apiService.ts`
 
 ## 构建和部署
 ```bash
