@@ -13,7 +13,8 @@ from ..database import SessionLocal, engine
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..models.rule import FilterRule, DownloadTask
 from ..models.log import TaskLog, SystemLog
-from ..models.user import User, UserSettings
+from ..models.user import User
+from ..models.user_settings import UserSettings
 
 logger = logging.getLogger(__name__)
 
