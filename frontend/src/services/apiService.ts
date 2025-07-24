@@ -586,6 +586,65 @@ export const ruleApi = {
   },
 };
 
+// 任务管理相关API
+export const taskApi = {
+  // 获取任务列表
+  getTasks: (params?: {
+    group_id?: number;
+    status?: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<DownloadTask[]> => {
+    return api.get('/tasks', { params });
+  },
+
+  // 创建任务
+  createTask: (task: {
+    name: string;
+    group_id: number;
+    rule_id: number;
+    download_path: string;
+  }): Promise<DownloadTask> => {
+    return api.post('/tasks', task);
+  },
+
+  // 获取任务详情
+  getTask: (taskId: number): Promise<DownloadTask> => {
+    return api.get(`/tasks/${taskId}`);
+  },
+
+  // 启动任务
+  startTask: (taskId: number): Promise<{ message: string }> => {
+    return api.post(`/tasks/${taskId}/start`);
+  },
+
+  // 暂停任务
+  pauseTask: (taskId: number): Promise<{ message: string }> => {
+    return api.post(`/tasks/${taskId}/pause`);
+  },
+
+  // 停止任务
+  stopTask: (taskId: number): Promise<{ message: string }> => {
+    return api.post(`/tasks/${taskId}/stop`);
+  },
+
+  // 删除任务
+  deleteTask: (taskId: number): Promise<{ message: string }> => {
+    return api.delete(`/tasks/${taskId}`);
+  },
+
+  // 获取任务统计
+  getTaskStats: (): Promise<{
+    total: number;
+    running: number;
+    completed: number;
+    failed: number;
+    pending: number;
+  }> => {
+    return api.get('/tasks/stats');
+  },
+};
+
 // 下载任务相关API
 export const downloadApi = {
   // 获取下载任务列表

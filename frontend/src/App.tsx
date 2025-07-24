@@ -12,6 +12,7 @@ import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
+import TaskManagement from './pages/TaskManagement';
 import MediaTestPage from './pages/MediaTestPage';
 import MediaDownloadTestPage from './pages/MediaDownloadTestPage';
 import TelegramLinkTestPage from './pages/TelegramLinkTestPage';
@@ -114,6 +115,15 @@ const App: React.FC = () => {
             <MainLayout>
               <Content>
                 <Downloads />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/tasks" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <TaskManagement />
               </Content>
             </MainLayout>
           </ProtectedRoute>

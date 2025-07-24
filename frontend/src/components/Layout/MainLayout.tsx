@@ -14,7 +14,8 @@ import {
   WifiOutlined,
   DisconnectOutlined,
   MessageOutlined,
-  MenuOutlined
+  MenuOutlined,
+  PlayCircleOutlined
 } from '@ant-design/icons';
 import { webSocketService } from '../../services/websocket';
 import { useGlobalStore, useAuthStore } from '../../store';
@@ -94,6 +95,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/downloads',
       icon: <DownloadOutlined />,
       label: '下载任务',
+    },
+    {
+      key: '/tasks',
+      icon: <PlayCircleOutlined />,
+      label: '任务管理',
     },
     {
       key: '/logs',

@@ -223,6 +223,7 @@ export interface LogEntry {
   message: string;
   task_id?: number;
   created_at: string;
+  timestamp: string; // Add timestamp field
   details?: Record<string, any>;
 }
 

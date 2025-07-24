@@ -36,6 +36,8 @@ import {
   BarChartOutlined
 } from '@ant-design/icons';
 import { dashboardApi } from '../services/apiService';
+import QuickTaskExecutor from '../components/TaskExecution/QuickTaskExecutor';
+import TaskLogViewer from '../components/TaskExecution/TaskLogViewer';
 
 const { Title, Text } = Typography;
 
@@ -307,8 +309,13 @@ const Dashboard: React.FC = () => {
       </Row>
 
       <Row gutter={[16, 16]}>
+        {/* 快速任务执行 */}
+        <Col xs={24} lg={8}>
+          <QuickTaskExecutor onTaskCreated={() => loadData()} />
+        </Col>
+        
         {/* 群组摘要 */}
-        <Col xs={24} lg={12}>
+        <Col xs={24} lg={8}>
           <Card 
             title="群组摘要" 
             extra={
@@ -357,7 +364,7 @@ const Dashboard: React.FC = () => {
         </Col>
 
         {/* 最近活动 */}
-        <Col xs={24} lg={12}>
+        <Col xs={24} lg={8}>
           <Card 
             title="实时活动" 
             extra={
@@ -630,6 +637,17 @@ const Dashboard: React.FC = () => {
         </Row>
       )}
       
+      {/* 任务执行日志 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <TaskLogViewer 
+            height={300}
+            autoRefresh={true}
+            showFilters={true}
+          />
+        </Col>
+      </Row>
+
       {/* 系统资源使用趋势 */}
       {systemInfo && (
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
