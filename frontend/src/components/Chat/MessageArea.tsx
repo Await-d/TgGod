@@ -459,8 +459,11 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       } else {
         // 首次加载：后端已返回正确顺序（最老消息在前，最新消息在后）
         setMessages(response);
-        // 新消息加载后滚动到底部
-        setTimeout(scrollToBottom, 100);
+        // 只有page=1的初始加载才滚动到底部，避免历史消息加载后跳跃
+        if (pageNum === 1) {
+          console.log('[MessageArea] 初始加载群组消息，滚动到底部');
+          setTimeout(scrollToBottom, 100);
+        }
       }
 
       // 检查是否还有更多消息
@@ -595,36 +598,58 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   }, [fetchCurrentTelegramUser]);
 
 
-  // 初始化时确保滚动到底部
+  // 初始化时确保滚动到底部 - 修复版本，避免历史消息加载后跳跃
+  const hasScrolledToBottomForGroup = useRef<number | null>(null);
   useEffect(() => {
-    // 当消息加载完成且有消息时，确保滚动到底部
-    if (displayMessages.length > 0 && !loading && !isLoadingMore) {
-      // 使用延时，确保DOM已经更新
+    // 只在首次选择群组时滚动到底部，避免历史消息加载后重复滚动
+    if (selectedGroup && 
+        displayMessages.length > 0 && 
+        !loading && 
+        !isLoadingMore &&
+        hasScrolledToBottomForGroup.current !== selectedGroup.id) {
+      
+      console.log('[MessageArea] 首次加载群组消息，滚动到底部', selectedGroup.id);
+      hasScrolledToBottomForGroup.current = selectedGroup.id;
       setTimeout(scrollToBottom, 100);
     }
-  }, [selectedGroup, loading]); // 仅在群组变化或加载状态变化时触发
+  }, [selectedGroup, displayMessages.length, loading, isLoadingMore, scrollToBottom]);
 
-  // 监听新消息并自动滚动（如果在底部）
+  // 监听新消息并自动滚动（如果在底部）- 修复版本
+  const lastMessageIdInArea = useRef<number | null>(null);
   useEffect(() => {
     const container = messagesContainerRef.current;
-    if (container && displayMessages.length > previousMessageCount.current) {
-      // 检查是否在底部或接近底部
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 100;
+    if (container && displayMessages.length > 0) {
+      const currentLastMessage = displayMessages[displayMessages.length - 1];
+      const currentLastMessageId = currentLastMessage?.id || currentLastMessage?.message_id;
+      
+      // 只有当最后一条消息变化时才认为是新消息
+      const isNewMessage = currentLastMessageId !== lastMessageIdInArea.current && 
+                           displayMessages.length > previousMessageCount.current;
+      
+      if (isNewMessage) {
+        // 检查是否在底部或接近底部
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 100;
 
-      if (isNearBottom) {
-        // 如果在底部，自动滚动到新消息
-        setTimeout(scrollToBottom, 50);
-      } else {
-        // 如果不在底部，增加未读计数
-        const newCount = displayMessages.length - previousMessageCount.current;
-        setUnreadCount(prev => prev + newCount);
-        // 确保显示滚动按钮
-        setShowScrollToBottom(true);
-        setButtonVisible(true);
+        if (isNearBottom) {
+          console.log('[MessageArea] 检测到新消息且在底部，自动滚动');
+          // 如果在底部，自动滚动到新消息
+          setTimeout(scrollToBottom, 50);
+        } else {
+          // 如果不在底部，增加未读计数
+          const newCount = displayMessages.length - previousMessageCount.current;
+          setUnreadCount(prev => prev + newCount);
+          // 确保显示滚动按钮
+          setShowScrollToBottom(true);
+          setButtonVisible(true);
+        }
+      } else if (displayMessages.length > previousMessageCount.current) {
+        console.log('[MessageArea] 检测到历史消息加载，不进行滚动操作');
       }
+      
+      // 更新状态
+      previousMessageCount.current = displayMessages.length;
+      lastMessageIdInArea.current = currentLastMessageId;
     }
-
-    previousMessageCount.current = displayMessages.length;
   }, [displayMessages.length, scrollToBottom]);
 
   // 组件卸载时清理定时器
