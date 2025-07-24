@@ -21,12 +21,12 @@ const API_BASE = process.env.REACT_APP_API_URL || '';
 
 export const useMediaDownload = (options: UseMediaDownloadOptions) => {
   const { messageId, autoRefresh = true, onDownloadComplete, onDownloadError } = options;
-  
+
   const [downloadStatus, setDownloadStatus] = useState<MediaDownloadStatus>({
     status: 'not_downloaded',
     progress: 0
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout>();
   const abortControllerRef = useRef<AbortController>();
@@ -34,10 +34,11 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
   // 停止轮询
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
+      console.log(`[Download ${messageId}] Stopping polling`);
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = undefined;
     }
-  }, []);
+  }, [messageId]);
 
   // 获取下载状态
   const fetchDownloadStatus = useCallback(async () => {
@@ -46,9 +47,9 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       const newStatus: MediaDownloadStatus = {
         status: data.status,
         progress: data.progress || (data.status === 'downloaded' ? 100 : 0),
@@ -59,17 +60,17 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       };
 
       setDownloadStatus(newStatus);
-      
+
       // 如果下载完成，触发回调
       if (data.status === 'downloaded' && data.file_path && onDownloadComplete) {
         onDownloadComplete(data.file_path);
       }
-      
+
       // 如果下载失败，触发错误回调
       if (data.status === 'download_failed' && data.error && onDownloadError) {
         onDownloadError(data.error);
       }
-      
+
       return data;
     } catch (error) {
       console.error('Failed to fetch download status:', error);
@@ -85,17 +86,36 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
   // 开始轮询状态 - 仅使用真实后端数据
   const startPolling = useCallback(() => {
     if (pollIntervalRef.current) {
+      console.log(`[Download ${messageId}] Clearing existing polling interval`);
       clearInterval(pollIntervalRef.current);
     }
-    
+
+    // 添加一个标志变量，用于跟踪请求状态
+    let isRequestInProgress = false;
+
+    console.log(`[Download ${messageId}] Starting new polling interval`);
     // 每1秒检查一次真实状态
     pollIntervalRef.current = setInterval(async () => {
+      // 如果前一个请求还在进行中，则跳过本次请求
+      if (isRequestInProgress) {
+        console.log(`[Download ${messageId}] Previous download status request still in progress, skipping...`);
+        return;
+      }
+
       try {
+        isRequestInProgress = true;
+        console.log(`[Download ${messageId}] Fetching download status...`);
+
         const response = await fetch(`${API_BASE}/api/media/download-status/${messageId}`);
-        if (!response.ok) return;
-        
+        if (!response.ok) {
+          console.log(`[Download ${messageId}] Error response from server: ${response.status}`);
+          isRequestInProgress = false;
+          return;
+        }
+
         const data = await response.json();
-        
+        console.log(`[Download ${messageId}] Status: ${data.status}, Progress: ${data.progress || 0}%`);
+
         const newStatus: MediaDownloadStatus = {
           status: data.status,
           progress: data.progress || (data.status === 'downloaded' ? 100 : 0),
@@ -106,20 +126,26 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
         };
 
         setDownloadStatus(newStatus);
-        
+
         if (data.status === 'downloaded' && data.file_path && onDownloadComplete) {
+          console.log(`[Download ${messageId}] Download complete, triggering callback`);
           onDownloadComplete(data.file_path);
         }
-        
+
         if (data.status === 'download_failed' && data.error && onDownloadError) {
+          console.log(`[Download ${messageId}] Download failed: ${data.error}`);
           onDownloadError(data.error);
         }
-        
+
         if (data.status === 'downloaded' || data.status === 'download_failed') {
+          console.log(`[Download ${messageId}] Stopping polling due to final status: ${data.status}`);
           stopPolling();
         }
       } catch (error) {
-        console.error('Failed to poll download status:', error);
+        console.error(`[Download ${messageId}] Failed to poll download status:`, error);
+      } finally {
+        // 无论成功还是失败，都将标志重置为false
+        isRequestInProgress = false;
       }
     }, 1000);
   }, [messageId, onDownloadComplete, onDownloadError, stopPolling]);
@@ -127,28 +153,30 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
   // 在fetchDownloadStatus中添加轮询启动逻辑
   const fetchDownloadStatusWithPolling = useCallback(async () => {
     const data = await fetchDownloadStatus();
-    
+
     // 如果检测到正在下载状态，启动轮询监控
-    if (data?.status === 'downloading') {
+    if (data?.status === 'downloading' && !pollIntervalRef.current) {
+      // 只有在当前没有轮询进行时才启动新的轮询
+      console.log('Starting polling for download status');
       startPolling();
     }
-    
+
     return data;
   }, [fetchDownloadStatus, startPolling]);
 
   // 开始下载
   const startDownload = useCallback(async (force = false) => {
     if (isLoading) return;
-    
+
     setIsLoading(true);
-    
+
     // 取消之前的请求
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     abortControllerRef.current = new AbortController();
-    
+
     try {
       setDownloadStatus(prev => ({
         ...prev,
@@ -167,7 +195,7 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       }
 
       const result = await response.json();
-      
+
       if (result.status === 'already_downloaded') {
         setDownloadStatus(prev => ({
           ...prev,
@@ -176,35 +204,35 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
           filePath: result.file_path,
           downloadUrl: result.download_url
         }));
-        
+
         if (result.file_path && onDownloadComplete) {
           onDownloadComplete(result.file_path);
         }
-        
+
         message.success('文件已存在');
       } else if (result.status === 'download_started') {
         // 开始轮询下载状态
         startPolling();
         message.info('下载已开始...');
       }
-      
+
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('Download request was aborted');
         return;
       }
-      
+
       console.error('Failed to start download:', error);
       setDownloadStatus(prev => ({
         ...prev,
         status: 'download_failed',
         error: error.message || 'Download failed'
       }));
-      
+
       if (onDownloadError) {
         onDownloadError(error.message || 'Download failed');
       }
-      
+
       message.error('下载启动失败: ' + (error.message || 'Unknown error'));
     } finally {
       setIsLoading(false);
@@ -223,18 +251,18 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      
+
       // 停止轮询
       stopPolling();
-      
+
       // 调用后端API取消下载
       const response = await fetch(`${API_BASE}/media/cancel-download/${messageId}`, {
         method: 'POST'
       });
-      
+
       if (response.ok) {
         const result = await response.json();
-        
+
         // 更新状态为已取消
         setDownloadStatus(prev => ({
           ...prev,
@@ -242,7 +270,7 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
           progress: 0,
           error: undefined
         }));
-        
+
         message.success('下载已取消');
       } else {
         // 如果后端取消失败，仍然取消前端状态
@@ -251,20 +279,20 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
           status: 'not_downloaded',
           progress: 0
         }));
-        
+
         console.warn('后端取消下载失败，但前端状态已重置');
         message.info('下载已取消');
       }
     } catch (error) {
       console.error('取消下载时发生错误:', error);
-      
+
       // 即使出错，也重置前端状态
       setDownloadStatus(prev => ({
         ...prev,
         status: 'not_downloaded',
         progress: 0
       }));
-      
+
       message.info('下载已取消');
     } finally {
       setIsLoading(false);
@@ -281,12 +309,14 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
   // 清理
   useEffect(() => {
     return () => {
+      console.log(`[Download ${messageId}] Component unmounting, cleaning up resources`);
       stopPolling();
       if (abortControllerRef.current) {
+        console.log(`[Download ${messageId}] Aborting any pending requests`);
         abortControllerRef.current.abort();
       }
     };
-  }, [stopPolling]);
+  }, [messageId, stopPolling]);
 
   return {
     downloadStatus,

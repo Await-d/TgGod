@@ -5,6 +5,7 @@ from ..database import get_db
 from ..models.rule import DownloadTask
 from ..models.telegram import TelegramGroup
 from ..models.rule import FilterRule
+from ..services.task_execution_service import task_execution_service
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -132,8 +133,19 @@ async def start_task(
     task.error_message = None
     db.commit()
     
-    # TODO: 启动实际的下载任务
-    # 这里应该启动异步任务来执行下载
+    # 启动实际的下载任务
+    try:
+        success = await task_execution_service.start_task(task_id)
+        if not success:
+            task.status = "failed"
+            task.error_message = "启动任务执行服务失败"
+            db.commit()
+            raise HTTPException(status_code=500, detail="启动任务执行服务失败")
+    except Exception as e:
+        task.status = "failed"
+        task.error_message = f"启动任务失败: {str(e)}"
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"启动任务失败: {str(e)}")
     
     return {"message": "任务启动成功"}
 
@@ -150,11 +162,13 @@ async def pause_task(
     if task.status != "running":
         raise HTTPException(status_code=400, detail="任务未运行，无法暂停")
     
-    # 更新任务状态
-    task.status = "paused"
-    db.commit()
-    
-    # TODO: 暂停实际的下载任务
+    # 暂停实际的下载任务
+    try:
+        success = await task_execution_service.pause_task(task_id)
+        if not success:
+            raise HTTPException(status_code=400, detail="暂停任务失败，任务可能未在运行")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"暂停任务失败: {str(e)}")
     
     return {"message": "任务暂停成功"}
 
@@ -171,12 +185,13 @@ async def stop_task(
     if task.status in ["completed", "failed"]:
         raise HTTPException(status_code=400, detail="任务已完成或失败，无法停止")
     
-    # 更新任务状态
-    task.status = "failed"
-    task.error_message = "任务被手动停止"
-    db.commit()
-    
-    # TODO: 停止实际的下载任务
+    # 停止实际的下载任务
+    try:
+        success = await task_execution_service.stop_task(task_id)
+        if not success:
+            raise HTTPException(status_code=400, detail="停止任务失败，任务可能未在运行")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"停止任务失败: {str(e)}")
     
     return {"message": "任务停止成功"}
 

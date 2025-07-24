@@ -327,6 +327,15 @@ async def startup_event():
     # 启动消息同步任务
     message_sync_task.start()
     logger.info("Message sync task started")
+    
+    # 初始化任务执行服务
+    try:
+        from .services.task_execution_service import task_execution_service
+        await task_execution_service.initialize()
+        logger.info("Task execution service initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize task execution service: {e}")
+    
     logger.info("Database tables created successfully")
     
     # 初始化设置
