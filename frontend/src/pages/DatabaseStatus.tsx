@@ -73,7 +73,7 @@ const DatabaseStatus: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get('/database/health');
-      setHealth(response.data);
+      setHealth(response.data.data);
     } catch (error: any) {
       message.error(`获取数据库健康状态失败: ${error.message}`);
     } finally {
@@ -85,7 +85,7 @@ const DatabaseStatus: React.FC = () => {
   const fetchDatabaseInfo = async () => {
     try {
       const response = await api.get('/database/info');
-      setDbInfo(response.data);
+      setDbInfo(response.data.data);
     } catch (error: any) {
       message.error(`获取数据库信息失败: ${error.message}`);
     }
@@ -96,8 +96,8 @@ const DatabaseStatus: React.FC = () => {
     try {
       setCheckLoading(true);
       const response = await api.get('/database/check');
-      setCheckResult(response.data);
-      message.success(response.message);
+      setCheckResult(response.data.data);
+      message.success(response.data.message || '数据库检查完成');
     } catch (error: any) {
       message.error(`数据库检查失败: ${error.message}`);
     } finally {
@@ -111,15 +111,15 @@ const DatabaseStatus: React.FC = () => {
       setRepairLoading(true);
       const response = await api.post('/database/repair');
       
-      if (response.success) {
-        message.success(response.message);
+      if (response.data.success) {
+        message.success(response.data.message || '数据库修复完成');
         // 刷新数据
         await Promise.all([
           fetchDatabaseHealth(),
           checkDatabaseStructure()
         ]);
       } else {
-        message.warning(response.message);
+        message.warning(response.data.message || '数据库修复失败');
       }
       
       setRepairModalVisible(false);
@@ -136,7 +136,7 @@ const DatabaseStatus: React.FC = () => {
       setLoading(true);
       const response = await api.post('/database/startup-check');
       
-      if (response.success) {
+      if (response.data.success) {
         message.success('启动检查完成');
       } else {
         message.warning('启动检查发现问题');
@@ -206,7 +206,7 @@ const DatabaseStatus: React.FC = () => {
       title: '状态',
       key: 'status',
       render: (record: any) => {
-        const hasIssues = checkResult?.missing_columns[record.name]?.length > 0;
+        const hasIssues = (checkResult?.missing_columns && checkResult.missing_columns[record.name]?.length > 0) || false;
         return (
           <Tag color={hasIssues ? 'orange' : 'green'}>
             {hasIssues ? '需要修复' : '正常'}
