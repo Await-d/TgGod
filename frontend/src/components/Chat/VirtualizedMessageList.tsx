@@ -271,17 +271,34 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
     }
   }, [isLoadingMore, onScrollToTop, onScrollPositionChange, isScrolledFromBottom]);
 
-  // 处理消息列表变化时的滚动
+  // 处理消息列表变化时的滚动 - 修复历史消息加载后不应跳到底部
+  const previousMessageCount = useRef(0);
+  const lastMessageId = useRef<number | null>(null);
+  
   useEffect(() => {
     // 只有在已初始化后才处理后续消息变化
     if (hasInitialized && containerRef.current && messages.length > 0) {
       const container = containerRef.current;
-
+      const currentCount = messages.length;
+      const currentLastMessage = messages[messages.length - 1];
+      const currentLastMessageId = currentLastMessage?.id || currentLastMessage?.message_id;
+      
+      // 检查是否是新消息（最后一条消息变化）还是历史消息（只是数量增加）
+      const isNewMessage = currentLastMessageId !== lastMessageId.current && 
+                           currentCount > previousMessageCount.current;
+      
       // 检查是否在底部或接近底部
       const isNearBottom = checkIfNearBottom();
-
-      // 如果在底部，随着新消息自动滚动
-      if (isNearBottom) {
+      
+      // 只在有新消息且用户在底部时才自动滚动到底部
+      if (isNewMessage && isNearBottom) {
+        console.log('[VirtualizedMessageList] 检测到新消息且用户在底部，自动滚动', {
+          isNewMessage,
+          isNearBottom,
+          currentLastMessageId,
+          lastMessageId: lastMessageId.current
+        });
+        
         // 使用requestAnimationFrame确保在渲染后执行
         requestAnimationFrame(() => {
           container.scrollTop = container.scrollHeight;
@@ -291,7 +308,19 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
             lastNotifiedBottomState.current = true;
           }
         });
+      } else if (currentCount > previousMessageCount.current && !isNewMessage) {
+        console.log('[VirtualizedMessageList] 检测到历史消息加载，不滚动到底部', {
+          currentCount,
+          previousCount: previousMessageCount.current,
+          isNewMessage,
+          currentLastMessageId,
+          lastMessageId: lastMessageId.current
+        });
       }
+      
+      // 更新状态
+      previousMessageCount.current = currentCount;
+      lastMessageId.current = currentLastMessageId;
     }
   }, [messages.length, hasInitialized, checkIfNearBottom, onScrollPositionChange]);
 
