@@ -207,7 +207,8 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
     return isNearBottom;
   }, []);
 
-  // 滚动事件处理
+  // 修复的滚动事件处理 - 防止无限循环
+  const lastScrollToTopTrigger = useRef<number>(0);
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;
 
@@ -247,8 +248,25 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
       }
     }
 
-    // 检查是否滚动到顶部，触发加载更多
-    if (scrollTop <= 50 && !isLoadingMore && onScrollToTop) {
+    // 检查是否滚动到顶部，触发加载更多 - 修复无限循环
+    const now = Date.now();
+    const timeSinceLastTrigger = now - lastScrollToTopTrigger.current;
+    
+    if (scrollTop <= 30 && // 减小触发范围
+        direction === 'up' && // 只在向上滚动时触发
+        !isLoadingMore && 
+        onScrollToTop && 
+        timeSinceLastTrigger > 2000 && // 增加防抖时间
+        hasScrollableContent) { // 确保有滚动内容
+      
+      console.log('[VirtualizedMessageList] 触发加载更多', {
+        scrollTop,
+        direction,
+        timeSinceLastTrigger,
+        hasScrollableContent
+      });
+      
+      lastScrollToTopTrigger.current = now;
       onScrollToTop();
     }
   }, [isLoadingMore, onScrollToTop, onScrollPositionChange, isScrolledFromBottom]);

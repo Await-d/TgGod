@@ -1,27 +1,31 @@
 .virtualized-message-container {
   flex: 1;
   overflow-y: auto !important; /* 强制允许垂直滚动 */
+  overflow-x: hidden; /* 防止水平滚动 */
   position: relative;
-  scroll-behavior: smooth;
+  scroll-behavior: auto; /* 修改为 auto 避免与 JS 滚动冲突 */
   min-height: 0; /* 允许flex子元素收缩 */
   padding: 16px 24px; /* 添加内边距保持一致的间距 */
   height: 100%; /* 确保占满全部高度 */
   max-height: calc(100vh - 180px); /* 设置最大高度，留出输入框和标题空间 */
+  /* 添加稳定的滚动触发区域 */
+  padding-top: 40px; /* 增加顶部内边距，避免意外触发 */
 }
 
 /* 没有更多消息提示样式 */
 .no-more-messages {
   text-align: center;
-  padding: 16px;
+  padding: 20px 16px; /* 增加垂直内边距 */
   margin-bottom: 16px;
-  position: relative;
-  /* 相对定位，随内容滚动 */
+  position: sticky; /* 使用 sticky 定位显示在顶部 */
+  top: 0;
+  z-index: 10;
   border-bottom: 1px solid #f0f0f0;
   background-color: #f9f9f9;
-  opacity: 0.8;
+  opacity: 0.9;
   transition: opacity 0.3s ease;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 0 0 8px 8px; /* 修改圆角 */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .no-more-messages:hover {

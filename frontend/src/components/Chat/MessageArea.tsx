@@ -476,9 +476,18 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     }
   }, [setMessages, scrollToBottom, displayMessages, mergeMessages]);
 
-  // 加载更多消息
+  // 加载更多消息 - 修复无限循环版本
+  const lastLoadTriggerRef = useRef<number>(0);
   const loadMoreMessages = useCallback(async () => {
     if (!selectedGroup) return;
+
+    // 防抖机制：防止频繁触发
+    const now = Date.now();
+    if (now - lastLoadTriggerRef.current < 2000) {
+      console.log('[MessageArea] 防抖跳过加载更多');
+      return;
+    }
+    lastLoadTriggerRef.current = now;
 
     // 如果有传入的onLoadMore函数，使用传入的函数
     if (onLoadMore) {
@@ -489,6 +498,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
     // 否则使用自己的fetchMessages逻辑
     if (loadingMore) {
+      console.log('[MessageArea] 已在加载中，跳过');
       return;
     }
 

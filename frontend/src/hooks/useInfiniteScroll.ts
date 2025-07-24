@@ -147,11 +147,15 @@ export const useInfiniteScroll = (
     }
   }, [containerRef]);
 
-  // 添加请求去重机制
+  // 增强的请求去重机制
   const lastRequestRef = useRef<string>('');
+  const loadingStartTimeRef = useRef<number>(0);
 
-  // 加载更多消息
+  // 加载更多消息 - 增强防止循环加载
   const loadMore = useCallback(async () => {
+    const now = Date.now();
+    
+    // 根本条件检查
     if (!selectedGroup || isLoadingRef.current || !hasMore || currentPage >= maxPages) {
       console.log('[InfiniteScroll] 跳过加载', { 
         selectedGroup: !!selectedGroup, 
@@ -170,8 +174,14 @@ export const useInfiniteScroll = (
       return;
     }
 
+    // 防止在短时间内重复触发加载
+    if (loadingStartTimeRef.current > 0 && now - loadingStartTimeRef.current < 3000) {
+      console.log('[InfiniteScroll] 防止频繁加载，距离上次加载', now - loadingStartTimeRef.current, 'ms');
+      return;
+    }
+
     // 生成请求标识符，防止重复请求
-    const requestKey = `${selectedGroup.id}_${currentPage}_${pageSize}`;
+    const requestKey = `${selectedGroup.id}_${currentPage}_${pageSize}_${messages.length}`;
     if (lastRequestRef.current === requestKey) {
       console.log('[InfiniteScroll] 防止重复请求:', requestKey);
       return;
@@ -179,6 +189,7 @@ export const useInfiniteScroll = (
     
     lastRequestRef.current = requestKey;
     isLoadingRef.current = true;
+    loadingStartTimeRef.current = now;
     setIsLoadingMore(true);
 
     try {
@@ -237,12 +248,13 @@ export const useInfiniteScroll = (
     } finally {
       setIsLoadingMore(false);
       isLoadingRef.current = false;
+      loadingStartTimeRef.current = 0;
       // 请求完成后清除标识符
       setTimeout(() => {
         if (lastRequestRef.current === requestKey) {
           lastRequestRef.current = '';
         }
-      }, 1000);
+      }, 2000); // 增加清除延迟
     }
   }, [
     selectedGroup, 
@@ -256,25 +268,33 @@ export const useInfiniteScroll = (
     maintainScrollPosition
   ]);
 
-  // 初始滚动检查 - 放在loadMore定义之后
+  // 初始滚动检查 - 修复版本，避免循环触发
   useEffect(() => {
-    if (!selectedGroup?.id || messages.length === 0) return;
+    if (!selectedGroup?.id || messages.length === 0 || isLoadingRef.current) return;
     
     const timer = setTimeout(() => {
-      if (containerRef.current && selectedGroup?.id) {
+      if (containerRef.current && selectedGroup?.id && !isLoadingRef.current) {
         const scrollTop = containerRef.current.scrollTop;
-        console.log('[InfiniteScroll] 初始滚动位置检查', { scrollTop });
+        const timeSinceLastLoad = Date.now() - ((window as any)._lastLoadTrigger || 0);
         
-        // 只在接近顶部且有消息时触发加载更多
-        if (scrollTop < 100 && hasMore && !isLoadingRef.current && messages.length > 0) {
-          console.log('[InfiniteScroll] 检测到需要加载更多历史消息');
+        console.log('[InfiniteScroll] 初始滚动位置检查', { 
+          scrollTop, 
+          timeSinceLastLoad, 
+          hasMore,
+          messagesLength: messages.length 
+        });
+        
+        // 严格条件：只在用户明确滚动到顶部且距离上次加载超过2秒时触发
+        if (scrollTop < 50 && hasMore && timeSinceLastLoad > 2000 && messages.length > 10) {
+          console.log('[InfiniteScroll] 初始检查触发历史消息加载');
+          (window as any)._lastLoadTrigger = Date.now();
           loadMore();
         }
       }
-    }, 500);
+    }, 1000); // 增加延迟避免初始化冲突
     
     return () => clearTimeout(timer);
-  }, [selectedGroup?.id, messages.length, hasMore, loadMore]);
+  }, [selectedGroup?.id, hasMore]); // 移除messages.length和loadMore依赖避免循环
 
   // 使用ref存储当前状态避免频繁回调重建
   const scrollStateRef = useRef({
@@ -287,7 +307,7 @@ export const useInfiniteScroll = (
     scrollStateRef.current = { selectedGroup, hasMore, currentPage };
   }, [selectedGroup, hasMore, currentPage]);
 
-  // 统一的滚动事件处理器 - 稳定版本
+  // 统一的滚动事件处理器 - 修复无限循环版本
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     const { selectedGroup, hasMore, currentPage } = scrollStateRef.current;
@@ -297,21 +317,38 @@ export const useInfiniteScroll = (
     }
 
     const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
     const timeSinceLastLoad = Date.now() - ((window as any)._lastLoadTrigger || 0);
     
-    if (timeSinceLastLoad < 1000) {
+    // 增加更严格的防抖机制
+    if (timeSinceLastLoad < 2000) {
       return;
     }
     
-    const topThreshold = Math.min(threshold * 2, 100);
+    // 确保内容高度大于容器高度，有实际滚动空间
+    if (scrollHeight <= clientHeight + 50) {
+      return;
+    }
     
-    if (scrollTop <= topThreshold && currentPage < maxPages) {
-      console.log(`[InfiniteScroll] 触发向上加载，当前页: ${currentPage}, scrollTop: ${scrollTop}`);
+    const topThreshold = Math.min(threshold, 30); // 减小触发区域
+    
+    // 更严格的触发条件：必须真正滚动到顶部
+    if (scrollTop <= topThreshold && scrollTop >= 0 && currentPage < maxPages) {
+      console.log(`[InfiniteScroll] 触发向上加载`, {
+        scrollTop,
+        topThreshold,
+        currentPage,
+        maxPages,
+        timeSinceLastLoad,
+        scrollHeight,
+        clientHeight
+      });
       
       // 记录触发时间
       (window as any)._lastLoadTrigger = Date.now();
       
-      // 直接执行加载，不重复设置状态（loadMore中已经处理）
+      // 执行加载
       loadMore();
     }
   }, [threshold, maxPages, loadMore]);
