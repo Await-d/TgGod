@@ -134,6 +134,8 @@ from .websocket.manager import websocket_manager
 # 注册API路由
 app.include_router(telegram.router, prefix="/api/telegram", tags=["telegram"])
 app.include_router(rule.router, prefix="/api/rule", tags=["rule"])
+# 同时添加 /api/rules 路径的支持
+app.include_router(rule.router, prefix="/api", tags=["rule"])
 app.include_router(log.router, prefix="/api/log", tags=["log"])
 app.include_router(task.router, prefix="/api/task", tags=["task"])
 app.include_router(config.router, prefix="/api/config", tags=["config"])

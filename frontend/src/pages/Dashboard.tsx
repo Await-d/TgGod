@@ -38,6 +38,7 @@ import {
 import { dashboardApi } from '../services/apiService';
 import QuickTaskExecutor from '../components/TaskExecution/QuickTaskExecutor';
 import TaskLogViewer from '../components/TaskExecution/TaskLogViewer';
+import SystemLogViewer from '../components/SystemLog/SystemLogViewer';
 
 const { Title, Text } = Typography;
 
@@ -637,13 +638,21 @@ const Dashboard: React.FC = () => {
         </Row>
       )}
       
-      {/* 任务执行日志 */}
+      {/* 日志查看器 */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={24}>
+        <Col xs={24} xl={12}>
           <TaskLogViewer 
             height={300}
             autoRefresh={true}
             showFilters={true}
+          />
+        </Col>
+        <Col xs={24} xl={12}>
+          <SystemLogViewer 
+            height={300}
+            autoRefresh={true}
+            showFilters={true}
+            logType="system"
           />
         </Col>
       </Row>

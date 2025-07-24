@@ -853,12 +853,13 @@ export const logApi = {
   },
 
   // 清除日志
-  clearLogs: (type: 'task' | 'system' | 'all'): Promise<{
+  clearLogs: (type: 'task' | 'system' | 'all', task_id?: number): Promise<{
     success: boolean;
     message: string;
     cleared_count?: number;
   }> => {
-    return api.delete(`/log/logs/${type}`);
+    const params = task_id ? { task_id } : {};
+    return api.delete(`/log/logs/${type}`, { params });
   },
 
   // 导出日志
@@ -894,8 +895,23 @@ export const logApi = {
   },
 
   // 获取最新日志
-  getRecentLogs: (limit: number = 100): Promise<LogEntry[]> => {
-    return api.get('/log/logs/recent', { params: { limit } });
+  getRecentLogs: (limit: number = 100, log_type: string = 'all'): Promise<LogEntry[]> => {
+    return api.get('/log/logs/recent', { params: { limit, log_type } });
+  },
+
+  // 添加系统日志
+  addSystemLog: (data: {
+    level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
+    message: string;
+    module?: string;
+    function?: string;
+    details?: any;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    log_id: number;
+  }> => {
+    return api.post('/log/logs/system', data);
   },
 
   // 批量删除日志
