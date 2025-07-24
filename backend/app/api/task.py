@@ -84,6 +84,24 @@ async def create_task(
     
     return new_task
 
+@router.get("/tasks/stats")
+async def get_task_stats(
+    db: Session = Depends(get_db)
+):
+    """获取任务统计信息"""
+    total_tasks = db.query(DownloadTask).count()
+    running_tasks = db.query(DownloadTask).filter(DownloadTask.status == "running").count()
+    completed_tasks = db.query(DownloadTask).filter(DownloadTask.status == "completed").count()
+    failed_tasks = db.query(DownloadTask).filter(DownloadTask.status == "failed").count()
+    
+    return {
+        "total": total_tasks,
+        "running": running_tasks,
+        "completed": completed_tasks,
+        "failed": failed_tasks,
+        "pending": total_tasks - running_tasks - completed_tasks - failed_tasks
+    }
+
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: int,
@@ -178,21 +196,3 @@ async def delete_task(
     db.delete(task)
     db.commit()
     return {"message": "任务删除成功"}
-
-@router.get("/tasks/stats")
-async def get_task_stats(
-    db: Session = Depends(get_db)
-):
-    """获取任务统计信息"""
-    total_tasks = db.query(DownloadTask).count()
-    running_tasks = db.query(DownloadTask).filter(DownloadTask.status == "running").count()
-    completed_tasks = db.query(DownloadTask).filter(DownloadTask.status == "completed").count()
-    failed_tasks = db.query(DownloadTask).filter(DownloadTask.status == "failed").count()
-    
-    return {
-        "total": total_tasks,
-        "running": running_tasks,
-        "completed": completed_tasks,
-        "failed": failed_tasks,
-        "pending": total_tasks - running_tasks - completed_tasks - failed_tasks
-    }
