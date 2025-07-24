@@ -26,11 +26,12 @@ import {
   PlayCircleOutlined,
   PauseCircleOutlined,
   ExperimentOutlined,
-  FilterOutlined
+  FilterOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import { FilterRule, TelegramGroup } from '../types';
 import { useRuleStore, useTelegramStore, useGlobalStore } from '../store';
-import { apiService } from '../services/api';
+import { ruleApi, telegramApi } from '../services/apiService';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -48,16 +49,12 @@ const Rules: React.FC = () => {
     setLoading(true);
     try {
       // 加载群组数据
-      const groupsResponse = await apiService.get<TelegramGroup[]>('/telegram/groups');
-      if (groupsResponse.success && groupsResponse.data) {
-        setGroups(groupsResponse.data);
-      }
+      const groupsData = await telegramApi.getGroups();
+      setGroups(groupsData);
 
       // 加载规则数据
-      const rulesResponse = await apiService.get<FilterRule[]>('/rule/rules');
-      if (rulesResponse.success && rulesResponse.data) {
-        setRules(rulesResponse.data);
-      }
+      const rulesData = await ruleApi.getRules();
+      setRules(rulesData);
     } catch (error) {
       setError('加载数据失败');
       console.error('加载数据失败:', error);
@@ -84,19 +81,14 @@ const Rules: React.FC = () => {
 
       delete processedValues.date_range;
 
-      let response;
       if (editingRule) {
-        response = await apiService.put<FilterRule>(`/rule/rules/${editingRule.id}`, processedValues);
-        if (response.success && response.data) {
-          updateRule(editingRule.id, response.data);
-          message.success('规则更新成功');
-        }
+        const updatedRule = await ruleApi.updateRule(editingRule.id, processedValues);
+        updateRule(editingRule.id, updatedRule);
+        message.success('规则更新成功');
       } else {
-        response = await apiService.post<FilterRule>('/rule/rules', processedValues);
-        if (response.success && response.data) {
-          addRule(response.data);
-          message.success('规则创建成功');
-        }
+        const newRule = await ruleApi.createRule(processedValues);
+        addRule(newRule);
+        message.success('规则创建成功');
       }
 
       setIsModalVisible(false);
@@ -130,11 +122,9 @@ const Rules: React.FC = () => {
 
   const handleDelete = async (ruleId: number) => {
     try {
-      const response = await apiService.delete(`/rule/rules/${ruleId}`);
-      if (response.success) {
-        removeRule(ruleId);
-        message.success('规则删除成功');
-      }
+      await ruleApi.deleteRule(ruleId);
+      removeRule(ruleId);
+      message.success('规则删除成功');
     } catch (error) {
       message.error('删除规则失败');
       console.error('删除规则失败:', error);
@@ -143,13 +133,11 @@ const Rules: React.FC = () => {
 
   const handleToggleStatus = async (ruleId: number, currentStatus: boolean) => {
     try {
-      const response = await apiService.put<FilterRule>(`/rule/rules/${ruleId}`, {
+      const updatedRule = await ruleApi.updateRule(ruleId, {
         is_active: !currentStatus
       });
-      if (response.success && response.data) {
-        updateRule(ruleId, { is_active: !currentStatus });
-        message.success('状态更新成功');
-      }
+      updateRule(ruleId, { is_active: !currentStatus });
+      message.success('状态更新成功');
     } catch (error) {
       message.error('状态更新失败');
       console.error('状态更新失败:', error);
@@ -158,10 +146,8 @@ const Rules: React.FC = () => {
 
   const handleTestRule = async (ruleId: number) => {
     try {
-      const response = await apiService.post(`/rule/rules/${ruleId}/test`);
-      if (response.success) {
-        message.success('规则测试完成');
-      }
+      const testResult = await ruleApi.testRule(ruleId);
+      message.success(`规则测试完成，匹配消息数：${testResult.matched_messages}`);
     } catch (error) {
       message.error('规则测试失败');
       console.error('规则测试失败:', error);
@@ -282,13 +268,22 @@ const Rules: React.FC = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={2}>规则配置</Title>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
-          onClick={() => setIsModalVisible(true)}
-        >
-          创建规则
-        </Button>
+        <Space>
+          <Button 
+            icon={<ReloadOutlined />} 
+            onClick={loadData}
+            title="刷新规则列表"
+          >
+            刷新
+          </Button>
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={() => setIsModalVisible(true)}
+          >
+            创建规则
+          </Button>
+        </Space>
       </div>
 
       {/* 统计卡片 */}
