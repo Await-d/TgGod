@@ -191,7 +191,15 @@ const TaskManagement: React.FC = () => {
 
   const handleCreateTask = async (values: any) => {
     try {
-      await taskApi.createTask(values);
+      // 处理时间范围数据
+      const taskData = { ...values };
+      if (values.time_range && values.time_range.length === 2) {
+        taskData.date_from = values.time_range[0].toISOString();
+        taskData.date_to = values.time_range[1].toISOString();
+        delete taskData.time_range;
+      }
+      
+      await taskApi.createTask(taskData);
       message.success('任务创建成功');
       setCreateModalVisible(false);
       form.resetFields();
@@ -514,6 +522,15 @@ const TaskManagement: React.FC = () => {
               placeholder="选择群组"
               style={{ width: 200 }}
               allowClear
+              showSearch
+              filterOption={(input, option) => {
+                if (!option || !input) return false;
+                const label = option.label || option.children;
+                if (typeof label === 'string') {
+                  return label.toLowerCase().includes(input.toLowerCase());
+                }
+                return false;
+              }}
             >
               {groups.map(group => (
                 <Option key={group.id} value={group.id}>
@@ -595,7 +612,19 @@ const TaskManagement: React.FC = () => {
             label="目标群组"
             rules={[{ required: true, message: '请选择群组' }]}
           >
-            <Select placeholder="选择群组">
+            <Select 
+              placeholder="选择群组"
+              showSearch
+              filterOption={(input, option) => {
+                if (!option || !input) return false;
+                const label = option.label || option.children;
+                if (typeof label === 'string') {
+                  return label.toLowerCase().includes(input.toLowerCase());
+                }
+                return false;
+              }}
+              optionFilterProp="children"
+            >
               {groups.map(group => (
                 <Option key={group.id} value={group.id}>
                   {group.title}
@@ -615,6 +644,16 @@ const TaskManagement: React.FC = () => {
                 </Option>
               ))}
             </Select>
+          </Form.Item>
+          <Form.Item
+            name="time_range"
+            label="时间范围过滤"
+          >
+            <RangePicker 
+              showTime
+              placeholder={['开始时间', '结束时间']}
+              style={{ width: '100%' }}
+            />
           </Form.Item>
           <Form.Item
             name="download_path"
@@ -681,6 +720,16 @@ const TaskManagement: React.FC = () => {
                   <Text strong>下载路径: </Text>
                   <Text code>{selectedTask.download_path}</Text>
                 </Col>
+                {(selectedTask.date_from || selectedTask.date_to) && (
+                  <Col span={24}>
+                    <Text strong>时间范围: </Text>
+                    <Text>
+                      {selectedTask.date_from ? new Date(selectedTask.date_from).toLocaleString() : '不限'} 
+                      {' - '}
+                      {selectedTask.date_to ? new Date(selectedTask.date_to).toLocaleString() : '不限'}
+                    </Text>
+                  </Col>
+                )}
               </Row>
             </Card>
 

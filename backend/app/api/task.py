@@ -17,6 +17,8 @@ class TaskCreate(BaseModel):
     group_id: int
     rule_id: int
     download_path: str
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
 
 class TaskResponse(BaseModel):
     id: int
@@ -28,6 +30,8 @@ class TaskResponse(BaseModel):
     total_messages: int
     downloaded_messages: int
     download_path: str
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime]
     completed_at: Optional[datetime]

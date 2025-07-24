@@ -57,6 +57,10 @@ class DownloadTask(Base):
     # 下载配置
     download_path = Column(String(500), nullable=False)
     
+    # 时间范围过滤（用于下载任务的时间筛选）
+    date_from = Column(DateTime(timezone=True), nullable=True)  # 开始时间
+    date_to = Column(DateTime(timezone=True), nullable=True)    # 结束时间
+    
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

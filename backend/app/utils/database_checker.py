@@ -47,6 +47,7 @@ class DatabaseChecker:
             'download_tasks': [
                 'id', 'name', 'group_id', 'rule_id', 'status', 'progress',
                 'total_messages', 'downloaded_messages', 'download_path',
+                'date_from', 'date_to',
                 'created_at', 'updated_at', 'completed_at', 'error_message'
             ],
             'task_logs': [
@@ -70,6 +71,10 @@ class DatabaseChecker:
             'filter_rules': {
                 'min_file_size': 'INTEGER',
                 'max_file_size': 'INTEGER'
+            },
+            'download_tasks': {
+                'date_from': 'TIMESTAMP WITH TIME ZONE',
+                'date_to': 'TIMESTAMP WITH TIME ZONE'
             }
         }
     
