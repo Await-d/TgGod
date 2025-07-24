@@ -595,7 +595,7 @@ export const taskApi = {
     skip?: number;
     limit?: number;
   }): Promise<DownloadTask[]> => {
-    return api.get('/tasks', { params });
+    return api.get('/task/tasks', { params });
   },
 
   // 创建任务
@@ -605,32 +605,32 @@ export const taskApi = {
     rule_id: number;
     download_path: string;
   }): Promise<DownloadTask> => {
-    return api.post('/tasks', task);
+    return api.post('/task/tasks', task);
   },
 
   // 获取任务详情
   getTask: (taskId: number): Promise<DownloadTask> => {
-    return api.get(`/tasks/${taskId}`);
+    return api.get(`/task/tasks/${taskId}`);
   },
 
   // 启动任务
   startTask: (taskId: number): Promise<{ message: string }> => {
-    return api.post(`/tasks/${taskId}/start`);
+    return api.post(`/task/tasks/${taskId}/start`);
   },
 
   // 暂停任务
   pauseTask: (taskId: number): Promise<{ message: string }> => {
-    return api.post(`/tasks/${taskId}/pause`);
+    return api.post(`/task/tasks/${taskId}/pause`);
   },
 
   // 停止任务
   stopTask: (taskId: number): Promise<{ message: string }> => {
-    return api.post(`/tasks/${taskId}/stop`);
+    return api.post(`/task/tasks/${taskId}/stop`);
   },
 
   // 删除任务
   deleteTask: (taskId: number): Promise<{ message: string }> => {
-    return api.delete(`/tasks/${taskId}`);
+    return api.delete(`/task/tasks/${taskId}`);
   },
 
   // 获取任务统计
@@ -641,7 +641,7 @@ export const taskApi = {
     failed: number;
     pending: number;
   }> => {
-    return api.get('/tasks/stats');
+    return api.get('/task/tasks/stats');
   },
 };
 
