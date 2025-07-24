@@ -338,6 +338,24 @@
   white-space: nowrap;
 }
 
+/* 选中状态下的文本颜色优化 */
+.group-item.selected .group-name .name-text {
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.group-item.selected .group-username {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.group-item.selected .group-description {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.group-item.selected .member-count {
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .group-item .group-info .stats-section {
   flex-shrink: 0 !important;
   display: flex !important;
@@ -370,9 +388,11 @@
 }
 
 .group-item.selected .stats-summary {
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .group-item:hover .stats-summary {
@@ -383,9 +403,12 @@
 }
 
 .group-item.selected:hover .stats-summary {
-  color: rgba(255, 255, 255, 1);
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .group-username {
@@ -531,8 +554,11 @@
   }
   
   .group-item.selected .stats-summary {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
   
   .metadata-item {
