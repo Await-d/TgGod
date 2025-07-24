@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useMemo, useState, forwardRef, useImperativeHandle } from 'react';
 import { TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
+import MessageGroupBubble from './MessageGroupBubble';
 import { useVirtualScroll } from '../../hooks/useVirtualScroll';
 import { Typography } from 'antd';
 import './VirtualizedMessageList.css';
@@ -41,6 +42,49 @@ interface VirtualizedMessageListProps {
 
 const ESTIMATED_MESSAGE_HEIGHT = 120; // 估计的消息高度
 
+// 消息分组接口
+interface MessageGroup {
+  id: string; // 分组ID
+  messages: TelegramMessage[]; // 分组中的消息
+  primaryMessage: TelegramMessage; // 主消息（用于显示发送者信息等）
+  timestamp: string; // 分组时间戳
+}
+
+// 将消息按照相同的原始消息进行分组
+const groupMessages = (messages: TelegramMessage[]): MessageGroup[] => {
+  const groups = new Map<string, TelegramMessage[]>();
+  
+  messages.forEach(message => {
+    // 使用 message_id + sender_id + 时间窗口作为分组键
+    // 如果消息在5秒内且来自同一发送者，认为是同一组
+    const timestamp = new Date(message.date).getTime();
+    const timeWindow = Math.floor(timestamp / (5 * 1000)); // 5秒窗口
+    const groupKey = `${message.message_id}_${message.sender_id}_${timeWindow}`;
+    
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, []);
+    }
+    groups.get(groupKey)!.push(message);
+  });
+  
+  // 将分组转换为MessageGroup对象
+  return Array.from(groups.entries()).map(([groupId, groupMessages]) => {
+    // 按时间排序，第一条作为主消息
+    const sortedMessages = groupMessages.sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    
+    return {
+      id: groupId,
+      messages: sortedMessages,
+      primaryMessage: sortedMessages[0],
+      timestamp: sortedMessages[0].date
+    };
+  }).sort((a, b) => 
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+};
+
 const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, VirtualizedMessageListProps>((
   {
     messages,
@@ -72,29 +116,34 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
   const [hasInitialized, setHasInitialized] = useState<boolean>(false); // 添加初始化状态标记
   const lastNotifiedBottomState = useRef<boolean>(true); // 跟踪上次通知的底部状态
 
+  // 缓存消息分组数据，避免重复计算
+  const messageGroups = useMemo(() => {
+    return groupMessages(messages);
+  }, [messages]);
+
   // 缓存消息渲染数据，避免重复计算
   const messagesWithMetadata = useMemo(() => {
-    return messages.map((message, index) => {
-      const prevMessage = index > 0 ? messages[index - 1] : null;
+    return messageGroups.map((group, index) => {
+      const prevGroup = index > 0 ? messageGroups[index - 1] : null;
 
       // 计算是否显示头像
-      const showAvatar = !prevMessage ||
-        prevMessage.sender_id !== message.sender_id ||
-        (new Date(message.date).getTime() - new Date(prevMessage.date).getTime()) > 180000;
+      const showAvatar = !prevGroup ||
+        prevGroup.primaryMessage.sender_id !== group.primaryMessage.sender_id ||
+        (new Date(group.timestamp).getTime() - new Date(prevGroup.timestamp).getTime()) > 180000;
 
       // 计算是否为自己的消息
       const isOwn = currentTelegramUser ?
-        message.sender_id === currentTelegramUser.id :
-        user ? message.sender_id === user.id : message.is_own_message === true;
+        group.primaryMessage.sender_id === currentTelegramUser.id :
+        user ? group.primaryMessage.sender_id === user.id : group.primaryMessage.is_own_message === true;
 
       return {
-        ...message,
+        ...group,
         showAvatar,
         isOwn,
         index
       };
     });
-  }, [messages, currentTelegramUser, user]);
+  }, [messageGroups, currentTelegramUser, user]);
 
   // 消息元素引用回调
   const setMessageRef = useCallback((index: number, element: HTMLDivElement | null) => {
@@ -357,30 +406,49 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
         </div>
       )}
 
-      {/* 直接渲染所有消息 */}
-      {messagesWithMetadata.map((messageData, index) => {
-        const isHighlighted = highlightedMessageId === messageData.id;
+      {/* 渲染消息组 */}
+      {messagesWithMetadata.map((groupData, index) => {
+        const isHighlighted = highlightedMessageId === groupData.primaryMessage.id;
 
         return (
           <div
-            key={`message-${messageData.id}`}
+            key={`message-group-${groupData.id}`}
             ref={(el) => setMessageRef(index, el)}
             className={`simple-message-item ${isHighlighted ? 'highlighted' : ''}`}
             style={{ width: '100%', padding: '4px 0' }}
           >
-            <MessageBubble
-              message={messageData}
-              showAvatar={messageData.showAvatar}
-              isOwn={messageData.isOwn}
-              onReply={onReply}
-              onCreateRule={onCreateRule}
-              onDelete={onDelete}
-              onJumpToGroup={onJumpToGroup}
-              onJumpToMessage={onJumpToMessage}
-              onOpenGallery={onOpenGallery}
-              onUpdateDownloadState={onUpdateDownloadState}
-              isMobile={isMobile}
-            />
+            {groupData.messages.length === 1 ? (
+              // 单条消息，使用原来的MessageBubble
+              <MessageBubble
+                message={groupData.primaryMessage}
+                showAvatar={groupData.showAvatar}
+                isOwn={groupData.isOwn}
+                onReply={onReply}
+                onCreateRule={onCreateRule}
+                onDelete={onDelete}
+                onJumpToGroup={onJumpToGroup}
+                onJumpToMessage={onJumpToMessage}
+                onOpenGallery={onOpenGallery}
+                onUpdateDownloadState={onUpdateDownloadState}
+                isMobile={isMobile}
+              />
+            ) : (
+              // 多条消息，使用新的MessageGroupBubble
+              <MessageGroupBubble
+                messages={groupData.messages}
+                primaryMessage={groupData.primaryMessage}
+                showAvatar={groupData.showAvatar}
+                isOwn={groupData.isOwn}
+                onReply={onReply}
+                onCreateRule={onCreateRule}
+                onDelete={onDelete}
+                onJumpToGroup={onJumpToGroup}
+                onJumpToMessage={onJumpToMessage}
+                onOpenGallery={onOpenGallery}
+                onUpdateDownloadState={onUpdateDownloadState}
+                isMobile={isMobile}
+              />
+            )}
           </div>
         );
       })}

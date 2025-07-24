@@ -18,6 +18,7 @@ import './MediaDownloadPreview.css';
 interface MediaDownloadPreviewProps {
   message: TelegramMessage;
   className?: string;
+  compact?: boolean; // 紧凑模式，用于多媒体网格显示
   onPreview?: (mediaPath: string) => void;
   onUpdateDownloadState?: (messageId: number, state: any) => void;
 }
@@ -37,6 +38,7 @@ interface DownloadState {
 const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   message,
   className = '',
+  compact = false,
   onPreview,
   onUpdateDownloadState
 }) => {
@@ -824,7 +826,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   return (
     <>
       <div 
-        className={`media-download-preview ${className}`}
+        className={`media-download-preview ${compact ? 'compact' : ''} ${className}`}
         key={`media-${message.message_id}-${forceRefresh}`}
       >
         {/* 媒体信息 */}
