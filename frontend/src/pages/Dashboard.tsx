@@ -40,6 +40,25 @@ import { dashboardApi } from '../services/apiService';
 const { Title, Text } = Typography;
 
 const Dashboard: React.FC = () => {
+  // CSS animations
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+      @keyframes ripple {
+        0% { transform: scale(1); opacity: 1; }
+        100% { transform: scale(2); opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   // 状态管理
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -339,14 +358,41 @@ const Dashboard: React.FC = () => {
 
         {/* 最近活动 */}
         <Col xs={24} lg={12}>
-          <Card title="最近活动">
+          <Card 
+            title="实时活动" 
+            extra={
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div 
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    backgroundColor: '#52c41a',
+                    marginRight: 8,
+                    animation: 'pulse 2s infinite'
+                  }}
+                />
+                <Text type="secondary">实时更新</Text>
+              </div>
+            }
+          >
             {loading ? (
               <Spin />
             ) : activityData?.recent_activities?.length > 0 ? (
               <List
                 dataSource={activityData.recent_activities}
-                renderItem={(activity: any) => (
-                  <List.Item>
+                renderItem={(activity: any, index: number) => (
+                  <List.Item
+                    style={{
+                      padding: '12px 0',
+                      borderLeft: index === 0 ? '3px solid #1890ff' : 'none',
+                      paddingLeft: index === 0 ? 12 : 0,
+                      backgroundColor: index === 0 ? '#f6ffed' : 'transparent',
+                      borderRadius: index === 0 ? 4 : 0,
+                      marginBottom: index === 0 ? 8 : 0,
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
                     <List.Item.Meta
                       avatar={
                         <Badge 
@@ -354,20 +400,28 @@ const Dashboard: React.FC = () => {
                         />
                       }
                       title={
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Text>{activity.description}</Text>
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
-                            {new Date(activity.timestamp).toLocaleTimeString()}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ fontWeight: index === 0 ? 'bold' : 'normal' }}>
+                            {activity.description}
                           </Text>
+                          <Space>
+                            {index === 0 && <Tag color="orange" style={{ fontSize: '10px', padding: '1px 4px' }}>新</Tag>}
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              {new Date(activity.timestamp).toLocaleTimeString()}
+                            </Text>
+                          </Space>
                         </div>
                       }
                       description={
                         <Space>
-                          <Tag color={activity.activity_type === 'message' ? 'blue' : 'green'}>
-                            {activity.activity_type === 'message' ? '消息' : '下载'}
+                          <Tag 
+                            color={activity.activity_type === 'message' ? 'blue' : 'green'}
+                            style={{ fontSize: '11px' }}
+                          >
+                            {activity.activity_type === 'message' ? '💬 消息' : '📥 下载'}
                           </Tag>
                           <Text type="secondary" style={{ fontSize: '12px' }}>
-                            {activity.group_name}
+                            📁 {activity.group_name}
                           </Text>
                         </Space>
                       }
@@ -376,31 +430,52 @@ const Dashboard: React.FC = () => {
                 )}
               />
             ) : (
-              <Empty description="暂无活动数据" />
+              <Empty 
+                description="暂无活动数据" 
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
             )}
           </Card>
         </Col>
       </Row>
 
-      {/* 媒体类型分布 */}
+      {/* 媒体类型分布图表 */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={12}>
-          <Card title="媒体类型分布">
+          <Card title="媒体类型分布" extra={<BarChartOutlined />}>
             {overviewData?.media_distribution ? (
               <div>
-                {Object.entries(overviewData.media_distribution).map(([type, count]: [string, any]) => (
-                  <div key={type} style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <Text>{type}</Text>
-                      <Text strong>{formatNumber(count)}</Text>
+                {Object.entries(overviewData.media_distribution).map(([type, count]: [string, any]) => {
+                  const total = (Object.values(overviewData.media_distribution) as number[]).reduce((a: number, b: number) => a + b, 0);
+                  const percentage = Math.round((count / total) * 100);
+                  return (
+                    <div key={type} style={{ marginBottom: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <Space>
+                          <div 
+                            style={{ 
+                              width: 12, 
+                              height: 12, 
+                              borderRadius: '50%', 
+                              backgroundColor: getMediaTypeColor(type) 
+                            }}
+                          />
+                          <Text>{type}</Text>
+                        </Space>
+                        <Space>
+                          <Text strong>{formatNumber(count)}</Text>
+                          <Text type="secondary">({percentage}%)</Text>
+                        </Space>
+                      </div>
+                      <Progress 
+                        percent={percentage}
+                        strokeColor={getMediaTypeColor(type)}
+                        size="small"
+                        showInfo={false}
+                      />
                     </div>
-                    <Progress 
-                      percent={Math.round((count / (Object.values(overviewData.media_distribution) as number[]).reduce((a: number, b: number) => a + b, 0)) * 100)}
-                      strokeColor={getMediaTypeColor(type)}
-                      size="small"
-                    />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <Empty description="暂无媒体分布数据" />
@@ -416,11 +491,11 @@ const Dashboard: React.FC = () => {
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>CPU 使用率</Text>
-                    <Text strong>{systemInfo.cpu_usage?.toFixed(1) || 0}%</Text>
+                    <Text strong>{typeof systemInfo.cpu_usage === 'number' ? systemInfo.cpu_usage.toFixed(1) : (systemInfo.cpu_percent?.toFixed(1) || '0')}%</Text>
                   </div>
                   <Progress 
-                    percent={systemInfo.cpu_usage || 0} 
-                    strokeColor={systemInfo.cpu_usage > 80 ? '#f5222d' : '#52c41a'}
+                    percent={systemInfo.cpu_usage || systemInfo.cpu_percent || 0} 
+                    strokeColor={(systemInfo.cpu_usage || systemInfo.cpu_percent || 0) > 80 ? '#f5222d' : '#52c41a'}
                     size="small"
                   />
                 </div>
@@ -428,11 +503,11 @@ const Dashboard: React.FC = () => {
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>内存使用率</Text>
-                    <Text strong>{systemInfo.memory_usage?.toFixed(1) || 0}%</Text>
+                    <Text strong>{typeof systemInfo.memory_usage === 'number' ? systemInfo.memory_usage.toFixed(1) : (systemInfo.memory?.usage_percent?.toFixed(1) || '0')}%</Text>
                   </div>
                   <Progress 
-                    percent={systemInfo.memory_usage || 0} 
-                    strokeColor={systemInfo.memory_usage > 80 ? '#f5222d' : '#1890ff'}
+                    percent={systemInfo.memory_usage || systemInfo.memory?.usage_percent || 0} 
+                    strokeColor={(systemInfo.memory_usage || systemInfo.memory?.usage_percent || 0) > 80 ? '#f5222d' : '#1890ff'}
                     size="small"
                   />
                 </div>
@@ -440,11 +515,11 @@ const Dashboard: React.FC = () => {
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Text>磁盘使用率</Text>
-                    <Text strong>{systemInfo.disk_usage?.toFixed(1) || 0}%</Text>
+                    <Text strong>{typeof systemInfo.disk_usage_percent === 'number' ? systemInfo.disk_usage_percent.toFixed(1) : (systemInfo.disk_usage?.usage_percent?.toFixed(1) || '0')}%</Text>
                   </div>
                   <Progress 
-                    percent={systemInfo.disk_usage || 0} 
-                    strokeColor={systemInfo.disk_usage > 90 ? '#f5222d' : '#722ed1'}
+                    percent={systemInfo.disk_usage_percent || systemInfo.disk_usage?.usage_percent || 0} 
+                    strokeColor={(systemInfo.disk_usage_percent || systemInfo.disk_usage?.usage_percent || 0) > 90 ? '#f5222d' : '#722ed1'}
                     size="small"
                   />
                 </div>
@@ -477,50 +552,144 @@ const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 下载统计图表 */}
+      {/* 下载趋势图表 */}
       {downloadStats?.daily_stats?.length > 0 && (
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col span={24}>
-            <Card title="下载趋势统计">
+          <Col xs={24} lg={16}>
+            <Card title="下载趋势图表" extra={<BarChartOutlined />}>
+              <div style={{ height: 300, position: 'relative' }}>
+                {/* 简单的折线图实现 */}
+                <div style={{ display: 'flex', height: '100%', alignItems: 'end', padding: '20px 0' }}>
+                  {downloadStats.daily_stats.slice(-7).map((stat: any, index: number) => {
+                    const maxCount = Math.max(...downloadStats.daily_stats.map((s: any) => s.downloads_count || 0));
+                    const height = maxCount > 0 ? (stat.downloads_count / maxCount) * 200 : 0;
+                    return (
+                      <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 4px' }}>
+                        <Tooltip title={`${new Date(stat.date).toLocaleDateString()}: ${stat.downloads_count} 下载`}>
+                          <div
+                            style={{
+                              width: '80%',
+                              height: `${height}px`,
+                              backgroundColor: '#1890ff',
+                              borderRadius: '4px 4px 0 0',
+                              marginBottom: 8,
+                              transition: 'all 0.3s ease',
+                              cursor: 'pointer'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#40a9ff';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#1890ff';
+                            }}
+                          />
+                        </Tooltip>
+                        <Text style={{ fontSize: '12px', textAlign: 'center' }}>
+                          {new Date(stat.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                        </Text>
+                        <Text style={{ fontSize: '10px', color: '#999' }}>
+                          {stat.downloads_count}
+                        </Text>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Card>
+          </Col>
+          
+          <Col xs={24} lg={8}>
+            <Card title="下载统计表格">
               <Table
-                dataSource={downloadStats.daily_stats}
+                dataSource={downloadStats.daily_stats.slice(-5)}
                 columns={[
                   {
                     title: '日期',
                     dataIndex: 'date',
                     key: 'date',
-                    render: (date: string) => new Date(date).toLocaleDateString()
+                    render: (date: string) => new Date(date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
                   },
                   {
-                    title: '新下载数',
+                    title: '下载数',
                     dataIndex: 'downloads_count',
                     key: 'downloads_count',
                     render: (count: number) => formatNumber(count)
                   },
                   {
-                    title: '下载大小',
+                    title: '大小',
                     dataIndex: 'total_size',
                     key: 'total_size',
                     render: (size: number) => formatFileSize(size)
-                  },
-                  {
-                    title: '完成率',
-                    dataIndex: 'completion_rate',
-                    key: 'completion_rate',
-                    render: (rate: number) => (
-                      <div style={{ minWidth: 120 }}>
-                        <Progress 
-                          percent={rate} 
-                          size="small" 
-                          format={(percent) => `${percent?.toFixed(1)}%`}
-                        />
-                      </div>
-                    )
                   }
                 ]}
-                pagination={{ pageSize: 7, size: 'small' }}
+                pagination={false}
                 size="small"
               />
+            </Card>
+          </Col>
+        </Row>
+      )}
+      
+      {/* 系统资源使用趋势 */}
+      {systemInfo && (
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Col span={24}>
+            <Card title="系统资源监控" extra={<DatabaseOutlined />}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={8}>
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <Progress
+                        type="circle"
+                        percent={systemInfo.cpu_usage || systemInfo.cpu_percent || 0}
+                        format={percent => (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{percent?.toFixed(1)}%</div>
+                            <div style={{ fontSize: '12px', color: '#666' }}>CPU</div>
+                          </div>
+                        )}
+                        strokeColor={(systemInfo.cpu_usage || systemInfo.cpu_percent || 0) > 80 ? '#ff4d4f' : '#52c41a'}
+                      />
+                    </div>
+                  </div>
+                </Col>
+                
+                <Col xs={24} sm={8}>
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <Progress
+                        type="circle"
+                        percent={systemInfo.memory_usage || systemInfo.memory?.usage_percent || 0}
+                        format={percent => (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{percent?.toFixed(1)}%</div>
+                            <div style={{ fontSize: '12px', color: '#666' }}>内存</div>
+                          </div>
+                        )}
+                        strokeColor={(systemInfo.memory_usage || systemInfo.memory?.usage_percent || 0) > 80 ? '#ff4d4f' : '#1890ff'}
+                      />
+                    </div>
+                  </div>
+                </Col>
+                
+                <Col xs={24} sm={8}>
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <Progress
+                        type="circle"
+                        percent={systemInfo.disk_usage_percent || systemInfo.disk_usage?.usage_percent || 0}
+                        format={percent => (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{percent?.toFixed(1)}%</div>
+                            <div style={{ fontSize: '12px', color: '#666' }}>磁盘</div>
+                          </div>
+                        )}
+                        strokeColor={(systemInfo.disk_usage_percent || systemInfo.disk_usage?.usage_percent || 0) > 90 ? '#ff4d4f' : '#722ed1'}
+                      />
+                    </div>
+                  </div>
+                </Col>
+              </Row>
             </Card>
           </Col>
         </Row>
