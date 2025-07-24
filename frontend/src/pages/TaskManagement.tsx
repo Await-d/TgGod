@@ -129,10 +129,13 @@ const TaskManagement: React.FC = () => {
 
   const loadRules = useCallback(async () => {
     try {
+      console.log('开始加载规则数据...');
       const rulesData = await ruleApi.getRules();
+      console.log('规则数据加载成功:', rulesData);
       setRules(rulesData);
     } catch (error: any) {
       message.error(`加载规则失败: ${error.message}`);
+      console.error('规则加载错误详情:', error);
     }
   }, []);
 
@@ -247,7 +250,7 @@ const TaskManagement: React.FC = () => {
     loadTasks();
     loadGroups();
     loadRules();
-  }, [loadTasks, loadGroups, loadRules]);
+  }, []); // 移除函数依赖，只在组件首次加载时执行
 
   // 表格列定义
   const columns = [
