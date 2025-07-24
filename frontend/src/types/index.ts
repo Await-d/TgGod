@@ -193,6 +193,8 @@ export interface FilterRule {
   date_to?: string;
   min_views?: number;
   max_views?: number;
+  min_file_size?: number;  // 最小文件大小（字节）
+  max_file_size?: number;  // 最大文件大小（字节）
   include_forwarded: boolean;
   is_active: boolean;
   created_at: string;

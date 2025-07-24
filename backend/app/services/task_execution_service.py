@@ -226,6 +226,19 @@ class TaskExecutionService:
         if rule.date_to:
             query = query.filter(TelegramMessage.date <= rule.date_to)
         
+        if rule.min_views is not None:
+            query = query.filter(TelegramMessage.views >= rule.min_views)
+        
+        if rule.max_views is not None:
+            query = query.filter(TelegramMessage.views <= rule.max_views)
+        
+        # 文件大小过滤
+        if rule.min_file_size is not None:
+            query = query.filter(TelegramMessage.file_size >= rule.min_file_size)
+        
+        if rule.max_file_size is not None:
+            query = query.filter(TelegramMessage.file_size <= rule.max_file_size)
+        
         if not rule.include_forwarded:
             query = query.filter(TelegramMessage.is_forwarded == False)
         

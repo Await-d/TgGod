@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .database import engine, Base
 from .config import settings, init_settings
-from .api import telegram, rule, log, task, config, auth, user_settings, dashboard
+from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check
 from .tasks.message_sync import message_sync_task
 import logging
 import os
@@ -151,6 +151,9 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"]
 from .api import media
 app.include_router(media.router, prefix="/api/media", tags=["media"])
 
+# 数据库检查API
+app.include_router(database_check.router, prefix="/api/database", tags=["database"])
+
 # 根路径
 @app.get("/")
 async def root():
@@ -227,9 +230,35 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 async def startup_event():
     logger.info("Starting TgGod API...")
     
-    # 检查和修复数据库字段
+    # 使用新的数据库检查器进行启动时检查
     try:
-        logger.info("🔧 正在检查数据库字段...")
+        logger.info("🔧 开始数据库结构检查和自动修复...")
+        
+        from .utils.database_checker import database_checker
+        
+        # 运行启动检查
+        check_success = database_checker.run_startup_check()
+        
+        if check_success:
+            logger.info("✅ 数据库结构检查和修复完成")
+        else:
+            logger.warning("⚠️ 数据库结构存在问题，但系统将继续启动")
+            logger.warning("建议手动运行 'alembic upgrade head' 来完成数据库迁移")
+        
+    except Exception as e:
+        logger.error(f"数据库结构检查失败: {e}")
+        logger.info("尝试使用传统方式创建数据库表...")
+        
+        # 传统数据库创建方式作为备选
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("✅ 使用传统方式创建数据库表成功")
+        except Exception as create_error:
+            logger.error(f"❌ 创建数据库表失败: {create_error}")
+    
+    # 检查和修复数据库字段（保留原有逻辑作为备用）
+    try:
+        logger.info("🔧 运行传统数据库字段检查...")
         
         # 导入数据库修复工具
         from pathlib import Path
@@ -249,9 +278,9 @@ async def startup_event():
         success = fix_telegram_messages_table(db_path)
         
         if success:
-            logger.info("✅ 数据库字段检查和修复完成")
+            logger.info("✅ 传统数据库字段检查和修复完成")
         else:
-            logger.error("❌ 数据库字段修复失败")
+            logger.error("❌ 传统数据库字段修复失败")
         
         # 运行用户设置表迁移
         logger.info("🔧 正在检查用户设置表...")

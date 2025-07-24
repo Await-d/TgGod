@@ -15,7 +15,8 @@ import {
   DisconnectOutlined,
   MessageOutlined,
   MenuOutlined,
-  PlayCircleOutlined
+  PlayCircleOutlined,
+  DatabaseOutlined
 } from '@ant-design/icons';
 import { webSocketService } from '../../services/websocket';
 import { useGlobalStore, useAuthStore } from '../../store';
@@ -105,6 +106,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/logs',
       icon: <FileTextOutlined />,
       label: '日志查看',
+    },
+    {
+      key: '/database',
+      icon: <DatabaseOutlined />,
+      label: '数据库状态',
     },
     {
       key: '/settings',

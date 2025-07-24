@@ -10,6 +10,7 @@ import Rules from './pages/Rules';
 import Downloads from './pages/Downloads';
 import Logs from './pages/Logs';
 import Settings from './pages/Settings';
+import DatabaseStatus from './pages/DatabaseStatus';
 import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
 import TaskManagement from './pages/TaskManagement';
@@ -160,6 +161,15 @@ const App: React.FC = () => {
             <MainLayout>
               <Content>
                 <MediaDownloadTestPage />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/database" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <DatabaseStatus />
               </Content>
             </MainLayout>
           </ProtectedRoute>

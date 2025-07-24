@@ -21,6 +21,8 @@ class RuleCreate(BaseModel):
     date_to: Optional[datetime] = None
     min_views: Optional[int] = None
     max_views: Optional[int] = None
+    min_file_size: Optional[int] = None  # 最小文件大小（字节）
+    max_file_size: Optional[int] = None  # 最大文件大小（字节）
     include_forwarded: bool = True
 
 class RuleUpdate(BaseModel):
@@ -33,6 +35,8 @@ class RuleUpdate(BaseModel):
     date_to: Optional[datetime] = None
     min_views: Optional[int] = None
     max_views: Optional[int] = None
+    min_file_size: Optional[int] = None  # 最小文件大小（字节）
+    max_file_size: Optional[int] = None  # 最大文件大小（字节）
     include_forwarded: Optional[bool] = None
     is_active: Optional[bool] = None
 
@@ -48,6 +52,8 @@ class RuleResponse(BaseModel):
     date_to: Optional[datetime]
     min_views: Optional[int]
     max_views: Optional[int]
+    min_file_size: Optional[int]  # 最小文件大小（字节）
+    max_file_size: Optional[int]  # 最大文件大小（字节）
     include_forwarded: bool
     is_active: bool
     created_at: datetime

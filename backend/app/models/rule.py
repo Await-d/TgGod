@@ -24,6 +24,10 @@ class FilterRule(Base):
     min_views = Column(Integer, nullable=True)
     max_views = Column(Integer, nullable=True)
     
+    # 文件大小过滤（字节）
+    min_file_size = Column(Integer, nullable=True)  # 最小文件大小
+    max_file_size = Column(Integer, nullable=True)  # 最大文件大小
+    
     # 其他选项
     include_forwarded = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)

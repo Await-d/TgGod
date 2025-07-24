@@ -410,6 +410,9 @@ const MessagesPage: React.FC = () => {
         exclude_keywords: values.exclude_keywords || [],
         sender_filter: values.sender_filter || [],
         media_types: values.media_types || [],
+        // 文件大小转换为字节
+        min_file_size: values.min_file_size ? Math.floor(values.min_file_size * 1024 * 1024) : undefined,
+        max_file_size: values.max_file_size ? Math.floor(values.max_file_size * 1024 * 1024) : undefined,
       };
 
       await ruleApi.createRule(ruleData);
@@ -1504,6 +1507,40 @@ const MessagesPage: React.FC = () => {
                     valuePropName="checked"
                   >
                     <Switch />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="min_file_size"
+                    label="最小文件大小 (MB)"
+                    tooltip="设置媒体文件的最小大小限制"
+                  >
+                    <Input
+                      type="number"
+                      placeholder="最小文件大小"
+                      min={0}
+                      step={0.1}
+                      addonAfter="MB"
+                    />
+                  </Form.Item>
+                </Col>
+
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="max_file_size"
+                    label="最大文件大小 (MB)"
+                    tooltip="设置媒体文件的最大大小限制"
+                  >
+                    <Input
+                      type="number"
+                      placeholder="最大文件大小"
+                      min={0}
+                      step={0.1}
+                      addonAfter="MB"
+                    />
                   </Form.Item>
                 </Col>
               </Row>
