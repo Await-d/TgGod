@@ -19,6 +19,34 @@ class TaskCreate(BaseModel):
     download_path: str
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
+    
+    # Jellyfin 配置
+    use_jellyfin_structure: bool = False
+    include_metadata: bool = True
+    download_thumbnails: bool = True
+    use_series_structure: bool = False
+    organize_by_date: bool = True
+    max_filename_length: int = 150
+    thumbnail_size: str = "400x300"
+    poster_size: str = "600x900"
+    fanart_size: str = "1920x1080"
+
+class TaskUpdate(BaseModel):
+    name: Optional[str] = None
+    download_path: Optional[str] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
+    
+    # Jellyfin 配置
+    use_jellyfin_structure: Optional[bool] = None
+    include_metadata: Optional[bool] = None
+    download_thumbnails: Optional[bool] = None
+    use_series_structure: Optional[bool] = None
+    organize_by_date: Optional[bool] = None
+    max_filename_length: Optional[int] = None
+    thumbnail_size: Optional[str] = None
+    poster_size: Optional[str] = None
+    fanart_size: Optional[str] = None
 
 class TaskResponse(BaseModel):
     id: int
@@ -32,10 +60,25 @@ class TaskResponse(BaseModel):
     download_path: str
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
+    
+    # Jellyfin 配置
+    use_jellyfin_structure: bool = False
+    include_metadata: bool = True
+    download_thumbnails: bool = True
+    use_series_structure: bool = False
+    organize_by_date: bool = True
+    max_filename_length: int = 150
+    thumbnail_size: str = "400x300"
+    poster_size: str = "600x900"
+    fanart_size: str = "1920x1080"
+    
     created_at: datetime
     updated_at: Optional[datetime]
     completed_at: Optional[datetime]
     error_message: Optional[str]
+    
+    class Config:
+        from_attributes = True
 
 @router.get("/tasks", response_model=List[TaskResponse])
 async def get_tasks(
@@ -198,6 +241,31 @@ async def stop_task(
         raise HTTPException(status_code=500, detail=f"停止任务失败: {str(e)}")
     
     return {"message": "任务停止成功"}
+
+@router.put("/tasks/{task_id}", response_model=TaskResponse)
+async def update_task(
+    task_id: int,
+    task_update: TaskUpdate,
+    db: Session = Depends(get_db)
+):
+    """更新任务"""
+    task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    
+    if task.status == "running":
+        raise HTTPException(status_code=400, detail="任务正在运行，无法更新")
+    
+    # 更新任务字段
+    update_data = task_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(task, field, value)
+    
+    task.updated_at = datetime.now()
+    db.commit()
+    db.refresh(task)
+    
+    return task
 
 @router.delete("/tasks/{task_id}")
 async def delete_task(

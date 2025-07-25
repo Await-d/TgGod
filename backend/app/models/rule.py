@@ -57,6 +57,19 @@ class DownloadTask(Base):
     # 下载配置
     download_path = Column(String(500), nullable=False)
     
+    # Jellyfin 兼容配置
+    use_jellyfin_structure = Column(Boolean, default=False)  # 是否使用Jellyfin格式
+    include_metadata = Column(Boolean, default=True)  # 是否生成NFO文件
+    download_thumbnails = Column(Boolean, default=True)  # 是否下载缩略图
+    use_series_structure = Column(Boolean, default=False)  # 是否使用剧集结构
+    organize_by_date = Column(Boolean, default=True)  # 是否按日期组织
+    max_filename_length = Column(Integer, default=150)  # 最大文件名长度
+    
+    # 图片尺寸配置 (存储为 "宽x高" 格式)
+    thumbnail_size = Column(String(20), default="400x300")  # 缩略图尺寸
+    poster_size = Column(String(20), default="600x900")  # 海报图尺寸
+    fanart_size = Column(String(20), default="1920x1080")  # 背景图尺寸
+    
     # 时间范围过滤（用于下载任务的时间筛选）
     date_from = Column(DateTime(timezone=True), nullable=True)  # 开始时间
     date_to = Column(DateTime(timezone=True), nullable=True)    # 结束时间

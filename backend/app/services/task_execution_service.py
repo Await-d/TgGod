@@ -9,6 +9,7 @@ from ..models.rule import DownloadTask, FilterRule
 from ..models.telegram import TelegramMessage, TelegramGroup
 from ..models.log import TaskLog
 from .media_downloader import TelegramMediaDownloader
+from .jellyfin_media_service import JellyfinMediaService
 from ..database import SessionLocal
 from ..websocket.manager import websocket_manager
 from datetime import datetime, timezone
@@ -21,6 +22,7 @@ class TaskExecutionService:
     def __init__(self):
         self.running_tasks: Dict[int, asyncio.Task] = {}
         self.media_downloader = TelegramMediaDownloader()
+        self.jellyfin_service = JellyfinMediaService()
         self._initialized = False
     
     async def initialize(self):
@@ -156,7 +158,7 @@ class TaskExecutionService:
                     
                     # 下载媒体文件
                     if message.media_type and message.media_type != 'text':
-                        success = await self._download_message_media(message, download_dir, task_id)
+                        success = await self._download_message_media(message, download_task, group, task_id)
                         if success:
                             downloaded_count += 1
                         else:
@@ -248,38 +250,70 @@ class TaskExecutionService:
         
         return query.order_by(TelegramMessage.date.desc()).all()
     
-    async def _download_message_media(self, message: TelegramMessage, download_dir: str, task_id: int) -> bool:
+    async def _download_message_media(self, message: TelegramMessage, download_task: DownloadTask, group: TelegramGroup, task_id: int) -> bool:
         """下载单个消息的媒体文件"""
         try:
-            # 构建文件名
-            file_extension = self._get_file_extension(message.media_type)
-            filename = f"{message.message_id}_{message.id}{file_extension}"
-            file_path = os.path.join(download_dir, filename)
-            
-            # 检查文件是否已存在
-            if os.path.exists(file_path):
-                logger.info(f"文件已存在，跳过下载: {filename}")
-                return True
-            
-            # 定义进度回调函数
-            async def progress_callback(current: int, total: int):
-                await self._log_download_progress(task_id, message.id, current, total)
-            
-            # 使用媒体下载器下载文件
-            success = await self.media_downloader.download_file(
-                file_id=message.file_id or "",
-                file_path=file_path,
-                chat_id=message.group_id,
-                message_id=message.message_id,
-                progress_callback=progress_callback
-            )
-            
-            if success:
-                logger.info(f"成功下载文件: {filename}")
-                return True
+            # 检查是否使用 Jellyfin 格式
+            if download_task.use_jellyfin_structure:
+                # 使用 Jellyfin 服务下载
+                jellyfin_config = {
+                    'use_jellyfin_structure': download_task.use_jellyfin_structure,
+                    'include_metadata': download_task.include_metadata,
+                    'download_thumbnails': download_task.download_thumbnails,
+                    'use_series_structure': download_task.use_series_structure,
+                    'organize_by_date': download_task.organize_by_date,
+                    'max_filename_length': download_task.max_filename_length,
+                    'thumbnail_size': self._parse_size_string(download_task.thumbnail_size),
+                    'poster_size': self._parse_size_string(download_task.poster_size),
+                    'fanart_size': self._parse_size_string(download_task.fanart_size)
+                }
+                
+                success, error_msg, file_paths = await self.jellyfin_service.download_media_with_jellyfin_structure(
+                    message=message,
+                    group=group,
+                    task=download_task,
+                    jellyfin_config=jellyfin_config
+                )
+                
+                if success:
+                    logger.info(f"Jellyfin格式下载成功: {file_paths.get('main_media', 'unknown')}")
+                    await self._log_task_event(task_id, "INFO", f"Jellyfin格式下载成功，文件数: {len(file_paths)}")
+                    return True
+                else:
+                    logger.error(f"Jellyfin格式下载失败: {error_msg}")
+                    await self._log_task_event(task_id, "ERROR", f"Jellyfin格式下载失败: {error_msg}")
+                    return False
             else:
-                logger.warning(f"下载文件失败: {filename}")
-                return False
+                # 使用传统下载方式
+                download_dir = download_task.download_path
+                file_extension = self._get_file_extension(message.media_type)
+                filename = f"{message.message_id}_{message.id}{file_extension}"
+                file_path = os.path.join(download_dir, filename)
+                
+                # 检查文件是否已存在
+                if os.path.exists(file_path):
+                    logger.info(f"文件已存在，跳过下载: {filename}")
+                    return True
+                
+                # 定义进度回调函数
+                async def progress_callback(current: int, total: int):
+                    await self._log_download_progress(task_id, message.id, current, total)
+                
+                # 使用媒体下载器下载文件
+                success = await self.media_downloader.download_file(
+                    file_id=message.file_id or "",
+                    file_path=file_path,
+                    chat_id=message.group_id,
+                    message_id=message.message_id,
+                    progress_callback=progress_callback
+                )
+                
+                if success:
+                    logger.info(f"成功下载文件: {filename}")
+                    return True
+                else:
+                    logger.warning(f"下载文件失败: {filename}")
+                    return False
             
         except Exception as e:
             logger.error(f"下载消息 {message.id} 的媒体文件失败: {e}")
@@ -298,6 +332,22 @@ class TaskExecutionService:
             'sticker': '.webp'
         }
         return extensions.get(media_type, '.bin')
+    
+    def _parse_size_string(self, size_str: str) -> tuple:
+        """解析尺寸字符串 '400x300' -> (400, 300)"""
+        try:
+            if not size_str or 'x' not in size_str:
+                return (400, 300)  # 默认尺寸
+            
+            parts = size_str.split('x')
+            if len(parts) != 2:
+                return (400, 300)
+            
+            width = int(parts[0])
+            height = int(parts[1])
+            return (width, height)
+        except (ValueError, AttributeError):
+            return (400, 300)  # 默认尺寸
     
     
     async def _handle_task_completion(self, task_id: int, message: str, db: Session):
