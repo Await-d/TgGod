@@ -8,6 +8,9 @@ from ..models.rule import FilterRule
 from ..services.task_execution_service import task_execution_service
 from pydantic import BaseModel
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -89,16 +92,24 @@ async def get_tasks(
     db: Session = Depends(get_db)
 ):
     """获取下载任务列表"""
-    query = db.query(DownloadTask)
-    
-    if group_id:
-        query = query.filter(DownloadTask.group_id == group_id)
-    
-    if status:
-        query = query.filter(DownloadTask.status == status)
-    
-    tasks = query.order_by(DownloadTask.created_at.desc()).offset(skip).limit(limit).all()
-    return tasks
+    try:
+        query = db.query(DownloadTask)
+        
+        if group_id:
+            query = query.filter(DownloadTask.group_id == group_id)
+        
+        if status:
+            query = query.filter(DownloadTask.status == status)
+        
+        tasks = query.order_by(DownloadTask.created_at.desc()).offset(skip).limit(limit).all()
+        return tasks
+    except Exception as e:
+        logger.error(f"查询任务列表失败: {str(e)}")
+        # 如果是数据库结构问题，返回空列表
+        if "no such column" in str(e).lower() or "unknown column" in str(e).lower():
+            logger.warning("检测到数据库结构问题，建议重启应用以触发自动修复")
+            return []
+        raise HTTPException(status_code=500, detail=f"查询任务失败: {str(e)}")
 
 @router.post("/tasks", response_model=TaskResponse)
 async def create_task(
@@ -137,18 +148,32 @@ async def get_task_stats(
     db: Session = Depends(get_db)
 ):
     """获取任务统计信息"""
-    total_tasks = db.query(DownloadTask).count()
-    running_tasks = db.query(DownloadTask).filter(DownloadTask.status == "running").count()
-    completed_tasks = db.query(DownloadTask).filter(DownloadTask.status == "completed").count()
-    failed_tasks = db.query(DownloadTask).filter(DownloadTask.status == "failed").count()
-    
-    return {
-        "total": total_tasks,
-        "running": running_tasks,
-        "completed": completed_tasks,
-        "failed": failed_tasks,
-        "pending": total_tasks - running_tasks - completed_tasks - failed_tasks
-    }
+    try:
+        total_tasks = db.query(DownloadTask).count()
+        running_tasks = db.query(DownloadTask).filter(DownloadTask.status == "running").count()
+        completed_tasks = db.query(DownloadTask).filter(DownloadTask.status == "completed").count()
+        failed_tasks = db.query(DownloadTask).filter(DownloadTask.status == "failed").count()
+        
+        return {
+            "total": total_tasks,
+            "running": running_tasks,
+            "completed": completed_tasks,
+            "failed": failed_tasks,
+            "pending": total_tasks - running_tasks - completed_tasks - failed_tasks
+        }
+    except Exception as e:
+        logger.error(f"获取任务统计失败: {str(e)}")
+        # 如果是数据库结构问题，返回默认统计
+        if "no such column" in str(e).lower() or "unknown column" in str(e).lower():
+            logger.warning("检测到数据库结构问题，返回默认统计信息")
+            return {
+                "total": 0,
+                "running": 0,
+                "completed": 0,
+                "failed": 0,
+                "pending": 0
+            }
+        raise HTTPException(status_code=500, detail=f"获取统计信息失败: {str(e)}")
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(

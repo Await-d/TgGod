@@ -267,6 +267,34 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 async def startup_event():
     logger.info("Starting TgGod API...")
     
+    # 运行Jellyfin字段修复脚本
+    try:
+        logger.info("🔧 开始检查Jellyfin字段...")
+        
+        from pathlib import Path
+        import subprocess
+        import sys
+        
+        # 找到修复脚本
+        project_root = Path(__file__).parent.parent
+        fix_script = project_root / "fix_jellyfin_fields.py"
+        
+        if fix_script.exists():
+            logger.info("运行Jellyfin字段修复脚本...")
+            result = subprocess.run([sys.executable, str(fix_script)], 
+                                  capture_output=True, text=True, cwd=str(project_root))
+            
+            if result.returncode == 0:
+                logger.info("✅ Jellyfin字段检查和修复完成")
+            else:
+                logger.warning(f"⚠️ Jellyfin字段修复警告: {result.stderr}")
+        else:
+            logger.info("未找到Jellyfin字段修复脚本，跳过")
+            
+    except Exception as e:
+        logger.error(f"Jellyfin字段修复失败: {e}")
+        logger.info("将继续启动，但Jellyfin功能可能不可用")
+
     # 使用新的数据库检查器进行启动时检查
     try:
         logger.info("🔧 开始数据库结构检查和自动修复...")

@@ -48,6 +48,10 @@ class DatabaseChecker:
                 'id', 'name', 'group_id', 'rule_id', 'status', 'progress',
                 'total_messages', 'downloaded_messages', 'download_path',
                 'date_from', 'date_to',
+                # Jellyfin 兼容字段
+                'use_jellyfin_structure', 'include_metadata', 'download_thumbnails',
+                'use_series_structure', 'organize_by_date', 'max_filename_length',
+                'thumbnail_size', 'poster_size', 'fanart_size',
                 'created_at', 'updated_at', 'completed_at', 'error_message'
             ],
             'download_records': [
@@ -80,7 +84,17 @@ class DatabaseChecker:
             },
             'download_tasks': {
                 'date_from': 'TIMESTAMP WITH TIME ZONE',
-                'date_to': 'TIMESTAMP WITH TIME ZONE'
+                'date_to': 'TIMESTAMP WITH TIME ZONE',
+                # Jellyfin 兼容字段定义
+                'use_jellyfin_structure': 'BOOLEAN DEFAULT FALSE',
+                'include_metadata': 'BOOLEAN DEFAULT TRUE',
+                'download_thumbnails': 'BOOLEAN DEFAULT TRUE',
+                'use_series_structure': 'BOOLEAN DEFAULT FALSE',
+                'organize_by_date': 'BOOLEAN DEFAULT TRUE',
+                'max_filename_length': 'INTEGER DEFAULT 150',
+                'thumbnail_size': 'VARCHAR(20) DEFAULT "400x300"',
+                'poster_size': 'VARCHAR(20) DEFAULT "600x900"',
+                'fanart_size': 'VARCHAR(20) DEFAULT "1920x1080"'
             }
         }
     
