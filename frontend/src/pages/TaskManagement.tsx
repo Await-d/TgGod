@@ -201,9 +201,15 @@ const TaskManagement: React.FC = () => {
       console.log('开始创建任务，原始表单数据:', values);
       // 处理时间范围数据
       const taskData = { ...values };
-      if (values.time_range && values.time_range.length === 2) {
-        taskData.date_from = values.time_range[0].toISOString();
-        taskData.date_to = values.time_range[1].toISOString();
+      if (values.time_range && values.time_range.length >= 1) {
+        // 开始时间（必填）
+        if (values.time_range[0]) {
+          taskData.date_from = values.time_range[0].toISOString();
+        }
+        // 结束时间（可选）
+        if (values.time_range[1]) {
+          taskData.date_to = values.time_range[1].toISOString();
+        }
         delete taskData.time_range;
       }
       console.log('处理后的任务数据:', taskData);
@@ -336,7 +342,7 @@ const TaskManagement: React.FC = () => {
           return (
             <div style={{ fontSize: 12, lineHeight: '1.2' }}>
               <div>开始: {record.date_from ? new Date(record.date_from).toLocaleString() : '不限'}</div>
-              <div>结束: {record.date_to ? new Date(record.date_to).toLocaleString() : '不限'}</div>
+              <div>结束: {record.date_to ? new Date(record.date_to).toLocaleString() : '一直有效'}</div>
             </div>
           );
         }
@@ -680,11 +686,13 @@ const TaskManagement: React.FC = () => {
           <Form.Item
             name="time_range"
             label="时间范围过滤"
+            help="设置消息的时间范围。结束时间可不填，表示从开始时间一直有效"
           >
             <RangePicker 
               showTime
-              placeholder={['开始时间', '结束时间']}
+              placeholder={['开始时间', '结束时间(可选)']}
               style={{ width: '100%' }}
+              allowEmpty={[false, true]}
             />
           </Form.Item>
           <Form.Item
@@ -758,7 +766,7 @@ const TaskManagement: React.FC = () => {
                     <Text>
                       {selectedTask.date_from ? new Date(selectedTask.date_from).toLocaleString() : '不限'} 
                       {' - '}
-                      {selectedTask.date_to ? new Date(selectedTask.date_to).toLocaleString() : '不限'}
+                      {selectedTask.date_to ? new Date(selectedTask.date_to).toLocaleString() : '一直有效'}
                     </Text>
                   </Col>
                 )}
