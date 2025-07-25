@@ -3,11 +3,14 @@
 提供下载历史记录的查询、查看和管理功能
 """
 
+import logging
 from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, and_, or_, func
+
+logger = logging.getLogger(__name__)
 
 from ..database import get_db
 from ..models.rule import DownloadTask, DownloadRecord
@@ -172,6 +175,54 @@ async def get_download_stats(
     获取下载历史的统计信息
     """
     try:
+        # 检查download_records表是否存在，如果不存在则创建
+        from sqlalchemy import text, inspect
+        inspector = inspect(db.bind)
+        tables = inspector.get_table_names()
+        
+        if 'download_records' not in tables:
+            # 表不存在，创建表
+            create_table_sql = """
+            CREATE TABLE download_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                file_name VARCHAR(500) NOT NULL,
+                local_file_path VARCHAR(1000) NOT NULL,
+                file_size INTEGER,
+                file_type VARCHAR(50),
+                message_id INTEGER NOT NULL,
+                sender_id INTEGER,
+                sender_name VARCHAR(255),
+                message_date DATETIME,
+                message_text TEXT,
+                download_status VARCHAR(50) DEFAULT 'completed',
+                download_progress INTEGER DEFAULT 100,
+                error_message TEXT,
+                download_started_at DATETIME,
+                download_completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES download_tasks(id)
+            )
+            """
+            db.execute(text(create_table_sql))
+            db.execute(text("CREATE INDEX ix_download_records_id ON download_records(id)"))
+            db.execute(text("CREATE INDEX ix_download_records_task_id ON download_records(task_id)"))
+            db.execute(text("CREATE INDEX ix_download_records_completed_at ON download_records(download_completed_at)"))
+            db.commit()
+            logger.info("✅ download_records表已创建")
+        
+        # 如果表为空，返回空统计
+        table_check = db.execute(text("SELECT COUNT(*) FROM download_records")).scalar()
+        if table_check == 0:
+            return {
+                "total_downloads": 0,
+                "successful_downloads": 0,
+                "failed_downloads": 0,
+                "success_rate": 0.0,
+                "total_file_size": 0,
+                "file_types": {},
+                "top_tasks": [],
+                "period_days": days
+            }
         # 计算时间范围
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)

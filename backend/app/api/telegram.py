@@ -1250,8 +1250,14 @@ async def delete_message(
         raise HTTPException(status_code=404, detail="消息不存在")
     
     try:
+        # 确定群组标识符（优先使用用户名，否则使用telegram_id）
+        group_identifier = group.username or group.telegram_id
+        
+        if not group_identifier:
+            raise HTTPException(status_code=400, detail="群组缺少用户名和ID，无法删除消息")
+        
         # 删除Telegram消息
-        success = await telegram_service.delete_message(group.username, message_id)
+        success = await telegram_service.delete_message(group_identifier, message_id)
         
         if success:
             # 从数据库中删除消息记录

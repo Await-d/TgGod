@@ -896,18 +896,23 @@ class TelegramService:
             logger.error(f"发送消息失败: {e}")
             return None
     
-    async def delete_message(self, group_username: str, message_id: int) -> bool:
+    async def delete_message(self, group_identifier, message_id: int) -> bool:
         """删除群组消息"""
         try:
             await self.initialize()
             
+            # 验证群组标识符
+            if not group_identifier:
+                logger.error("群组标识符为空，无法删除消息")
+                return False
+            
             # 获取群组实体
-            entity = await self.client.get_entity(group_username)
+            entity = await self.client.get_entity(group_identifier)
             
             # 删除消息
             await self.client.delete_messages(entity, message_id)
             
-            logger.info(f"消息删除成功，消息ID: {message_id}")
+            logger.info(f"消息删除成功，群组: {group_identifier}, 消息ID: {message_id}")
             return True
             
         except Exception as e:

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from typing import Optional, List
 from pydantic import BaseModel
 import os
@@ -10,6 +11,7 @@ import mimetypes
 from datetime import datetime
 from ..database import get_db, SessionLocal
 from ..models import TelegramMessage
+from ..utils.db_retry import db_retry, safe_db_operation
 import asyncio
 
 router = APIRouter()
@@ -363,8 +365,9 @@ async def cancel_batch_download(
             cancelled_downloads.add(message_id)
             cancelled_count += 1
             
-            # 更新数据库状态
-            try:
+            # 更新数据库状态（带重试）
+            @db_retry(max_retries=3, delay=0.1, backoff=2.0)
+            def update_cancel_status():
                 message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
                 if message and not message.media_downloaded:
                     message.download_progress = 0
@@ -374,6 +377,9 @@ async def cancel_batch_download(
                     message.download_started_at = None
                     message.media_download_error = "下载已取消"
                 db.commit()
+            
+            try:
+                update_cancel_status()
             except Exception as e:
                 logger.error(f"取消下载时数据库更新失败 (消息 {message_id}): {str(e)}")
                 db.rollback()
@@ -811,7 +817,8 @@ async def cancel_download(
     # 标记为已取消
     cancelled_downloads.add(message_id)
     
-    try:
+    @db_retry(max_retries=3, delay=0.1, backoff=2.0)
+    def reset_download_status():
         # 重置下载状态
         message.download_progress = 0
         message.downloaded_size = 0
@@ -820,7 +827,9 @@ async def cancel_download(
         message.download_started_at = None
         message.media_download_error = "下载已取消"
         db.commit()
-        
+    
+    try:
+        reset_download_status()
         logger.info(f"下载取消成功: 消息 {message_id}")
         
         return {
@@ -1415,39 +1424,47 @@ async def download_media_background(message_id: int, force: bool = False):
         download_error = f"下载过程中发生错误: {str(e)}"
         logger.error(f"下载任务异常: {download_error}")
     
-    # 最后更新数据库状态（单独的短连接）
-    db = SessionLocal()
+    # 最后更新数据库状态（单独的短连接，带重试）
+    @db_retry(max_retries=3, delay=0.1, backoff=2.0)
+    def update_database_status():
+        db = SessionLocal()
+        try:
+            message = db.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
+            if message:
+                if download_success and file_path:
+                    message.media_downloaded = True
+                    message.media_path = file_path
+                    message.media_download_error = None
+                    
+                    # 设置完成状态的进度信息
+                    message.download_progress = 100
+                    message.download_speed = 0
+                    message.estimated_time_remaining = 0
+                    
+                    # 获取实际文件大小
+                    if os.path.exists(file_path):
+                        actual_size = os.path.getsize(file_path)
+                        message.media_size = actual_size
+                        message.downloaded_size = actual_size
+                else:
+                    message.media_download_error = download_error
+                    # 重置进度信息
+                    message.download_progress = 0
+                    message.downloaded_size = 0
+                    message.download_speed = 0
+                    message.estimated_time_remaining = 0
+                
+                db.commit()
+                logger.info(f"数据库状态更新完成: 消息 {message_id}")
+                
+        except Exception as e:
+            logger.error(f"更新数据库状态失败: {str(e)}")
+            db.rollback()
+            raise
+        finally:
+            db.close()
+    
     try:
-        message = db.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
-        if message:
-            if download_success and file_path:
-                message.media_downloaded = True
-                message.media_path = file_path
-                message.media_download_error = None
-                
-                # 设置完成状态的进度信息
-                message.download_progress = 100
-                message.download_speed = 0
-                message.estimated_time_remaining = 0
-                
-                # 获取实际文件大小
-                if os.path.exists(file_path):
-                    actual_size = os.path.getsize(file_path)
-                    message.media_size = actual_size
-                    message.downloaded_size = actual_size
-            else:
-                message.media_download_error = download_error
-                # 重置进度信息
-                message.download_progress = 0
-                message.downloaded_size = 0
-                message.download_speed = 0
-                message.estimated_time_remaining = 0
-            
-            db.commit()
-            logger.info(f"数据库状态更新完成: 消息 {message_id}")
-            
+        update_database_status()
     except Exception as e:
-        logger.error(f"更新数据库状态失败: {str(e)}")
-        db.rollback()
-    finally:
-        db.close()
+        logger.error(f"数据库状态更新最终失败: {str(e)}")
