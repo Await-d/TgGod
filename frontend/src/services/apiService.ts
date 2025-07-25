@@ -604,6 +604,8 @@ export const taskApi = {
     group_id: number;
     rule_id: number;
     download_path: string;
+    date_from?: string;
+    date_to?: string;
   }): Promise<DownloadTask> => {
     return api.post('/task/tasks', task);
   },

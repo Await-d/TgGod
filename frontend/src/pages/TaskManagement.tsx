@@ -105,13 +105,17 @@ const TaskManagement: React.FC = () => {
   const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('开始加载任务数据，过滤条件:', filters);
       const [tasksData, statsData] = await Promise.all([
         taskApi.getTasks(filters),
         taskApi.getTaskStats()
       ]);
+      console.log('任务数据加载成功:', tasksData);
+      console.log('任务统计加载成功:', statsData);
       setTasks(tasksData);
       setTaskStats(statsData);
     } catch (error: any) {
+      console.error('加载任务失败，错误详情:', error);
       message.error(`加载任务失败: ${error.message}`);
     } finally {
       setLoading(false);
@@ -194,6 +198,7 @@ const TaskManagement: React.FC = () => {
 
   const handleCreateTask = async (values: any) => {
     try {
+      console.log('开始创建任务，原始表单数据:', values);
       // 处理时间范围数据
       const taskData = { ...values };
       if (values.time_range && values.time_range.length === 2) {
@@ -201,13 +206,16 @@ const TaskManagement: React.FC = () => {
         taskData.date_to = values.time_range[1].toISOString();
         delete taskData.time_range;
       }
+      console.log('处理后的任务数据:', taskData);
       
-      await taskApi.createTask(taskData);
+      const result = await taskApi.createTask(taskData);
+      console.log('任务创建成功，返回数据:', result);
       message.success('任务创建成功');
       setCreateModalVisible(false);
       form.resetFields();
       loadTasks();
     } catch (error: any) {
+      console.error('创建任务失败，错误详情:', error);
       message.error(`创建任务失败: ${error.message}`);
     }
   };
@@ -320,10 +328,31 @@ const TaskManagement: React.FC = () => {
       ),
     },
     {
+      title: '时间范围',
+      key: 'time_range',
+      width: 180,
+      render: (text: any, record: DownloadTask) => {
+        if (record.date_from || record.date_to) {
+          return (
+            <div style={{ fontSize: 12, lineHeight: '1.2' }}>
+              <div>开始: {record.date_from ? new Date(record.date_from).toLocaleString() : '不限'}</div>
+              <div>结束: {record.date_to ? new Date(record.date_to).toLocaleString() : '不限'}</div>
+            </div>
+          );
+        }
+        return <Text type="secondary">无限制</Text>;
+      },
+    },
+    {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (date: string) => new Date(date).toLocaleString(),
+      width: 160,
+      render: (text: string) => (
+        <Text style={{ fontSize: 12 }}>
+          {new Date(text).toLocaleString()}
+        </Text>
+      ),
     },
     {
       title: '操作',

@@ -95,7 +95,8 @@
       "Bash(pip3 install:*)",
       "Bash(source:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(alembic:*)"
     ],
     "deny": []
   }
