@@ -12,6 +12,7 @@ from datetime import datetime
 from ..database import get_db, SessionLocal
 from ..models import TelegramMessage
 from ..utils.db_retry import db_retry, safe_db_operation
+from ..utils.db_optimization import optimized_db_session
 import asyncio
 
 router = APIRouter()
@@ -1258,42 +1259,67 @@ async def download_media_background(message_id: int, force: bool = False):
     _ = force  # Suppress unused parameter warning
     from ..database import SessionLocal
     
-    # 使用短连接获取消息信息
-    db = SessionLocal()
-    try:
-        message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
-        if not message:
-            logger.error(f"下载任务: 消息 {message_id} 不存在")
-            return
-        
-        if not message.media_file_id:
-            logger.error(f"下载任务: 消息 {message_id} 没有文件ID")
-            return
-        
-        # 获取必要的信息后立即关闭连接
-        db_id = message.id  # 数据库主键ID，用于更新进度
-        media_file_id = message.media_file_id
-        media_type = message.media_type
-        media_filename = message.media_filename
-        group_id = message.group_id
-        message_id_telegram = message.message_id
-        group_telegram_id = message.group.telegram_id if message.group else None
-        
-    finally:
-        db.close()
+    # 使用优化的数据库会话获取必要信息
+    def get_message_info():
+        try:
+            with optimized_db_session(autocommit=False, max_retries=3) as db:
+                message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
+                if not message:
+                    logger.error(f"下载任务: 消息 {message_id} 不存在")
+                    return None
+                
+                if not message.media_file_id:
+                    logger.error(f"下载任务: 消息 {message_id} 没有文件ID")
+                    return None
+                
+                # 获取必要的信息
+                info = {
+                    'db_id': message.id,
+                    'media_file_id': message.media_file_id,
+                    'media_type': message.media_type,
+                    'media_filename': message.media_filename,
+                    'group_id': message.group_id,
+                    'message_id_telegram': message.message_id,
+                    'group_telegram_id': message.group.telegram_id if message.group else None
+                }
+                return info
+        except Exception as e:
+            logger.error(f"获取消息信息失败: {e}")
+            return None
     
-    # 清除之前的错误信息（单独的数据库操作）
-    db = SessionLocal()
     try:
-        message = db.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
-        if message:
-            message.media_download_error = None
-            db.commit()
+        message_info = get_message_info()
+        if not message_info:
+            return
+        
+        # 提取变量
+        db_id = message_info['db_id']
+        media_file_id = message_info['media_file_id']
+        media_type = message_info['media_type']
+        media_filename = message_info['media_filename']
+        group_id = message_info['group_id']
+        message_id_telegram = message_info['message_id_telegram']
+        group_telegram_id = message_info['group_telegram_id']
+        
     except Exception as e:
-        logger.warning(f"清除错误信息失败: {e}")
-        db.rollback()
-    finally:
-        db.close()
+        logger.error(f"获取消息信息失败: {e}")
+        return
+    
+    # 清除之前的错误信息（使用优化的数据库会话）
+    def clear_previous_error():
+        try:
+            with optimized_db_session(autocommit=True, max_retries=3) as db:
+                message = db.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
+                if message:
+                    message.media_download_error = None
+        except Exception as e:
+            logger.warning(f"清除错误信息失败: {e}")
+            raise
+    
+    try:
+        clear_previous_error()
+    except Exception as e:
+        logger.warning(f"清除错误信息最终失败: {e}")
         
     # 执行实际下载（不持有数据库连接）
     file_path = None
@@ -1346,8 +1372,8 @@ async def download_media_background(message_id: int, force: bool = False):
                 current_time = time.time()
                 time_diff = current_time - last_update_time
                 
-                # 每秒最多更新一次数据库
-                if time_diff >= 1.0:
+                # 每2秒更新一次数据库，减少数据库访问频率
+                if time_diff >= 2.0:
                     # 计算下载速度
                     size_diff = current_bytes - last_downloaded_size
                     download_speed = size_diff / time_diff if time_diff > 0 else 0
@@ -1356,24 +1382,27 @@ async def download_media_background(message_id: int, force: bool = False):
                     remaining_bytes = total_bytes - current_bytes
                     estimated_time = remaining_bytes / download_speed if download_speed > 0 else 0
                     
-                    # 更新数据库
-                    db_update = SessionLocal()
+                    # 使用优化的数据库会话更新进度
+                    def update_progress():
+                        try:
+                            with optimized_db_session(autocommit=True, max_retries=3) as db_update:
+                                msg = db_update.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
+                                if msg:
+                                    msg.download_progress = progress_percent
+                                    msg.downloaded_size = current_bytes
+                                    msg.download_speed = int(download_speed)
+                                    msg.estimated_time_remaining = int(estimated_time)
+                                    if not msg.download_started_at:
+                                        from datetime import datetime, timezone
+                                        msg.download_started_at = datetime.now(timezone.utc)
+                        except Exception as e:
+                            logger.error(f"更新下载进度失败: {e}")
+                            raise
+                    
                     try:
-                        msg = db_update.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
-                        if msg:
-                            msg.download_progress = progress_percent
-                            msg.downloaded_size = current_bytes
-                            msg.download_speed = int(download_speed)
-                            msg.estimated_time_remaining = int(estimated_time)
-                            if not msg.download_started_at:
-                                from datetime import datetime, timezone
-                                msg.download_started_at = datetime.now(timezone.utc)
-                            db_update.commit()
+                        update_progress()
                     except Exception as e:
-                        logger.error(f"更新下载进度失败: {e}")
-                        db_update.rollback()
-                    finally:
-                        db_update.close()
+                        logger.warning(f"进度更新重试失败，跳过此次更新: {e}")
                     
                     last_update_time = current_time
                     last_downloaded_size = current_bytes
@@ -1424,45 +1453,40 @@ async def download_media_background(message_id: int, force: bool = False):
         download_error = f"下载过程中发生错误: {str(e)}"
         logger.error(f"下载任务异常: {download_error}")
     
-    # 最后更新数据库状态（单独的短连接，带重试）
-    @db_retry(max_retries=3, delay=0.1, backoff=2.0)
+    # 最后更新数据库状态（使用优化的数据库会话）
     def update_database_status():
-        db = SessionLocal()
         try:
-            message = db.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
-            if message:
-                if download_success and file_path:
-                    message.media_downloaded = True
-                    message.media_path = file_path
-                    message.media_download_error = None
+            with optimized_db_session(autocommit=True, max_retries=5) as db:
+                message = db.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
+                if message:
+                    if download_success and file_path:
+                        message.media_downloaded = True
+                        message.media_path = file_path
+                        message.media_download_error = None
+                        
+                        # 设置完成状态的进度信息
+                        message.download_progress = 100
+                        message.download_speed = 0
+                        message.estimated_time_remaining = 0
+                        
+                        # 获取实际文件大小
+                        if os.path.exists(file_path):
+                            actual_size = os.path.getsize(file_path)
+                            message.media_size = actual_size
+                            message.downloaded_size = actual_size
+                    else:
+                        message.media_download_error = download_error
+                        # 重置进度信息
+                        message.download_progress = 0
+                        message.downloaded_size = 0
+                        message.download_speed = 0
+                        message.estimated_time_remaining = 0
                     
-                    # 设置完成状态的进度信息
-                    message.download_progress = 100
-                    message.download_speed = 0
-                    message.estimated_time_remaining = 0
+                    logger.info(f"数据库状态更新完成: 消息 {message_id}")
                     
-                    # 获取实际文件大小
-                    if os.path.exists(file_path):
-                        actual_size = os.path.getsize(file_path)
-                        message.media_size = actual_size
-                        message.downloaded_size = actual_size
-                else:
-                    message.media_download_error = download_error
-                    # 重置进度信息
-                    message.download_progress = 0
-                    message.downloaded_size = 0
-                    message.download_speed = 0
-                    message.estimated_time_remaining = 0
-                
-                db.commit()
-                logger.info(f"数据库状态更新完成: 消息 {message_id}")
-                
         except Exception as e:
             logger.error(f"更新数据库状态失败: {str(e)}")
-            db.rollback()
             raise
-        finally:
-            db.close()
     
     try:
         update_database_status()

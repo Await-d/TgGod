@@ -267,6 +267,16 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 async def startup_event():
     logger.info("Starting TgGod API...")
     
+    # 初始化数据库优化配置
+    try:
+        logger.info("🔧 初始化数据库优化配置...")
+        from .utils.db_optimization import initialize_database_optimization
+        initialize_database_optimization()
+        logger.info("✅ 数据库优化配置完成")
+    except Exception as e:
+        logger.error(f"数据库优化配置失败: {e}")
+        logger.warning("将继续启动，但可能影响并发性能")
+    
     # 运行Jellyfin字段修复脚本
     try:
         logger.info("🔧 开始检查Jellyfin字段...")

@@ -12,18 +12,18 @@ database_url = os.environ.get("DATABASE_URL", "sqlite:////app/data/tggod.db")
 
 # 同步数据库引擎
 if "sqlite" in database_url:
-    # SQLite特殊配置，增加超时和WAL模式，优化并发处理
+    # SQLite特殊配置，优化并发处理和锁超时
     engine = create_engine(
         database_url,
         connect_args={
             "check_same_thread": False,
-            "timeout": 60,  # 增加到60秒超时
+            "timeout": 30,  # 减少超时时间，快速失败重试
             "isolation_level": None,  # 关闭事务隔离，使用autocommit
         },
         pool_pre_ping=True,  # 连接池预检查
-        pool_recycle=1800,   # 30分钟回收连接
-        pool_size=20,        # 增加连接池大小
-        max_overflow=30,     # 允许额外连接
+        pool_recycle=900,    # 15分钟回收连接，更频繁
+        pool_size=10,        # 减少连接池大小，避免过多连接
+        max_overflow=20,     # 减少额外连接数
         echo=False
     )
 else:
