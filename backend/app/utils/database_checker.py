@@ -36,7 +36,7 @@ class DatabaseChecker:
                 'id', 'message_id', 'group_id', 'sender_id', 'sender_name',
                 'sender_username', 'text', 'media_type', 'file_size', 'file_path',
                 'is_forwarded', 'forward_from', 'date', 'views', 'reply_to_message_id',
-                'created_at', 'updated_at'
+                'media_group_id', 'created_at', 'updated_at'
             ],
             'filter_rules': [
                 'id', 'name', 'group_id', 'keywords', 'exclude_keywords',

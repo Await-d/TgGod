@@ -64,6 +64,7 @@ class TelegramMessage(Base):
     mentions = Column(JSON, nullable=True)  # 提及的用户
     hashtags = Column(JSON, nullable=True)  # 话题标签
     urls = Column(JSON, nullable=True)  # 消息中的链接
+    media_group_id = Column(String(255), nullable=True, index=True)  # Telegram媒体组ID（用于分组多文件消息）
     
     date = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

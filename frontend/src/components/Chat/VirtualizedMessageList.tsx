@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, useMemo, useState, forwardRef, u
 import { TelegramMessage } from '../../types';
 import MessageBubble from './MessageBubble';
 import MessageGroupBubble from './MessageGroupBubble';
-import { useVirtualScroll } from '../../hooks/useVirtualScroll';
+// import { useVirtualScroll } from '../../hooks/useVirtualScroll';
 import { Typography } from 'antd';
 import './VirtualizedMessageList.css';
 
@@ -38,9 +38,13 @@ interface VirtualizedMessageListProps {
   }) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
+  // 🔥 新增：批量下载相关属性
+  selectionMode?: boolean;
+  selectedMessages?: Set<number>;
+  onMessageSelect?: (messageId: number) => void;
 }
 
-const ESTIMATED_MESSAGE_HEIGHT = 120; // 估计的消息高度
+// const ESTIMATED_MESSAGE_HEIGHT = 120; // 估计的消息高度
 
 // 消息分组接口
 interface MessageGroup {
@@ -52,14 +56,22 @@ interface MessageGroup {
 
 // 将消息按照相同的原始消息进行分组
 const groupMessages = (messages: TelegramMessage[]): MessageGroup[] => {
+  if (messages.length === 0) return [];
+  
   const groups = new Map<string, TelegramMessage[]>();
   
   messages.forEach(message => {
-    // 使用 message_id + sender_id + 时间窗口作为分组键
-    // 如果消息在5秒内且来自同一发送者，认为是同一组
-    const timestamp = new Date(message.date).getTime();
-    const timeWindow = Math.floor(timestamp / (5 * 1000)); // 5秒窗口
-    const groupKey = `${message.message_id}_${message.sender_id}_${timeWindow}`;
+    let groupKey: string;
+    
+    // 根据Telegram官方的分组标识来分组：
+    // 1. 如果有media_group_id，使用media_group_id作为分组键（Telegram官方的多媒体消息分组）
+    // 2. 如果没有media_group_id，每条消息单独成组
+    if (message.media_group_id) {
+      groupKey = `media_group_${message.media_group_id}`;
+    } else {
+      // 每条消息单独成组
+      groupKey = `single_${message.id}_${message.message_id}`;
+    }
     
     if (!groups.has(groupKey)) {
       groups.set(groupKey, []);
@@ -104,11 +116,14 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
     onScrollToTop,
     onScrollPositionChange,
     hasMore = false,
-    isLoadingMore = false
+    isLoadingMore = false,
+    // 🔥 新增：批量下载相关props
+    selectionMode = false,
+    selectedMessages = new Set<number>(),
+    onMessageSelect
   },
   ref
 ) => {
-  const itemHeightCache = useRef<Map<number, number>>(new Map());
   const messageRefs = useRef<{ [key: number]: HTMLDivElement }>({});
   const lastScrollTopRef = useRef<number>(0);
   const [scrollDirection, setScrollDirection] = useState<'up' | 'down'>('down');
@@ -431,6 +446,10 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
                 onOpenGallery={onOpenGallery}
                 onUpdateDownloadState={onUpdateDownloadState}
                 isMobile={isMobile}
+                // 🔥 新增：批量下载相关props
+                selectionMode={selectionMode}
+                selectedMessages={selectedMessages}
+                onMessageSelect={onMessageSelect}
               />
             ) : (
               // 多条消息，使用新的MessageGroupBubble
@@ -447,6 +466,10 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
                 onOpenGallery={onOpenGallery}
                 onUpdateDownloadState={onUpdateDownloadState}
                 isMobile={isMobile}
+                // 🔥 新增：批量下载相关props
+                selectionMode={selectionMode}
+                selectedMessages={selectedMessages}
+                onMessageSelect={onMessageSelect}
               />
             )}
           </div>

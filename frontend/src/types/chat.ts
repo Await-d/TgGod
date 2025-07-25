@@ -55,6 +55,10 @@ export interface MessageBubbleProps {
   onJumpToGroup?: (groupId: number) => void;
   onJumpToMessage?: (messageId: number) => void;
   onUpdateDownloadState?: (messageId: number, state: any) => void;
+  // 🔥 新增：批量下载相关属性
+  selectionMode?: boolean;
+  selectedMessages?: Set<number>;
+  onMessageSelect?: (messageId: number) => void;
 }
 
 export interface MessageInputProps {

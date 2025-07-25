@@ -765,6 +765,10 @@ const MessageArea: React.FC<MessageAreaProps> = ({
               hasMore={hasMoreMessages}
               isLoadingMore={isLoadingMore}
               ref={virtualListRef} // 添加ref，用于控制滚动
+              // 🔥 新增：批量下载相关props
+              selectionMode={selectionMode}
+              selectedMessages={selectedMessages}
+              onMessageSelect={onMessageSelect}
             />
           </>
         )}

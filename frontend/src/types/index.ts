@@ -154,6 +154,7 @@ export interface TelegramMessage {
   mentions?: string[];
   hashtags?: string[];
   urls?: string[];
+  media_group_id?: string; // 新增：Telegram媒体组ID（用于分组多文件消息）
   date: string;
   created_at: string;
   updated_at?: string;
