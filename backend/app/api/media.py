@@ -366,24 +366,26 @@ async def cancel_batch_download(
             cancelled_downloads.add(message_id)
             cancelled_count += 1
             
-            # 更新数据库状态（带重试）
-            @db_retry(max_retries=3, delay=0.1, backoff=2.0)
+            # 更新数据库状态（使用优化的数据库会话）
             def update_cancel_status():
-                message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
-                if message and not message.media_downloaded:
-                    message.download_progress = 0
-                    message.downloaded_size = 0
-                    message.download_speed = 0
-                    message.estimated_time_remaining = 0
-                    message.download_started_at = None
-                    message.media_download_error = "下载已取消"
-                db.commit()
+                try:
+                    with optimized_db_session(autocommit=True, max_retries=3) as db_session:
+                        message = db_session.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
+                        if message and not message.media_downloaded:
+                            message.download_progress = 0
+                            message.downloaded_size = 0
+                            message.download_speed = 0
+                            message.estimated_time_remaining = 0
+                            message.download_started_at = None
+                            message.media_download_error = "下载已取消"
+                except Exception as e:
+                    logger.error(f"取消下载时数据库更新失败: {str(e)}")
+                    raise
             
             try:
                 update_cancel_status()
             except Exception as e:
                 logger.error(f"取消下载时数据库更新失败 (消息 {message_id}): {str(e)}")
-                db.rollback()
     
     logger.info(f"批量下载任务已取消: {batch_id}, 取消了 {cancelled_count} 个下载")
     
@@ -501,18 +503,16 @@ async def concurrent_download_single_file(message_id: int, force: bool = False, 
     
     except Exception as e:
         logger.error(f"并发下载失败: 消息 {message_id}, 错误: {str(e)}")
-        # 更新数据库状态为失败
+        # 更新数据库状态为失败（使用优化的数据库会话）
         try:
-            from app.database import get_db
-            db = next(get_db())
-            message = db.query(TelegramMessage).filter(
-                TelegramMessage.message_id == message_id
-            ).first()
-            
-            if message:
-                message.media_download_error = str(e)
-                message.download_progress = 0
-                db.commit()
+            with optimized_db_session(autocommit=True, max_retries=3) as db:
+                message = db.query(TelegramMessage).filter(
+                    TelegramMessage.message_id == message_id
+                ).first()
+                
+                if message:
+                    message.media_download_error = str(e)
+                    message.download_progress = 0
         except Exception as db_error:
             logger.error(f"更新下载失败状态时数据库错误: {str(db_error)}")
         
@@ -818,16 +818,21 @@ async def cancel_download(
     # 标记为已取消
     cancelled_downloads.add(message_id)
     
-    @db_retry(max_retries=3, delay=0.1, backoff=2.0)
     def reset_download_status():
-        # 重置下载状态
-        message.download_progress = 0
-        message.downloaded_size = 0
-        message.download_speed = 0
-        message.estimated_time_remaining = 0
-        message.download_started_at = None
-        message.media_download_error = "下载已取消"
-        db.commit()
+        try:
+            with optimized_db_session(autocommit=True, max_retries=3) as db_session:
+                # 重置下载状态
+                message = db_session.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
+                if message:
+                    message.download_progress = 0
+                    message.downloaded_size = 0
+                    message.download_speed = 0
+                    message.estimated_time_remaining = 0
+                    message.download_started_at = None
+                    message.media_download_error = "下载已取消"
+        except Exception as e:
+            logger.error(f"重置下载状态失败: {str(e)}")
+            raise
     
     try:
         reset_download_status()
@@ -841,7 +846,6 @@ async def cancel_download(
         
     except Exception as e:
         logger.error(f"取消下载时数据库更新失败: {str(e)}")
-        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"取消下载失败: {str(e)}"

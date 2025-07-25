@@ -96,7 +96,8 @@
       "Bash(source:*)",
       "mcp__ide__getDiagnostics",
       "Bash(true)",
-      "Bash(alembic:*)"
+      "Bash(alembic:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": []
   }

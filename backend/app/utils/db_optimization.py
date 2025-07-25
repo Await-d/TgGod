@@ -92,7 +92,8 @@ def optimized_db_session(autocommit: bool = True, max_retries: int = 3):
             
             if autocommit:
                 # 使用autocommit模式减少锁持有时间
-                session.execute("BEGIN IMMEDIATE;")
+                from sqlalchemy import text
+                session.execute(text("BEGIN IMMEDIATE;"))
             
             yield session
             
@@ -192,20 +193,22 @@ def get_database_stats() -> dict:
         with optimized_db_session(autocommit=False) as session:
             stats = {}
             
+            from sqlalchemy import text
+            
             # 获取SQLite版本
-            result = session.execute("SELECT sqlite_version();").fetchone()
+            result = session.execute(text("SELECT sqlite_version();")).fetchone()
             stats['sqlite_version'] = result[0] if result else 'Unknown'
             
             # 获取数据库配置
             for pragma in ['journal_mode', 'synchronous', 'cache_size', 'foreign_keys', 'busy_timeout']:
-                result = session.execute(f"PRAGMA {pragma};").fetchone()
+                result = session.execute(text(f"PRAGMA {pragma};")).fetchone()
                 stats[pragma] = result[0] if result else 'N/A'
             
             # 获取数据库大小信息
-            result = session.execute("PRAGMA page_size;").fetchone()
+            result = session.execute(text("PRAGMA page_size;")).fetchone()
             page_size = result[0] if result else 0
             
-            result = session.execute("PRAGMA page_count;").fetchone()
+            result = session.execute(text("PRAGMA page_count;")).fetchone()
             page_count = result[0] if result else 0
             
             stats['database_size_bytes'] = page_size * page_count
