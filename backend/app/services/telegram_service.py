@@ -227,7 +227,8 @@ class TelegramService:
                 "reactions": None,
                 "mentions": [],
                 "hashtags": [],
-                "urls": []
+                "urls": [],
+                "media_group_id": getattr(message, 'grouped_id', None)  # 获取Telegram媒体组ID
             }
             
             # 发送者信息
@@ -557,7 +558,7 @@ class TelegramService:
             'view_count', 'is_forwarded', 'forwarded_from', 'forwarded_from_id',
             'forwarded_from_type', 'forwarded_date', 'is_own_message',
             'reply_to_message_id', 'edit_date', 'is_pinned', 'reactions',
-            'mentions', 'hashtags', 'urls', 'date'
+            'mentions', 'hashtags', 'urls', 'media_group_id', 'date'
         }
         
         for key, value in message_data.items():
