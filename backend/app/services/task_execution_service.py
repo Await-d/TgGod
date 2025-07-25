@@ -9,7 +9,7 @@ from ..models.rule import DownloadTask, FilterRule
 from ..models.telegram import TelegramMessage, TelegramGroup
 from ..models.log import TaskLog
 from .media_downloader import TelegramMediaDownloader
-from ..database import SessionLocal
+from ..utils.db_optimization import optimized_db_session
 from ..websocket.manager import websocket_manager
 from datetime import datetime, timezone
 
@@ -73,16 +73,12 @@ class TaskExecutionService:
         task.cancel()
         
         # 更新数据库状态
-        db = SessionLocal()
-        try:
+        with optimized_db_session() as db:
             download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
             if download_task:
                 download_task.status = "paused"
-                db.commit()
                 
                 await self._log_task_event(task_id, "INFO", f"任务已暂停")
-        finally:
-            db.close()
         
         del self.running_tasks[task_id]
         logger.info(f"任务 {task_id} 已暂停")
@@ -98,17 +94,13 @@ class TaskExecutionService:
         task.cancel()
         
         # 更新数据库状态
-        db = SessionLocal()
-        try:
+        with optimized_db_session() as db:
             download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
             if download_task:
                 download_task.status = "failed"
                 download_task.error_message = "任务被手动停止"
-                db.commit()
                 
                 await self._log_task_event(task_id, "INFO", f"任务已停止")
-        finally:
-            db.close()
         
         del self.running_tasks[task_id]
         logger.info(f"任务 {task_id} 已停止")
@@ -116,98 +108,95 @@ class TaskExecutionService:
     
     async def _execute_task(self, task_id: int):
         """执行具体的下载任务"""
-        db = SessionLocal()
-        try:
-            # 获取任务信息
-            download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
-            if not download_task:
-                logger.error(f"任务 {task_id} 不存在")
-                return
+        with optimized_db_session() as db:
+            try:
+                # 获取任务信息
+                download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
+                if not download_task:
+                    logger.error(f"任务 {task_id} 不存在")
+                    return
+                
+                # 获取规则和群组信息
+                rule = db.query(FilterRule).filter(FilterRule.id == download_task.rule_id).first()
+                group = db.query(TelegramGroup).filter(TelegramGroup.id == download_task.group_id).first()
+                
+                if not rule or not group:
+                    await self._handle_task_error(task_id, "规则或群组不存在", db)
+                    return
+                
+                await self._log_task_event(task_id, "INFO", f"开始执行任务: {download_task.name}")
+                
+                # 应用规则筛选消息，并考虑任务的日期范围
+                messages = await self._filter_messages(rule, group, download_task, db)
+                total_messages = len(messages)
+                
+                if total_messages == 0:
+                    await self._handle_task_completion(task_id, "没有找到符合条件的消息", db)
+                    return
+                
+                # 更新任务总数
+                download_task.total_messages = total_messages
+                download_task.downloaded_messages = 0
+                download_task.progress = 0
+                
+                await self._log_task_event(task_id, "INFO", f"找到 {total_messages} 条符合条件的消息")
+                
+                # 创建下载目录
+                download_dir = os.path.join(download_task.download_path)
+                os.makedirs(download_dir, exist_ok=True)
+                
+                # 执行下载
+                downloaded_count = 0
+                failed_count = 0
+                
+                for i, message in enumerate(messages):
+                    try:
+                        # 检查任务是否被取消
+                        if task_id not in self.running_tasks:
+                            logger.info(f"任务 {task_id} 已被取消")
+                            return
+                        
+                        # 下载媒体文件
+                        if message.media_type and message.media_type != 'text':
+                            success = await self._download_message_media(message, download_task, group, task_id)
+                            if success:
+                                downloaded_count += 1
+                            else:
+                                failed_count += 1
+                        
+                        # 更新进度
+                        progress = int((i + 1) / total_messages * 100)
+                        download_task.progress = progress
+                        download_task.downloaded_messages = downloaded_count
+                        
+                        # 发送进度更新
+                        await self._send_progress_update(task_id, progress, downloaded_count, total_messages)
+                        
+                        # 避免过于频繁的下载
+                        await asyncio.sleep(0.5)
+                        
+                    except Exception as e:
+                        logger.error(f"下载消息 {message.id} 失败: {e}")
+                        failed_count += 1
+                        await self._log_task_event(task_id, "ERROR", f"下载消息 {message.id} 失败: {str(e)}")
+                
+                # 任务完成
+                await self._handle_task_completion(
+                    task_id, 
+                    f"任务完成，成功下载 {downloaded_count} 个文件，失败 {failed_count} 个", 
+                    db
+                )
             
-            # 获取规则和群组信息
-            rule = db.query(FilterRule).filter(FilterRule.id == download_task.rule_id).first()
-            group = db.query(TelegramGroup).filter(TelegramGroup.id == download_task.group_id).first()
-            
-            if not rule or not group:
-                await self._handle_task_error(task_id, "规则或群组不存在", db)
-                return
-            
-            await self._log_task_event(task_id, "INFO", f"开始执行任务: {download_task.name}")
-            
-            # 应用规则筛选消息，并考虑任务的日期范围
-            messages = await self._filter_messages(rule, group, download_task, db)
-            total_messages = len(messages)
-            
-            if total_messages == 0:
-                await self._handle_task_completion(task_id, "没有找到符合条件的消息", db)
-                return
-            
-            # 更新任务总数
-            download_task.total_messages = total_messages
-            download_task.downloaded_messages = 0
-            download_task.progress = 0
-            db.commit()
-            
-            await self._log_task_event(task_id, "INFO", f"找到 {total_messages} 条符合条件的消息")
-            
-            # 创建下载目录
-            download_dir = os.path.join(download_task.download_path)
-            os.makedirs(download_dir, exist_ok=True)
-            
-            # 执行下载
-            downloaded_count = 0
-            failed_count = 0
-            
-            for i, message in enumerate(messages):
-                try:
-                    # 检查任务是否被取消
-                    if task_id not in self.running_tasks:
-                        logger.info(f"任务 {task_id} 已被取消")
-                        return
-                    
-                    # 下载媒体文件
-                    if message.media_type and message.media_type != 'text':
-                        success = await self._download_message_media(message, download_task, group, task_id)
-                        if success:
-                            downloaded_count += 1
-                        else:
-                            failed_count += 1
-                    
-                    # 更新进度
-                    progress = int((i + 1) / total_messages * 100)
-                    download_task.progress = progress
-                    download_task.downloaded_messages = downloaded_count
-                    db.commit()
-                    
-                    # 发送进度更新
-                    await self._send_progress_update(task_id, progress, downloaded_count, total_messages)
-                    
-                    # 避免过于频繁的下载
-                    await asyncio.sleep(0.5)
-                    
-                except Exception as e:
-                    logger.error(f"下载消息 {message.id} 失败: {e}")
-                    failed_count += 1
-                    await self._log_task_event(task_id, "ERROR", f"下载消息 {message.id} 失败: {str(e)}")
-            
-            # 任务完成
-            await self._handle_task_completion(
-                task_id, 
-                f"任务完成，成功下载 {downloaded_count} 个文件，失败 {failed_count} 个", 
-                db
-            )
-            
-        except asyncio.CancelledError:
-            logger.info(f"任务 {task_id} 被取消")
-            raise
-        except Exception as e:
-            logger.error(f"执行任务 {task_id} 时发生错误: {e}")
-            await self._handle_task_error(task_id, str(e), db)
-        finally:
-            db.close()
-            # 清理运行中的任务记录
-            if task_id in self.running_tasks:
-                del self.running_tasks[task_id]
+            except asyncio.CancelledError:
+                logger.info(f"任务 {task_id} 被取消")
+                raise
+            except Exception as e:
+                logger.error(f"执行任务 {task_id} 时发生错误: {e}")
+                await self._handle_task_error(task_id, str(e), db)
+            finally:
+                # 清理运行中的任务记录
+                if task_id in self.running_tasks:
+                    del self.running_tasks[task_id]
     
     async def _filter_messages(self, rule: FilterRule, group: TelegramGroup, task: DownloadTask, db: Session) -> List[TelegramMessage]:
         """根据规则筛选消息，同时考虑任务的日期范围"""
@@ -392,29 +381,26 @@ class TaskExecutionService:
     
     async def _log_task_event(self, task_id: int, level: str, message: str, details: Optional[Dict] = None):
         """记录任务事件日志"""
-        db = SessionLocal()
         try:
-            log_entry = TaskLog(
-                task_id=task_id,
-                level=level,
-                message=message,
-                details=details
-            )
-            db.add(log_entry)
-            db.commit()
-            
-            # 通过WebSocket发送日志
-            await websocket_manager.broadcast({
-                "type": "task_log",
-                "task_id": task_id,
-                "level": level,
-                "message": message,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            })
+            with optimized_db_session() as db:
+                log_entry = TaskLog(
+                    task_id=task_id,
+                    level=level,
+                    message=message,
+                    details=details
+                )
+                db.add(log_entry)
+                
+                # 通过WebSocket发送日志
+                await websocket_manager.broadcast({
+                    "type": "task_log",
+                    "task_id": task_id,
+                    "level": level,
+                    "message": message,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
         except Exception as e:
             logger.error(f"记录任务日志失败: {e}")
-        finally:
-            db.close()
     
     async def _log_download_progress(self, task_id: int, message_id: int, current: int, total: int):
         """记录下载进度"""
