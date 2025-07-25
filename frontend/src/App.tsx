@@ -7,7 +7,6 @@ import Dashboard from './pages/Dashboard';
 import Groups from './pages/Groups';
 import Messages from './pages/Messages';
 import Rules from './pages/Rules';
-import Downloads from './pages/Downloads';
 import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 import DatabaseStatus from './pages/DatabaseStatus';
@@ -107,15 +106,6 @@ const App: React.FC = () => {
             <MainLayout>
               <Content>
                 <Rules />
-              </Content>
-            </MainLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/downloads" element={
-          <ProtectedRoute>
-            <MainLayout>
-              <Content>
-                <Downloads />
               </Content>
             </MainLayout>
           </ProtectedRoute>
