@@ -148,6 +148,7 @@ def convert_message_to_response_dict(message):
         'mentions': message.mentions,
         'hashtags': message.hashtags,
         'urls': message.urls,
+        'media_group_id': getattr(message, 'media_group_id', None),  # 安全获取media_group_id字段
         'date': message.date,
         'created_at': message.created_at,
         'updated_at': message.updated_at
@@ -221,6 +222,7 @@ class MessageResponse(BaseModel):
     mentions: Optional[list]
     hashtags: Optional[list]
     urls: Optional[list]
+    media_group_id: Optional[str]  # Telegram媒体组ID
     date: datetime
     created_at: datetime
     updated_at: Optional[datetime]
