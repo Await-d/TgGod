@@ -1,6 +1,8 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from .database import engine, Base
 from .config import settings, init_settings
 from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check, download_history
@@ -52,23 +54,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 全局异常处理器
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"全局异常捕获: {request.method} {request.url} - {type(exc).__name__}: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "error": str(exc)}
+    )
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    logger.warning(f"HTTP异常: {request.method} {request.url} - 状态码: {exc.status_code} - 详情: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+
 # 添加请求日志中间件
 @app.middleware("http")
 async def log_requests(request, call_next):
     start_time = time.time()
     
-    # 记录请求信息
-    logger.info(f"🔵 请求开始: {request.method} {request.url}")
-    logger.info(f"🔵 请求头: {dict(request.headers)}")
-    
-    # 处理请求
-    response = await call_next(request)
-    
-    # 记录响应信息
-    process_time = time.time() - start_time
-    logger.info(f"🟢 请求完成: {request.method} {request.url} - 状态码: {response.status_code} - 耗时: {process_time:.4f}s")
-    
-    return response
+    try:
+        # 记录请求信息
+        logger.info(f"🔵 请求开始: {request.method} {request.url}")
+        logger.debug(f"🔵 请求头: {dict(request.headers)}")
+        
+        # 处理请求
+        response = await call_next(request)
+        
+        # 记录响应信息
+        process_time = time.time() - start_time
+        logger.info(f"🟢 请求完成: {request.method} {request.url} - 状态码: {response.status_code} - 耗时: {process_time:.4f}s")
+        
+        return response
+        
+    except Exception as e:
+        # 记录错误信息
+        process_time = time.time() - start_time
+        logger.error(f"❌ 请求失败: {request.method} {request.url} - 错误: {str(e)} - 耗时: {process_time:.4f}s")
+        
+        # 重新抛出异常，让FastAPI处理
+        raise
 
 # 静态文件服务
 # 确保媒体目录存在
@@ -85,42 +113,48 @@ if os.path.exists(settings.media_root):
     
     class MediaHeaders(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
-            response = await call_next(request)
-            
-            # 为媒体文件添加适当的MIME类型和头部
-            if request.url.path.startswith('/media/'):
-                file_ext = request.url.path.split('.')[-1].lower()
+            try:
+                response = await call_next(request)
                 
-                # 视频文件类型
-                if file_ext in ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv']:
-                    response.headers["Accept-Ranges"] = "bytes"
-                    response.headers["Content-Type"] = f"video/{file_ext}"
-                    if file_ext == 'mp4':
-                        response.headers["Content-Type"] = "video/mp4"
-                    elif file_ext == 'webm':
-                        response.headers["Content-Type"] = "video/webm"
-                    elif file_ext == 'avi':
-                        response.headers["Content-Type"] = "video/x-msvideo"
+                # 为媒体文件添加适当的MIME类型和头部
+                if request.url.path.startswith('/media/'):
+                    file_ext = request.url.path.split('.')[-1].lower()
+                    
+                    # 视频文件类型
+                    if file_ext in ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv']:
+                        response.headers["Accept-Ranges"] = "bytes"
+                        response.headers["Content-Type"] = f"video/{file_ext}"
+                        if file_ext == 'mp4':
+                            response.headers["Content-Type"] = "video/mp4"
+                        elif file_ext == 'webm':
+                            response.headers["Content-Type"] = "video/webm"
+                        elif file_ext == 'avi':
+                            response.headers["Content-Type"] = "video/x-msvideo"
+                    
+                    # 图片文件类型  
+                    elif file_ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
+                        response.headers["Content-Type"] = f"image/{file_ext}"
+                        if file_ext in ['jpg', 'jpeg']:
+                            response.headers["Content-Type"] = "image/jpeg"
+                    
+                    # 音频文件类型
+                    elif file_ext in ['mp3', 'wav', 'ogg', 'flac', 'aac']:
+                        response.headers["Content-Type"] = f"audio/{file_ext}"
+                        if file_ext == 'mp3':
+                            response.headers["Content-Type"] = "audio/mpeg"
+                    
+                    # 设置缓存头部
+                    response.headers["Cache-Control"] = "public, max-age=3600"
+                    response.headers["Access-Control-Allow-Origin"] = "*"
+                    response.headers["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
+                    response.headers["Access-Control-Allow-Headers"] = "Range"
+                    
+                return response
                 
-                # 图片文件类型  
-                elif file_ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
-                    response.headers["Content-Type"] = f"image/{file_ext}"
-                    if file_ext in ['jpg', 'jpeg']:
-                        response.headers["Content-Type"] = "image/jpeg"
-                
-                # 音频文件类型
-                elif file_ext in ['mp3', 'wav', 'ogg', 'flac', 'aac']:
-                    response.headers["Content-Type"] = f"audio/{file_ext}"
-                    if file_ext == 'mp3':
-                        response.headers["Content-Type"] = "audio/mpeg"
-                
-                # 设置缓存头部
-                response.headers["Cache-Control"] = "public, max-age=3600"
-                response.headers["Access-Control-Allow-Origin"] = "*"
-                response.headers["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
-                response.headers["Access-Control-Allow-Headers"] = "Range"
-                
-            return response
+            except Exception as e:
+                logger.error(f"MediaHeaders中间件错误: {str(e)}")
+                # 重新抛出异常，让上层处理
+                raise
     
     # 添加媒体文件处理中间件
     app.add_middleware(MediaHeaders)
@@ -369,6 +403,7 @@ async def startup_event():
         logger.info("Task execution service initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize task execution service: {e}")
+        logger.warning("Task execution service disabled, system will continue startup without it")
     
     logger.info("Database tables created successfully")
     

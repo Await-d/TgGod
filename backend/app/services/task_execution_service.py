@@ -9,7 +9,6 @@ from ..models.rule import DownloadTask, FilterRule
 from ..models.telegram import TelegramMessage, TelegramGroup
 from ..models.log import TaskLog
 from .media_downloader import TelegramMediaDownloader
-from .jellyfin_media_service import JellyfinMediaService
 from ..database import SessionLocal
 from ..websocket.manager import websocket_manager
 from datetime import datetime, timezone
@@ -22,7 +21,7 @@ class TaskExecutionService:
     def __init__(self):
         self.running_tasks: Dict[int, asyncio.Task] = {}
         self.media_downloader = TelegramMediaDownloader()
-        self.jellyfin_service = JellyfinMediaService()
+        self.jellyfin_service = None  # 延迟导入
         self._initialized = False
     
     async def initialize(self):
@@ -32,6 +31,16 @@ class TaskExecutionService:
         
         try:
             await self.media_downloader.initialize()
+            
+            # 延迟导入 JellyfinMediaService 避免循环导入
+            try:
+                from .jellyfin_media_service import JellyfinMediaService
+                self.jellyfin_service = JellyfinMediaService()
+                logger.info("Jellyfin媒体服务初始化成功")
+            except ImportError as e:
+                logger.warning(f"Jellyfin媒体服务导入失败，将禁用Jellyfin功能: {e}")
+                self.jellyfin_service = None
+            
             self._initialized = True
             logger.info("任务执行服务初始化成功")
         except Exception as e:
@@ -254,7 +263,7 @@ class TaskExecutionService:
         """下载单个消息的媒体文件"""
         try:
             # 检查是否使用 Jellyfin 格式
-            if download_task.use_jellyfin_structure:
+            if download_task.use_jellyfin_structure and self.jellyfin_service:
                 # 使用 Jellyfin 服务下载
                 jellyfin_config = {
                     'use_jellyfin_structure': download_task.use_jellyfin_structure,
@@ -283,6 +292,10 @@ class TaskExecutionService:
                     logger.error(f"Jellyfin格式下载失败: {error_msg}")
                     await self._log_task_event(task_id, "ERROR", f"Jellyfin格式下载失败: {error_msg}")
                     return False
+            elif download_task.use_jellyfin_structure and not self.jellyfin_service:
+                # Jellyfin服务未可用，回退到传统下载
+                logger.warning("Jellyfin服务不可用，使用传统下载方式")
+                await self._log_task_event(task_id, "WARNING", "Jellyfin服务不可用，使用传统下载方式")
             else:
                 # 使用传统下载方式
                 download_dir = download_task.download_path
