@@ -39,25 +39,23 @@ class Settings:
         return SessionLocal()
     
     def _get_config(self, key: str, default=None):
-        """从数据库获取配置，带缓存"""
+        """从数据库获取配置，带缓存和优化的数据库访问"""
         if key in self._cache:
             return self._cache[key]
         
-        db = None
         try:
-            db = self.get_db()
-            from .services.config_service import config_service
-            value = config_service.get_config(key, db)
-            if value is not None:
-                self._cache[key] = value
-                return value
-            return default
+            # 使用优化的数据库会话
+            from .utils.db_optimization import optimized_db_session
+            with optimized_db_session(autocommit=False, max_retries=3) as db:
+                from .services.config_service import config_service
+                value = config_service.get_config(key, db)
+                if value is not None:
+                    self._cache[key] = value
+                    return value
+                return default
         except Exception as e:
             print(f"获取配置失败 {key}: {e}")
             return default
-        finally:
-            if db:
-                db.close()
     
     def _get_list_config(self, key: str, default: List[str] = None):
         """获取列表类型的配置"""
