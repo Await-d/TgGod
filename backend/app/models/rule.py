@@ -73,3 +73,36 @@ class DownloadTask(Base):
     group = relationship("TelegramGroup", back_populates="tasks")
     rule = relationship("FilterRule", back_populates="tasks")
     logs = relationship("TaskLog", back_populates="task", cascade="all, delete-orphan")
+    download_records = relationship("DownloadRecord", back_populates="task", cascade="all, delete-orphan")
+
+class DownloadRecord(Base):
+    """下载记录模型 - 记录每个具体下载的文件"""
+    __tablename__ = "download_records"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("download_tasks.id"), nullable=False)
+    
+    # 文件信息
+    file_name = Column(String(500), nullable=False)  # 原始文件名
+    local_file_path = Column(String(1000), nullable=False)  # 本地存储路径
+    file_size = Column(Integer, nullable=True)  # 文件大小（字节）
+    file_type = Column(String(50), nullable=True)  # 文件类型（photo, video, document等）
+    
+    # Telegram消息信息
+    message_id = Column(Integer, nullable=False)  # 消息ID
+    sender_id = Column(Integer, nullable=True)  # 发送者ID
+    sender_name = Column(String(255), nullable=True)  # 发送者名称
+    message_date = Column(DateTime(timezone=True), nullable=True)  # 消息发送时间
+    message_text = Column(Text, nullable=True)  # 消息文本内容
+    
+    # 下载状态
+    download_status = Column(String(50), default="completed")  # completed, failed, partial
+    download_progress = Column(Integer, default=100)  # 下载进度 0-100
+    error_message = Column(Text, nullable=True)  # 错误信息
+    
+    # 时间戳
+    download_started_at = Column(DateTime(timezone=True), nullable=True)  # 下载开始时间
+    download_completed_at = Column(DateTime(timezone=True), server_default=func.now())  # 下载完成时间
+    
+    # 关系
+    task = relationship("DownloadTask", back_populates="download_records")

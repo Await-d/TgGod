@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from .database import engine, Base
 from .config import settings, init_settings
-from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check
+from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check, download_history
 from .tasks.message_sync import message_sync_task
 import logging
 import os
@@ -153,6 +153,9 @@ app.include_router(media.router, prefix="/api/media", tags=["media"])
 
 # 数据库检查API
 app.include_router(database_check.router, prefix="/api/database", tags=["database"])
+
+# 下载历史API
+app.include_router(download_history.router, prefix="/api", tags=["download_history"])
 
 # 根路径
 @app.get("/")

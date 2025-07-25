@@ -1065,5 +1065,176 @@ export const dashboardApi = {
   }
 };
 
+// 下载历史相关API
+export const downloadHistoryApi = {
+  // 获取下载记录列表
+  getDownloadRecords: (params?: {
+    page?: number;
+    page_size?: number;
+    task_id?: number;
+    group_id?: number;
+    file_type?: string;
+    status?: string;
+    date_from?: string;
+    date_to?: string;
+    search?: string;
+  }): Promise<{
+    records: Array<{
+      id: number;
+      task_id: number;
+      task_name: string;
+      group_name: string;
+      file_name: string;
+      local_file_path: string;
+      file_size: number;
+      file_type: string;
+      message_id: number;
+      sender_id: number;
+      sender_name: string;
+      message_date: string;
+      message_text: string;
+      download_status: string;
+      download_progress: number;
+      error_message?: string;
+      download_started_at: string;
+      download_completed_at: string;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    return api.get('/download-history/records', { params });
+  },
+
+  // 获取单个下载记录详情
+  getDownloadRecord: (recordId: number): Promise<{
+    id: number;
+    task_id: number;
+    task_name: string;
+    group_name: string;
+    file_name: string;
+    local_file_path: string;
+    file_size: number;
+    file_type: string;
+    message_id: number;
+    sender_id: number;
+    sender_name: string;
+    message_date: string;
+    message_text: string;
+    download_status: string;
+    download_progress: number;
+    error_message?: string;
+    download_started_at: string;
+    download_completed_at: string;
+  }> => {
+    return api.get(`/download-history/records/${recordId}`);
+  },
+
+  // 获取下载历史统计信息
+  getDownloadStats: (days: number = 30): Promise<{
+    total_downloads: number;
+    successful_downloads: number;
+    failed_downloads: number;
+    success_rate: number;
+    total_file_size: number;
+    file_types: Record<string, number>;
+    top_tasks: Array<{ task_name: string; download_count: number }>;
+    period_days: number;
+  }> => {
+    return api.get('/download-history/stats', { params: { days } });
+  },
+
+  // 删除下载记录
+  deleteDownloadRecord: (recordId: number): Promise<{
+    message: string;
+    record_id: number;
+  }> => {
+    return api.delete(`/download-history/records/${recordId}`);
+  },
+
+  // 批量删除下载记录
+  batchDeleteRecords: (recordIds: number[]): Promise<{
+    message: string;
+    deleted_count: number;
+    requested_count: number;
+  }> => {
+    return api.post('/download-history/records/batch-delete', recordIds);
+  },
+
+  // 获取任务的下载记录
+  getTaskDownloadRecords: (taskId: number, params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    records: Array<{
+      id: number;
+      task_id: number;
+      task_name: string;
+      group_name: string;
+      file_name: string;
+      local_file_path: string;
+      file_size: number;
+      file_type: string;
+      message_id: number;
+      sender_id: number;
+      sender_name: string;
+      message_date: string;
+      message_text: string;
+      download_status: string;
+      download_progress: number;
+      error_message?: string;
+      download_started_at: string;
+      download_completed_at: string;
+    }>;
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }> => {
+    return api.get(`/download-history/tasks/${taskId}/records`, { params });
+  },
+
+  // 创建下载记录（供下载服务调用）
+  createDownloadRecord: (recordData: {
+    task_id: number;
+    file_name: string;
+    local_file_path: string;
+    file_size?: number;
+    file_type?: string;
+    message_id: number;
+    sender_id?: number;
+    sender_name?: string;
+    message_date?: string;
+    message_text?: string;
+    download_status?: string;
+    download_progress?: number;
+    error_message?: string;
+    download_started_at?: string;
+    download_completed_at?: string;
+  }): Promise<{
+    id: number;
+    task_id: number;
+    task_name: string;
+    group_name: string;
+    file_name: string;
+    local_file_path: string;
+    file_size: number;
+    file_type: string;
+    message_id: number;
+    sender_id: number;
+    sender_name: string;
+    message_date: string;
+    message_text: string;
+    download_status: string;
+    download_progress: number;
+    error_message?: string;
+    download_started_at: string;
+    download_completed_at: string;
+  }> => {
+    return api.post('/download-history/records', recordData);
+  },
+};
+
 // 导出默认API实例
 export default api;

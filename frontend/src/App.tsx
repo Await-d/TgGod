@@ -13,6 +13,7 @@ import DatabaseStatus from './pages/DatabaseStatus';
 import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
 import TaskManagement from './pages/TaskManagement';
+import DownloadHistory from './pages/DownloadHistory';
 import MediaTestPage from './pages/MediaTestPage';
 import MediaDownloadTestPage from './pages/MediaDownloadTestPage';
 import TelegramLinkTestPage from './pages/TelegramLinkTestPage';
@@ -115,6 +116,15 @@ const App: React.FC = () => {
             <MainLayout>
               <Content>
                 <TaskManagement />
+              </Content>
+            </MainLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/download-history" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Content>
+                <DownloadHistory />
               </Content>
             </MainLayout>
           </ProtectedRoute>

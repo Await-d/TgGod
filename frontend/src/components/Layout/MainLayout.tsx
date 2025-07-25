@@ -15,7 +15,8 @@ import {
   DisconnectOutlined,
   MessageOutlined,
   MenuOutlined,
-  DatabaseOutlined
+  DatabaseOutlined,
+  HistoryOutlined
 } from '@ant-design/icons';
 import { webSocketService } from '../../services/websocket';
 import { useGlobalStore, useAuthStore } from '../../store';
@@ -95,6 +96,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/tasks',
       icon: <DownloadOutlined />,
       label: '任务管理',
+    },
+    {
+      key: '/download-history',
+      icon: <HistoryOutlined />,
+      label: '下载历史',
     },
     {
       key: '/logs',

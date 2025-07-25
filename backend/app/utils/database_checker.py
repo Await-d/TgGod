@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..database import SessionLocal, engine
 from ..models.telegram import TelegramGroup, TelegramMessage
-from ..models.rule import FilterRule, DownloadTask
+from ..models.rule import FilterRule, DownloadTask, DownloadRecord
 from ..models.log import TaskLog, SystemLog
 from ..models.user import User
 from ..models.user_settings import UserSettings
@@ -49,6 +49,12 @@ class DatabaseChecker:
                 'total_messages', 'downloaded_messages', 'download_path',
                 'date_from', 'date_to',
                 'created_at', 'updated_at', 'completed_at', 'error_message'
+            ],
+            'download_records': [
+                'id', 'task_id', 'file_name', 'local_file_path', 'file_size',
+                'file_type', 'message_id', 'sender_id', 'sender_name',
+                'message_date', 'message_text', 'download_status', 'download_progress',
+                'error_message', 'download_started_at', 'download_completed_at'
             ],
             'task_logs': [
                 'id', 'task_id', 'level', 'message', 'details', 'created_at'
