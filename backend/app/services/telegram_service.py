@@ -13,6 +13,7 @@ import aiofiles
 from ..config import settings
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..database import get_db
+from ..utils.db_optimization import optimized_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -663,18 +664,20 @@ class TelegramService:
             
             total_months = len(months)
             
-            # 创建单个数据库会话用于整个同步过程
-            from ..database import SessionLocal
-            db = SessionLocal()
+            # 查询群组记录（如果需要），使用短连接
+            if group_id is None:
+                try:
+                    with optimized_db_session(autocommit=False, max_retries=3) as db:
+                        group_record = db.query(TelegramGroup).filter_by(
+                            telegram_id=entity.id
+                        ).first()
+                        group_id = group_record.id if group_record else None
+                        logger.info(f"从数据库查询到群组ID: {group_id}")
+                except Exception as e:
+                    logger.error(f"查询群组记录失败: {e}")
+                    return
             
             try:
-                # 查询群组记录（如果需要）
-                if group_id is None:
-                    group_record = db.query(TelegramGroup).filter_by(
-                        telegram_id=entity.id
-                    ).first()
-                    group_id = group_record.id if group_record else None
-                    logger.info(f"从数据库查询到群组ID: {group_id}")
                 # 按月同步消息
                 for i, month_info in enumerate(months):
                     try:
@@ -739,9 +742,16 @@ class TelegramService:
                             })
                             continue
                             
-                        saved_count = await self.save_messages_to_db(
-                            group_id, month_messages, db
-                        )
+                        # 使用短连接保存消息
+                        saved_count = 0
+                        try:
+                            with optimized_db_session(autocommit=True, max_retries=3) as db:
+                                saved_count = await self.save_messages_to_db(
+                                    group_id, month_messages, db
+                                )
+                        except Exception as e:
+                            logger.error(f"保存消息到数据库失败: {e}")
+                            saved_count = 0
                         
                         # 统计结果
                         month_stat = {
@@ -779,8 +789,8 @@ class TelegramService:
                 return sync_result
                 
             finally:
-                # 确保数据库会话被关闭
-                db.close()
+                # 数据库会话已通过优化管理器自动关闭
+                pass
             
         except Exception as e:
             logger.error(f"按月同步失败: {e}")
