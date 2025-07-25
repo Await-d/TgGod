@@ -18,6 +18,7 @@ import {
   Empty,
   Divider
 } from 'antd';
+import { useIsMobile } from '../hooks/useMobileGestures';
 import { 
   TeamOutlined, 
   MessageOutlined, 
@@ -43,6 +44,8 @@ import SystemLogViewer from '../components/SystemLog/SystemLogViewer';
 const { Title, Text } = Typography;
 
 const Dashboard: React.FC = () => {
+  const isMobile = useIsMobile();
+  
   // CSS animations
   React.useEffect(() => {
     const style = document.createElement('style');
@@ -319,9 +322,10 @@ const Dashboard: React.FC = () => {
         <Col xs={24} lg={8}>
           <Card 
             title="群组摘要" 
+            size={isMobile ? "small" : "default"}
             extra={
               <Space>
-                <Text type="secondary">前10个活跃群组</Text>
+                <Text type="secondary">{isMobile ? "活跃群组" : "前10个活跃群组"}</Text>
               </Space>
             }
           >
@@ -368,6 +372,7 @@ const Dashboard: React.FC = () => {
         <Col xs={24} lg={8}>
           <Card 
             title="实时活动" 
+            size={isMobile ? "small" : "default"}
             extra={
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div 
@@ -450,7 +455,7 @@ const Dashboard: React.FC = () => {
       {/* 媒体类型分布图表 */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={12}>
-          <Card title="媒体类型分布" extra={<BarChartOutlined />}>
+          <Card title="媒体类型分布" size={isMobile ? "small" : "default"} extra={<BarChartOutlined />}>
             {overviewData?.media_distribution ? (
               <div>
                 {Object.entries(overviewData.media_distribution).map(([type, count]: [string, any]) => {
@@ -493,7 +498,7 @@ const Dashboard: React.FC = () => {
 
         {/* 系统信息 */}
         <Col xs={24} lg={12}>
-          <Card title="系统信息">
+          <Card title="系统信息" size={isMobile ? "small" : "default"}>
             {systemInfo ? (
               <div>
                 <div style={{ marginBottom: 16 }}>
@@ -564,13 +569,13 @@ const Dashboard: React.FC = () => {
       {downloadStats?.daily_stats?.length > 0 && (
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col xs={24} lg={16}>
-            <Card title="下载趋势图表" extra={<BarChartOutlined />}>
-              <div style={{ height: 300, position: 'relative' }}>
+            <Card title="下载趋势图表" size={isMobile ? "small" : "default"} extra={<BarChartOutlined />}>
+              <div style={{ height: isMobile ? 200 : 300, position: 'relative' }}>
                 {/* 简单的折线图实现 */}
                 <div style={{ display: 'flex', height: '100%', alignItems: 'end', padding: '20px 0' }}>
                   {downloadStats.daily_stats.slice(-7).map((stat: any, index: number) => {
                     const maxCount = Math.max(...downloadStats.daily_stats.map((s: any) => s.downloads_count || 0));
-                    const height = maxCount > 0 ? (stat.downloads_count / maxCount) * 200 : 0;
+                    const height = maxCount > 0 ? (stat.downloads_count / maxCount) * (isMobile ? 120 : 200) : 0;
                     return (
                       <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 4px' }}>
                         <Tooltip title={`${new Date(stat.date).toLocaleDateString()}: ${stat.downloads_count} 下载`}>
@@ -607,9 +612,9 @@ const Dashboard: React.FC = () => {
           </Col>
           
           <Col xs={24} lg={8}>
-            <Card title="下载统计表格">
+            <Card title="下载统计表格" size={isMobile ? "small" : "default"}>
               <Table
-                dataSource={downloadStats.daily_stats.slice(-5)}
+                dataSource={downloadStats.daily_stats.slice(isMobile ? -3 : -5)}
                 columns={[
                   {
                     title: '日期',
@@ -623,12 +628,12 @@ const Dashboard: React.FC = () => {
                     key: 'downloads_count',
                     render: (count: number) => formatNumber(count)
                   },
-                  {
+                  ...(!isMobile ? [{
                     title: '大小',
                     dataIndex: 'total_size',
                     key: 'total_size',
                     render: (size: number) => formatFileSize(size)
-                  }
+                  }] : [])
                 ]}
                 pagination={false}
                 size="small"
@@ -642,16 +647,16 @@ const Dashboard: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} xl={12}>
           <TaskLogViewer 
-            height={300}
+            height={isMobile ? 200 : 300}
             autoRefresh={true}
-            showFilters={true}
+            showFilters={!isMobile}
           />
         </Col>
         <Col xs={24} xl={12}>
           <SystemLogViewer 
-            height={300}
+            height={isMobile ? 200 : 300}
             autoRefresh={true}
-            showFilters={true}
+            showFilters={!isMobile}
             logType="system"
           />
         </Col>
@@ -661,57 +666,60 @@ const Dashboard: React.FC = () => {
       {systemInfo && (
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col span={24}>
-            <Card title="系统资源监控" extra={<DatabaseOutlined />}>
+            <Card title="系统资源监控" size={isMobile ? "small" : "default"} extra={<DatabaseOutlined />}>
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={8}>
-                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <div style={{ textAlign: 'center', padding: isMobile ? '10px' : '20px' }}>
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <Progress
                         type="circle"
                         percent={systemInfo.cpu_usage || systemInfo.cpu_percent || 0}
                         format={percent => (
                           <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{percent?.toFixed(1)}%</div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>CPU</div>
+                            <div style={{ fontSize: isMobile ? '14px' : '16px', fontWeight: 'bold' }}>{percent?.toFixed(1)}%</div>
+                            <div style={{ fontSize: isMobile ? '10px' : '12px', color: '#666' }}>CPU</div>
                           </div>
                         )}
                         strokeColor={(systemInfo.cpu_usage || systemInfo.cpu_percent || 0) > 80 ? '#ff4d4f' : '#52c41a'}
+                        size={isMobile ? 80 : 120}
                       />
                     </div>
                   </div>
                 </Col>
                 
                 <Col xs={24} sm={8}>
-                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <div style={{ textAlign: 'center', padding: isMobile ? '10px' : '20px' }}>
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <Progress
                         type="circle"
                         percent={systemInfo.memory_usage || systemInfo.memory?.usage_percent || 0}
                         format={percent => (
                           <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{percent?.toFixed(1)}%</div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>内存</div>
+                            <div style={{ fontSize: isMobile ? '14px' : '16px', fontWeight: 'bold' }}>{percent?.toFixed(1)}%</div>
+                            <div style={{ fontSize: isMobile ? '10px' : '12px', color: '#666' }}>内存</div>
                           </div>
                         )}
                         strokeColor={(systemInfo.memory_usage || systemInfo.memory?.usage_percent || 0) > 80 ? '#ff4d4f' : '#1890ff'}
+                        size={isMobile ? 80 : 120}
                       />
                     </div>
                   </div>
                 </Col>
                 
                 <Col xs={24} sm={8}>
-                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <div style={{ textAlign: 'center', padding: isMobile ? '10px' : '20px' }}>
                     <div style={{ position: 'relative', display: 'inline-block' }}>
                       <Progress
                         type="circle"
                         percent={systemInfo.disk_usage_percent || systemInfo.disk_usage?.usage_percent || 0}
                         format={percent => (
                           <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{percent?.toFixed(1)}%</div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>磁盘</div>
+                            <div style={{ fontSize: isMobile ? '14px' : '16px', fontWeight: 'bold' }}>{percent?.toFixed(1)}%</div>
+                            <div style={{ fontSize: isMobile ? '10px' : '12px', color: '#666' }}>磁盘</div>
                           </div>
                         )}
                         strokeColor={(systemInfo.disk_usage_percent || systemInfo.disk_usage?.usage_percent || 0) > 90 ? '#ff4d4f' : '#722ed1'}
+                        size={isMobile ? 80 : 120}
                       />
                     </div>
                   </div>

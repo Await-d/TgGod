@@ -17,8 +17,11 @@ import {
   Card,
   Row,
   Col,
-  Statistic
+  Statistic,
+  Dropdown,
+  Menu
 } from 'antd';
+import { useIsMobile } from '../hooks/useMobileGestures';
 import { 
   PlusOutlined, 
   EditOutlined, 
@@ -33,11 +36,12 @@ import { FilterRule, TelegramGroup } from '../types';
 import { useRuleStore, useTelegramStore, useGlobalStore } from '../store';
 import { ruleApi, telegramApi } from '../services/apiService';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
 const Rules: React.FC = () => {
+  const isMobile = useIsMobile();
   const { rules, setRules, addRule, updateRule, removeRule } = useRuleStore();
   const { groups, setGroups } = useTelegramStore();
   const { setLoading, setError } = useGlobalStore();
@@ -165,27 +169,55 @@ const Rules: React.FC = () => {
           <div style={{ fontSize: '12px', color: '#666' }}>
             {groups.find(g => g.id === record.group_id)?.title || '未知群组'}
           </div>
-        </div>
-      ),
-    },
-    {
-      title: '关键词',
-      dataIndex: 'keywords',
-      key: 'keywords',
-      render: (keywords: string[]) => (
-        <div>
-          {keywords?.slice(0, 3).map((keyword, index) => (
-            <Tag key={index} color="blue" style={{ marginBottom: 2 }}>
-              {keyword}
-            </Tag>
-          ))}
-          {keywords && keywords.length > 3 && (
-            <Tag color="default">+{keywords.length - 3}</Tag>
+          {isMobile && (
+            <div style={{ marginTop: 8 }}>
+              <Tag color={record.is_active ? 'green' : 'red'}>
+                {record.is_active ? '启用' : '禁用'}
+              </Tag>
+              <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>
+                {new Date(record.created_at).toLocaleDateString()}
+              </Text>
+            </div>
           )}
         </div>
       ),
     },
     {
+      title: isMobile ? '关键词/媒体类型' : '关键词',
+      dataIndex: 'keywords',
+      key: 'keywords',
+      render: (keywords: string[], record: FilterRule) => (
+        <div>
+          <div style={{ marginBottom: isMobile ? 8 : 4 }}>
+            {keywords?.slice(0, isMobile ? 2 : 3).map((keyword, index) => (
+              <Tag key={index} color="blue" style={{ marginBottom: 2, fontSize: isMobile ? 11 : 12 }}>
+                {keyword}
+              </Tag>
+            ))}
+            {keywords && keywords.length > (isMobile ? 2 : 3) && (
+              <Tag color="default" style={{ fontSize: isMobile ? 11 : 12 }}>
+                +{keywords.length - (isMobile ? 2 : 3)}
+              </Tag>
+            )}
+          </div>
+          {isMobile && record.media_types && (
+            <div>
+              {record.media_types.slice(0, 2).map((type, index) => (
+                <Tag key={index} color="green" style={{ marginBottom: 2, fontSize: 11 }}>
+                  {type}
+                </Tag>
+              ))}
+              {record.media_types.length > 2 && (
+                <Tag color="default" style={{ fontSize: 11 }}>
+                  +{record.media_types.length - 2}
+                </Tag>
+              )}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    ...(!isMobile ? [{
       title: '媒体类型',
       dataIndex: 'media_types',
       key: 'media_types',
@@ -198,8 +230,8 @@ const Rules: React.FC = () => {
           ))}
         </div>
       ),
-    },
-    {
+    }] : []),
+    ...(!isMobile ? [{
       title: '状态',
       dataIndex: 'is_active',
       key: 'is_active',
@@ -208,57 +240,97 @@ const Rules: React.FC = () => {
           {isActive ? '启用' : '禁用'}
         </Tag>
       ),
-    },
-    {
+    }] : []),
+    ...(!isMobile ? [{
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
       render: (date: string) => new Date(date).toLocaleString(),
-    },
+    }] : []),
     {
       title: '操作',
       key: 'actions',
+      width: isMobile ? 80 : undefined,
       render: (_: any, record: FilterRule) => (
-        <Space size="middle">
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="text"
-            size="small"
-            icon={<ExperimentOutlined />}
-            onClick={() => handleTestRule(record.id)}
-          >
-            测试
-          </Button>
-          <Button
-            type="text"
-            size="small"
-            icon={record.is_active ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-            onClick={() => handleToggleStatus(record.id, record.is_active)}
-          >
-            {record.is_active ? '禁用' : '启用'}
-          </Button>
-          <Popconfirm
-            title="确定要删除这个规则吗？"
-            onConfirm={() => handleDelete(record.id)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
+        <Space size="small">
+          {isMobile ? (
+            <Dropdown
+              overlay={
+                <Menu>
+                  <Menu.Item key="edit" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+                    编辑
+                  </Menu.Item>
+                  <Menu.Item key="test" icon={<ExperimentOutlined />} onClick={() => handleTestRule(record.id)}>
+                    测试
+                  </Menu.Item>
+                  <Menu.Item 
+                    key="toggle" 
+                    icon={record.is_active ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                    onClick={() => handleToggleStatus(record.id, record.is_active)}
+                  >
+                    {record.is_active ? '禁用' : '启用'}
+                  </Menu.Item>
+                  <Menu.Item key="delete" danger icon={<DeleteOutlined />}>
+                    <Popconfirm
+                      title="确定要删除这个规则吗？"
+                      onConfirm={() => handleDelete(record.id)}
+                      okText="确定"
+                      cancelText="取消"
+                    >
+                      删除
+                    </Popconfirm>
+                  </Menu.Item>
+                </Menu>
+              }
+              trigger={['click']}
             >
-              删除
-            </Button>
-          </Popconfirm>
+              <Button size="small" type="text">
+                ···
+              </Button>
+            </Dropdown>
+          ) : (
+            <>
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleEdit(record)}
+              >
+                编辑
+              </Button>
+              <Button
+                type="text"
+                size="small"
+                icon={<ExperimentOutlined />}
+                onClick={() => handleTestRule(record.id)}
+              >
+                测试
+              </Button>
+              <Button
+                type="text"
+                size="small"
+                icon={record.is_active ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                onClick={() => handleToggleStatus(record.id, record.is_active)}
+              >
+                {record.is_active ? '禁用' : '启用'}
+              </Button>
+              <Popconfirm
+                title="确定要删除这个规则吗？"
+                onConfirm={() => handleDelete(record.id)}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                >
+                  删除
+                </Button>
+              </Popconfirm>
+            </>
+          )}
         </Space>
       ),
     },
@@ -325,11 +397,13 @@ const Rules: React.FC = () => {
         columns={columns}
         dataSource={rules}
         rowKey="id"
+        scroll={isMobile ? { x: 600 } : undefined}
         pagination={{
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
+          pageSize: isMobile ? 5 : 10,
+          showSizeChanger: !isMobile,
+          showQuickJumper: !isMobile,
           showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+          size: isMobile ? 'small' : 'default',
         }}
       />
 
@@ -343,7 +417,8 @@ const Rules: React.FC = () => {
           setEditingRule(null);
         }}
         footer={null}
-        width={800}
+        width={isMobile ? '95%' : 800}
+        style={isMobile ? { top: 20 } : undefined}
       >
         <Form
           form={form}

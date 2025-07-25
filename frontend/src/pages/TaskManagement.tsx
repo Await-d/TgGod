@@ -28,6 +28,7 @@ import {
   Dropdown,
   Menu
 } from 'antd';
+import { useIsMobile } from '../hooks/useMobileGestures';
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -78,6 +79,8 @@ const getStatusIcon = (status: string) => {
 };
 
 const TaskManagement: React.FC = () => {
+  const isMobile = useIsMobile();
+  
   // 状态管理
   const [tasks, setTasks] = useState<DownloadTask[]>([]);
   const [groups, setGroups] = useState<TelegramGroup[]>([]);
@@ -268,30 +271,42 @@ const TaskManagement: React.FC = () => {
 
   // 表格列定义
   const columns = [
-    {
+    ...(!isMobile ? [{
       title: 'ID',
       dataIndex: 'id',
       key: 'id',
       width: 80,
-    },
+    }] : []),
     {
       title: '任务名称',
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
       render: (text: string, record: DownloadTask) => (
-        <Space>
-          <Text strong>{text}</Text>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewTaskDetail(record)}
-          />
-        </Space>
+        <div>
+          <div>
+            <Text strong>{text}</Text>
+            {!isMobile && (
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => handleViewTaskDetail(record)}
+              />
+            )}
+          </div>
+          {isMobile && (
+            <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
+              <Text type="secondary">ID: {record.id}</Text>
+              <Text type="secondary" style={{ marginLeft: 8 }}>
+                {groups.find(g => g.id === record.group_id)?.title || '未知群组'}
+              </Text>
+            </div>
+          )}
+        </div>
       ),
     },
-    {
+    ...(!isMobile ? [{
       title: '群组',
       dataIndex: 'group_id',
       key: 'group_id',
@@ -305,18 +320,34 @@ const TaskManagement: React.FC = () => {
           </Tooltip>
         ) : groupId;
       },
-    },
+    }] : []),
     {
-      title: '状态',
+      title: isMobile ? '状态/进度' : '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag color={getStatusColor(status)} icon={getStatusIcon(status)}>
-          {status.toUpperCase()}
-        </Tag>
+      render: (status: string, record: DownloadTask) => (
+        <div>
+          <div style={{ marginBottom: isMobile ? 8 : 0 }}>
+            <Tag color={getStatusColor(status)} icon={getStatusIcon(status)}>
+              {isMobile ? status : status.toUpperCase()}
+            </Tag>
+          </div>
+          {isMobile && (
+            <div style={{ minWidth: 100 }}>
+              <Progress
+                percent={record.progress}
+                size="small"
+                status={record.status === 'failed' ? 'exception' : 'active'}
+              />
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {record.downloaded_messages}/{record.total_messages || 0}
+              </Text>
+            </div>
+          )}
+        </div>
       ),
     },
-    {
+    ...(!isMobile ? [{
       title: '进度',
       dataIndex: 'progress',
       key: 'progress',
@@ -332,8 +363,8 @@ const TaskManagement: React.FC = () => {
           </Text>
         </div>
       ),
-    },
-    {
+    }] : []),
+    ...(!isMobile ? [{
       title: '时间范围',
       key: 'time_range',
       width: 180,
@@ -348,8 +379,8 @@ const TaskManagement: React.FC = () => {
         }
         return <Text type="secondary">无限制</Text>;
       },
-    },
-    {
+    }] : []),
+    ...(!isMobile ? [{
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -359,86 +390,141 @@ const TaskManagement: React.FC = () => {
           {new Date(text).toLocaleString()}
         </Text>
       ),
-    },
+    }] : []),
     {
       title: '操作',
       key: 'actions',
+      width: isMobile ? 100 : undefined,
       render: (_: any, record: DownloadTask) => (
-        <Space size="small">
-          <Tooltip title="查看详情">
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewTaskDetail(record)}
-            />
-          </Tooltip>
-          <Tooltip title="查看日志">
-            <Button
-              size="small"
-              icon={<FileTextOutlined />}
-              onClick={() => handleViewTaskLogs(record)}
-            />
-          </Tooltip>
-          
-          {record.status === 'pending' && (
-            <Tooltip title="立即执行">
-              <Button
-                size="small"
-                type="primary"
-                icon={<PlayCircleOutlined />}
-                onClick={() => handleStartTask(record.id)}
-              >
-                执行
-              </Button>
-            </Tooltip>
-          )}
-          
-          {record.status === 'running' && (
-            <>
-              <Tooltip title="暂停任务">
-                <Button
-                  size="small"
-                  icon={<PauseCircleOutlined />}
-                  onClick={() => handlePauseTask(record.id)}
-                />
-              </Tooltip>
-              <Tooltip title="停止任务">
-                <Button
-                  size="small"
-                  danger
-                  icon={<StopOutlined />}
-                  onClick={() => handleStopTask(record.id)}
-                />
-              </Tooltip>
-            </>
-          )}
-          
-          {record.status === 'paused' && (
-            <Tooltip title="继续任务">
-              <Button
-                size="small"
-                type="primary"
-                icon={<PlayCircleOutlined />}
-                onClick={() => handleStartTask(record.id)}
-              />
-            </Tooltip>
-          )}
-          
-          {!['running'].includes(record.status) && (
-            <Popconfirm
-              title="确定删除这个任务吗？"
-              onConfirm={() => handleDeleteTask(record.id)}
-              okText="删除"
-              cancelText="取消"
+        <Space size="small" direction={isMobile ? "vertical" : "horizontal"}>
+          {isMobile ? (
+            <Dropdown
+              overlay={
+                <Menu>
+                  <Menu.Item key="detail" icon={<EyeOutlined />} onClick={() => handleViewTaskDetail(record)}>
+                    查看详情
+                  </Menu.Item>
+                  <Menu.Item key="logs" icon={<FileTextOutlined />} onClick={() => handleViewTaskLogs(record)}>
+                    查看日志
+                  </Menu.Item>
+                  {record.status === 'pending' && (
+                    <Menu.Item key="start" icon={<PlayCircleOutlined />} onClick={() => handleStartTask(record.id)}>
+                      立即执行
+                    </Menu.Item>
+                  )}
+                  {record.status === 'running' && (
+                    <>
+                      <Menu.Item key="pause" icon={<PauseCircleOutlined />} onClick={() => handlePauseTask(record.id)}>
+                        暂停任务
+                      </Menu.Item>
+                      <Menu.Item key="stop" icon={<StopOutlined />} onClick={() => handleStopTask(record.id)}>
+                        停止任务
+                      </Menu.Item>
+                    </>
+                  )}
+                  {record.status === 'paused' && (
+                    <Menu.Item key="resume" icon={<PlayCircleOutlined />} onClick={() => handleStartTask(record.id)}>
+                      继续任务
+                    </Menu.Item>
+                  )}
+                  {!['running'].includes(record.status) && (
+                    <Menu.Item key="delete" danger icon={<DeleteOutlined />}>
+                      <Popconfirm
+                        title="确定删除这个任务吗？"
+                        onConfirm={() => handleDeleteTask(record.id)}
+                        okText="删除"
+                        cancelText="取消"
+                      >
+                        删除任务
+                      </Popconfirm>
+                    </Menu.Item>
+                  )}
+                </Menu>
+              }
+              trigger={['click']}
             >
-              <Tooltip title="删除任务">
+              <Button size="small" icon={<SettingOutlined />}>
+                操作
+              </Button>
+            </Dropdown>
+          ) : (
+            <>
+              <Tooltip title="查看详情">
                 <Button
                   size="small"
-                  danger
-                  icon={<DeleteOutlined />}
+                  icon={<EyeOutlined />}
+                  onClick={() => handleViewTaskDetail(record)}
                 />
               </Tooltip>
-            </Popconfirm>
+              <Tooltip title="查看日志">
+                <Button
+                  size="small"
+                  icon={<FileTextOutlined />}
+                  onClick={() => handleViewTaskLogs(record)}
+                />
+              </Tooltip>
+              
+              {record.status === 'pending' && (
+                <Tooltip title="立即执行">
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<PlayCircleOutlined />}
+                    onClick={() => handleStartTask(record.id)}
+                  >
+                    执行
+                  </Button>
+                </Tooltip>
+              )}
+              
+              {record.status === 'running' && (
+                <>
+                  <Tooltip title="暂停任务">
+                    <Button
+                      size="small"
+                      icon={<PauseCircleOutlined />}
+                      onClick={() => handlePauseTask(record.id)}
+                    />
+                  </Tooltip>
+                  <Tooltip title="停止任务">
+                    <Button
+                      size="small"
+                      danger
+                      icon={<StopOutlined />}
+                      onClick={() => handleStopTask(record.id)}
+                    />
+                  </Tooltip>
+                </>
+              )}
+              
+              {record.status === 'paused' && (
+                <Tooltip title="继续任务">
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<PlayCircleOutlined />}
+                    onClick={() => handleStartTask(record.id)}
+                  />
+                </Tooltip>
+              )}
+              
+              {!['running'].includes(record.status) && (
+                <Popconfirm
+                  title="确定删除这个任务吗？"
+                  onConfirm={() => handleDeleteTask(record.id)}
+                  okText="删除"
+                  cancelText="取消"
+                >
+                  <Tooltip title="删除任务">
+                    <Button
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                    />
+                  </Tooltip>
+                </Popconfirm>
+              )}
+            </>
           )}
         </Space>
       ),
@@ -551,59 +637,67 @@ const TaskManagement: React.FC = () => {
         {/* 过滤器 */}
         <Form
           form={filterForm}
-          layout="inline"
+          layout={isMobile ? "vertical" : "inline"}
           onFinish={handleFilter}
           style={{ marginBottom: 16 }}
         >
-          <Form.Item name="group_id">
-            <Select
-              placeholder="选择群组"
-              style={{ width: 200 }}
-              allowClear
-              showSearch
-              filterOption={(input, option) => {
-                if (!option || !input) return false;
-                const label = option.label || option.children;
-                if (typeof label === 'string') {
-                  return label.toLowerCase().includes(input.toLowerCase());
-                }
-                return false;
-              }}
-            >
-              {groups.map(group => (
-                <Option key={group.id} value={group.id}>
-                  {group.title}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item name="status">
-            <Select
-              placeholder="任务状态"
-              style={{ width: 120 }}
-              allowClear
-            >
-              <Option value="pending">待执行</Option>
-              <Option value="running">运行中</Option>
-              <Option value="completed">已完成</Option>
-              <Option value="failed">失败</Option>
-              <Option value="paused">已暂停</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button
-                type="primary"
-                htmlType="submit"
-                icon={<SearchOutlined />}
-              >
-                筛选
-              </Button>
-              <Button onClick={handleResetFilter}>
-                重置
-              </Button>
-            </Space>
-          </Form.Item>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item name="group_id" label={isMobile ? "选择群组" : undefined}>
+                <Select
+                  placeholder="选择群组"
+                  style={{ width: '100%' }}
+                  allowClear
+                  showSearch
+                  filterOption={(input, option) => {
+                    if (!option || !input) return false;
+                    const label = option.label || option.children;
+                    if (typeof label === 'string') {
+                      return label.toLowerCase().includes(input.toLowerCase());
+                    }
+                    return false;
+                  }}
+                >
+                  {groups.map(group => (
+                    <Option key={group.id} value={group.id}>
+                      {group.title}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item name="status" label={isMobile ? "任务状态" : undefined}>
+                <Select
+                  placeholder="任务状态"
+                  style={{ width: '100%' }}
+                  allowClear
+                >
+                  <Option value="pending">待执行</Option>
+                  <Option value="running">运行中</Option>
+                  <Option value="completed">已完成</Option>
+                  <Option value="failed">失败</Option>
+                  <Option value="paused">已暂停</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={24} md={8}>
+              <Form.Item label={isMobile ? " " : undefined}>
+                <Space style={{ width: '100%', justifyContent: isMobile ? 'center' : 'flex-start' }}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    icon={<SearchOutlined />}
+                  >
+                    筛选
+                  </Button>
+                  <Button onClick={handleResetFilter}>
+                    重置
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Card>
 
@@ -614,10 +708,13 @@ const TaskManagement: React.FC = () => {
           dataSource={tasks}
           rowKey="id"
           loading={loading}
+          scroll={isMobile ? { x: 600 } : undefined}
           pagination={{
-            showSizeChanger: true,
-            showQuickJumper: true,
+            showSizeChanger: !isMobile,
+            showQuickJumper: !isMobile,
             showTotal: (total) => `共 ${total} 个任务`,
+            pageSize: isMobile ? 5 : 10,
+            size: isMobile ? 'small' : 'default',
           }}
         />
       </Card>
@@ -631,7 +728,8 @@ const TaskManagement: React.FC = () => {
           form.resetFields();
         }}
         footer={null}
-        width={600}
+        width={isMobile ? '95%' : 600}
+        style={isMobile ? { top: 20 } : undefined}
       >
         <Form
           form={form}
@@ -722,7 +820,7 @@ const TaskManagement: React.FC = () => {
       <Drawer
         title="任务详情"
         placement="right"
-        width={600}
+        width={isMobile ? '95%' : 600}
         open={taskDetailVisible}
         onClose={() => setTaskDetailVisible(false)}
       >
@@ -834,7 +932,7 @@ const TaskManagement: React.FC = () => {
       <Drawer
         title="任务执行日志"
         placement="right"
-        width={800}
+        width={isMobile ? '95%' : 800}
         open={taskLogsVisible}
         onClose={() => setTaskLogsVisible(false)}
       >

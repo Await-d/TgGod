@@ -30,6 +30,7 @@ import UserSettingsForm from '../components/UserSettings/UserSettingsForm';
 import { apiService } from '../services/api';
 import { useGlobalStore } from '../store';
 import TelegramAuth from '../components/TelegramAuth';
+import { useIsMobile } from '../hooks/useMobileGestures';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -70,6 +71,7 @@ interface TelegramTestConnectionResponse {
 }
 
 const Settings: React.FC = () => {
+  const isMobile = useIsMobile();
   const [form] = Form.useForm();
   const { connectionStatus } = useGlobalStore();
   const [loading, setLoading] = React.useState(false);
@@ -312,10 +314,10 @@ const Settings: React.FC = () => {
   const renderConfigSection = (title: string, configKeys: string[]) => (
     <Card
       title={title}
-      size="small"
+      size={isMobile ? "small" : "default"}
       style={{ marginBottom: 16 }}
       extra={title === 'Telegram 配置' && (
-        <Space>
+        <Space direction={isMobile ? "vertical" : "horizontal"} size="small">
           {renderTelegramStatus()}
           <Button
             size="small"
@@ -324,18 +326,18 @@ const Settings: React.FC = () => {
             loading={testingConnection}
             disabled={saving}
           >
-            测试连接
+            {isMobile ? '测试' : '测试连接'}
           </Button>
         </Space>
       )}
     >
-      <Row gutter={16}>
+      <Row gutter={isMobile ? [8, 8] : 16}>
         {configKeys.map(key => {
           const config = configs[key];
           if (!config) return null;
 
           return (
-            <Col span={24} key={key} style={{ marginBottom: 16 }}>
+            <Col span={24} key={key} style={{ marginBottom: isMobile ? 12 : 16 }}>
               <Form.Item
                 label={key}
                 name={key}
@@ -351,14 +353,19 @@ const Settings: React.FC = () => {
                   <Input.Password
                     placeholder={config.value === '***' ? '不修改请留空' : '请输入'}
                     autoComplete="new-password"
+                    size={isMobile ? "large" : "middle"}
                   />
                 ) : key === 'allowed_origins' ? (
                   <TextArea
-                    rows={3}
+                    rows={isMobile ? 2 : 3}
                     placeholder='JSON数组格式，例如：["http://localhost:3000"]'
+                    size={isMobile ? "large" : "middle"}
                   />
                 ) : (
-                  <Input placeholder="请输入" />
+                  <Input 
+                    placeholder="请输入" 
+                    size={isMobile ? "large" : "middle"}
+                  />
                 )}
               </Form.Item>
             </Col>
@@ -384,14 +391,16 @@ const Settings: React.FC = () => {
 
         <Divider />
 
-        <Row justify="space-between">
-          <Col>
-            <Space>
+        <Row justify={isMobile ? "center" : "space-between"} gutter={[16, 16]}>
+          <Col xs={24} sm={12}>
+            <Space direction={isMobile ? "vertical" : "horizontal"} style={{ width: '100%', justifyContent: 'center' }}>
               <Button
                 type="primary"
                 icon={<SaveOutlined />}
                 loading={saving}
                 onClick={handleSave}
+                size={isMobile ? "large" : "middle"}
+                block={isMobile}
               >
                 保存配置
               </Button>
@@ -399,30 +408,59 @@ const Settings: React.FC = () => {
                 icon={<ReloadOutlined />}
                 onClick={handleReset}
                 disabled={saving}
+                size={isMobile ? "large" : "middle"}
+                block={isMobile}
               >
                 重置
               </Button>
             </Space>
           </Col>
-          <Col>
-            <Space>
-              <Button
-                type="dashed"
-                icon={<ClearOutlined />}
-                onClick={handleClearCache}
-                disabled={saving}
-              >
-                清除缓存
-              </Button>
-              <Button
-                type="dashed"
-                onClick={handleInitDefaults}
-                disabled={saving}
-              >
-                初始化默认配置
-              </Button>
-            </Space>
-          </Col>
+          {!isMobile && (
+            <Col sm={12}>
+              <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                <Button
+                  type="dashed"
+                  icon={<ClearOutlined />}
+                  onClick={handleClearCache}
+                  disabled={saving}
+                >
+                  清除缓存
+                </Button>
+                <Button
+                  type="dashed"
+                  onClick={handleInitDefaults}
+                  disabled={saving}
+                >
+                  初始化默认配置
+                </Button>
+              </Space>
+            </Col>
+          )}
+          {isMobile && (
+            <Col xs={24}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button
+                  type="dashed"
+                  icon={<ClearOutlined />}
+                  onClick={handleClearCache}
+                  disabled={saving}
+                  size="large"
+                  block
+                >
+                  清除缓存
+                </Button>
+                <Button
+                  type="dashed"
+                  onClick={handleInitDefaults}
+                  disabled={saving}
+                  size="large"
+                  block
+                >
+                  初始化默认配置
+                </Button>
+              </Space>
+            </Col>
+          )}
         </Row>
       </Form>
     </Spin>
@@ -453,9 +491,9 @@ const Settings: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>
+    <div style={{ padding: isMobile ? '16px' : '24px' }}>
+      <div style={{ marginBottom: isMobile ? 16 : 24 }}>
+        <Title level={isMobile ? 3 : 2}>
           <SettingOutlined style={{ marginRight: 8 }} />
           系统设置
         </Title>
@@ -477,13 +515,15 @@ const Settings: React.FC = () => {
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
+        tabPosition={isMobile ? "top" : "top"}
+        size={isMobile ? "small" : "middle"}
         items={[
           {
             key: 'system',
             label: (
               <span>
                 <SettingOutlined />
-                系统配置
+                {isMobile ? '系统' : '系统配置'}
               </span>
             ),
             children: systemConfigTab,
@@ -493,11 +533,11 @@ const Settings: React.FC = () => {
             label: (
               <span>
                 <WifiOutlined />
-                Telegram认证
+                {isMobile ? 'TG' : 'Telegram认证'}
                 {telegramStatus?.is_authorized ? (
-                  <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 8 }} />
+                  <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 4 }} />
                 ) : (
-                  <CloseCircleOutlined style={{ color: '#ff4d4f', marginLeft: 8 }} />
+                  <CloseCircleOutlined style={{ color: '#ff4d4f', marginLeft: 4 }} />
                 )}
               </span>
             ),
@@ -508,7 +548,7 @@ const Settings: React.FC = () => {
             label: (
               <span>
                 <UserOutlined />
-                用户设置
+                {isMobile ? '用户' : '用户设置'}
               </span>
             ),
             children: <UserSettingsForm />,
