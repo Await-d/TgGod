@@ -134,8 +134,8 @@ class TaskExecutionService:
             
             await self._log_task_event(task_id, "INFO", f"开始执行任务: {download_task.name}")
             
-            # 应用规则筛选消息
-            messages = await self._filter_messages(rule, group, db)
+            # 应用规则筛选消息，并考虑任务的日期范围
+            messages = await self._filter_messages(rule, group, download_task, db)
             total_messages = len(messages)
             
             if total_messages == 0:
@@ -209,8 +209,8 @@ class TaskExecutionService:
             if task_id in self.running_tasks:
                 del self.running_tasks[task_id]
     
-    async def _filter_messages(self, rule: FilterRule, group: TelegramGroup, db: Session) -> List[TelegramMessage]:
-        """根据规则筛选消息"""
+    async def _filter_messages(self, rule: FilterRule, group: TelegramGroup, task: DownloadTask, db: Session) -> List[TelegramMessage]:
+        """根据规则筛选消息，同时考虑任务的日期范围"""
         query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group.id)
         
         # 应用规则筛选
@@ -231,11 +231,15 @@ class TaskExecutionService:
         if rule.sender_filter:
             query = query.filter(TelegramMessage.sender_username.in_(rule.sender_filter))
         
-        if rule.date_from:
-            query = query.filter(TelegramMessage.date >= rule.date_from)
+        # 优先使用任务的日期范围，如果没有则使用规则的日期范围
+        date_from = task.date_from if task.date_from else rule.date_from
+        date_to = task.date_to if task.date_to else rule.date_to
         
-        if rule.date_to:
-            query = query.filter(TelegramMessage.date <= rule.date_to)
+        if date_from:
+            query = query.filter(TelegramMessage.date >= date_from)
+        
+        if date_to:
+            query = query.filter(TelegramMessage.date <= date_to)
         
         if rule.min_views is not None:
             query = query.filter(TelegramMessage.views >= rule.min_views)
