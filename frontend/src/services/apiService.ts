@@ -1,8 +1,8 @@
 import axios from 'axios';
-import { 
-  User, 
-  LoginRequest, 
-  LoginResponse, 
+import {
+  User,
+  LoginRequest,
+  LoginResponse,
   RegisterRequest,
   TelegramGroup,
   TelegramMessage,
@@ -32,7 +32,7 @@ api.interceptors.response.use(
       console.error('网络连接错误:', error.message);
       return Promise.reject(new Error('无法连接到服务器，请检查网络连接'));
     }
-    
+
     // 处理服务器错误
     const message = error.response?.data?.detail || error.message || '未知错误';
     console.error('API错误:', message);
@@ -44,9 +44,9 @@ api.interceptors.response.use(
 api.interceptors.request.use(
   (config) => {
     // 从localStorage或store获取token
-    const token = localStorage.getItem('auth-storage') ? 
+    const token = localStorage.getItem('auth-storage') ?
       JSON.parse(localStorage.getItem('auth-storage')!).state.token : null;
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -68,7 +68,7 @@ api.interceptors.response.use(
       localStorage.removeItem('auth-storage');
       window.location.href = '/login';
     }
-    
+
     const message = error.response?.data?.detail || error.message || '请求失败';
     return Promise.reject(new Error(message));
   }
@@ -81,7 +81,7 @@ export const authApi = {
     const formData = new FormData();
     formData.append('username', credentials.username);
     formData.append('password', credentials.password);
-    
+
     return api.post('/auth/login', formData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -132,25 +132,25 @@ export const telegramApi = {
     const allGroups: TelegramGroup[] = [];
     let skip = 0;
     const limit = 1000; // 使用最大限制
-    
+
     while (true) {
       const response = await api.get('/telegram/groups', { params: { skip, limit } });
       const groups = response.data || response; // 处理可能的响应格式差异
-      
+
       if (!groups || groups.length === 0) {
         break;
       }
-      
+
       allGroups.push(...groups);
-      
+
       // 如果返回的群组数量小于limit，说明已经获取完所有数据
       if (groups.length < limit) {
         break;
       }
-      
+
       skip += limit;
     }
-    
+
     return allGroups;
   },
 
@@ -167,14 +167,14 @@ export const telegramApi = {
   // 通过用户名获取群组信息（搜索现有群组）
   getGroupByUsername: async (username: string): Promise<TelegramGroup | null> => {
     try {
-      const groups = await api.get('/telegram/groups', { 
-        params: { limit: 1000 } 
+      const groups = await api.get('/telegram/groups', {
+        params: { limit: 1000 }
       }) as TelegramGroup[];
-      
-      const group = groups.find(g => 
+
+      const group = groups.find(g =>
         g.username && g.username.toLowerCase() === username.toLowerCase()
       );
-      
+
       return group || null;
     } catch (error) {
       console.error('Failed to get group by username:', error);
@@ -209,17 +209,17 @@ export const telegramApi = {
   },
 
   // 按月同步群组消息（异步任务，不等待完成）
-  syncGroupMessagesMonthly: (groupId: number, months: Array<{year: number, month: number}>): Promise<{success: boolean, message: string, task_id?: string}> => {
+  syncGroupMessagesMonthly: (groupId: number, months: Array<{ year: number, month: number }>): Promise<{ success: boolean, message: string, task_id?: string }> => {
     return api.post(`/telegram/groups/${groupId}/sync-monthly`, { months });
   },
 
   // 获取默认同步月份
-  getDefaultSyncMonths: (groupId: number, count: number = 3): Promise<{months: Array<{year: number, month: number}>}> => {
+  getDefaultSyncMonths: (groupId: number, count: number = 3): Promise<{ months: Array<{ year: number, month: number }> }> => {
     return api.get(`/telegram/groups/${groupId}/default-sync-months`, { params: { count } });
   },
 
   // 批量按月同步所有群组
-  syncAllGroupsMonthly: (months: Array<{year: number, month: number}>): Promise<any> => {
+  syncAllGroupsMonthly: (months: Array<{ year: number, month: number }>): Promise<any> => {
     return api.post('/telegram/sync-all-groups-monthly', { months });
   },
 
@@ -419,12 +419,12 @@ export const messageApi = {
     const cleanParams = Object.fromEntries(
       Object.entries(params).filter(([_, value]) => value !== undefined)
     );
-    
+
     console.log('API调用 - getGroupMessages:', {
       groupId,
       cleanParams
     });
-    
+
     return api.get(`/telegram/groups/${groupId}/messages`, { params: cleanParams });
   },
 
@@ -443,19 +443,19 @@ export const messageApi = {
       start_date?: string;
       end_date?: string;
     } = {}
-  ): Promise<{data: TelegramMessage[], pagination: {current: number, pageSize: number, total: number}}> => {
+  ): Promise<{ data: TelegramMessage[], pagination: { current: number, pageSize: number, total: number } }> => {
     // 过滤掉undefined值，避免发送不必要的参数
     const cleanParams = Object.fromEntries(
       Object.entries(params).filter(([_, value]) => value !== undefined)
     );
-    
+
     return api.get(`/telegram/groups/${groupId}/messages/paginated`, { params: cleanParams });
   },
 
   // 获取群组置顶消息
   getPinnedMessages: (groupId: number): Promise<TelegramMessage[]> => {
-    return api.get(`/telegram/groups/${groupId}/messages`, { 
-      params: { is_pinned: true, limit: 100 } 
+    return api.get(`/telegram/groups/${groupId}/messages`, {
+      params: { is_pinned: true, limit: 100 }
     });
   },
 
@@ -471,9 +471,9 @@ export const messageApi = {
 
   // 获取消息回复
   getMessageReplies: (
-    groupId: number, 
-    messageId: number, 
-    skip: number = 0, 
+    groupId: number,
+    messageId: number,
+    skip: number = 0,
     limit: number = 100
   ): Promise<TelegramMessage[]> => {
     return api.get(`/telegram/groups/${groupId}/messages/${messageId}/replies`, {
@@ -528,7 +528,7 @@ export const messageApi = {
           skip: page * pageSize,
           limit: pageSize
         });
-        
+
         if (response.length === 0) {
           hasMore = false;
         } else {
@@ -559,7 +559,7 @@ export const messageApi = {
       const BATCH_SIZE = 5;
       for (let i = 0; i < allMessages.length; i += BATCH_SIZE) {
         const batch = allMessages.slice(i, i + BATCH_SIZE);
-        
+
         const deletePromises = batch.map(async (message) => {
           try {
             await messageApi.deleteMessage(groupId, message.message_id);
@@ -585,8 +585,8 @@ export const messageApi = {
         success: deletedCount > 0,
         deletedCount,
         failedCount,
-        message: failedCount === 0 
-          ? `成功删除 ${deletedCount} 条消息` 
+        message: failedCount === 0
+          ? `成功删除 ${deletedCount} 条消息`
           : `删除完成：成功 ${deletedCount} 条，失败 ${failedCount} 条`
       };
 
@@ -787,7 +787,15 @@ export const downloadApi = {
 // 媒体下载相关API
 export const mediaApi = {
   // 下载媒体文件
-  downloadMedia: (messageId: number, force: boolean = false): Promise<{
+  downloadMedia: (
+    groupId: number,
+    messageId: number,
+    options?: {
+      force?: boolean;
+      onProgress?: (progress: number) => void;
+    }
+  ): Promise<{
+    success: boolean;
     status: string;
     message: string;
     file_path?: string;
@@ -797,7 +805,73 @@ export const mediaApi = {
     media_type?: string;
     estimated_size?: number;
   }> => {
-    return api.post(`/media/start-download/${messageId}`, {}, { params: { force } });
+    const { force = false, onProgress } = options || {};
+
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 开始下载
+        const startResponse = await api.post(`/media/start-download/${messageId}`, {}, {
+          params: { force }
+        });
+
+        if (startResponse.status !== 200) {
+          resolve({
+            success: false,
+            status: startResponse.status.toString(),
+            message: startResponse.statusText,
+            file_path: startResponse.data.file_path,
+            file_size: startResponse.data.file_size,
+            download_url: startResponse.data.download_url,
+            message_id: startResponse.data.message_id,
+            media_type: startResponse.data.media_type,
+            estimated_size: startResponse.data.estimated_size
+          });
+          return;
+        }
+
+        // 如果有进度回调，轮询下载状态
+        if (onProgress) {
+          const pollInterval = setInterval(async () => {
+            try {
+              const statusResponse = await api.get(`/media/download-status/${messageId}`);
+
+              if (statusResponse.data.progress !== undefined) {
+                onProgress(statusResponse.data.progress);
+              }
+
+              // 下载完成或失败时停止轮询
+              if (statusResponse.data.status === 'completed' || statusResponse.data.status === 'failed') {
+                clearInterval(pollInterval);
+                resolve({
+                  success: statusResponse.data.status === 'completed',
+                  ...statusResponse.data
+                });
+              }
+            } catch (error) {
+              clearInterval(pollInterval);
+              reject(error);
+            }
+          }, 500); // 每500ms检查一次进度
+
+          // 设置超时
+          setTimeout(() => {
+            clearInterval(pollInterval);
+            resolve({
+              success: false,
+              status: 'timeout',
+              message: '下载超时'
+            });
+          }, 60000); // 60秒超时
+        } else {
+          resolve({
+            success: true,
+            ...startResponse.data
+          });
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
   },
 
   // 获取媒体下载状态
@@ -1058,8 +1132,8 @@ export const dashboardApi = {
     total_groups: number;
     last_updated: string;
   }> => {
-    return api.get('/dashboard/groups-summary', { 
-      params: { limit, force_refresh: forceRefresh } 
+    return api.get('/dashboard/groups-summary', {
+      params: { limit, force_refresh: forceRefresh }
     });
   },
 
@@ -1090,8 +1164,8 @@ export const dashboardApi = {
     time_range_hours: number;
     last_updated: string;
   }> => {
-    return api.get('/dashboard/recent-activity', { 
-      params: { hours, limit, force_refresh: forceRefresh } 
+    return api.get('/dashboard/recent-activity', {
+      params: { hours, limit, force_refresh: forceRefresh }
     });
   },
 
@@ -1110,8 +1184,8 @@ export const dashboardApi = {
     time_range_days: number;
     last_updated: string;
   }> => {
-    return api.get('/dashboard/download-stats', { 
-      params: { days, force_refresh: forceRefresh } 
+    return api.get('/dashboard/download-stats', {
+      params: { days, force_refresh: forceRefresh }
     });
   },
 
@@ -1138,8 +1212,8 @@ export const dashboardApi = {
     media_root: string;
     last_updated: string;
   }> => {
-    return api.get('/dashboard/system-info', { 
-      params: { force_refresh: forceRefresh } 
+    return api.get('/dashboard/system-info', {
+      params: { force_refresh: forceRefresh }
     });
   },
 
