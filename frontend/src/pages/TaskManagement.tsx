@@ -545,6 +545,36 @@ const TaskManagement: React.FC = () => {
         </Text>
       ),
     }] : []),
+    ...(!isMobile ? [{
+      title: '下次执行',
+      dataIndex: 'next_run_time',
+      key: 'next_run_time',
+      width: 160,
+      render: (text: string, record: DownloadTask) => {
+        // 计算下次执行时间的显示逻辑
+        if (record.status === 'completed') {
+          return <Text type="secondary">已完成</Text>;
+        }
+        if (record.status === 'failed') {
+          return <Text type="danger">执行失败</Text>;
+        }
+        if (record.status === 'running') {
+          return <Text type="success">正在执行</Text>;
+        }
+        if (record.status === 'paused') {
+          return <Text type="warning">已暂停</Text>;
+        }
+        // pending状态显示预估执行时间
+        if (text) {
+          return (
+            <Text style={{ fontSize: 12 }}>
+              {new Date(text).toLocaleString()}
+            </Text>
+          );
+        }
+        return <Text type="secondary">待安排</Text>;
+      },
+    }] : []),
     {
       title: '操作',
       key: 'actions',

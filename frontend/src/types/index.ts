@@ -215,6 +215,7 @@ export interface DownloadTask {
   download_path: string;
   date_from?: string;  // 时间范围过滤开始时间
   date_to?: string;    // 时间范围过滤结束时间
+  next_run_time?: string; // 下次执行时间
   created_at: string;
   updated_at: string;
   completed_at?: string;

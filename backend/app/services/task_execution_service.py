@@ -3,7 +3,7 @@ import logging
 import shutil
 import os
 from typing import Optional, List, Dict
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session
 from ..models.rule import DownloadTask, FilterRule
 from ..models.telegram import TelegramMessage, TelegramGroup
@@ -223,13 +223,39 @@ class TaskExecutionService:
         if rule.keywords:
             keyword_conditions = []
             for keyword in rule.keywords:
-                keyword_conditions.append(TelegramMessage.text.contains(keyword))
+                # 处理text字段可能为空的情况，同时搜索消息文本、发送者名称和媒体文件名
+                text_condition = and_(
+                    TelegramMessage.text.isnot(None),
+                    TelegramMessage.text.contains(keyword)
+                )
+                sender_condition = and_(
+                    TelegramMessage.sender_name.isnot(None),
+                    TelegramMessage.sender_name.contains(keyword)
+                )
+                filename_condition = and_(
+                    TelegramMessage.media_filename.isnot(None),
+                    TelegramMessage.media_filename.contains(keyword)
+                )
+                keyword_conditions.append(or_(text_condition, sender_condition, filename_condition))
             if keyword_conditions:
                 query = query.filter(or_(*keyword_conditions))
         
         if rule.exclude_keywords:
             for exclude_keyword in rule.exclude_keywords:
-                query = query.filter(~TelegramMessage.text.contains(exclude_keyword))
+                # 处理text字段可能为空的情况，排除包含关键词的消息文本、发送者名称和媒体文件名
+                text_exclude = and_(
+                    TelegramMessage.text.isnot(None),
+                    TelegramMessage.text.contains(exclude_keyword)
+                )
+                sender_exclude = and_(
+                    TelegramMessage.sender_name.isnot(None),
+                    TelegramMessage.sender_name.contains(exclude_keyword)
+                )
+                filename_exclude = and_(
+                    TelegramMessage.media_filename.isnot(None),
+                    TelegramMessage.media_filename.contains(exclude_keyword)
+                )
+                query = query.filter(~or_(text_exclude, sender_exclude, filename_exclude))
         
         if rule.media_types:
             query = query.filter(TelegramMessage.media_type.in_(rule.media_types))
