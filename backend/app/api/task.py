@@ -516,7 +516,7 @@ async def batch_task_operation(
                 else:
                     task.status = "running"
                     execution_service = get_task_execution_service()
-        success = await execution_service.start_task(task_id)
+                    success = await execution_service.start_task(task_id)
                     if success:
                         results.append({"task_id": task_id, "status": "success", "message": "任务启动成功"})
                         successful += 1
@@ -530,7 +530,7 @@ async def batch_task_operation(
                     results.append({"task_id": task_id, "status": "skipped", "message": "任务未运行"})
                 else:
                     execution_service = get_task_execution_service()
-        success = await execution_service.stop_task(task_id)
+                    success = await execution_service.stop_task(task_id)
                     if success:
                         results.append({"task_id": task_id, "status": "success", "message": "任务停止成功"})
                         successful += 1
@@ -543,7 +543,7 @@ async def batch_task_operation(
                     results.append({"task_id": task_id, "status": "skipped", "message": "任务未运行"})
                 else:
                     execution_service = get_task_execution_service()
-        success = await execution_service.pause_task(task_id)
+                    success = await execution_service.pause_task(task_id)
                     if success:
                         results.append({"task_id": task_id, "status": "success", "message": "任务暂停成功"})
                         successful += 1
@@ -554,13 +554,13 @@ async def batch_task_operation(
             elif operation == "restart":
                 if task.status == "running":
                     execution_service = get_task_execution_service()
-            await execution_service.stop_task(task_id)
+                    await execution_service.stop_task(task_id)
                 task.status = "pending"
                 task.progress = 0
                 task.downloaded_messages = 0
                 task.error_message = None
                 execution_service = get_task_execution_service()
-        success = await execution_service.start_task(task_id)
+                success = await execution_service.start_task(task_id)
                 if success:
                     task.status = "running"
                     results.append({"task_id": task_id, "status": "success", "message": "任务重启成功"})
@@ -577,7 +577,7 @@ async def batch_task_operation(
                     task.status = "pending"
                     task.error_message = None
                     execution_service = get_task_execution_service()
-        success = await execution_service.start_task(task_id)
+                    success = await execution_service.start_task(task_id)
                     if success:
                         task.status = "running"
                         results.append({"task_id": task_id, "status": "success", "message": "任务重试成功"})
