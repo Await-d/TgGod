@@ -512,7 +512,11 @@ async def concurrent_download_single_file(message_id: int, force: bool = False, 
     """
     logger.info(f"执行并发下载: 消息 {message_id}, force={force}, user={user_id}")
     
+    global downloading_messages
     try:
+        # 添加到正在下载的消息集合中
+        downloading_messages.add(message_id)
+        
         # 直接调用下载背景任务，绕过串行队列
         await download_media_background(message_id, force)
         logger.info(f"并发下载成功: 消息 {message_id}")
@@ -533,6 +537,10 @@ async def concurrent_download_single_file(message_id: int, force: bool = False, 
             logger.error(f"更新下载失败状态时数据库错误: {str(db_error)}")
         
         raise
+    finally:
+        # 无论成功还是失败，都要从下载集合中移除
+        downloading_messages.discard(message_id)
+        logger.info(f"已从下载队列中移除消息: {message_id}")
 
 async def batch_download_manager(batch_id: str):
     """
