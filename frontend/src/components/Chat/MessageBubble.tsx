@@ -157,8 +157,12 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
           <ForwardedMessagePreview
             message={message}
             onJumpToOriginal={(messageId) => {
-              // TODO: 实现跳转到原始消息的逻辑
-              console.log('Jump to original message:', messageId);
+              // 跳转到原始消息，使用现有的消息跳转逻辑
+              if (onJumpToMessage) {
+                onJumpToMessage(messageId);
+              } else {
+                console.warn('onJumpToMessage callback not available');
+              }
             }}
             onJumpToGroup={onJumpToGroup}
             onJumpToMessage={onJumpToMessage}

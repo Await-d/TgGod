@@ -492,10 +492,74 @@ const ChatInterface: React.FC = () => {
   }, []);
 
   // 处理消息转发
-  const handleForward = useCallback((message: TelegramMessage, targets: string[], comment?: string) => {
-    // TODO: 实现消息转发逻辑
-    console.log('转发消息:', message, '到:', targets, '评论:', comment);
-    antMessage.success('消息转发成功');
+  const handleForward = useCallback(async (message: TelegramMessage, targets: string[], comment?: string) => {
+    try {
+      // 构造转发消息内容
+      let forwardText = '';
+      
+      // 添加转发标识
+      forwardText += '🔄 转发消息\n';
+      
+      // 添加原始发送者信息
+      if (message.sender_name || message.sender_username) {
+        forwardText += `来自: ${message.sender_name || message.sender_username}\n`;
+      }
+      
+      // 添加原始消息时间
+      forwardText += `时间: ${new Date(message.date).toLocaleString()}\n`;
+      forwardText += '────────────────\n';
+      
+      // 添加消息内容
+      if (message.text) {
+        forwardText += message.text;
+      }
+      
+      // 如果有媒体文件，添加媒体类型说明
+      if (message.media_type) {
+        forwardText += message.text ? '\n\n' : '';
+        forwardText += `[${message.media_type.toUpperCase()}文件]`;
+        if (message.media_filename) {
+          forwardText += ` ${message.media_filename}`;
+        }
+      }
+      
+      // 添加用户评论
+      if (comment && comment.trim()) {
+        forwardText += '\n\n💬 转发评论:\n';
+        forwardText += comment.trim();
+      }
+      
+      // 向每个目标发送转发消息
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const targetId of targets) {
+        try {
+          const groupId = parseInt(targetId);
+          await messageApi.sendMessage(groupId, {
+            text: forwardText,
+            reply_to_message_id: undefined
+          });
+          successCount++;
+        } catch (error) {
+          console.error(`转发到群组 ${targetId} 失败:`, error);
+          failCount++;
+        }
+      }
+      
+      // 显示结果
+      if (successCount > 0 && failCount === 0) {
+        antMessage.success(`消息已成功转发到 ${successCount} 个群组`);
+      } else if (successCount > 0 && failCount > 0) {
+        antMessage.warning(`消息转发完成：成功 ${successCount} 个，失败 ${failCount} 个`);
+      } else {
+        antMessage.error('消息转发失败');
+      }
+      
+    } catch (error: any) {
+      console.error('转发消息失败:', error);
+      antMessage.error('转发消息失败: ' + (error?.message || '未知错误'));
+    }
   }, []);
 
   // 移除引用消息
@@ -565,7 +629,7 @@ const ChatInterface: React.FC = () => {
       setReplyTo(null);
 
       // 可以在这里添加消息到本地状态，或者让MessageArea自动刷新
-      // TODO: 可以考虑通过WebSocket实时接收新消息
+      // WebSocket实时接收新消息已通过useRealTimeMessages Hook实现
 
     } catch (error: any) {
       console.error('发送消息失败:', error);
