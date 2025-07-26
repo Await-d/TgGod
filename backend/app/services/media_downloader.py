@@ -47,12 +47,29 @@ class TelegramMediaDownloader:
             # 确保session目录存在
             os.makedirs(os.path.dirname(self.session_name), exist_ok=True)
             
-            # 使用与主服务相同的session文件，确保认证状态一致
-            main_session_name = os.path.join("./telegram_sessions", "tggod_session")
+            # 为媒体下载器创建独立的session，避免与主服务的session文件冲突
+            import time
+            import threading
+            downloader_session_name = os.path.join(
+                "./telegram_sessions", 
+                f"downloader_{threading.get_ident()}_{int(time.time() * 1000) % 100000}"
+            )
             
-            # 创建客户端，使用主服务的session文件
+            # 尝试复制主session文件到下载器session（如果主session存在）
+            main_session_path = os.path.join("./telegram_sessions", "tggod_session.session")
+            downloader_session_path = f"{downloader_session_name}.session"
+            
+            if os.path.exists(main_session_path) and not os.path.exists(downloader_session_path):
+                try:
+                    import shutil
+                    shutil.copy2(main_session_path, downloader_session_path)
+                    logger.info(f"已复制主session到下载器session: {downloader_session_path}")
+                except Exception as copy_error:
+                    logger.warning(f"复制session文件失败，将使用独立session: {copy_error}")
+            
+            # 创建客户端，使用独立的session文件
             self.client = TelegramClient(
-                main_session_name,
+                downloader_session_name,
                 api_id,
                 api_hash,
                 # 使用更保守的连接配置
@@ -319,57 +336,20 @@ class TelegramMediaDownloader:
         await self.cleanup()
         logger.info("Telegram媒体下载器已关闭")
 
-# 全局共享的媒体下载器实例
-_shared_downloader: Optional[TelegramMediaDownloader] = None
-_downloader_lock = asyncio.Lock()
-_initialization_in_progress = False
-
 async def get_media_downloader() -> TelegramMediaDownloader:
-    """获取媒体下载器实例 - 使用共享实例避免并发数据库访问"""
-    global _shared_downloader, _initialization_in_progress
+    """获取媒体下载器实例 - 每次创建独立实例避免session冲突"""
+    logger.info("创建独立的媒体下载器实例")
+    downloader = TelegramMediaDownloader()
     
-    # 如果实例存在且已连接，直接返回
-    if (_shared_downloader is not None and 
-        _shared_downloader._initialized and 
-        _shared_downloader.client and 
-        _shared_downloader.client.is_connected()):
-        return _shared_downloader
-    
-    # 使用锁确保只有一个协程进行初始化
-    async with _downloader_lock:
-        # 双重检查，可能在等待锁期间其他协程已经完成初始化
-        if (_shared_downloader is not None and 
-            _shared_downloader._initialized and 
-            _shared_downloader.client and 
-            _shared_downloader.client.is_connected()):
-            return _shared_downloader
-        
-        # 如果正在初始化中，等待一下再检查
-        if _initialization_in_progress:
-            await asyncio.sleep(0.1)
-            if (_shared_downloader is not None and 
-                _shared_downloader._initialized and 
-                _shared_downloader.client and 
-                _shared_downloader.client.is_connected()):
-                return _shared_downloader
-        
-        _initialization_in_progress = True
-        logger.info("创建新的共享媒体下载器实例")
-        
+    try:
+        await downloader.initialize()
+        logger.info("媒体下载器实例创建成功")
+        return downloader
+    except Exception as e:
+        logger.error(f"媒体下载器初始化失败: {e}")
+        # 确保清理资源
         try:
-            downloader = TelegramMediaDownloader()
-            await downloader.initialize()
-            _shared_downloader = downloader
-            logger.info("共享媒体下载器实例创建成功")
-            return _shared_downloader
-        except Exception as e:
-            logger.error(f"媒体下载器初始化失败: {e}")
-            # 确保清理资源
-            if 'downloader' in locals():
-                try:
-                    await downloader.cleanup()
-                except:
-                    pass
-            raise
-        finally:
-            _initialization_in_progress = False
+            await downloader.cleanup()
+        except:
+            pass
+        raise
