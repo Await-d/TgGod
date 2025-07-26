@@ -32,11 +32,11 @@ class FilterRule(Base):
     include_forwarded = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)
     
-    # 同步跟踪字段
-    last_sync_time = Column(DateTime(timezone=True), nullable=True)  # 最后同步时间
-    last_sync_message_count = Column(Integer, default=0)  # 最后同步的消息数量
-    sync_status = Column(String(20), default='pending')  # 同步状态: pending, syncing, completed, failed
-    needs_full_resync = Column(Boolean, default=True)  # 是否需要完全重新同步
+    # 同步跟踪字段（暂时注释，等待应用重启后启用）
+    # last_sync_time = Column(DateTime(timezone=True), nullable=True)  # 最后同步时间
+    # last_sync_message_count = Column(Integer, default=0)  # 最后同步的消息数量
+    # sync_status = Column(String(20), default='pending')  # 同步状态: pending, syncing, completed, failed
+    # needs_full_resync = Column(Boolean, default=True)  # 是否需要完全重新同步
     
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())

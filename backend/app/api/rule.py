@@ -5,7 +5,7 @@ from typing import List, Optional
 from ..database import get_db
 from ..models.rule import FilterRule, DownloadTask
 from ..models.telegram import TelegramGroup, TelegramMessage
-from ..services.rule_sync_service import rule_sync_service
+# from ..services.rule_sync_service import rule_sync_service  # 暂时注释
 from pydantic import BaseModel
 from datetime import datetime
 import logging
@@ -61,10 +61,11 @@ class RuleResponse(BaseModel):
     max_file_size: Optional[int]  # 最大文件大小（字节）
     include_forwarded: bool
     is_active: bool
-    last_sync_time: Optional[datetime]  # 最后同步时间
-    last_sync_message_count: int  # 最后同步的消息数量
-    sync_status: str  # 同步状态
-    needs_full_resync: bool  # 是否需要完全重新同步
+    # 同步跟踪字段（暂时注释）
+    # last_sync_time: Optional[datetime]  # 最后同步时间
+    # last_sync_message_count: int  # 最后同步的消息数量
+    # sync_status: str  # 同步状态
+    # needs_full_resync: bool  # 是否需要完全重新同步
     created_at: datetime
     updated_at: Optional[datetime]
     
@@ -171,10 +172,10 @@ async def update_rule(
     for field, value in update_data.items():
         setattr(rule, field, value)
     
-    # 如果规则条件被修改，标记需要重新同步
+    # 如果规则条件被修改，标记需要重新同步（暂时注释）
     if needs_resync:
-        rule.needs_full_resync = True
-        rule.sync_status = 'pending'
+        # rule.needs_full_resync = True
+        # rule.sync_status = 'pending'
         logger.info(f"规则 {rule_id} 条件已修改，标记为需要重新同步")
     
     db.commit()
@@ -544,25 +545,26 @@ async def ensure_rule_data_availability(
         raise HTTPException(status_code=500, detail=f"操作失败: {str(e)}")
 
 
-@router.get("/rules/{rule_id}/sync-status")
-async def get_rule_sync_status(
-    rule_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    获取规则的同步状态信息
-    """
-    try:
-        status = await rule_sync_service.get_sync_status(rule_id, db)
-        return {
-            "success": True,
-            "data": status
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"获取同步状态失败: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"获取同步状态失败: {str(e)}")
+# 暂时注释同步状态相关endpoint
+# @router.get("/rules/{rule_id}/sync-status")
+# async def get_rule_sync_status(
+#     rule_id: int,
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     获取规则的同步状态信息
+#     """
+#     try:
+#         status = await rule_sync_service.get_sync_status(rule_id, db)
+#         return {
+#             "success": True,
+#             "data": status
+#         }
+#     except ValueError as e:
+#         raise HTTPException(status_code=404, detail=str(e))
+#     except Exception as e:
+#         logger.error(f"获取同步状态失败: {str(e)}")
+#         raise HTTPException(status_code=500, detail=f"获取同步状态失败: {str(e)}")
 
 
 @router.post("/rules/{rule_id}/mark-for-resync")
