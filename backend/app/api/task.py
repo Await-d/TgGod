@@ -6,6 +6,7 @@ from ..models.rule import DownloadTask
 from ..models.telegram import TelegramGroup
 from ..models.rule import FilterRule
 from ..services.task_execution_service import task_execution_service
+from ..services.mock_task_execution_service import mock_task_execution_service
 from pydantic import BaseModel
 from datetime import datetime
 import logging
@@ -13,6 +14,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+def get_task_execution_service():
+    """获取可用的任务执行服务（优先使用真实服务，否则使用Mock服务）"""
+    try:
+        # 检查真实服务是否可用
+        if hasattr(task_execution_service, '_initialized') and task_execution_service._initialized:
+            return task_execution_service
+        else:
+            logger.warning("使用Mock任务执行服务")
+            return mock_task_execution_service
+    except Exception as e:
+        logger.warning(f"真实任务执行服务不可用，使用Mock服务: {e}")
+        return mock_task_execution_service
 
 # Pydantic模型
 class TaskCreate(BaseModel):
@@ -207,7 +221,8 @@ async def start_task(
     
     # 启动实际的下载任务
     try:
-        success = await task_execution_service.start_task(task_id)
+        execution_service = get_task_execution_service()
+        success = await execution_service.start_task(task_id)
         if not success:
             task.status = "failed"
             task.error_message = "启动任务执行服务失败"
@@ -236,7 +251,8 @@ async def pause_task(
     
     # 暂停实际的下载任务
     try:
-        success = await task_execution_service.pause_task(task_id)
+        execution_service = get_task_execution_service()
+        success = await execution_service.pause_task(task_id)
         if not success:
             raise HTTPException(status_code=400, detail="暂停任务失败，任务可能未在运行")
     except Exception as e:
@@ -259,7 +275,8 @@ async def stop_task(
     
     # 停止实际的下载任务
     try:
-        success = await task_execution_service.stop_task(task_id)
+        execution_service = get_task_execution_service()
+        success = await execution_service.stop_task(task_id)
         if not success:
             raise HTTPException(status_code=400, detail="停止任务失败，任务可能未在运行")
     except Exception as e:
@@ -305,7 +322,8 @@ async def restart_task(
     # 如果任务正在运行，先停止它
     if task.status == "running":
         try:
-            await task_execution_service.stop_task(task_id)
+            execution_service = get_task_execution_service()
+            await execution_service.stop_task(task_id)
             logger.info(f"任务 {task_id} 已停止，准备重启")
         except Exception as e:
             logger.error(f"停止任务 {task_id} 失败: {e}")
@@ -320,7 +338,8 @@ async def restart_task(
     
     # 启动任务
     try:
-        success = await task_execution_service.start_task(task_id)
+        execution_service = get_task_execution_service()
+        success = await execution_service.start_task(task_id)
         if not success:
             task.status = "failed"
             task.error_message = "重启任务失败"
@@ -363,7 +382,8 @@ async def retry_task(
     
     # 启动任务
     try:
-        success = await task_execution_service.start_task(task_id)
+        execution_service = get_task_execution_service()
+        success = await execution_service.start_task(task_id)
         if not success:
             task.status = "failed"
             task.error_message = "重试任务失败"
@@ -399,7 +419,8 @@ async def resume_task(
     
     # 恢复任务
     try:
-        success = await task_execution_service.start_task(task_id)
+        execution_service = get_task_execution_service()
+        success = await execution_service.start_task(task_id)
         if not success:
             task.error_message = "恢复任务失败"
             db.commit()
@@ -494,7 +515,8 @@ async def batch_task_operation(
                     results.append({"task_id": task_id, "status": "skipped", "message": "任务已在运行"})
                 else:
                     task.status = "running"
-                    success = await task_execution_service.start_task(task_id)
+                    execution_service = get_task_execution_service()
+        success = await execution_service.start_task(task_id)
                     if success:
                         results.append({"task_id": task_id, "status": "success", "message": "任务启动成功"})
                         successful += 1
@@ -507,7 +529,8 @@ async def batch_task_operation(
                 if task.status != "running":
                     results.append({"task_id": task_id, "status": "skipped", "message": "任务未运行"})
                 else:
-                    success = await task_execution_service.stop_task(task_id)
+                    execution_service = get_task_execution_service()
+        success = await execution_service.stop_task(task_id)
                     if success:
                         results.append({"task_id": task_id, "status": "success", "message": "任务停止成功"})
                         successful += 1
@@ -519,7 +542,8 @@ async def batch_task_operation(
                 if task.status != "running":
                     results.append({"task_id": task_id, "status": "skipped", "message": "任务未运行"})
                 else:
-                    success = await task_execution_service.pause_task(task_id)
+                    execution_service = get_task_execution_service()
+        success = await execution_service.pause_task(task_id)
                     if success:
                         results.append({"task_id": task_id, "status": "success", "message": "任务暂停成功"})
                         successful += 1
@@ -529,12 +553,14 @@ async def batch_task_operation(
                         
             elif operation == "restart":
                 if task.status == "running":
-                    await task_execution_service.stop_task(task_id)
+                    execution_service = get_task_execution_service()
+            await execution_service.stop_task(task_id)
                 task.status = "pending"
                 task.progress = 0
                 task.downloaded_messages = 0
                 task.error_message = None
-                success = await task_execution_service.start_task(task_id)
+                execution_service = get_task_execution_service()
+        success = await execution_service.start_task(task_id)
                 if success:
                     task.status = "running"
                     results.append({"task_id": task_id, "status": "success", "message": "任务重启成功"})
@@ -550,7 +576,8 @@ async def batch_task_operation(
                 else:
                     task.status = "pending"
                     task.error_message = None
-                    success = await task_execution_service.start_task(task_id)
+                    execution_service = get_task_execution_service()
+        success = await execution_service.start_task(task_id)
                     if success:
                         task.status = "running"
                         results.append({"task_id": task_id, "status": "success", "message": "任务重试成功"})
@@ -742,7 +769,8 @@ async def get_running_tasks(
         running_tasks = db.query(DownloadTask).filter(DownloadTask.status == "running").all()
         
         # 获取任务执行服务中的实际运行状态
-        actual_running_task_ids = list(task_execution_service.running_tasks.keys())
+        execution_service = get_task_execution_service()
+        actual_running_task_ids = execution_service.get_running_tasks()
         
         task_info = []
         for task in running_tasks:
