@@ -26,6 +26,7 @@ import {
 import { TelegramMessage } from '../../types';
 import { MessageBubbleProps } from '../../types/chat';
 import MediaDownloadPreview from './MediaDownloadPreview';
+import AutoDownloadImagePreview from './AutoDownloadImagePreview';
 import EnhancedVoiceMessage from './EnhancedVoiceMessage';
 import MessageReactions from './MessageReactions';
 import EnhancedMessageText from './EnhancedMessageText';
@@ -241,7 +242,7 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
           </div>
         )}
 
-        {/* 媒体内容 - 显示所有媒体类型，支持按需下载 */}
+        {/* 媒体内容 - 智能选择组件 */}
         {message.media_type && (
           <div className="message-media">
             {/* 语音和音频消息 - 如果已下载则使用现有组件 */}
@@ -254,8 +255,34 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                 className="message-voice"
                 compact={isMobile}
               />
+            ) : message.media_type === 'photo' ? (
+              /* 图片类型：使用自动下载组件（小于2MB自动下载） */
+              <div onClick={(e) => e.stopPropagation()}>
+                <AutoDownloadImagePreview
+                  message={message}
+                  className="message-image-preview"
+                  maxAutoDownloadSize={2 * 1024 * 1024} // 2MB
+                  onPreview={(imageUrl) => {
+                    console.log('MessageBubble - Auto download image preview called', {
+                      messageId: message.id,
+                      imageUrl,
+                      hasOnOpenGallery: !!onOpenGallery
+                    });
+                    if (onOpenGallery) {
+                      // 创建一个更新的消息对象，包含当前的媒体路径
+                      const updatedMessage = {
+                        ...message,
+                        media_path: imageUrl,
+                        media_downloaded: true
+                      };
+                      onOpenGallery(updatedMessage);
+                    }
+                  }}
+                  compact={isMobile}
+                />
+              </div>
             ) : (
-              /* 所有媒体类型使用按需下载预览组件 */
+              /* 其他媒体类型：使用按需下载预览组件 */
               <div onClick={(e) => e.stopPropagation()}>
                 <MediaDownloadPreview
                   message={message}
