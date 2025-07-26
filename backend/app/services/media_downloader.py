@@ -33,10 +33,7 @@ class TelegramMediaDownloader:
                     pass
                 self.client = None
             
-            # 强制清除配置缓存，确保获取最新配置
-            settings.clear_cache()
-            
-            # 获取Telegram配置
+            # 获取Telegram配置 - 使用缓存避免重复数据库访问
             api_id = settings.telegram_api_id
             api_hash = settings.telegram_api_hash
             
@@ -331,18 +328,35 @@ class TelegramMediaDownloader:
         await self.cleanup()
         logger.info("Telegram媒体下载器已关闭")
 
+# 全局共享的媒体下载器实例
+_shared_downloader: Optional[TelegramMediaDownloader] = None
+_downloader_lock = asyncio.Lock()
+
 async def get_media_downloader() -> TelegramMediaDownloader:
-    """获取媒体下载器实例 - 每次创建新实例避免冲突"""
-    downloader = TelegramMediaDownloader()
+    """获取媒体下载器实例 - 使用共享实例避免并发数据库访问"""
+    global _shared_downloader
     
-    try:
-        await downloader.initialize()
-        return downloader
-    except Exception as e:
-        logger.error(f"媒体下载器初始化失败: {e}")
-        # 确保清理资源
-        try:
-            await downloader.cleanup()
-        except:
-            pass
-        raise
+    async with _downloader_lock:
+        # 如果共享实例不存在或连接已断开，创建新实例
+        if (_shared_downloader is None or 
+            not _shared_downloader._initialized or 
+            not _shared_downloader.client or 
+            not _shared_downloader.client.is_connected()):
+            
+            logger.info("创建新的共享媒体下载器实例")
+            downloader = TelegramMediaDownloader()
+            
+            try:
+                await downloader.initialize()
+                _shared_downloader = downloader
+                logger.info("共享媒体下载器实例创建成功")
+            except Exception as e:
+                logger.error(f"媒体下载器初始化失败: {e}")
+                # 确保清理资源
+                try:
+                    await downloader.cleanup()
+                except:
+                    pass
+                raise
+        
+        return _shared_downloader
