@@ -439,8 +439,14 @@ async def startup_event():
         logger.warning("系统将继续启动，但数据库结构可能不完整")
     
     # 启动消息同步任务
-    message_sync_task.start()
-    logger.info("Message sync task started")
+    try:
+        message_sync_task.start()
+        logger.info("Message sync task started")
+    except Exception as e:
+        logger.error(f"Failed to start message sync task: {e}")
+        logger.warning("Message sync task disabled, automatic message syncing will not work")
+        import traceback
+        logger.debug(f"Message sync task error traceback: {traceback.format_exc()}")
     
     # 初始化任务执行服务
     try:
@@ -456,9 +462,15 @@ async def startup_event():
         from .services.task_scheduler import task_scheduler
         await task_scheduler.start()
         logger.info("Task scheduler started successfully")
+    except ImportError as e:
+        logger.error(f"Failed to import task scheduler: {e}")
+        logger.warning("Task scheduler disabled, recurring tasks will not work")
     except Exception as e:
         logger.error(f"Failed to start task scheduler: {e}")
         logger.warning("Task scheduler disabled, recurring tasks will not work")
+        # 不让调度器错误阻止应用启动
+        import traceback
+        logger.debug(f"Task scheduler error traceback: {traceback.format_exc()}")
     
     logger.info("Database tables created successfully")
     

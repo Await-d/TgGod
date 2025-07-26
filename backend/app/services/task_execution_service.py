@@ -34,22 +34,32 @@ class TaskExecutionService:
             return
         
         try:
+            # 尝试初始化媒体下载器
             await self.media_downloader.initialize()
+            logger.info("媒体下载器初始化成功")
             
-            # 延迟导入 JellyfinMediaService 避免循环导入
-            try:
-                from .jellyfin_media_service import JellyfinMediaService
-                self.jellyfin_service = JellyfinMediaService()
-                logger.info("Jellyfin媒体服务初始化成功")
-            except ImportError as e:
-                logger.warning(f"Jellyfin媒体服务导入失败，将禁用Jellyfin功能: {e}")
-                self.jellyfin_service = None
-            
-            self._initialized = True
-            logger.info("任务执行服务初始化成功")
         except Exception as e:
-            logger.error(f"任务执行服务初始化失败: {e}")
-            raise
+            logger.error(f"媒体下载器初始化失败: {e}")
+            logger.warning("媒体下载功能将不可用，但服务将继续以有限模式运行")
+            # 将媒体下载器设为None，表示不可用
+            self.media_downloader = None
+            
+        try:
+            # 延迟导入 JellyfinMediaService 避免循环导入
+            from .jellyfin_media_service import JellyfinMediaService
+            self.jellyfin_service = JellyfinMediaService()
+            logger.info("Jellyfin媒体服务初始化成功")
+        except ImportError as e:
+            logger.warning(f"Jellyfin媒体服务导入失败，将禁用Jellyfin功能: {e}")
+            self.jellyfin_service = None
+        except Exception as e:
+            logger.error(f"Jellyfin媒体服务初始化失败: {e}")
+            self.jellyfin_service = None
+        
+        # 即使某些服务初始化失败，也标记为已初始化，允许基本功能运行
+        self._initialized = True
+        logger.info("任务执行服务初始化完成（可能以有限模式运行）")
+        raise
     
     async def start_task(self, task_id: int) -> bool:
         """启动任务执行"""
@@ -343,6 +353,11 @@ class TaskExecutionService:
                 if os.path.exists(file_path):
                     logger.info(f"文件已存在，跳过下载: {filename}")
                     return True
+                
+                # 检查媒体下载器是否可用
+                if not self.media_downloader:
+                    logger.error(f"媒体下载器不可用，无法下载文件: {filename}")
+                    return False
                 
                 # 定义进度回调函数
                 async def progress_callback(current: int, total: int):

@@ -13,7 +13,7 @@ from sqlalchemy import and_, or_
 from ..models.rule import DownloadTask
 from ..database import get_db
 from ..utils.db_optimization import optimized_db_session
-from .task_execution_service import TaskExecutionService
+# TaskExecutionService将在需要时延迟导入，避免循环导入
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class TaskScheduler:
     def __init__(self):
         self.running = False
         self.scheduler_task = None
-        self.task_execution_service = TaskExecutionService()
+        self.task_execution_service = None  # 延迟初始化
         self.check_interval = 60  # 每60秒检查一次
         
     async def start(self):
@@ -35,8 +35,24 @@ class TaskScheduler:
         logger.info("启动任务调度器")
         self.running = True
         
-        # 确保task_execution_service已初始化
-        await self.task_execution_service.initialize()
+        try:
+            # 延迟导入TaskExecutionService避免循环导入
+            if not self.task_execution_service:
+                from .task_execution_service import TaskExecutionService
+                self.task_execution_service = TaskExecutionService()
+            
+            # 确保task_execution_service已初始化
+            await self.task_execution_service.initialize()
+            logger.info("任务执行服务初始化成功")
+        except ImportError as e:
+            logger.error(f"无法导入任务执行服务: {e}")
+            logger.warning("调度器将以有限功能模式运行")
+            self.task_execution_service = None
+        except Exception as e:
+            logger.error(f"任务执行服务初始化失败: {e}")
+            logger.warning("调度器将以有限功能模式运行")
+            # 不阻止调度器启动，但标记服务不可用
+            self.task_execution_service = None
         
         # 启动调度器循环
         self.scheduler_task = asyncio.create_task(self._scheduler_loop())
@@ -129,7 +145,10 @@ class TaskScheduler:
             logger.info(f"执行调度任务 {task.id}: {task.name}，下次执行时间: {next_run}")
             
             # 启动任务执行
-            await self.task_execution_service.start_task(task.id)
+            if self.task_execution_service:
+                await self.task_execution_service.start_task(task.id)
+            else:
+                logger.warning(f"任务执行服务不可用，跳过任务 {task.id} 的执行")
             
         except Exception as e:
             logger.error(f"执行调度任务 {task.id} 时出错: {e}")
