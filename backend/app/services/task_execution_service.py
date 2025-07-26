@@ -9,6 +9,7 @@ from ..models.rule import DownloadTask, FilterRule
 from ..models.telegram import TelegramMessage, TelegramGroup
 from ..models.log import TaskLog
 from .media_downloader import TelegramMediaDownloader
+from .rule_sync_service import rule_sync_service
 from ..utils.db_optimization import optimized_db_session
 from ..websocket.manager import websocket_manager
 from datetime import datetime, timezone
@@ -200,6 +201,19 @@ class TaskExecutionService:
     
     async def _filter_messages(self, rule: FilterRule, group: TelegramGroup, task: DownloadTask, db: Session) -> List[TelegramMessage]:
         """根据规则筛选消息，同时考虑任务的日期范围"""
+        
+        # 确保规则有足够的数据可供查询
+        try:
+            sync_result = await rule_sync_service.ensure_rule_data_availability(rule.id, db)
+            logger.info(f"规则 {rule.id} 数据可用性检查完成: {sync_result}")
+            
+            if sync_result['sync_performed']:
+                await self._log_task_event(task.id, "INFO", 
+                    f"执行了 {sync_result['sync_type']} 同步，同步了 {sync_result.get('message_count', 0)} 条消息")
+        except Exception as e:
+            logger.warning(f"规则数据同步失败，继续使用现有数据: {e}")
+            await self._log_task_event(task.id, "WARNING", f"规则数据同步失败: {str(e)}")
+        
         query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group.id)
         
         # 应用规则筛选

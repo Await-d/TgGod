@@ -606,6 +606,78 @@ class TelegramService:
         
         return cleaned_data
     
+    async def sync_group_messages(self, group_id: int, start_date: datetime = None, end_date: datetime = None, limit: int = 10000) -> Dict[str, Any]:
+        """
+        同步群组消息到数据库
+        
+        Args:
+            group_id: 数据库中的群组ID
+            start_date: 开始时间
+            end_date: 结束时间
+            limit: 最大消息数量
+            
+        Returns:
+            同步结果统计
+        """
+        try:
+            await self.initialize()
+            
+            # 从数据库获取群组信息
+            with optimized_db_session() as db:
+                group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+                if not group:
+                    return {"success": False, "error": f"群组 {group_id} 不存在"}
+            
+            # 获取群组实体
+            try:
+                if group.username:
+                    entity = await self.client.get_entity(group.username)
+                else:
+                    entity = await self.client.get_entity(group.chat_id)
+            except Exception as e:
+                logger.error(f"无法获取群组实体 {group_id}: {e}")
+                return {"success": False, "error": f"无法获取群组实体: {str(e)}"}
+            
+            # 如果没有指定时间范围，使用默认范围
+            if not start_date:
+                start_date = datetime.now() - timedelta(days=30)  # 默认同步最近30天
+            if not end_date:
+                end_date = datetime.now()
+            
+            logger.info(f"开始同步群组 {group.title} 的消息，时间范围: {start_date} - {end_date}")
+            
+            # 获取时间范围内的消息
+            messages = await self._get_messages_by_time_range(entity, start_date, end_date)
+            
+            # 限制消息数量
+            if len(messages) > limit:
+                messages = messages[:limit]
+                logger.info(f"消息数量超过限制 {limit}，已截断")
+            
+            # 保存消息到数据库
+            saved_count = 0
+            with optimized_db_session() as db:
+                saved_count = await self.save_messages_to_db(group_id, messages, db)
+            
+            logger.info(f"群组 {group.title} 消息同步完成，同步了 {saved_count} 条消息")
+            
+            return {
+                "success": True,
+                "synced_count": saved_count,
+                "total_messages": len(messages),
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"同步群组 {group_id} 消息失败: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "synced_count": 0,
+                "total_messages": 0
+            }
+
     async def sync_messages_by_month(self, group_identifier, months: List[Dict[str, Any]], group_id: int = None) -> Dict[str, Any]:
         """按月同步群组消息
         

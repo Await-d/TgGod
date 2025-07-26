@@ -5,6 +5,7 @@ from typing import List, Optional
 from ..database import get_db
 from ..models.rule import FilterRule, DownloadTask
 from ..models.telegram import TelegramGroup, TelegramMessage
+from ..services.rule_sync_service import rule_sync_service
 from pydantic import BaseModel
 from datetime import datetime
 import logging
@@ -60,6 +61,10 @@ class RuleResponse(BaseModel):
     max_file_size: Optional[int]  # 最大文件大小（字节）
     include_forwarded: bool
     is_active: bool
+    last_sync_time: Optional[datetime]  # 最后同步时间
+    last_sync_message_count: int  # 最后同步的消息数量
+    sync_status: str  # 同步状态
+    needs_full_resync: bool  # 是否需要完全重新同步
     created_at: datetime
     updated_at: Optional[datetime]
     
@@ -152,9 +157,25 @@ async def update_rule(
     if not rule:
         raise HTTPException(status_code=404, detail="规则不存在")
     
+    # 检查是否有影响查询结果的字段被修改
+    sync_affecting_fields = {
+        'keywords', 'exclude_keywords', 'sender_filter', 'media_types',
+        'date_from', 'date_to', 'min_views', 'max_views', 
+        'min_file_size', 'max_file_size', 'include_forwarded'
+    }
+    
+    update_data = rule_update.dict(exclude_unset=True)
+    needs_resync = any(field in sync_affecting_fields for field in update_data.keys())
+    
     # 更新字段
-    for field, value in rule_update.dict(exclude_unset=True).items():
+    for field, value in update_data.items():
         setattr(rule, field, value)
+    
+    # 如果规则条件被修改，标记需要重新同步
+    if needs_resync:
+        rule.needs_full_resync = True
+        rule.sync_status = 'pending'
+        logger.info(f"规则 {rule_id} 条件已修改，标记为需要重新同步")
     
     db.commit()
     db.refresh(rule)
@@ -241,6 +262,14 @@ async def test_rule(
 
 async def _apply_rule_filter(rule: FilterRule, group: TelegramGroup, db: Session) -> List[TelegramMessage]:
     """应用规则过滤条件筛选消息"""
+    
+    # 确保规则有足够的数据可供查询
+    try:
+        sync_result = await rule_sync_service.ensure_rule_data_availability(rule.id, db)
+        logger.info(f"规则 {rule.id} 测试时数据可用性检查完成: {sync_result}")
+    except Exception as e:
+        logger.warning(f"规则测试时数据同步失败，继续使用现有数据: {e}")
+    
     query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group.id)
     
     # 关键词过滤
@@ -490,3 +519,66 @@ async def get_rules_stats(
     except Exception as e:
         logger.error(f"获取规则统计失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"获取规则统计失败: {str(e)}")
+
+
+@router.post("/rules/{rule_id}/ensure-data")
+async def ensure_rule_data_availability(
+    rule_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    确保规则有足够的数据可供查询
+    自动检测并执行必要的消息同步
+    """
+    try:
+        result = await rule_sync_service.ensure_rule_data_availability(rule_id, db)
+        return {
+            "success": True,
+            "message": "数据可用性检查完成",
+            "data": result
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"确保规则数据可用性失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"操作失败: {str(e)}")
+
+
+@router.get("/rules/{rule_id}/sync-status")
+async def get_rule_sync_status(
+    rule_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取规则的同步状态信息
+    """
+    try:
+        status = await rule_sync_service.get_sync_status(rule_id, db)
+        return {
+            "success": True,
+            "data": status
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"获取同步状态失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取同步状态失败: {str(e)}")
+
+
+@router.post("/rules/{rule_id}/mark-for-resync")
+async def mark_rule_for_resync(
+    rule_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    标记规则需要重新同步（在规则修改后调用）
+    """
+    try:
+        await rule_sync_service.mark_rule_for_resync(rule_id, db)
+        return {
+            "success": True,
+            "message": f"规则 {rule_id} 已标记为需要重新同步"
+        }
+    except Exception as e:
+        logger.error(f"标记重新同步失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"操作失败: {str(e)}")
