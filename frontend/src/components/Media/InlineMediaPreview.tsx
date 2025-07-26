@@ -108,7 +108,7 @@ const InlineMediaPreview: React.FC<InlineMediaPreviewProps> = ({
     setDownloadProgress(0);
 
     try {
-      const result = await mediaApi.downloadMedia(message.message_id);
+      const result = await mediaApi.downloadMedia(message.group_id, message.message_id);
       
       if (result.status === 'success' || result.status === 'exists') {
         if (result.download_url) {

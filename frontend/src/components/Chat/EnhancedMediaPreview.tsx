@@ -119,6 +119,7 @@ interface EnhancedMediaPreviewProps {
   onGalleryOpen?: (mediaPath: string) => void;
   style?: React.CSSProperties;
   messageId?: number;  // 新增：消息ID用于按需下载
+  groupId?: number;    // 新增：群组ID用于按需下载
   fileId?: string;     // 新增：Telegram文件ID
   downloaded?: boolean; // 新增：是否已下载
   duration?: number; // 视频时长
@@ -134,6 +135,7 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
   onGalleryOpen,
   style,
   messageId,
+  groupId,
   fileId,
   downloaded = false,
   duration: initialDuration
@@ -224,13 +226,13 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
 
   // 按需下载文件
   const handleOnDemandDownload = useCallback(async () => {
-    if (!messageId || !fileId || onDemandDownloading) return;
+    if (!messageId || !groupId || !fileId || onDemandDownloading) return;
 
     try {
       setOnDemandDownloading(true);
 
       // 调用后端API开始下载
-      const response = await mediaApi.downloadMedia(messageId, false);
+      const response = await mediaApi.downloadMedia(groupId, messageId, { force: false });
       const result = response;
 
       if (result.status === 'already_downloaded') {

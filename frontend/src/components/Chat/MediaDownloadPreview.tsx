@@ -234,7 +234,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
     try {
       // 启动下载任务
-      const response = await mediaApi.downloadMedia(message.message_id);
+      const response = await mediaApi.downloadMedia(message.group_id, message.message_id);
 
       if (response.status === 'already_downloaded') {
         setDownloadState({

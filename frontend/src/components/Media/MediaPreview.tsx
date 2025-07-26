@@ -85,7 +85,7 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
 
     try {
       // 开始下载
-      const result = await mediaApi.downloadMedia(message.message_id);
+      const result = await mediaApi.downloadMedia(message.group_id, message.message_id);
       
       if (result.status === 'success') {
         antMessage.success('下载完成！');

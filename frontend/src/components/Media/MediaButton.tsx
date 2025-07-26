@@ -55,7 +55,7 @@ const MediaButton: React.FC<MediaButtonProps> = ({
     setLoading(true);
 
     try {
-      const result = await mediaApi.downloadMedia(message.message_id);
+      const result = await mediaApi.downloadMedia(message.group_id, message.message_id);
       
       if (result.status === 'success' || result.status === 'exists') {
         antMessage.success('下载完成！');
