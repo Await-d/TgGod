@@ -2084,3 +2084,184 @@ async def join_group_by_invite(
         logger.error(f"通过邀请链接加入群组失败: {e}")
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"通过邀请链接加入群组失败: {str(e)}")
+
+
+@router.get("/groups/{group_id}/unread")
+async def get_group_unread_count(
+    group_id: int,
+    last_read_time: Optional[str] = Query(None, description="用户最后读取时间 (ISO格式)"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取群组未读消息数量
+    
+    Args:
+        group_id: 群组ID
+        last_read_time: 用户最后读取时间，ISO格式字符串，如果未提供则返回最近24小时的消息数
+        db: 数据库会话
+    
+    Returns:
+        未读消息数量和相关信息
+    """
+    # 检查群组是否存在
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+    
+    try:
+        # 确定未读消息的时间界限
+        if last_read_time:
+            try:
+                # 解析ISO时间格式
+                from datetime import datetime
+                try:
+                    import dateutil.parser
+                    cutoff_time = dateutil.parser.isoparse(last_read_time)
+                except ImportError:
+                    # 如果没有dateutil，使用fromisoformat (Python 3.7+)
+                    cutoff_time = datetime.fromisoformat(last_read_time.replace('Z', '+00:00'))
+            except Exception as e:
+                logger.warning(f"解析时间格式失败: {last_read_time}, 错误: {e}")
+                # 如果时间格式错误，使用24小时前作为默认值
+                cutoff_time = datetime.now() - timedelta(hours=24)
+        else:
+            # 默认返回最近24小时的未读消息
+            cutoff_time = datetime.now() - timedelta(hours=24)
+        
+        # 查询未读消息数量（在cutoff_time之后的消息）
+        unread_count = db.query(TelegramMessage).filter(
+            TelegramMessage.group_id == group_id,
+            TelegramMessage.date > cutoff_time
+        ).count()
+        
+        # 获取最新消息信息
+        latest_message = db.query(TelegramMessage).filter(
+            TelegramMessage.group_id == group_id
+        ).order_by(desc(TelegramMessage.date)).first()
+        
+        # 获取最新未读消息信息
+        latest_unread_message = None
+        if unread_count > 0:
+            latest_unread_message = db.query(TelegramMessage).filter(
+                TelegramMessage.group_id == group_id,
+                TelegramMessage.date > cutoff_time
+            ).order_by(desc(TelegramMessage.date)).first()
+        
+        result = {
+            "group_id": group_id,
+            "group_title": group.title,
+            "unread_count": unread_count,
+            "cutoff_time": cutoff_time.isoformat(),
+            "latest_message": {
+                "id": latest_message.id,
+                "message_id": latest_message.message_id,
+                "text": latest_message.text[:100] + "..." if latest_message.text and len(latest_message.text) > 100 else latest_message.text,
+                "sender_name": latest_message.sender_name,
+                "date": latest_message.date.isoformat(),
+                "media_type": latest_message.media_type
+            } if latest_message else None,
+            "latest_unread_message": {
+                "id": latest_unread_message.id,
+                "message_id": latest_unread_message.message_id,
+                "text": latest_unread_message.text[:100] + "..." if latest_unread_message.text and len(latest_unread_message.text) > 100 else latest_unread_message.text,
+                "sender_name": latest_unread_message.sender_name,
+                "date": latest_unread_message.date.isoformat(),
+                "media_type": latest_unread_message.media_type
+            } if latest_unread_message else None
+        }
+        
+        logger.info(f"群组 {group_id} 未读消息统计: {unread_count} 条")
+        return result
+        
+    except Exception as e:
+        logger.error(f"获取群组 {group_id} 未读消息数量失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取未读消息数量失败: {str(e)}")
+
+
+@router.get("/groups/unread-summary")
+async def get_all_groups_unread_summary(
+    last_read_times: Optional[str] = Query(None, description="所有群组的最后读取时间，JSON格式: {group_id: iso_time}"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取所有群组的未读消息摘要
+    
+    Args:
+        last_read_times: JSON字符串，包含各群组的最后读取时间
+        db: 数据库会话
+    
+    Returns:
+        所有群组的未读消息摘要
+    """
+    try:
+        # 解析最后读取时间
+        import json
+        from datetime import datetime
+        
+        group_read_times = {}
+        if last_read_times:
+            try:
+                group_read_times = json.loads(last_read_times)
+            except Exception as e:
+                logger.warning(f"解析群组读取时间失败: {e}")
+        
+        # 获取所有群组
+        groups = db.query(TelegramGroup).filter(TelegramGroup.is_active == True).all()
+        
+        summary = []
+        total_unread = 0
+        
+        for group in groups:
+            # 确定该群组的未读消息时间界限
+            if str(group.id) in group_read_times:
+                try:
+                    time_str = group_read_times[str(group.id)]
+                    try:
+                        import dateutil.parser
+                        cutoff_time = dateutil.parser.isoparse(time_str)
+                    except ImportError:
+                        # 如果没有dateutil，使用fromisoformat (Python 3.7+)
+                        cutoff_time = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                except:
+                    cutoff_time = datetime.now() - timedelta(hours=24)
+            else:
+                # 默认24小时前
+                cutoff_time = datetime.now() - timedelta(hours=24)
+            
+            # 查询该群组的未读消息数量
+            unread_count = db.query(TelegramMessage).filter(
+                TelegramMessage.group_id == group.id,
+                TelegramMessage.date > cutoff_time
+            ).count()
+            
+            # 获取最新消息
+            latest_message = db.query(TelegramMessage).filter(
+                TelegramMessage.group_id == group.id
+            ).order_by(desc(TelegramMessage.date)).first()
+            
+            group_summary = {
+                "group_id": group.id,
+                "group_title": group.title,
+                "group_username": group.username,
+                "unread_count": unread_count,
+                "cutoff_time": cutoff_time.isoformat() if cutoff_time else None,
+                "latest_message_time": latest_message.date.isoformat() if latest_message else None,
+                "latest_message_text": latest_message.text[:50] + "..." if latest_message and latest_message.text and len(latest_message.text) > 50 else (latest_message.text if latest_message else None)
+            }
+            
+            summary.append(group_summary)
+            total_unread += unread_count
+        
+        result = {
+            "total_unread": total_unread,
+            "groups_count": len(groups),
+            "groups_with_unread": len([g for g in summary if g["unread_count"] > 0]),
+            "groups": summary
+        }
+        
+        logger.info(f"所有群组未读消息摘要: 总计 {total_unread} 条未读消息")
+        return result
+        
+    except Exception as e:
+        logger.error(f"获取所有群组未读消息摘要失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取未读消息摘要失败: {str(e)}")

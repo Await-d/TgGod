@@ -332,6 +332,52 @@ export const telegramApi = {
   }> => {
     return api.post(`/telegram/groups/join/invite/${inviteHash}`);
   },
+
+  // 获取群组未读消息数量
+  getGroupUnreadCount: (groupId: number, lastReadTime?: string): Promise<{
+    group_id: number;
+    group_title: string;
+    unread_count: number;
+    cutoff_time: string;
+    latest_message?: {
+      id: number;
+      message_id: number;
+      text: string;
+      sender_name: string;
+      date: string;
+      media_type?: string;
+    };
+    latest_unread_message?: {
+      id: number;
+      message_id: number;
+      text: string;
+      sender_name: string;
+      date: string;
+      media_type?: string;
+    };
+  }> => {
+    const params = lastReadTime ? { last_read_time: lastReadTime } : {};
+    return api.get(`/telegram/groups/${groupId}/unread`, { params });
+  },
+
+  // 获取所有群组未读消息摘要
+  getAllGroupsUnreadSummary: (lastReadTimes?: Record<string, string>): Promise<{
+    total_unread: number;
+    groups_count: number;
+    groups_with_unread: number;
+    groups: Array<{
+      group_id: number;
+      group_title: string;
+      group_username?: string;
+      unread_count: number;
+      cutoff_time?: string;
+      latest_message_time?: string;
+      latest_message_text?: string;
+    }>;
+  }> => {
+    const params = lastReadTimes ? { last_read_times: JSON.stringify(lastReadTimes) } : {};
+    return api.get('/telegram/groups/unread-summary', { params });
+  },
 };
 
 // 消息相关API

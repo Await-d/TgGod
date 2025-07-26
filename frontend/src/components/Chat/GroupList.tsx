@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Input, Button, Space, message, Modal, Form, Badge, Spin } from 'antd';
 import { PlusOutlined, SearchOutlined, ReloadOutlined, UserOutlined, SyncOutlined } from '@ant-design/icons';
 import { TelegramGroup } from '../../types';
-import { GroupListItemProps } from '../../types/chat';
 import GroupItem from './GroupItem';
 import { telegramApi } from '../../services/apiService';
 import { useTelegramStore } from '../../store';
+import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 import './GroupList.css';
 
 const { Search } = Input;
@@ -42,6 +42,16 @@ const GroupList: React.FC<GroupListProps> = ({
   const [form] = Form.useForm();
   
   const { groups, setGroups, addGroup } = useTelegramStore();
+  const { getUnreadCountForGroup, markGroupAsRead, totalUnreadCount } = useUnreadMessages();
+
+  // 处理群组选择，并标记为已读
+  const handleGroupSelect = useCallback((group: TelegramGroup) => {
+    // 标记群组为已读
+    markGroupAsRead(group.id);
+    
+    // 调用原始的onGroupSelect
+    onGroupSelect(group);
+  }, [markGroupAsRead, onGroupSelect]);
 
   // 获取群组列表
   const fetchGroups = useCallback(async () => {
@@ -194,6 +204,13 @@ const GroupList: React.FC<GroupListProps> = ({
         <div className="header-title">
           <h4>{isGroupListMini ? '' : '群组列表'}</h4>
           <Badge count={groupStats.total} showZero style={{ backgroundColor: '#52c41a' }} />
+          {totalUnreadCount > 0 && (
+            <Badge 
+              count={totalUnreadCount} 
+              style={{ backgroundColor: '#ff4d4f', marginLeft: '8px' }} 
+              title={`${totalUnreadCount} 条未读消息`}
+            />
+          )}
         </div>
         
         <div className="header-actions">
@@ -309,8 +326,8 @@ const GroupList: React.FC<GroupListProps> = ({
               key={group.id}
               group={group}
               isSelected={selectedGroup?.id === group.id}
-              onClick={onGroupSelect}
-              unreadCount={0} // TODO: 实现未读消息计数
+              onClick={handleGroupSelect}
+              unreadCount={getUnreadCountForGroup(group.id)}
               lastMessageTime={group.updated_at}
               isMiniMode={isGroupListMini}
               isTablet={isTablet}
