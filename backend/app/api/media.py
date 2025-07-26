@@ -137,43 +137,51 @@ async def start_batch_download(
     already_downloaded = []
     failed_to_start = []
     
-    for message_id in request.message_ids:
-        message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
-        if not message:
-            failed_to_start.append({
-                "message_id": message_id,
-                "reason": "消息不存在"
-            })
-            continue
-        
-        if not message.media_type or not message.media_file_id:
-            failed_to_start.append({
-                "message_id": message_id,
-                "reason": "该消息不包含媒体文件"
-            })
-            continue
-        
-        # 检查是否已下载
-        if message.media_downloaded and message.media_path and not request.force:
-            if os.path.exists(message.media_path):
-                already_downloaded.append(message_id)
-                continue
-            else:
-                # 文件记录存在但实际文件丢失，重置下载状态
-                try:
-                    message.media_downloaded = False
-                    message.media_path = None
-                    db.commit()
-                    valid_messages.append(message_id)
-                except Exception as e:
-                    logger.warning(f"重置消息 {message_id} 下载状态失败: {str(e)}")
-                    db.rollback()
+    # 使用优化的数据库会话处理批量验证
+    try:
+        with optimized_db_session(autocommit=False, max_retries=3) as db_session:
+            for message_id in request.message_ids:
+                message = db_session.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
+                if not message:
                     failed_to_start.append({
                         "message_id": message_id,
-                        "reason": f"重置下载状态失败: {str(e)}"
+                        "reason": "消息不存在"
                     })
-        else:
-            valid_messages.append(message_id)
+                    continue
+                
+                if not message.media_type or not message.media_file_id:
+                    failed_to_start.append({
+                        "message_id": message_id,
+                        "reason": "该消息不包含媒体文件"
+                    })
+                    continue
+                
+                # 检查是否已下载
+                if message.media_downloaded and message.media_path and not request.force:
+                    if os.path.exists(message.media_path):
+                        already_downloaded.append(message_id)
+                        continue
+                    else:
+                        # 文件记录存在但实际文件丢失，重置下载状态
+                        try:
+                            message.media_downloaded = False
+                            message.media_path = None
+                            # 使用优化会话的自动提交
+                            valid_messages.append(message_id)
+                        except Exception as e:
+                            logger.warning(f"重置消息 {message_id} 下载状态失败: {str(e)}")
+                            failed_to_start.append({
+                                "message_id": message_id,
+                                "reason": f"重置下载状态失败: {str(e)}"
+                            })
+                else:
+                    valid_messages.append(message_id)
+    except Exception as db_error:
+        logger.error(f"批量下载验证时数据库错误: {str(db_error)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"数据库访问失败: {str(db_error)}"
+        )
     
     if not valid_messages:
         return BatchDownloadResponse(
@@ -252,61 +260,69 @@ async def get_batch_download_status(
     batch_info = batch_downloads[batch_id]
     message_ids = batch_info["message_ids"]
     
-    # 获取所有文件的状态
+    # 获取所有文件的状态 - 使用优化的数据库会话
     files_status = []
     completed = 0
     downloading = 0
     failed = 0
     pending = 0
     
-    for message_id in message_ids:
-        message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
-        if not message:
-            files_status.append({
-                "message_id": message_id,
-                "status": "not_found",
-                "progress": 0,
-                "error": "消息不存在"
-            })
-            failed += 1
-            continue
-        
-        file_status = {
-            "message_id": message_id,
-            "media_type": message.media_type,
-            "media_filename": message.media_filename,
-            "progress": message.download_progress or 0,
-            "downloaded_size": message.downloaded_size or 0,
-            "total_size": message.media_size or 0,
-            "download_speed": message.download_speed or 0,
-            "estimated_time_remaining": message.estimated_time_remaining or 0
-        }
-        
-        if message.media_downloaded and message.media_path:
-            if os.path.exists(message.media_path):
-                file_status["status"] = "completed"
-                file_status["file_path"] = message.media_path
-                file_status["download_url"] = build_media_url(message.media_path)
-                completed += 1
-            else:
-                file_status["status"] = "file_missing"
-                file_status["error"] = "文件记录存在但实际文件丢失"
-                failed += 1
-        elif message.media_download_error:
-            if message.media_download_error == "下载已取消":
-                file_status["status"] = "cancelled"
-            else:
-                file_status["status"] = "failed"
-            file_status["error"] = message.media_download_error
-            failed += 1
-        elif message_id in downloading_messages:
-            file_status["status"] = "downloading"
-            downloading += 1
-        else:
-            file_status["status"] = "pending"
-            pending += 1
-        
-        files_status.append(file_status)
+    try:
+        with optimized_db_session(autocommit=False, max_retries=3) as db_session:
+            for message_id in message_ids:
+                message = db_session.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
+                if not message:
+                    files_status.append({
+                        "message_id": message_id,
+                        "status": "not_found",
+                        "progress": 0,
+                        "error": "消息不存在"
+                    })
+                    failed += 1
+                    continue
+                
+                file_status = {
+                    "message_id": message_id,
+                    "media_type": message.media_type,
+                    "media_filename": message.media_filename,
+                    "progress": message.download_progress or 0,
+                    "downloaded_size": message.downloaded_size or 0,
+                    "total_size": message.media_size or 0,
+                    "download_speed": message.download_speed or 0,
+                    "estimated_time_remaining": message.estimated_time_remaining or 0
+                }
+                
+                if message.media_downloaded and message.media_path:
+                    if os.path.exists(message.media_path):
+                        file_status["status"] = "completed"
+                        file_status["file_path"] = message.media_path
+                        file_status["download_url"] = build_media_url(message.media_path)
+                        completed += 1
+                    else:
+                        file_status["status"] = "file_missing"
+                        file_status["error"] = "文件记录存在但实际文件丢失"
+                        failed += 1
+                elif message.media_download_error:
+                    if message.media_download_error == "下载已取消":
+                        file_status["status"] = "cancelled"
+                    else:
+                        file_status["status"] = "failed"
+                    file_status["error"] = message.media_download_error
+                    failed += 1
+                elif message_id in downloading_messages:
+                    file_status["status"] = "downloading"
+                    downloading += 1
+                else:
+                    file_status["status"] = "pending"
+                    pending += 1
+                
+                files_status.append(file_status)
+    except Exception as db_error:
+        logger.error(f"获取批量下载状态时数据库错误: {str(db_error)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"数据库访问失败: {str(db_error)}"
+        )
     
     # 确定总体状态
     total_files = len(message_ids)
@@ -626,41 +642,50 @@ async def download_media_file(
     Returns:
         下载状态和文件信息
     """
-    # 查找消息 - 使用Telegram消息ID查找
-    message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
-    if not message:
+    # 使用优化的数据库会话查找和验证消息
+    try:
+        with optimized_db_session(autocommit=False, max_retries=3) as db_session:
+            message = db_session.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
+            if not message:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="消息不存在"
+                )
+            
+            # 检查是否有媒体文件
+            if not message.media_type or not message.media_file_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="该消息不包含媒体文件"
+                )
+            
+            # 如果已下载且不强制重新下载，返回现有文件信息
+            if message.media_downloaded and message.media_path and not force:
+                if os.path.exists(message.media_path):
+                    return {
+                        "status": "already_downloaded",
+                        "message": "文件已存在",
+                        "file_path": message.media_path,
+                        "file_size": message.media_size,
+                        "download_url": build_media_url(message.media_path)
+                    }
+                else:
+                    # 文件记录存在但实际文件丢失，重置下载状态
+                    try:
+                        message.media_downloaded = False
+                        message.media_path = None
+                        # 优化会话会自动处理提交
+                    except Exception as commit_error:
+                        logger.warning(f"重置下载状态失败: {str(commit_error)}")
+                        # 即使重置失败，也继续执行下载任务
+    except HTTPException:
+        raise  # 重新抛出HTTP异常
+    except Exception as db_error:
+        logger.error(f"下载前数据库验证失败: {str(db_error)}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="消息不存在"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"数据库访问失败: {str(db_error)}"
         )
-    
-    # 检查是否有媒体文件
-    if not message.media_type or not message.media_file_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="该消息不包含媒体文件"
-        )
-    
-    # 如果已下载且不强制重新下载，返回现有文件信息
-    if message.media_downloaded and message.media_path and not force:
-        if os.path.exists(message.media_path):
-            return {
-                "status": "already_downloaded",
-                "message": "文件已存在",
-                "file_path": message.media_path,
-                "file_size": message.media_size,
-                "download_url": build_media_url(message.media_path)
-            }
-        else:
-            # 文件记录存在但实际文件丢失，重置下载状态
-            try:
-                message.media_downloaded = False
-                message.media_path = None
-                db.commit()
-            except Exception as commit_error:
-                logger.warning(f"重置下载状态时数据库提交失败: {str(commit_error)}")
-                db.rollback()
-                # 即使提交失败，也继续执行下载任务
     
     # 🔥 新系统：检查是否已经在并发下载中
     global concurrent_downloads
@@ -709,75 +734,86 @@ async def get_download_status(
     Returns:
         下载状态信息
     """
-    message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
-    if not message:
+    # 使用优化的数据库会话查询消息状态
+    try:
+        with optimized_db_session(autocommit=False, max_retries=3) as db_session:
+            message = db_session.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
+            if not message:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="消息不存在"
+                )
+            
+            if not message.media_type:
+                return {
+                    "status": "no_media",
+                    "message": "该消息不包含媒体文件"
+                }
+            
+            if message.media_downloaded and message.media_path:
+                if os.path.exists(message.media_path):
+                    return {
+                        "status": "downloaded",
+                        "message": "文件已下载",
+                        "file_path": message.media_path,
+                        "file_size": message.media_size,
+                        "download_url": build_media_url(message.media_path),
+                        "progress": 100,
+                        "downloaded_size": message.media_size or 0,
+                        "total_size": message.media_size or 0,
+                        "download_speed": 0,
+                        "estimated_time_remaining": 0
+                    }
+                else:
+                    return {
+                        "status": "file_missing",
+                        "message": "文件记录存在但实际文件丢失"
+                    }
+            
+            if message.media_download_error:
+                if message.media_download_error == "下载已取消":
+                    return {
+                        "status": "cancelled",
+                        "message": "下载已取消",
+                        "error": message.media_download_error
+                    }
+                else:
+                    return {
+                        "status": "download_failed",
+                        "message": "下载失败",
+                        "error": message.media_download_error
+                    }
+            
+            # 检查是否正在下载中
+            global downloading_messages
+            if message_id in downloading_messages:
+                return {
+                    "status": "downloading",
+                    "message": "文件正在下载中",
+                    "progress": message.download_progress or 0,
+                    "downloaded_size": message.downloaded_size or 0,
+                    "total_size": message.media_size or 0,
+                    "download_speed": message.download_speed or 0,
+                    "estimated_time_remaining": message.estimated_time_remaining or 0,
+                    "download_started_at": message.download_started_at.isoformat() if message.download_started_at else None,
+                    "media_type": message.media_type,
+                    "file_id": message.media_file_id
+                }
+            
+            return {
+                "status": "not_downloaded",
+                "message": "文件未下载",
+                "media_type": message.media_type,
+                "file_id": message.media_file_id
+            }
+    except HTTPException:
+        raise  # 重新抛出HTTP异常
+    except Exception as db_error:
+        logger.error(f"获取下载状态时数据库错误: {str(db_error)}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="消息不存在"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"数据库访问失败: {str(db_error)}"
         )
-    
-    if not message.media_type:
-        return {
-            "status": "no_media",
-            "message": "该消息不包含媒体文件"
-        }
-    
-    if message.media_downloaded and message.media_path:
-        if os.path.exists(message.media_path):
-            return {
-                "status": "downloaded",
-                "message": "文件已下载",
-                "file_path": message.media_path,
-                "file_size": message.media_size,
-                "download_url": build_media_url(message.media_path),
-                "progress": 100,
-                "downloaded_size": message.media_size or 0,
-                "total_size": message.media_size or 0,
-                "download_speed": 0,
-                "estimated_time_remaining": 0
-            }
-        else:
-            return {
-                "status": "file_missing",
-                "message": "文件记录存在但实际文件丢失"
-            }
-    
-    if message.media_download_error:
-        if message.media_download_error == "下载已取消":
-            return {
-                "status": "cancelled",
-                "message": "下载已取消",
-                "error": message.media_download_error
-            }
-        else:
-            return {
-                "status": "download_failed",
-                "message": "下载失败",
-                "error": message.media_download_error
-            }
-    
-    # 检查是否正在下载中
-    global downloading_messages
-    if message_id in downloading_messages:
-        return {
-            "status": "downloading",
-            "message": "文件正在下载中",
-            "progress": message.download_progress or 0,
-            "downloaded_size": message.downloaded_size or 0,
-            "total_size": message.media_size or 0,
-            "download_speed": message.download_speed or 0,
-            "estimated_time_remaining": message.estimated_time_remaining or 0,
-            "download_started_at": message.download_started_at.isoformat() if message.download_started_at else None,
-            "media_type": message.media_type,
-            "file_id": message.media_file_id
-        }
-    
-    return {
-        "status": "not_downloaded",
-        "message": "文件未下载",
-        "media_type": message.media_type,
-        "file_id": message.media_file_id
-    }
 
 @router.post("/cancel-download/{message_id}")
 async def cancel_download(
@@ -794,18 +830,29 @@ async def cancel_download(
     Returns:
         取消下载结果
     """
-    message = db.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
-    if not message:
+    # 使用优化的数据库会话验证消息
+    try:
+        with optimized_db_session(autocommit=False, max_retries=3) as db_session:
+            message = db_session.query(TelegramMessage).filter(TelegramMessage.message_id == message_id).first()
+            if not message:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="消息不存在"
+                )
+            
+            if not message.media_type:
+                return {
+                    "status": "no_media",
+                    "message": "该消息不包含媒体文件"
+                }
+    except HTTPException:
+        raise  # 重新抛出HTTP异常
+    except Exception as db_error:
+        logger.error(f"取消下载时数据库验证失败: {str(db_error)}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="消息不存在"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"数据库访问失败: {str(db_error)}"
         )
-    
-    if not message.media_type:
-        return {
-            "status": "no_media",
-            "message": "该消息不包含媒体文件"
-        }
     
     # 检查是否正在下载中
     global downloading_messages, cancelled_downloads
@@ -910,15 +957,15 @@ async def cancel_concurrent_download(
         # 从并发下载字典中移除
         del concurrent_downloads[message_id]
         
-        # 更新数据库状态
-        message = db.query(TelegramMessage).filter(
-            TelegramMessage.message_id == message_id
-        ).first()
-        
-        if message:
-            message.media_download_error = "下载已取消"
-            message.download_progress = 0
-            db.commit()
+        # 更新数据库状态 - 使用优化的数据库会话
+        with optimized_db_session(autocommit=True, max_retries=3) as db_session:
+            message = db_session.query(TelegramMessage).filter(
+                TelegramMessage.message_id == message_id
+            ).first()
+            
+            if message:
+                message.media_download_error = "下载已取消"
+                message.download_progress = 0
         
         return {
             "status": "cancelled",
