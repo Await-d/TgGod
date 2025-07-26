@@ -257,13 +257,36 @@ class TelegramMediaDownloader:
             return None
         
         try:
-            # 这里应该实现获取文件信息的逻辑
-            # 由于Telegram API的复杂性，这里返回模拟数据
-            return {
-                "file_id": file_id,
-                "file_size": 1024,  # 默认大小
-                "mime_type": "application/octet-stream"
-            }
+            # 实际的Telegram API调用获取文件信息
+            from telethon.tl.types import Document, Photo
+            
+            # 通过消息ID获取消息
+            message = await self.client.get_messages(entity=None, ids=int(file_id))
+            if not message or not message.media:
+                return None
+                
+            media = message.media
+            if isinstance(media, Document):
+                return {
+                    "file_id": file_id,
+                    "file_size": media.size,
+                    "mime_type": media.mime_type or "application/octet-stream"
+                }
+            elif isinstance(media, Photo):
+                # 对于照片，获取最大尺寸的信息
+                largest_size = max(media.sizes, key=lambda x: getattr(x, 'size', 0))
+                return {
+                    "file_id": file_id,
+                    "file_size": getattr(largest_size, 'size', 0),
+                    "mime_type": "image/jpeg"
+                }
+            else:
+                # 其他媒体类型的基本信息
+                return {
+                    "file_id": file_id,
+                    "file_size": getattr(media, 'size', 0),
+                    "mime_type": "application/octet-stream"
+                }
         except Exception as e:
             logger.error(f"获取文件信息失败 {file_id}: {str(e)}")
             return None

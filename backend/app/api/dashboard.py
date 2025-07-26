@@ -440,28 +440,18 @@ async def get_system_info(
             cpu_percent = psutil.cpu_percent(interval=1)
             
         except ImportError:
-            logger.warning("psutil模块未安装，使用模拟数据")
-            # 使用模拟数据
-            disk_usage = {
-                "total": 107374182400,  # 100GB
-                "used": 48318382080,    # ~45GB  
-                "free": 59055800320,    # ~55GB
-                "usage_percent": 45.0
-            }
-            memory_info = {
-                "total": 8589934592,     # 8GB
-                "available": 2684354560, # ~2.5GB
-                "used": 5905580032,      # ~5.5GB  
-                "usage_percent": 68.2
-            }
-            cpu_percent = 15.5
+            logger.error("psutil模块未安装，无法获取系统资源信息")
+            # 返回空数据而不是模拟数据
+            disk_usage = None
+            memory_info = None
+            cpu_percent = None
         
         system_data = {
             "database": db_stats,
             "disk_usage": disk_usage, 
             "memory": memory_info,
             "cpu_percent": cpu_percent,
-            "cpu_usage": cpu_percent,  # 兼容前端字段名
+            "cpu_usage": cpu_percent if cpu_percent is not None else 0,  # 兼容前端字段名
             "memory_usage": memory_info["usage_percent"] if memory_info else 0,  # 兼容前端字段名
             "disk_usage_percent": disk_usage["usage_percent"] if disk_usage else 0,  # 兼容前端字段名
             "total_memory": memory_info["total"] if memory_info else 0,
@@ -469,6 +459,7 @@ async def get_system_info(
             "total_disk": disk_usage["total"] if disk_usage else 0,
             "free_disk": disk_usage["free"] if disk_usage else 0,
             "media_root": getattr(settings, 'media_root', './media'),
+            "psutil_available": True,  # 标记psutil已安装
             "last_updated": datetime.now().isoformat()
         }
         
