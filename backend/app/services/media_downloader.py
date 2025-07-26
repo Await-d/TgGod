@@ -47,12 +47,12 @@ class TelegramMediaDownloader:
             # 确保session目录存在
             os.makedirs(os.path.dirname(self.session_name), exist_ok=True)
             
-            # 使用固定的共享session文件，避免每次创建新session
-            shared_session_name = os.path.join("./telegram_sessions", "tggod_shared_downloader")
+            # 使用与主服务相同的session文件，确保认证状态一致
+            main_session_name = os.path.join("./telegram_sessions", "tggod_session")
             
-            # 创建客户端，使用共享session文件
+            # 创建客户端，使用主服务的session文件
             self.client = TelegramClient(
-                shared_session_name,
+                main_session_name,
                 api_id,
                 api_hash,
                 # 使用更保守的连接配置
