@@ -47,6 +47,12 @@ class TaskCreate(BaseModel):
     thumbnail_size: str = "400x300"
     poster_size: str = "600x900"
     fanart_size: str = "1920x1080"
+    
+    # 调度配置
+    task_type: Optional[str] = "once"
+    schedule_type: Optional[str] = None
+    schedule_config: Optional[dict] = None
+    max_runs: Optional[int] = None
 
 class TaskUpdate(BaseModel):
     name: Optional[str] = None
@@ -64,6 +70,12 @@ class TaskUpdate(BaseModel):
     thumbnail_size: Optional[str] = None
     poster_size: Optional[str] = None
     fanart_size: Optional[str] = None
+    
+    # 调度配置
+    task_type: Optional[str] = None
+    schedule_type: Optional[str] = None
+    schedule_config: Optional[dict] = None
+    max_runs: Optional[int] = None
 
 class TaskResponse(BaseModel):
     id: int
@@ -88,6 +100,16 @@ class TaskResponse(BaseModel):
     thumbnail_size: str = "400x300"
     poster_size: str = "600x900"
     fanart_size: str = "1920x1080"
+    
+    # 调度配置
+    task_type: Optional[str] = "once"
+    schedule_type: Optional[str] = None
+    schedule_config: Optional[dict] = None
+    next_run_time: Optional[datetime] = None
+    last_run_time: Optional[datetime] = None
+    is_active: Optional[bool] = True
+    max_runs: Optional[int] = None
+    run_count: Optional[int] = 0
     
     created_at: datetime
     updated_at: Optional[datetime]

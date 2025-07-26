@@ -463,6 +463,19 @@ async def concurrent_download_manager(message_id: int, force: bool = False, user
         logger.warning(f"消息 {message_id} 已在下载中，跳过重复请求")
         return
     
+    # 更新数据库中的下载状态标志
+    try:
+        with optimized_db_session(autocommit=True) as flag_db:
+            db_message = flag_db.query(TelegramMessage).filter(
+                TelegramMessage.message_id == message_id
+            ).first()
+            
+            if db_message:
+                db_message.is_downloading = True
+                logger.info(f"已将消息 {message_id} 在数据库中标记为正在下载")
+    except Exception as e:
+        logger.warning(f"更新下载状态标志失败: {e}")
+    
     # 获取信号量
     global_semaphore = global_download_semaphore
     user_semaphore = get_user_semaphore(user_id)
@@ -488,12 +501,41 @@ async def concurrent_download_manager(message_id: int, force: bool = False, user
                     await download_task
                 except Exception as e:
                     logger.error(f"并发下载异常: 消息 {message_id}, 错误: {str(e)}")
+                    
+                    # 更新数据库下载状态为失败
+                    try:
+                        with optimized_db_session(autocommit=True) as update_db:
+                            db_message = update_db.query(TelegramMessage).filter(
+                                TelegramMessage.message_id == message_id
+                            ).first()
+                            
+                            if db_message:
+                                db_message.is_downloading = False
+                                db_message.media_download_error = str(e)
+                                logger.info(f"已将消息 {message_id} 更新为下载失败")
+                    except Exception as update_err:
+                        logger.warning(f"更新下载失败状态出错: {update_err}")
+                    
                     raise
                 finally:
                     # 清理任务
                     if message_id in concurrent_downloads:
                         del concurrent_downloads[message_id]
                     update_download_stats(message_id, user_id, "finish")
+                    
+                    # 尝试重置数据库中的下载中标记（如果下载已完成则保持标记不变）
+                    try:
+                        with optimized_db_session(autocommit=True) as reset_db:
+                            db_message = reset_db.query(TelegramMessage).filter(
+                                TelegramMessage.message_id == message_id
+                            ).first()
+                            
+                            # 只有当下载未成功时才重置下载中状态
+                            if db_message and not db_message.media_downloaded:
+                                db_message.is_downloading = False
+                                logger.info(f"已重置消息 {message_id} 的下载中状态")
+                    except Exception as reset_err:
+                        logger.warning(f"重置下载状态标记失败: {reset_err}")
                     
                     logger.info(f"完成并发下载: 消息 {message_id}, 剩余并发数: {concurrent_download_stats['total_active']}")
     
@@ -695,8 +737,10 @@ async def download_media_file(
             detail=f"数据库访问失败: {str(db_error)}"
         )
     
-    # 🔥 新系统：检查是否已经在并发下载中
+    # 🔥 检查是否已经在并发下载中或数据库标记为下载中
     global concurrent_downloads
+    
+    # 检查并发下载状态
     if message_id in concurrent_downloads:
         return {
             "status": "download_in_progress", 
@@ -704,6 +748,25 @@ async def download_media_file(
             "message_id": message_id,
             "media_type": message.media_type
         }
+    
+    # 检查数据库中的下载状态标志
+    try:
+        with optimized_db_session() as check_db:
+            db_message = check_db.query(TelegramMessage).filter(
+                TelegramMessage.message_id == message_id
+            ).first()
+            
+            if db_message and db_message.is_downloading:
+                logger.info(f"消息 {message_id} 数据库中标记为正在下载中")
+                return {
+                    "status": "download_in_progress", 
+                    "message": "该文件正在其他会话下载中，请稍候",
+                    "message_id": message_id,
+                    "media_type": message.media_type
+                }
+    except Exception as e:
+        # 如果检查失败，继续下载流程
+        logger.warning(f"检查下载状态标志失败: {e}")
     
     # 🔥 使用新的并发下载管理器替代串行队列
     try:
@@ -792,9 +855,9 @@ async def get_download_status(
                         "error": message.media_download_error
                     }
             
-            # 检查是否正在下载中
-            global downloading_messages
-            if message_id in downloading_messages:
+            # 检查是否正在下载中 - 同时检查内存状态和数据库标记
+            global downloading_messages, concurrent_downloads
+            if message_id in downloading_messages or message_id in concurrent_downloads or message.is_downloading:
                 return {
                     "status": "downloading",
                     "message": "文件正在下载中",
@@ -862,9 +925,16 @@ async def cancel_download(
             detail=f"数据库访问失败: {str(db_error)}"
         )
     
-    # 检查是否正在下载中
-    global downloading_messages, cancelled_downloads
-    if message_id not in downloading_messages:
+    # 检查是否正在下载中 - 检查内存队列、并发下载和数据库标记
+    global downloading_messages, cancelled_downloads, concurrent_downloads
+    
+    is_downloading = (
+        message_id in downloading_messages or 
+        message_id in concurrent_downloads or 
+        message.is_downloading
+    )
+    
+    if not is_downloading:
         return {
             "status": "not_downloading",
             "message": "该文件当前未在下载中"
@@ -872,6 +942,17 @@ async def cancel_download(
     
     # 标记为已取消
     cancelled_downloads.add(message_id)
+    
+    # 如果在并发下载中，需要取消任务
+    if message_id in concurrent_downloads:
+        try:
+            download_task = concurrent_downloads[message_id]
+            if not download_task.done():
+                download_task.cancel()
+            del concurrent_downloads[message_id]
+            logger.info(f"已从并发下载中移除: 消息 {message_id}")
+        except Exception as e:
+            logger.error(f"取消并发下载任务失败: {e}")
     
     def reset_download_status():
         try:
@@ -1408,6 +1489,21 @@ async def download_media_background(message_id: int, force: bool = False):
         unique_filename = f"{group_id}_{message_id_telegram}_{uuid.uuid4().hex[:8]}{file_extension}"
         file_path = os.path.join(media_dir, unique_filename)
         
+        # 记录下载开始到数据库
+        try:
+            with optimized_db_session(autocommit=True) as start_db:
+                db_message = start_db.query(TelegramMessage).filter(TelegramMessage.id == db_id).first()
+                if db_message:
+                    db_message.is_downloading = True
+                    # 确保错误消息已清除
+                    db_message.media_download_error = None
+                    from datetime import datetime, timezone
+                    if not db_message.download_started_at:
+                        db_message.download_started_at = datetime.now(timezone.utc)
+                    logger.info(f"已记录下载开始状态: 消息 {message_id}")
+        except Exception as start_err:
+            logger.warning(f"记录下载开始状态失败: {start_err}")
+        
         # 下载文件
         from ..services.media_downloader import get_media_downloader
         import time
@@ -1522,6 +1618,8 @@ async def download_media_background(message_id: int, force: bool = False):
                         message.media_downloaded = True
                         message.media_path = file_path
                         message.media_download_error = None
+                        # 保持下载中标志为True，因为下载已成功
+                        message.is_downloading = False
                         
                         # 设置完成状态的进度信息
                         message.download_progress = 100
@@ -1535,11 +1633,12 @@ async def download_media_background(message_id: int, force: bool = False):
                             message.downloaded_size = actual_size
                     else:
                         message.media_download_error = download_error
-                        # 重置进度信息
+                        # 重置进度信息和下载标记
                         message.download_progress = 0
                         message.downloaded_size = 0
                         message.download_speed = 0
                         message.estimated_time_remaining = 0
+                        message.is_downloading = False  # 下载失败，重置下载中标记
                     
                     logger.info(f"数据库状态更新完成: 消息 {message_id}")
                     

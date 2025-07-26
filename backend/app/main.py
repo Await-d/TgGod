@@ -358,31 +358,39 @@ async def startup_event():
             logger.error("❌ 传统数据库字段修复失败")
         
         # 运行用户设置表迁移
-        logger.info("🔧 正在检查用户设置表...")
+        logger.info("🔧 正在检查用户设置表和下载状态字段...")
         try:
-            # 尝试导入迁移模块
-            migration_file = project_root / "migrations" / "add_user_settings_table.py"
+            from importlib.util import spec_from_file_location, module_from_spec
             
-            if migration_file.exists():
-                logger.info(f"找到用户设置迁移脚本: {migration_file}")
-                from importlib.util import spec_from_file_location, module_from_spec
+            # 需要运行的迁移脚本列表
+            migrations = [
+                ("add_user_settings_table", "用户设置表"),
+                ("add_is_downloading_field", "下载状态字段")
+            ]
+            
+            # 逐一运行迁移脚本
+            for migration_name, migration_desc in migrations:
+                migration_file = project_root / "migrations" / f"{migration_name}.py"
                 
-                # 动态导入迁移模块
-                spec = spec_from_file_location("add_user_settings_table", migration_file)
-                migration_module = module_from_spec(spec)
-                spec.loader.exec_module(migration_module)
-                
-                # 运行迁移
-                user_settings_success, user_settings_message = migration_module.run_migration()
-                if user_settings_success:
-                    logger.info(f"✅ 用户设置表检查完成: {user_settings_message}")
+                if migration_file.exists():
+                    logger.info(f"找到{migration_desc}迁移脚本: {migration_file}")
+                    
+                    # 动态导入迁移模块
+                    spec = spec_from_file_location(migration_name, migration_file)
+                    migration_module = module_from_spec(spec)
+                    spec.loader.exec_module(migration_module)
+                    
+                    # 运行迁移
+                    success, message = migration_module.run_migration()
+                    if success:
+                        logger.info(f"✅ {migration_desc}检查完成: {message}")
+                    else:
+                        logger.warning(f"⚠️ {migration_desc}检查警告: {message}")
                 else:
-                    logger.warning(f"⚠️ 用户设置表检查警告: {user_settings_message}")
-            else:
-                logger.warning(f"未找到用户设置迁移脚本，将跳过自动迁移")
+                    logger.warning(f"未找到{migration_desc}迁移脚本，将跳过自动迁移")
         except Exception as e:
-            logger.error(f"运行用户设置迁移时出错: {e}")
-            logger.warning("将继续启动，但用户设置表可能不存在")
+            logger.error(f"运行数据库迁移脚本时出错: {e}")
+            logger.warning("将继续启动，但数据库表结构可能不完整")
             
     except Exception as e:
         logger.error(f"数据库检查过程中发生错误: {e}")
@@ -443,6 +451,15 @@ async def startup_event():
         logger.error(f"Failed to initialize task execution service: {e}")
         logger.warning("Task execution service disabled, system will continue startup without it")
     
+    # 启动任务调度器
+    try:
+        from .services.task_scheduler import task_scheduler
+        await task_scheduler.start()
+        logger.info("Task scheduler started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start task scheduler: {e}")
+        logger.warning("Task scheduler disabled, recurring tasks will not work")
+    
     logger.info("Database tables created successfully")
     
     # 初始化设置
@@ -486,6 +503,24 @@ async def startup_event():
 # 关闭事件
 @app.on_event("shutdown")
 async def shutdown_event():
+    logger.info("Shutting down TgGod API...")
+    
+    # 停止任务调度器
+    try:
+        from .services.task_scheduler import task_scheduler
+        await task_scheduler.stop()
+        logger.info("Task scheduler stopped successfully")
+    except Exception as e:
+        logger.error(f"Failed to stop task scheduler: {e}")
+    
+    # 停止消息同步任务
+    try:
+        message_sync_task.stop()
+        logger.info("Message sync task stopped")
+    except Exception as e:
+        logger.error(f"Failed to stop message sync task: {e}")
+    
+    logger.info("TgGod API shutdown complete")
     logger.info("Shutting down TgGod API...")
     
     # 停止消息同步任务

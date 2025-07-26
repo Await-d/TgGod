@@ -215,11 +215,49 @@ export interface DownloadTask {
   download_path: string;
   date_from?: string;  // 时间范围过滤开始时间
   date_to?: string;    // 时间范围过滤结束时间
-  next_run_time?: string; // 下次执行时间
+  
+  // 调度配置
+  task_type?: 'once' | 'recurring';  // 任务类型
+  schedule_type?: 'interval' | 'cron' | 'daily' | 'weekly' | 'monthly';  // 调度类型
+  schedule_config?: Record<string, any>;  // 调度配置
+  next_run_time?: string;  // 下次执行时间
+  last_run_time?: string;  // 最后执行时间
+  is_active?: boolean;     // 是否启用调度
+  max_runs?: number;       // 最大执行次数
+  run_count?: number;      // 已执行次数
+  
   created_at: string;
   updated_at: string;
   completed_at?: string;
   error_message?: string;
+}
+
+// 调度配置类型
+export interface ScheduleConfig {
+  // 间隔调度配置
+  interval?: number;
+  unit?: 'seconds' | 'minutes' | 'hours' | 'days';
+  
+  // 时间点调度配置
+  hour?: number;
+  minute?: number;
+  
+  // 周调度配置
+  weekday?: number;  // 0=Monday, 6=Sunday
+  
+  // 月调度配置
+  day?: number;  // 1-31
+  
+  // Cron表达式配置
+  expression?: string;
+}
+
+// 任务调度表单数据
+export interface TaskScheduleForm {
+  task_type: 'once' | 'recurring';
+  schedule_type?: 'interval' | 'cron' | 'daily' | 'weekly' | 'monthly';
+  schedule_config?: ScheduleConfig;
+  max_runs?: number;
 }
 
 // 日志类型

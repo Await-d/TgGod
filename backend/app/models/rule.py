@@ -32,11 +32,11 @@ class FilterRule(Base):
     include_forwarded = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)
     
-    # 同步跟踪字段（暂时注释，等待应用重启后启用）
-    # last_sync_time = Column(DateTime(timezone=True), nullable=True)  # 最后同步时间
-    # last_sync_message_count = Column(Integer, default=0)  # 最后同步的消息数量
-    # sync_status = Column(String(20), default='pending')  # 同步状态: pending, syncing, completed, failed
-    # needs_full_resync = Column(Boolean, default=True)  # 是否需要完全重新同步
+    # 同步跟踪字段
+    last_sync_time = Column(DateTime(timezone=True), nullable=True)  # 最后同步时间
+    last_sync_message_count = Column(Integer, default=0)  # 最后同步的消息数量
+    sync_status = Column(String(20), default='pending')  # 同步状态: pending, syncing, completed, failed
+    needs_full_resync = Column(Boolean, default=True)  # 是否需要完全重新同步
     
     # 时间戳
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -87,6 +87,16 @@ class DownloadTask(Base):
     
     # 错误信息
     error_message = Column(Text, nullable=True)
+    
+    # 调度配置
+    task_type = Column(String(20), default='once')  # 任务类型: once, recurring
+    schedule_type = Column(String(20), nullable=True)  # 调度类型: interval, cron, daily, weekly, monthly
+    schedule_config = Column(JSON, nullable=True)  # 调度配置 JSON
+    next_run_time = Column(DateTime(timezone=True), nullable=True)  # 下次执行时间
+    last_run_time = Column(DateTime(timezone=True), nullable=True)  # 最后执行时间
+    is_active = Column(Boolean, default=True)  # 是否启用调度
+    max_runs = Column(Integer, nullable=True)  # 最大执行次数 (None表示无限制)
+    run_count = Column(Integer, default=0)  # 已执行次数
     
     # 关系
     group = relationship("TelegramGroup", back_populates="tasks")

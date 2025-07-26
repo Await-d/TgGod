@@ -26,7 +26,10 @@ import {
   Empty,
   Switch,
   Dropdown,
-  Menu
+  Menu,
+  InputNumber,
+  Collapse,
+  TimePicker
 } from 'antd';
 import { useIsMobile } from '../hooks/useMobileGestures';
 import {
@@ -48,7 +51,7 @@ import {
   DownOutlined
 } from '@ant-design/icons';
 import { taskApi, telegramApi, ruleApi, logApi } from '../services/apiService';
-import { DownloadTask, TelegramGroup, FilterRule, LogEntry } from '../types';
+import { DownloadTask, TelegramGroup, FilterRule, LogEntry, TaskScheduleForm, ScheduleConfig } from '../types';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -80,7 +83,7 @@ const getStatusIcon = (status: string) => {
 
 const TaskManagement: React.FC = () => {
   const isMobile = useIsMobile();
-  
+
   // 状态管理
   const [tasks, setTasks] = useState<DownloadTask[]>([]);
   const [groups, setGroups] = useState<TelegramGroup[]>([]);
@@ -88,23 +91,33 @@ const TaskManagement: React.FC = () => {
   const [taskStats, setTaskStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [selectedTask, setSelectedTask] = useState<DownloadTask | null>(null);
-  
+
   // 模态框状态
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [taskDetailVisible, setTaskDetailVisible] = useState(false);
   const [taskLogsVisible, setTaskLogsVisible] = useState(false);
-  
+
   // 表单和过滤
   const [form] = Form.useForm();
   const [filterForm] = Form.useForm();
+
+  // 调度表单状态
+  const [taskType, setTaskType] = useState<'once' | 'recurring'>('once');
+  const [scheduleType, setScheduleType] = useState<string>('');
+
+  // 重置调度表单状态
+  const resetScheduleState = () => {
+    setTaskType('once');
+    setScheduleType('');
+  };
   const [filters, setFilters] = useState<any>({});
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [operatingTasks, setOperatingTasks] = useState<Set<number>>(new Set());
-  
+
   // 批量操作相关状态
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchOperating, setBatchOperating] = useState(false);
-  
+
   // 日志相关
   const [taskLogs, setTaskLogs] = useState<LogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -177,12 +190,12 @@ const TaskManagement: React.FC = () => {
       loadTasks();
     } catch (error: any) {
       console.error('启动任务失败:', error);
-      
+
       // 检查是否是服务不可用的错误
       if (error.message.includes('服务不可用') || error.message.includes('连接')) {
-        setSystemStatus({ 
-          isTaskServiceAvailable: false, 
-          message: '任务执行服务暂时不可用，可能正在使用模拟模式' 
+        setSystemStatus({
+          isTaskServiceAvailable: false,
+          message: '任务执行服务暂时不可用，可能正在使用模拟模式'
         });
         message.warning(`任务启动: ${error.message}，已切换到模拟模式`);
       } else {
@@ -301,7 +314,7 @@ const TaskManagement: React.FC = () => {
       if (successTasks.length > 0) {
         const actionName = {
           start: '启动',
-          pause: '暂停', 
+          pause: '暂停',
           stop: '停止',
           delete: '删除'
         }[action] || action;
@@ -312,7 +325,7 @@ const TaskManagement: React.FC = () => {
         const actionName = {
           start: '启动',
           pause: '暂停',
-          stop: '停止', 
+          stop: '停止',
           delete: '删除'
         }[action] || action;
         message.error(`${failedTasks.length} 个任务${actionName}失败`);
@@ -369,13 +382,32 @@ const TaskManagement: React.FC = () => {
         }
         delete taskData.time_range;
       }
+
+      // 处理调度配置数据
+      if (values.task_type === 'recurring' && values.schedule_type && values.schedule_config) {
+        // 处理时间字段 - 将moment对象转换为字符串
+        if (values.schedule_config.time) {
+          taskData.schedule_config = {
+            ...values.schedule_config,
+            time: values.schedule_config.time.format('HH:mm')
+          };
+        }
+      } else if (values.task_type === 'once') {
+        // 一次性任务，清除调度相关字段
+        taskData.task_type = 'once';
+        delete taskData.schedule_type;
+        delete taskData.schedule_config;
+        delete taskData.max_runs;
+      }
+
       console.log('处理后的任务数据:', taskData);
-      
+
       const result = await taskApi.createTask(taskData);
       console.log('任务创建成功，返回数据:', result);
       message.success('任务创建成功');
       setCreateModalVisible(false);
       form.resetFields();
+      resetScheduleState();
       loadTasks();
     } catch (error: any) {
       console.error('创建任务失败，错误详情:', error);
@@ -451,10 +483,24 @@ const TaskManagement: React.FC = () => {
           </div>
           {isMobile && (
             <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
-              <Text type="secondary">ID: {record.id}</Text>
-              <Text type="secondary" style={{ marginLeft: 8 }}>
-                {groups.find(g => g.id === record.group_id)?.title || '未知群组'}
-              </Text>
+              <div>
+                <Text type="secondary">ID: {record.id}</Text>
+                <Text type="secondary" style={{ marginLeft: 8 }}>
+                  {groups.find(g => g.id === record.group_id)?.title || '未知群组'}
+                </Text>
+              </div>
+              <div style={{ marginTop: 2 }}>
+                <Text type="secondary">
+                  {!record.task_type || record.task_type === 'once' ? '一次性任务' :
+                    record.schedule_type ? `循环任务 (${{ 'interval': '间隔', 'daily': '每日', 'weekly': '每周', 'monthly': '每月', 'cron': 'Cron' }[record.schedule_type] || record.schedule_type
+                      })` : '循环任务'}
+                </Text>
+                {record.next_run_time && record.status === 'pending' && (
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    下次: {new Date(record.next_run_time).toLocaleString().split(' ')[1]}
+                  </Text>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -546,33 +592,76 @@ const TaskManagement: React.FC = () => {
       ),
     }] : []),
     ...(!isMobile ? [{
-      title: '下次执行',
-      dataIndex: 'next_run_time',
-      key: 'next_run_time',
-      width: 160,
+      title: '调度信息',
+      key: 'schedule_info',
+      width: 200,
       render: (text: string, record: DownloadTask) => {
-        // 计算下次执行时间的显示逻辑
-        if (record.status === 'completed') {
-          return <Text type="secondary">已完成</Text>;
-        }
-        if (record.status === 'failed') {
-          return <Text type="danger">执行失败</Text>;
-        }
-        if (record.status === 'running') {
-          return <Text type="success">正在执行</Text>;
-        }
-        if (record.status === 'paused') {
-          return <Text type="warning">已暂停</Text>;
-        }
-        // pending状态显示预估执行时间
-        if (text) {
-          return (
-            <Text style={{ fontSize: 12 }}>
-              {new Date(text).toLocaleString()}
-            </Text>
-          );
-        }
-        return <Text type="secondary">待安排</Text>;
+        const renderScheduleType = () => {
+          if (!record.task_type || record.task_type === 'once') {
+            return <Text type="secondary">一次性任务</Text>;
+          }
+
+          if (record.task_type === 'recurring' && record.schedule_type) {
+            const scheduleTypeMap: Record<string, string> = {
+              'interval': '间隔执行',
+              'daily': '每日执行',
+              'weekly': '每周执行',
+              'monthly': '每月执行',
+              'cron': 'Cron表达式'
+            };
+
+            return (
+              <div style={{ fontSize: 12 }}>
+                <div>
+                  <Tag color="blue">
+                    {scheduleTypeMap[record.schedule_type] || record.schedule_type}
+                  </Tag>
+                </div>
+                {record.run_count !== undefined && record.max_runs && (
+                  <div style={{ color: '#666', marginTop: 2 }}>
+                    {record.run_count}/{record.max_runs} 次
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return <Text type="secondary">循环任务</Text>;
+        };
+
+        const renderNextRunTime = () => {
+          if (record.status === 'completed') {
+            return <Text type="secondary">已完成</Text>;
+          }
+          if (record.status === 'failed') {
+            return <Text type="danger">执行失败</Text>;
+          }
+          if (record.status === 'running') {
+            return <Text type="success">正在执行</Text>;
+          }
+          if (record.status === 'paused') {
+            return <Text type="warning">已暂停</Text>;
+          }
+
+          if (record.next_run_time) {
+            return (
+              <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                下次: {new Date(record.next_run_time).toLocaleString()}
+              </div>
+            );
+          }
+
+          return record.task_type === 'once' ?
+            <Text type="secondary" style={{ fontSize: 11 }}>待执行</Text> :
+            <Text type="secondary" style={{ fontSize: 11 }}>待安排</Text>;
+        };
+
+        return (
+          <div>
+            {renderScheduleType()}
+            {renderNextRunTime()}
+          </div>
+        );
       },
     }] : []),
     {
@@ -592,9 +681,9 @@ const TaskManagement: React.FC = () => {
                     查看日志
                   </Menu.Item>
                   {record.status === 'pending' && (
-                    <Menu.Item 
-                      key="start" 
-                      icon={<PlayCircleOutlined />} 
+                    <Menu.Item
+                      key="start"
+                      icon={<PlayCircleOutlined />}
                       onClick={() => handleStartTask(record.id)}
                       disabled={operatingTasks.has(record.id)}
                     >
@@ -603,17 +692,17 @@ const TaskManagement: React.FC = () => {
                   )}
                   {record.status === 'running' && (
                     <>
-                      <Menu.Item 
-                        key="pause" 
-                        icon={<PauseCircleOutlined />} 
+                      <Menu.Item
+                        key="pause"
+                        icon={<PauseCircleOutlined />}
                         onClick={() => handlePauseTask(record.id)}
                         disabled={operatingTasks.has(record.id)}
                       >
                         {operatingTasks.has(record.id) ? '暂停中...' : '暂停任务'}
                       </Menu.Item>
-                      <Menu.Item 
-                        key="stop" 
-                        icon={<StopOutlined />} 
+                      <Menu.Item
+                        key="stop"
+                        icon={<StopOutlined />}
                         onClick={() => handleStopTask(record.id)}
                         disabled={operatingTasks.has(record.id)}
                       >
@@ -622,9 +711,9 @@ const TaskManagement: React.FC = () => {
                     </>
                   )}
                   {record.status === 'paused' && (
-                    <Menu.Item 
-                      key="resume" 
-                      icon={<PlayCircleOutlined />} 
+                    <Menu.Item
+                      key="resume"
+                      icon={<PlayCircleOutlined />}
                       onClick={() => handleStartTask(record.id)}
                       disabled={operatingTasks.has(record.id)}
                     >
@@ -667,7 +756,7 @@ const TaskManagement: React.FC = () => {
                   onClick={() => handleViewTaskLogs(record)}
                 />
               </Tooltip>
-              
+
               {record.status === 'pending' && (
                 <Tooltip title="立即执行">
                   <Button
@@ -681,7 +770,7 @@ const TaskManagement: React.FC = () => {
                   </Button>
                 </Tooltip>
               )}
-              
+
               {record.status === 'running' && (
                 <>
                   <Tooltip title="暂停任务">
@@ -703,7 +792,7 @@ const TaskManagement: React.FC = () => {
                   </Tooltip>
                 </>
               )}
-              
+
               {record.status === 'paused' && (
                 <Tooltip title="继续任务">
                   <Button
@@ -715,7 +804,7 @@ const TaskManagement: React.FC = () => {
                   />
                 </Tooltip>
               )}
-              
+
               {!['running'].includes(record.status) && (
                 <Popconfirm
                   title="确定删除这个任务吗？"
@@ -865,7 +954,7 @@ const TaskManagement: React.FC = () => {
           >
             刷新
           </Button>
-          
+
           {/* 快捷执行按钮 */}
           <Button
             type="primary"
@@ -883,7 +972,7 @@ const TaskManagement: React.FC = () => {
           >
             启动所有待执行任务
           </Button>
-          
+
           <Button
             icon={<PauseCircleOutlined />}
             onClick={() => {
@@ -899,19 +988,19 @@ const TaskManagement: React.FC = () => {
           >
             暂停所有运行中任务
           </Button>
-          
+
           <Dropdown overlay={batchActionMenu}>
-            <Button 
+            <Button
               disabled={selectedRowKeys.length === 0}
               loading={batchOperating}
             >
               批量操作 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`} <DownOutlined />
             </Button>
           </Dropdown>
-          
+
           {selectedRowKeys.length > 0 && (
-            <Button 
-              size="small" 
+            <Button
+              size="small"
               onClick={() => setSelectedRowKeys([])}
             >
               取消选择
@@ -1003,7 +1092,7 @@ const TaskManagement: React.FC = () => {
             }
           />
         )}
-        
+
         <Table
           columns={columns}
           dataSource={tasks}
@@ -1028,6 +1117,7 @@ const TaskManagement: React.FC = () => {
         onCancel={() => {
           setCreateModalVisible(false);
           form.resetFields();
+          resetScheduleState();
         }}
         footer={null}
         width={isMobile ? '95%' : 600}
@@ -1050,7 +1140,7 @@ const TaskManagement: React.FC = () => {
             label="目标群组"
             rules={[{ required: true, message: '请选择群组' }]}
           >
-            <Select 
+            <Select
               placeholder="选择群组"
               showSearch
               filterOption={(input, option) => {
@@ -1088,7 +1178,7 @@ const TaskManagement: React.FC = () => {
             label="时间范围过滤"
             help="设置消息的时间范围。结束时间可不填，表示从开始时间一直有效"
           >
-            <RangePicker 
+            <RangePicker
               showTime
               placeholder={['开始时间', '结束时间(可选)']}
               style={{ width: '100%' }}
@@ -1102,6 +1192,168 @@ const TaskManagement: React.FC = () => {
           >
             <Input placeholder="输入下载路径，如: /downloads/task1" />
           </Form.Item>
+
+          {/* 调度配置 */}
+          <Collapse size="small" ghost>
+            <Collapse.Panel header="调度配置" key="schedule">
+              <Form.Item
+                name="task_type"
+                label="任务类型"
+                initialValue="once"
+              >
+                <Select
+                  value={taskType}
+                  onChange={(value) => {
+                    setTaskType(value);
+                    if (value === 'once') {
+                      setScheduleType('');
+                      form.setFieldsValue({
+                        schedule_type: undefined,
+                        schedule_config: undefined,
+                        max_runs: undefined
+                      });
+                    }
+                  }}
+                >
+                  <Option value="once">一次性任务</Option>
+                  <Option value="recurring">循环任务</Option>
+                </Select>
+              </Form.Item>
+
+              {taskType === 'recurring' && (
+                <>
+                  <Form.Item
+                    name="schedule_type"
+                    label="调度类型"
+                    rules={[{ required: taskType === 'recurring', message: '请选择调度类型' }]}
+                  >
+                    <Select
+                      placeholder="选择调度类型"
+                      value={scheduleType}
+                      onChange={setScheduleType}
+                    >
+                      <Option value="interval">间隔执行</Option>
+                      <Option value="daily">每日执行</Option>
+                      <Option value="weekly">每周执行</Option>
+                      <Option value="monthly">每月执行</Option>
+                      <Option value="cron">Cron表达式</Option>
+                    </Select>
+                  </Form.Item>
+
+                  {scheduleType === 'interval' && (
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'interval']}
+                          label="间隔数值"
+                          rules={[{ required: true, message: '请输入间隔数值' }]}
+                        >
+                          <InputNumber min={1} placeholder="1" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'unit']}
+                          label="时间单位"
+                          initialValue="hours"
+                        >
+                          <Select>
+                            <Option value="minutes">分钟</Option>
+                            <Option value="hours">小时</Option>
+                            <Option value="days">天</Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {scheduleType === 'daily' && (
+                    <Form.Item
+                      name={['schedule_config', 'time']}
+                      label="执行时间"
+                      rules={[{ required: true, message: '请选择执行时间' }]}
+                    >
+                      <TimePicker format="HH:mm" placeholder="选择时间" style={{ width: '100%' }} />
+                    </Form.Item>
+                  )}
+
+                  {scheduleType === 'weekly' && (
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'day_of_week']}
+                          label="星期几"
+                          rules={[{ required: true, message: '请选择星期几' }]}
+                        >
+                          <Select placeholder="选择星期几">
+                            <Option value={1}>星期一</Option>
+                            <Option value={2}>星期二</Option>
+                            <Option value={3}>星期三</Option>
+                            <Option value={4}>星期四</Option>
+                            <Option value={5}>星期五</Option>
+                            <Option value={6}>星期六</Option>
+                            <Option value={0}>星期日</Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'time']}
+                          label="执行时间"
+                          rules={[{ required: true, message: '请选择执行时间' }]}
+                        >
+                          <TimePicker format="HH:mm" placeholder="选择时间" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {scheduleType === 'monthly' && (
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'day_of_month']}
+                          label="每月第几天"
+                          rules={[{ required: true, message: '请输入日期' }]}
+                        >
+                          <InputNumber min={1} max={31} placeholder="1" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'time']}
+                          label="执行时间"
+                          rules={[{ required: true, message: '请选择执行时间' }]}
+                        >
+                          <TimePicker format="HH:mm" placeholder="选择时间" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {scheduleType === 'cron' && (
+                    <Form.Item
+                      name={['schedule_config', 'cron_expression']}
+                      label="Cron表达式"
+                      rules={[{ required: true, message: '请输入Cron表达式' }]}
+                      help="格式: 秒 分 时 日 月 周"
+                    >
+                      <Input placeholder="0 0 9 * * *" />
+                    </Form.Item>
+                  )}
+
+                  <Form.Item
+                    name="max_runs"
+                    label="最大执行次数"
+                    help="留空表示无限制"
+                  >
+                    <InputNumber min={1} placeholder="不限制" style={{ width: '100%' }} />
+                  </Form.Item>
+                </>
+              )}
+            </Collapse.Panel>
+          </Collapse>
+
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
@@ -1110,6 +1362,7 @@ const TaskManagement: React.FC = () => {
               <Button onClick={() => {
                 setCreateModalVisible(false);
                 form.resetFields();
+                resetScheduleState();
               }}>
                 取消
               </Button>
@@ -1164,7 +1417,7 @@ const TaskManagement: React.FC = () => {
                   <Col span={24}>
                     <Text strong>时间范围: </Text>
                     <Text>
-                      {selectedTask.date_from ? new Date(selectedTask.date_from).toLocaleString() : '不限'} 
+                      {selectedTask.date_from ? new Date(selectedTask.date_from).toLocaleString() : '不限'}
                       {' - '}
                       {selectedTask.date_to ? new Date(selectedTask.date_to).toLocaleString() : '一直有效'}
                     </Text>
@@ -1246,7 +1499,7 @@ const TaskManagement: React.FC = () => {
               style={{ marginBottom: 16 }}
               showIcon
             />
-            
+
             <Spin spinning={logsLoading}>
               {taskLogs.length > 0 ? (
                 <List
@@ -1258,8 +1511,8 @@ const TaskManagement: React.FC = () => {
                           <Badge
                             color={
                               log.level === 'ERROR' ? 'red' :
-                              log.level === 'WARNING' ? 'orange' :
-                              log.level === 'INFO' ? 'blue' : 'default'
+                                log.level === 'WARNING' ? 'orange' :
+                                  log.level === 'INFO' ? 'blue' : 'default'
                             }
                           />
                         }
@@ -1267,8 +1520,8 @@ const TaskManagement: React.FC = () => {
                           <Space>
                             <Tag color={
                               log.level === 'ERROR' ? 'red' :
-                              log.level === 'WARNING' ? 'orange' :
-                              log.level === 'INFO' ? 'blue' : 'default'
+                                log.level === 'WARNING' ? 'orange' :
+                                  log.level === 'INFO' ? 'blue' : 'default'
                             }>
                               {log.level}
                             </Tag>

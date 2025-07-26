@@ -48,6 +48,7 @@ class TelegramMessage(Base):
     download_speed = Column(Integer, default=0)  # 下载速度 bytes/second
     estimated_time_remaining = Column(Integer, default=0)  # 预计剩余时间 seconds
     download_started_at = Column(DateTime(timezone=True), nullable=True)  # 下载开始时间
+    is_downloading = Column(Boolean, default=False)  # 是否正在下载中，解决切换群组时状态丢失问题
     view_count = Column(Integer, default=0)
     is_forwarded = Column(Boolean, default=False)
     forwarded_from = Column(String(255), nullable=True)  # 转发来源名称

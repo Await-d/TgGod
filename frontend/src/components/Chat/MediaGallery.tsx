@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Button, Space, Carousel, Image, Typography, message as notification } from 'antd';
-import { 
-  CloseOutlined, 
-  DownloadOutlined, 
-  LeftOutlined, 
+import {
+  CloseOutlined,
+  DownloadOutlined,
+  LeftOutlined,
   RightOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
@@ -55,7 +55,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
     if (downloadState?.downloadUrl) {
       const downloadUrl = downloadState.downloadUrl;
       console.log('MediaGallery - using downloadUrl:', downloadUrl);
-      
+
       // 如果downloadUrl已经是完整路径，直接返回
       if (downloadUrl.startsWith('/media/')) {
         return downloadUrl;
@@ -67,48 +67,111 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
       // 如果是相对路径，添加前缀
       return downloadUrl.startsWith('/') ? downloadUrl : `/media/${downloadUrl}`;
     }
-    
+
     // 使用message.media_path作为后备
     const path = message.media_path;
     if (!path) return '';
-    
+
     console.log('MediaGallery - buildMediaUrl input path:', path);
-    
+
     // 如果已经是完整URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
       console.log('MediaGallery - returning complete URL:', path);
       return path;
     }
-    
+
     // 如果路径以 /media/ 开头，直接返回
     if (path.startsWith('/media/')) {
       console.log('MediaGallery - returning path with /media/ prefix:', path);
       return path;
     }
-    
+
     // 如果路径以 media/ 开头，添加前导斜杠
     if (path.startsWith('media/')) {
       const result = `/${path}`;
       console.log('MediaGallery - adding leading slash to media/ path:', result);
       return result;
     }
-    
+
     // 如果路径包含 ./media/ 前缀，清理并返回
     if (path.startsWith('./media/')) {
       const result = path.replace('./media/', '/media/');
       console.log('MediaGallery - cleaning ./media/ prefix:', result);
       return result;
     }
-    
+
     // 其他情况，构建完整路径
     const result = `/media/${path}`;
     console.log('MediaGallery - adding /media/ prefix to relative path:', result);
     return result;
   }, [downloadStates]);
 
-  // 获取媒体类型
+  // 获取媒体类型，增加文件扩展名验证
   const getMediaType = useCallback((message: TelegramMessage): 'image' | 'video' | 'audio' | 'document' => {
     const mediaType = message.media_type;
+    const mediaPath = message.media_path || '';
+
+    // 根据文件路径后缀判断实际类型
+    const getTypeFromExtension = (path: string): 'image' | 'video' | 'audio' | 'document' => {
+      // 如果路径为空，则无法判断
+      if (!path) return 'document';
+
+      const lowerPath = path.toLowerCase();
+
+      // 视频扩展名
+      if (lowerPath.endsWith('.mp4') ||
+        lowerPath.endsWith('.mov') ||
+        lowerPath.endsWith('.avi') ||
+        lowerPath.endsWith('.webm') ||
+        lowerPath.endsWith('.mkv') ||
+        lowerPath.endsWith('.flv')) {
+        return 'video';
+      }
+
+      // 图片扩展名
+      if (lowerPath.endsWith('.jpg') ||
+        lowerPath.endsWith('.jpeg') ||
+        lowerPath.endsWith('.png') ||
+        lowerPath.endsWith('.gif') ||
+        lowerPath.endsWith('.webp') ||
+        lowerPath.endsWith('.bmp') ||
+        lowerPath.endsWith('.svg')) {
+        return 'image';
+      }
+
+      // 音频扩展名
+      if (lowerPath.endsWith('.mp3') ||
+        lowerPath.endsWith('.wav') ||
+        lowerPath.endsWith('.ogg') ||
+        lowerPath.endsWith('.aac') ||
+        lowerPath.endsWith('.flac') ||
+        lowerPath.endsWith('.m4a')) {
+        return 'audio';
+      }
+
+      // 默认为文档
+      return 'document';
+    };
+
+    // 首先通过文件扩展名判断
+    const typeFromExtension = getTypeFromExtension(mediaPath);
+
+    // 记录类型差异
+    if (typeFromExtension !== getTypeFromMediaType(mediaType)) {
+      console.warn('Media type mismatch detected:', {
+        messageId: message.id || message.message_id,
+        declaredType: mediaType,
+        path: mediaPath,
+        actualType: typeFromExtension
+      });
+    }
+
+    // 返回基于文件扩展名的类型（优先级更高）
+    return typeFromExtension;
+  }, []);
+
+  // 辅助函数：从message.media_type获取媒体类型
+  const getTypeFromMediaType = (mediaType: string | undefined): 'image' | 'video' | 'audio' | 'document' => {
     switch (mediaType) {
       case 'photo':
         return 'image';
@@ -120,19 +183,19 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
       default:
         return 'document';
     }
-  }, []);
+  };
 
   // 初始化媒体项目
   useEffect(() => {
     const items = messages
       .filter(msg => {
         if (!msg.media_type) return false;
-        
+
         // 检查是否有媒体路径或下载状态中的URL
         const messageId = msg.id || msg.message_id;
         const downloadState = downloadStates[messageId];
         const hasMediaUrl = msg.media_path || downloadState?.downloadUrl;
-        
+
         console.log('MediaGallery - filtering message', {
           messageId,
           mediaType: msg.media_type,
@@ -141,15 +204,30 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
           hasMediaUrl: !!hasMediaUrl,
           included: !!hasMediaUrl
         });
-        
+
         return !!hasMediaUrl;
       })
-      .map(msg => ({
-        message: msg,
-        url: buildMediaUrl(msg),
-        type: getMediaType(msg)
-      }));
-      
+      .map(msg => {
+        // 获取媒体类型并构建URL
+        const mediaType = getMediaType(msg);
+        const mediaUrl = buildMediaUrl(msg);
+
+        // 记录详细信息便于调试
+        console.log('MediaGallery - processing message item', {
+          messageId: msg.id || msg.message_id,
+          declaredType: msg.media_type,
+          detectedType: mediaType,
+          mediaPath: msg.media_path,
+          finalUrl: mediaUrl
+        });
+
+        return {
+          message: msg,
+          url: mediaUrl,
+          type: mediaType
+        };
+      });
+
     console.log('MediaGallery - processed media items', {
       totalMessages: messages.length,
       filteredItems: items.length,
@@ -159,7 +237,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
         type: item.type
       }))
     });
-    
+
     setMediaItems(items);
   }, [messages, buildMediaUrl, getMediaType, downloadStates]);
 
@@ -172,7 +250,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (!visible) return;
-      
+
       switch (e.key) {
         case 'Escape':
           onClose();
@@ -454,8 +532,8 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
       onCancel={onClose}
       footer={null}
       width="100vw"
-      style={{ 
-        top: 0, 
+      style={{
+        top: 0,
         padding: 0,
         maxWidth: 'none'
       }}

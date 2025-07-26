@@ -406,6 +406,16 @@ class TaskExecutionService:
             download_task.status = "completed"
             download_task.progress = 100
             download_task.completed_at = datetime.now(timezone.utc)
+            
+            # 如果是循环任务，不要重置进度和消息计数，因为调度器会处理
+            # 只有一次性任务才真正"完成"
+            if getattr(download_task, 'task_type', 'once') == 'once':
+                # 一次性任务完成后彻底结束
+                pass
+            else:
+                # 循环任务完成后等待下次调度
+                logger.info(f"循环任务 {task_id} 本次执行完成，等待下次调度")
+            
             db.commit()
         
         await self._log_task_event(task_id, "INFO", message)

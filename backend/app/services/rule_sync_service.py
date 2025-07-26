@@ -52,7 +52,7 @@ class RuleSyncService:
             "sync_performed": sync_result["needs_sync"],
             "sync_type": sync_result.get("sync_type"),
             "message_count": self._get_available_message_count(rule, db),
-            "sync_status": rule.sync_status
+            \"sync_status\": getattr(rule, 'sync_status', 'pending')
         }
     
     async def _check_sync_requirements(self, rule: FilterRule, db: Session) -> Dict[str, Any]:
@@ -67,7 +67,7 @@ class RuleSyncService:
             return {"needs_sync": False, "reason": "群组不存在"}
         
         # 情况1: 规则从未同步过
-        if rule.last_sync_time is None:
+        if not hasattr(rule, 'last_sync_time') or rule.last_sync_time is None:
             return {
                 "needs_sync": True,
                 "sync_type": "initial",
@@ -75,7 +75,7 @@ class RuleSyncService:
             }
         
         # 情况2: 规则被修改，需要完全重新同步
-        if rule.needs_full_resync:
+        if hasattr(rule, 'needs_full_resync') and rule.needs_full_resync:
             return {
                 "needs_sync": True,
                 "sync_type": "full_resync",
@@ -110,7 +110,7 @@ class RuleSyncService:
         # 检查群组是否有更新的消息（在规则最后同步时间之后）
         newer_messages_count = db.query(TelegramMessage).filter(
             TelegramMessage.group_id == rule.group_id,
-            TelegramMessage.date > rule.last_sync_time
+            TelegramMessage.date > getattr(rule, 'last_sync_time', datetime.now() - timedelta(days=90))
         ).count()
         
         if newer_messages_count > 0:
@@ -136,7 +136,8 @@ class RuleSyncService:
         """
         try:
             # 更新同步状态
-            rule.sync_status = 'syncing'
+            if hasattr(rule, 'sync_status'):
+                rule.sync_status = 'syncing'
             db.commit()
             
             group = db.query(TelegramGroup).filter(TelegramGroup.id == rule.group_id).first()
@@ -155,10 +156,14 @@ class RuleSyncService:
             sync_result = await self._sync_messages(group, sync_params)
             
             # 更新规则同步状态
-            rule.last_sync_time = datetime.now()
-            rule.last_sync_message_count = sync_result.get('synced_count', 0)
-            rule.sync_status = 'completed'
-            rule.needs_full_resync = False
+            if hasattr(rule, 'last_sync_time'):
+                rule.last_sync_time = datetime.now()
+            if hasattr(rule, 'last_sync_message_count'):
+                rule.last_sync_message_count = sync_result.get('synced_count', 0)
+            if hasattr(rule, 'sync_status'):
+                rule.sync_status = 'completed'
+            if hasattr(rule, 'needs_full_resync'):
+                rule.needs_full_resync = False
             
             db.commit()
             
@@ -168,7 +173,8 @@ class RuleSyncService:
             
         except Exception as e:
             # 同步失败，更新状态
-            rule.sync_status = 'failed'
+            if hasattr(rule, 'sync_status'):
+                rule.sync_status = 'failed'
             db.commit()
             
             self.logger.error(f"规则 {rule.id} 同步失败: {str(e)}")
@@ -195,7 +201,7 @@ class RuleSyncService:
                 
         elif sync_type == 'incremental':
             # 增量同步：从最后同步时间开始
-            params['start_date'] = rule.last_sync_time
+            params['start_date'] = getattr(rule, 'last_sync_time', datetime.now() - timedelta(days=1))
             params['end_date'] = datetime.now()
         
         return params
@@ -250,8 +256,10 @@ class RuleSyncService:
         """
         rule = db.query(FilterRule).filter(FilterRule.id == rule_id).first()
         if rule:
-            rule.needs_full_resync = True
-            rule.sync_status = 'pending'
+            if hasattr(rule, 'needs_full_resync'):
+                rule.needs_full_resync = True
+            if hasattr(rule, 'sync_status'):
+                rule.sync_status = 'pending'
             db.commit()
             
             self.logger.info(f"规则 {rule_id} 已标记为需要重新同步")
@@ -266,10 +274,10 @@ class RuleSyncService:
         
         return {
             "rule_id": rule_id,
-            "sync_status": rule.sync_status,
-            "last_sync_time": rule.last_sync_time,
-            "last_sync_message_count": rule.last_sync_message_count,
-            "needs_full_resync": rule.needs_full_resync,
+            \"sync_status\": getattr(rule, 'sync_status', 'pending'),
+            \"last_sync_time\": getattr(rule, 'last_sync_time', None),
+            \"last_sync_message_count\": getattr(rule, 'last_sync_message_count', 0),
+            \"needs_full_resync\": getattr(rule, 'needs_full_resync', True),
             "available_message_count": self._get_available_message_count(rule, db)
         }
 

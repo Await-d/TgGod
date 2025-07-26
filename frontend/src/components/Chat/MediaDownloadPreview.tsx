@@ -52,7 +52,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
-  
+
   // 状态管理 - 添加缩略图加载失败状态
   const [thumbnailError, setThumbnailError] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0); // 强制刷新计数器
@@ -79,13 +79,13 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   // 监听 message 变化，更新下载状态
   useEffect(() => {
     const newStatus = message.media_downloaded ? 'downloaded' : 'not_downloaded';
-    
+
     // 🔥 重要修复：只在非下载状态时才更新状态，避免打断正在进行的下载
     const shouldUpdateState = (
       downloadState.status !== 'downloading' && // 不打断正在下载的状态
       (downloadState.status !== newStatus || downloadState.downloadUrl !== message.media_path)
     );
-    
+
     if (shouldUpdateState) {
       console.log('Message state changed, updating download state', {
         messageId: message.message_id,
@@ -94,12 +94,12 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
         mediaDownloaded: message.media_downloaded,
         mediaPath: message.media_path
       });
-      
+
       setDownloadState({
         status: newStatus,
         downloadUrl: message.media_path
       });
-      
+
       // 当下载状态改变时，重置缩略图错误状态
       if (newStatus === 'downloaded') {
         setThumbnailError(false);
@@ -228,7 +228,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       progress: 0,
       lastProgressUpdate: Date.now()
     };
-    
+
     console.log('Setting initial download state:', initialDownloadState);
     setDownloadState(initialDownloadState);
 
@@ -258,15 +258,15 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               downloadedSize: statusResponse.downloaded_size || statusResponse.file_size,
               totalSize: statusResponse.total_size || statusResponse.file_size
             };
-            
+
             setDownloadState(newDownloadState);
-            
+
             // 重置缩略图错误状态，允许重新尝试显示
             setThumbnailError(false);
-            
+
             // 强制组件重新渲染以确保UI更新
             setForceRefresh(prev => prev + 1);
-            
+
             // 通知父组件更新消息状态
             if (onUpdateDownloadState) {
               onUpdateDownloadState(message.message_id, {
@@ -275,13 +275,13 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                 media_path: statusResponse.download_url
               });
             }
-            
+
             console.log('Download completed successfully', {
               messageId: message.message_id,
               downloadUrl: statusResponse.download_url,
               newState: newDownloadState
             });
-            
+
             notification.success('下载完成，可以预览了！');
             clearInterval(newPollInterval);
             setPollInterval(null);
@@ -304,7 +304,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               estimatedTimeRemaining: statusResponse.estimated_time_remaining || 0,
               lastProgressUpdate: Date.now()
             };
-            
+
             console.log('Updating download progress:', newState);
             setDownloadState(prevState => {
               const updatedState = { ...prevState, ...newState };
@@ -349,7 +349,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     const hasDownloadUrl = !!downloadState.downloadUrl;
     const hasMessageMediaPath = message.media_downloaded && message.media_path;
     const hasMediaUrl = hasDownloadUrl || hasMessageMediaPath;
-    
+
     // 优先使用downloadState中的URL，然后使用message中的path
     const mediaUrlForPreview = downloadState.downloadUrl || message.media_path;
 
@@ -564,7 +564,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     if (isActuallyDownloaded) {
       const mediaUrlForDownload = downloadState.downloadUrl || message.media_path;
       const fullMediaUrl = mediaUrlForDownload ? getFullMediaUrl(mediaUrlForDownload) : null;
-      
+
       return (
         <div className="download-actions downloaded-actions">
           <Button
@@ -572,8 +572,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             icon={<EyeOutlined />}
             onClick={handlePreview}
             size="small"
-            style={{ 
-              marginRight: 8,
+            style={{
               background: 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)',
               border: 'none'
             }}
@@ -653,18 +652,18 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       console.log('Using downloaded file URL for thumbnail:', downloadState.downloadUrl);
       return getFullMediaUrl(downloadState.downloadUrl);
     }
-    
+
     if (message.media_downloaded && message.media_path) {
       console.log('Using media path URL for thumbnail:', message.media_path);
       return getFullMediaUrl(message.media_path);
     }
-    
+
     // 最后再尝试使用缩略图URL（可能不可用）
     if (message.media_thumbnail_url) {
       console.log('Using thumbnail URL (fallback):', message.media_thumbnail_url);
       return message.media_thumbnail_url;
     }
-    
+
     return null;
   };
 
@@ -689,7 +688,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       const fileUrl = downloadState.downloadUrl || message.media_path;
       if (fileUrl) {
         const fullFileUrl = getFullMediaUrl(fileUrl);
-        
+
         switch (message.media_type) {
           case 'photo':
             return (
@@ -816,7 +815,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
         {getMediaIcon(message.media_type || 'document')}
         {thumbnailError && (
           <div className="error-overlay">
-            <small>缩略图加载失败</small>
+            <small>点击加载原图</small>
           </div>
         )}
       </div>
@@ -825,7 +824,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   return (
     <>
-      <div 
+      <div
         className={`media-download-preview ${compact ? 'compact' : ''} ${className}`}
         key={`media-${message.message_id}-${forceRefresh}`}
       >
