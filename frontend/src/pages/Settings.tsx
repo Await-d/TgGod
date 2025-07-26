@@ -109,41 +109,62 @@ const Settings: React.FC = () => {
       const response = await apiService.get('/telegram/auth/status');
       console.log('Settings页面 - Telegram API响应:', response);
       
-      if (response.success && response.data) {
-        console.log('Settings页面 - Telegram状态数据:', response.data);
-        // 确保响应数据是预期的格式
-        const statusData = response.data as TelegramStatus;
+      // 由于API拦截器直接返回response.data，所以response就是实际的数据
+      // 检查是否是成功的响应格式
+      let statusData: TelegramStatus;
+      
+      if (response && typeof response === 'object') {
+        // 如果response直接包含is_authorized字段，说明是直接的状态数据（最常见情况）
+        if ('is_authorized' in response) {
+          statusData = response as TelegramStatus;
+          console.log('Settings页面 - 使用直接状态数据格式');
+        }
+        // 如果response包含success字段，说明是标准API响应格式
+        else if ('success' in response && response.success && response.data) {
+          statusData = response.data as TelegramStatus;
+          console.log('Settings页面 - 使用标准API响应格式');
+        } 
+        // 其他情况作为错误处理
+        else {
+          console.warn('Telegram状态API返回格式不符合预期:', response);
+          setTelegramStatus({
+            is_authorized: false,
+            message: '获取认证状态失败'
+          });
+          return;
+        }
         
-        // 即使后端返回数据，也确保数据结构符合预期
+        console.log('Settings页面 - 解析的状态数据:', statusData);
+        
+        // 验证数据格式
         if (typeof statusData.is_authorized === 'boolean') {
-          setTelegramStatus(statusData);
+          // 构造新的状态对象，确保触发重新渲染
+          const newStatus: TelegramStatus = {
+            is_authorized: statusData.is_authorized,
+            user_info: statusData.user_info,
+            message: statusData.message || (statusData.is_authorized ? '已授权' : '未授权')
+          };
           
-          // 如果认证成功但没有用户信息，尝试添加默认用户信息避免UI错误
-          if (statusData.is_authorized && !statusData.user_info) {
-            console.warn('后端返回认证成功但无用户信息');
-          }
+          console.log('Settings页面 - 即将设置新状态:', newStatus);
+          setTelegramStatus(newStatus);
+          
         } else {
-          console.warn('Telegram状态数据格式不正确:', statusData);
-          // 构造一个安全的默认状态
+          console.warn('Telegram状态数据is_authorized字段格式不正确:', statusData);
           setTelegramStatus({
             is_authorized: false,
             message: '返回的认证数据格式不正确'
           });
         }
       } else {
-        console.warn('Telegram状态API返回失败响应', response);
-        // 使用更友好的错误消息
-        const errorMessage = response.message || '获取Telegram认证状态失败';
-        message.warning(`Telegram认证状态检查: ${errorMessage}`);
+        console.warn('Telegram状态API返回空响应或格式错误:', response);
         setTelegramStatus({
           is_authorized: false,
-          message: errorMessage
-        } as TelegramStatus);
+          message: '获取认证状态失败'
+        });
       }
     } catch (error: any) {
       console.error('检查Telegram状态时出错:', error);
       const errorMessage = error.message || '无法检查Telegram认证状态';
-      message.error(`Telegram认证状态错误: ${errorMessage}`);
       setTelegramStatus({
         is_authorized: false,
         message: errorMessage
@@ -291,11 +312,14 @@ const Settings: React.FC = () => {
   };
 
   const renderTelegramStatus = () => {
+    console.log('renderTelegramStatus - 当前状态:', telegramStatus);
+    
     if (!telegramStatus) {
       return <Badge status="processing" text="检查中..." />;
     }
 
     if (telegramStatus.is_authorized) {
+      console.log('renderTelegramStatus - 显示已认证状态');
       return (
         <Space>
           <Badge status="success" text="已认证" />
@@ -307,7 +331,8 @@ const Settings: React.FC = () => {
         </Space>
       );
     } else {
-      return <Badge status="error" text="未认证" />;
+      console.log('renderTelegramStatus - 显示未认证状态');
+      return <Badge status="error" text={`未认证${telegramStatus.message ? ` (${telegramStatus.message})` : ''}`} />;
     }
   };
 

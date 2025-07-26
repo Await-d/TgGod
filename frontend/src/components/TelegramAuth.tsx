@@ -49,8 +49,29 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
       // 详细日志记录API响应
       console.log('Telegram auth status response:', response);
       
-      if (response.success && response.data) {
-        const data = response.data as AuthStatus;
+      // 处理API响应 - 拦截器可能直接返回数据或包装的响应
+      let data: AuthStatus;
+      
+      if (response && typeof response === 'object') {
+        // 如果response直接包含is_authorized字段，说明是直接的状态数据
+        if ('is_authorized' in response) {
+          data = response as AuthStatus;
+          console.log('TelegramAuth - 使用直接状态数据格式');
+        }
+        // 如果response包含success字段，说明是标准API响应格式
+        else if ('success' in response && response.success && response.data) {
+          data = response.data as AuthStatus;
+          console.log('TelegramAuth - 使用标准API响应格式');
+        }
+        // 其他情况作为错误处理
+        else {
+          console.warn('Telegram认证状态检查失败:', response);
+          const errorMsg = (response as any).message || '检查认证状态失败';
+          setError(errorMsg);
+          setStep('phone');
+          return;
+        }
+        
         console.log('Telegram auth status data:', data);
         setAuthStatus(data);
 
@@ -62,18 +83,8 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
         }
       } else {
         // 记录错误信息以便调试
-        console.warn('Telegram认证状态检查失败:', response);
-        const errorMsg = response.message || '检查认证状态失败';
-        setError(errorMsg);
-        
-        // 如果响应中包含更具体的错误信息，则使用它
-        const responseData = response.data as any;
-        if (responseData?.message) {
-          setError(responseData.message);
-          onAuthError?.(responseData.message);
-        } else {
-          onAuthError?.(errorMsg);
-        }
+        console.warn('Telegram认证状态检查失败 - 响应格式错误:', response);
+        setError('检查认证状态失败');
       }
     } catch (err: any) {
       console.error('Telegram认证状态检查异常:', err);
