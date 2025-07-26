@@ -42,10 +42,10 @@ def optimize_sqlite_database(db_path: str) -> bool:
         cursor.execute("PRAGMA foreign_keys=ON;")
         
         # 设置锁超时
-        cursor.execute("PRAGMA busy_timeout=30000;")  # 30秒
+        cursor.execute("PRAGMA busy_timeout=60000;")  # 60秒，增加等待时间
         
         # 启用内存映射I/O (提高读性能)
-        cursor.execute("PRAGMA mmap_size=268435456;")  # 256MB
+        cursor.execute("PRAGMA mmap_size=536870912;")  # 512MB，提高到512MB
         
         # 设置temp存储为内存
         cursor.execute("PRAGMA temp_store=MEMORY;")
@@ -72,13 +72,13 @@ def optimize_sqlite_database(db_path: str) -> bool:
         return False
 
 @contextmanager
-def optimized_db_session(autocommit: bool = True, max_retries: int = 3):
+def optimized_db_session(autocommit: bool = True, max_retries: int = 5):
     """
     优化的数据库会话管理器，带有自动重试和快速释放
     
     Args:
         autocommit: 是否自动提交
-        max_retries: 最大重试次数
+        max_retries: 最大重试次数，默认增加到5次
         
     Yields:
         数据库会话
@@ -117,7 +117,7 @@ def optimized_db_session(autocommit: bool = True, max_retries: int = 3):
                     session = None
                 
                 if retry_count <= max_retries:
-                    wait_time = min(0.1 * (2 ** retry_count), 2.0)  # 指数退避，最大2秒
+                    wait_time = min(0.2 * (2 ** retry_count), 5.0)  # 指数退避，最大5秒，更积极的重试等待
                     logger.warning(f"数据库锁定，{wait_time:.2f}秒后重试 (尝试 {retry_count}/{max_retries})")
                     time.sleep(wait_time)
                     continue

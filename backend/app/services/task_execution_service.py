@@ -24,6 +24,9 @@ class TaskExecutionService:
         self.media_downloader = TelegramMediaDownloader()
         self.jellyfin_service = None  # 延迟导入
         self._initialized = False
+        # 日志批量处理
+        self.pending_logs = []
+        self.log_batch_size = 10  # 累积10条日志再批量写入
     
     async def initialize(self):
         """初始化服务"""
@@ -395,26 +398,62 @@ class TaskExecutionService:
     
     async def _log_task_event(self, task_id: int, level: str, message: str, details: Optional[Dict] = None):
         """记录任务事件日志"""
+        # 先尝试通过WebSocket发送日志 - 无论数据库操作是否成功都确保UI更新
+        timestamp = datetime.now(timezone.utc)
         try:
-            with optimized_db_session() as db:
-                log_entry = TaskLog(
-                    task_id=task_id,
-                    level=level,
-                    message=message,
-                    details=details
-                )
-                db.add(log_entry)
-                
-                # 通过WebSocket发送日志
-                await websocket_manager.broadcast({
-                    "type": "task_log",
-                    "task_id": task_id,
-                    "level": level,
-                    "message": message,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                })
+            await websocket_manager.broadcast({
+                "type": "task_log",
+                "task_id": task_id,
+                "level": level,
+                "message": message,
+                "timestamp": timestamp.isoformat()
+            })
         except Exception as e:
-            logger.error(f"记录任务日志失败: {e}")
+            logger.error(f"WebSocket广播日志失败: {e}")
+        
+        # 只添加重要日志到批处理队列
+        if level in ["ERROR", "WARNING", "INFO", "DEBUG"]:
+            # 添加到待处理队列
+            log_entry = {
+                "task_id": task_id,
+                "level": level,
+                "message": message,
+                "details": details,
+                "created_at": timestamp
+            }
+            self.pending_logs.append(log_entry)
+            
+            # 当积累足够日志或遇到错误/警告级别时立即刷新
+            if level in ["ERROR", "WARNING"] or len(self.pending_logs) >= self.log_batch_size:
+                await self._flush_pending_logs()
+                
+    async def _flush_pending_logs(self):
+        """批量处理待写入的日志"""
+        if not self.pending_logs:
+            return
+            
+        logs_to_write = self.pending_logs.copy()
+        self.pending_logs = []
+        
+        try:
+            with optimized_db_session(max_retries=5) as db:
+                for log in logs_to_write:
+                    # 只保存重要日志到数据库
+                    if log["level"] in ["ERROR", "WARNING", "INFO"]:
+                        db_log = TaskLog(
+                            task_id=log["task_id"],
+                            level=log["level"],
+                            message=log["message"],
+                            details=log["details"],
+                            created_at=log["created_at"]
+                        )
+                        db.add(db_log)
+        except Exception as e:
+            logger.error(f"批量写入日志失败: {e}")
+            # 失败时将未写入的重要日志重新加入队列
+            for log in logs_to_write:
+                if log["level"] in ["ERROR", "WARNING", "INFO"]:
+                    self.pending_logs.append(log)
     
     async def _log_download_progress(self, task_id: int, message_id: int, current: int, total: int):
         """记录下载进度"""
