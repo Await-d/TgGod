@@ -52,7 +52,7 @@ class RuleSyncService:
             "sync_performed": sync_result["needs_sync"],
             "sync_type": sync_result.get("sync_type"),
             "message_count": self._get_available_message_count(rule, db),
-            \"sync_status\": getattr(rule, 'sync_status', 'pending')
+            "sync_status": getattr(rule, 'sync_status', 'pending')
         }
     
     async def _check_sync_requirements(self, rule: FilterRule, db: Session) -> Dict[str, Any]:
@@ -274,10 +274,10 @@ class RuleSyncService:
         
         return {
             "rule_id": rule_id,
-            \"sync_status\": getattr(rule, 'sync_status', 'pending'),
-            \"last_sync_time\": getattr(rule, 'last_sync_time', None),
-            \"last_sync_message_count\": getattr(rule, 'last_sync_message_count', 0),
-            \"needs_full_resync\": getattr(rule, 'needs_full_resync', True),
+            "sync_status": getattr(rule, 'sync_status', 'pending'),
+            "last_sync_time": getattr(rule, 'last_sync_time', None),
+            "last_sync_message_count": getattr(rule, 'last_sync_message_count', 0),
+            "needs_full_resync": getattr(rule, 'needs_full_resync', True),
             "available_message_count": self._get_available_message_count(rule, db)
         }
 
