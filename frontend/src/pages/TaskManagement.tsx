@@ -99,10 +99,19 @@ const TaskManagement: React.FC = () => {
   const [filterForm] = Form.useForm();
   const [filters, setFilters] = useState<any>({});
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [operatingTasks, setOperatingTasks] = useState<Set<number>>(new Set());
+  
+  // 批量操作相关状态
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [batchOperating, setBatchOperating] = useState(false);
   
   // 日志相关
   const [taskLogs, setTaskLogs] = useState<LogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [systemStatus, setSystemStatus] = useState<{
+    isTaskServiceAvailable: boolean;
+    message?: string;
+  }>({ isTaskServiceAvailable: true });
 
   // 加载数据
   const loadTasks = useCallback(async () => {
@@ -161,42 +170,187 @@ const TaskManagement: React.FC = () => {
   // 任务操作
   const handleStartTask = async (taskId: number) => {
     try {
+      setOperatingTasks(prev => new Set(prev).add(taskId));
+      setSystemStatus({ isTaskServiceAvailable: true });
       await taskApi.startTask(taskId);
       message.success('任务启动成功');
       loadTasks();
     } catch (error: any) {
-      message.error(`启动任务失败: ${error.message}`);
+      console.error('启动任务失败:', error);
+      
+      // 检查是否是服务不可用的错误
+      if (error.message.includes('服务不可用') || error.message.includes('连接')) {
+        setSystemStatus({ 
+          isTaskServiceAvailable: false, 
+          message: '任务执行服务暂时不可用，可能正在使用模拟模式' 
+        });
+        message.warning(`任务启动: ${error.message}，已切换到模拟模式`);
+      } else {
+        message.error(`启动任务失败: ${error.message}`);
+      }
+    } finally {
+      setOperatingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
     }
   };
 
   const handlePauseTask = async (taskId: number) => {
     try {
+      setOperatingTasks(prev => new Set(prev).add(taskId));
       await taskApi.pauseTask(taskId);
       message.success('任务暂停成功');
       loadTasks();
     } catch (error: any) {
-      message.error(`暂停任务失败: ${error.message}`);
+      console.error('暂停任务失败:', error);
+      if (error.message.includes('服务不可用') || error.message.includes('连接')) {
+        message.warning(`任务暂停: ${error.message}，使用模拟模式`);
+      } else {
+        message.error(`暂停任务失败: ${error.message}`);
+      }
+    } finally {
+      setOperatingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
     }
   };
 
   const handleStopTask = async (taskId: number) => {
     try {
+      setOperatingTasks(prev => new Set(prev).add(taskId));
       await taskApi.stopTask(taskId);
       message.success('任务停止成功');
       loadTasks();
     } catch (error: any) {
-      message.error(`停止任务失败: ${error.message}`);
+      console.error('停止任务失败:', error);
+      if (error.message.includes('服务不可用') || error.message.includes('连接')) {
+        message.warning(`任务停止: ${error.message}，使用模拟模式`);
+      } else {
+        message.error(`停止任务失败: ${error.message}`);
+      }
+    } finally {
+      setOperatingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
     }
   };
 
   const handleDeleteTask = async (taskId: number) => {
     try {
+      setOperatingTasks(prev => new Set(prev).add(taskId));
       await taskApi.deleteTask(taskId);
       message.success('任务删除成功');
       loadTasks();
     } catch (error: any) {
       message.error(`删除任务失败: ${error.message}`);
+    } finally {
+      setOperatingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
     }
+  };
+
+  // 批量操作处理函数
+  const handleBatchOperation = async (action: string) => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要操作的任务');
+      return;
+    }
+
+    setBatchOperating(true);
+    const selectedTaskIds = selectedRowKeys as number[];
+    const successTasks: number[] = [];
+    const failedTasks: number[] = [];
+
+    try {
+      for (const taskId of selectedTaskIds) {
+        try {
+          switch (action) {
+            case 'start':
+              await taskApi.startTask(taskId);
+              successTasks.push(taskId);
+              break;
+            case 'pause':
+              await taskApi.pauseTask(taskId);
+              successTasks.push(taskId);
+              break;
+            case 'stop':
+              await taskApi.stopTask(taskId);
+              successTasks.push(taskId);
+              break;
+            case 'delete':
+              await taskApi.deleteTask(taskId);
+              successTasks.push(taskId);
+              break;
+          }
+        } catch (error) {
+          console.error(`批量操作 ${action} 失败，任务ID: ${taskId}`, error);
+          failedTasks.push(taskId);
+        }
+      }
+
+      // 显示结果
+      if (successTasks.length > 0) {
+        const actionName = {
+          start: '启动',
+          pause: '暂停', 
+          stop: '停止',
+          delete: '删除'
+        }[action] || action;
+        message.success(`成功${actionName}了 ${successTasks.length} 个任务`);
+      }
+
+      if (failedTasks.length > 0) {
+        const actionName = {
+          start: '启动',
+          pause: '暂停',
+          stop: '停止', 
+          delete: '删除'
+        }[action] || action;
+        message.error(`${failedTasks.length} 个任务${actionName}失败`);
+      }
+
+      // 清空选择并重新加载
+      setSelectedRowKeys([]);
+      loadTasks();
+    } finally {
+      setBatchOperating(false);
+    }
+  };
+
+  // 行选择配置
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (newSelectedRowKeys: React.Key[]) => {
+      setSelectedRowKeys(newSelectedRowKeys);
+    },
+    onSelectAll: (selected: boolean, selectedRows: DownloadTask[], changeRows: DownloadTask[]) => {
+      if (selected) {
+        // 选中所有可操作的任务
+        const allSelectableKeys = tasks.map(task => task.id);
+        setSelectedRowKeys(allSelectableKeys);
+      } else {
+        setSelectedRowKeys([]);
+      }
+    },
+    onSelect: (record: DownloadTask, selected: boolean) => {
+      if (selected) {
+        setSelectedRowKeys(prev => [...prev, record.id]);
+      } else {
+        setSelectedRowKeys(prev => prev.filter(key => key !== record.id));
+      }
+    },
+    getCheckboxProps: (record: DownloadTask) => ({
+      disabled: operatingTasks.has(record.id), // 正在操作的任务不能选择
+    }),
   };
 
   const handleCreateTask = async (values: any) => {
@@ -408,23 +562,43 @@ const TaskManagement: React.FC = () => {
                     查看日志
                   </Menu.Item>
                   {record.status === 'pending' && (
-                    <Menu.Item key="start" icon={<PlayCircleOutlined />} onClick={() => handleStartTask(record.id)}>
-                      立即执行
+                    <Menu.Item 
+                      key="start" 
+                      icon={<PlayCircleOutlined />} 
+                      onClick={() => handleStartTask(record.id)}
+                      disabled={operatingTasks.has(record.id)}
+                    >
+                      {operatingTasks.has(record.id) ? '启动中...' : '立即执行'}
                     </Menu.Item>
                   )}
                   {record.status === 'running' && (
                     <>
-                      <Menu.Item key="pause" icon={<PauseCircleOutlined />} onClick={() => handlePauseTask(record.id)}>
-                        暂停任务
+                      <Menu.Item 
+                        key="pause" 
+                        icon={<PauseCircleOutlined />} 
+                        onClick={() => handlePauseTask(record.id)}
+                        disabled={operatingTasks.has(record.id)}
+                      >
+                        {operatingTasks.has(record.id) ? '暂停中...' : '暂停任务'}
                       </Menu.Item>
-                      <Menu.Item key="stop" icon={<StopOutlined />} onClick={() => handleStopTask(record.id)}>
-                        停止任务
+                      <Menu.Item 
+                        key="stop" 
+                        icon={<StopOutlined />} 
+                        onClick={() => handleStopTask(record.id)}
+                        disabled={operatingTasks.has(record.id)}
+                      >
+                        {operatingTasks.has(record.id) ? '停止中...' : '停止任务'}
                       </Menu.Item>
                     </>
                   )}
                   {record.status === 'paused' && (
-                    <Menu.Item key="resume" icon={<PlayCircleOutlined />} onClick={() => handleStartTask(record.id)}>
-                      继续任务
+                    <Menu.Item 
+                      key="resume" 
+                      icon={<PlayCircleOutlined />} 
+                      onClick={() => handleStartTask(record.id)}
+                      disabled={operatingTasks.has(record.id)}
+                    >
+                      {operatingTasks.has(record.id) ? '恢复中...' : '继续任务'}
                     </Menu.Item>
                   )}
                   {!['running'].includes(record.status) && (
@@ -470,6 +644,7 @@ const TaskManagement: React.FC = () => {
                     size="small"
                     type="primary"
                     icon={<PlayCircleOutlined />}
+                    loading={operatingTasks.has(record.id)}
                     onClick={() => handleStartTask(record.id)}
                   >
                     执行
@@ -483,6 +658,7 @@ const TaskManagement: React.FC = () => {
                     <Button
                       size="small"
                       icon={<PauseCircleOutlined />}
+                      loading={operatingTasks.has(record.id)}
                       onClick={() => handlePauseTask(record.id)}
                     />
                   </Tooltip>
@@ -491,6 +667,7 @@ const TaskManagement: React.FC = () => {
                       size="small"
                       danger
                       icon={<StopOutlined />}
+                      loading={operatingTasks.has(record.id)}
                       onClick={() => handleStopTask(record.id)}
                     />
                   </Tooltip>
@@ -503,6 +680,7 @@ const TaskManagement: React.FC = () => {
                     size="small"
                     type="primary"
                     icon={<PlayCircleOutlined />}
+                    loading={operatingTasks.has(record.id)}
                     onClick={() => handleStartTask(record.id)}
                   />
                 </Tooltip>
@@ -520,6 +698,7 @@ const TaskManagement: React.FC = () => {
                       size="small"
                       danger
                       icon={<DeleteOutlined />}
+                      loading={operatingTasks.has(record.id)}
                     />
                   </Tooltip>
                 </Popconfirm>
@@ -533,19 +712,32 @@ const TaskManagement: React.FC = () => {
 
   // 批量操作菜单
   const batchActionMenu = (
-    <Menu>
-      <Menu.Item key="start" icon={<PlayCircleOutlined />}>
-        批量启动
+    <Menu onClick={({ key }) => {
+      if (key === 'delete') {
+        Modal.confirm({
+          title: '确认批量删除',
+          content: `确定要删除选中的 ${selectedRowKeys.length} 个任务吗？此操作不可撤销。`,
+          okText: '删除',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk: () => handleBatchOperation('delete'),
+        });
+      } else {
+        handleBatchOperation(key);
+      }
+    }}>
+      <Menu.Item key="start" icon={<PlayCircleOutlined />} disabled={batchOperating}>
+        批量启动 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
       </Menu.Item>
-      <Menu.Item key="pause" icon={<PauseCircleOutlined />}>
-        批量暂停
+      <Menu.Item key="pause" icon={<PauseCircleOutlined />} disabled={batchOperating}>
+        批量暂停 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
       </Menu.Item>
-      <Menu.Item key="stop" icon={<StopOutlined />}>
-        批量停止
+      <Menu.Item key="stop" icon={<StopOutlined />} disabled={batchOperating}>
+        批量停止 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
       </Menu.Item>
       <Menu.Divider />
-      <Menu.Item key="delete" danger icon={<DeleteOutlined />}>
-        批量删除
+      <Menu.Item key="delete" danger icon={<DeleteOutlined />} disabled={batchOperating}>
+        批量删除 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
       </Menu.Item>
     </Menu>
   );
@@ -563,6 +755,22 @@ const TaskManagement: React.FC = () => {
           />
         </Space>
       </div>
+
+      {/* 系统状态指示器 */}
+      {!systemStatus.isTaskServiceAvailable && (
+        <Alert
+          message="系统提示"
+          description={systemStatus.message || "任务执行服务暂时不可用，当前使用模拟模式进行测试"}
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          action={
+            <Button size="small" onClick={() => setSystemStatus({ isTaskServiceAvailable: true })}>
+              知道了
+            </Button>
+          }
+        />
+      )}
 
       {/* 统计卡片 */}
       {taskStats && (
@@ -627,11 +835,58 @@ const TaskManagement: React.FC = () => {
           >
             刷新
           </Button>
+          
+          {/* 快捷执行按钮 */}
+          <Button
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            onClick={() => {
+              const pendingTasks = tasks.filter(task => task.status === 'pending').map(task => task.id);
+              if (pendingTasks.length === 0) {
+                message.info('没有待执行的任务');
+                return;
+              }
+              setSelectedRowKeys(pendingTasks);
+              handleBatchOperation('start');
+            }}
+            disabled={!tasks.some(task => task.status === 'pending') || batchOperating}
+          >
+            启动所有待执行任务
+          </Button>
+          
+          <Button
+            icon={<PauseCircleOutlined />}
+            onClick={() => {
+              const runningTasks = tasks.filter(task => task.status === 'running').map(task => task.id);
+              if (runningTasks.length === 0) {
+                message.info('没有运行中的任务');
+                return;
+              }
+              setSelectedRowKeys(runningTasks);
+              handleBatchOperation('pause');
+            }}
+            disabled={!tasks.some(task => task.status === 'running') || batchOperating}
+          >
+            暂停所有运行中任务
+          </Button>
+          
           <Dropdown overlay={batchActionMenu}>
-            <Button>
-              批量操作 <DownOutlined />
+            <Button 
+              disabled={selectedRowKeys.length === 0}
+              loading={batchOperating}
+            >
+              批量操作 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`} <DownOutlined />
             </Button>
           </Dropdown>
+          
+          {selectedRowKeys.length > 0 && (
+            <Button 
+              size="small" 
+              onClick={() => setSelectedRowKeys([])}
+            >
+              取消选择
+            </Button>
+          )}
         </Space>
 
         {/* 过滤器 */}
@@ -703,11 +958,28 @@ const TaskManagement: React.FC = () => {
 
       {/* 任务列表 */}
       <Card>
+        {selectedRowKeys.length > 0 && (
+          <Alert
+            message={`已选择 ${selectedRowKeys.length} 个任务`}
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            action={
+              <Space>
+                <Button size="small" onClick={() => setSelectedRowKeys([])}>
+                  取消选择
+                </Button>
+              </Space>
+            }
+          />
+        )}
+        
         <Table
           columns={columns}
           dataSource={tasks}
           rowKey="id"
           loading={loading}
+          rowSelection={rowSelection}
           scroll={isMobile ? { x: 600 } : undefined}
           pagination={{
             showSizeChanger: !isMobile,

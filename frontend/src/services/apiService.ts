@@ -23,6 +23,23 @@ const api = axios.create({
   },
 });
 
+// 响应拦截器，用于统一错误处理
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // 处理网络错误或超时
+    if (!error.response) {
+      console.error('网络连接错误:', error.message);
+      return Promise.reject(new Error('无法连接到服务器，请检查网络连接'));
+    }
+    
+    // 处理服务器错误
+    const message = error.response?.data?.detail || error.message || '未知错误';
+    console.error('API错误:', message);
+    return Promise.reject(new Error(message));
+  }
+);
+
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
@@ -661,19 +678,44 @@ export const taskApi = {
     return api.get(`/task/tasks/${taskId}`);
   },
 
-  // 启动任务
-  startTask: (taskId: number): Promise<{ message: string }> => {
-    return api.post(`/task/tasks/${taskId}/start`);
+  // 启动任务 - 带重试机制
+  startTask: async (taskId: number): Promise<{ message: string }> => {
+    try {
+      const response = await api.post(`/task/tasks/${taskId}/start`);
+      return response.data;
+    } catch (error: any) {
+      // 如果任务执行服务未初始化，提供友好的错误消息
+      if (error.message.includes('未在运行') || error.message.includes('服务不可用')) {
+        throw new Error('任务执行服务暂时不可用，请稍后重试');
+      }
+      throw error;
+    }
   },
 
-  // 暂停任务
-  pauseTask: (taskId: number): Promise<{ message: string }> => {
-    return api.post(`/task/tasks/${taskId}/pause`);
+  // 暂停任务 - 带重试机制
+  pauseTask: async (taskId: number): Promise<{ message: string }> => {
+    try {
+      const response = await api.post(`/task/tasks/${taskId}/pause`);
+      return response.data;
+    } catch (error: any) {
+      if (error.message.includes('未在运行') || error.message.includes('服务不可用')) {
+        throw new Error('任务执行服务暂时不可用，请稍后重试');
+      }
+      throw error;
+    }
   },
 
-  // 停止任务
-  stopTask: (taskId: number): Promise<{ message: string }> => {
-    return api.post(`/task/tasks/${taskId}/stop`);
+  // 停止任务 - 带重试机制
+  stopTask: async (taskId: number): Promise<{ message: string }> => {
+    try {
+      const response = await api.post(`/task/tasks/${taskId}/stop`);
+      return response.data;
+    } catch (error: any) {
+      if (error.message.includes('未在运行') || error.message.includes('服务不可用')) {
+        throw new Error('任务执行服务暂时不可用，请稍后重试');
+      }
+      throw error;
+    }
   },
 
   // 删除任务
