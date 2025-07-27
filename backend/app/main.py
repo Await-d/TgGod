@@ -332,8 +332,7 @@ async def startup_event():
             if result.returncode == 0:
                 logger.info("✅ 数据库健康检查完成")
                 # 输出关键健康信息
-                for line in result.stdout.split('
-'):
+                for line in result.stdout.split('\n'):
                     if '数据库状态:' in line or '修复后状态:' in line:
                         logger.info(f"健康检查: {line.strip()}")
             else:

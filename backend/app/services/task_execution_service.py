@@ -285,7 +285,7 @@ class TaskExecutionService:
         count_diff = abs(downloaded_count - last_update['count'])
         
         if progress_diff >= 10 or count_diff >= 20 or progress == 0 or progress == 100:
-try:
+            try:
                 # 使用专用数据库管理器进行进度更新
                 async with task_db_manager.get_task_session(task_id, "progress") as session:
                     download_task = session.query(DownloadTask).filter(DownloadTask.id == task_id).first()
@@ -303,13 +303,13 @@ try:
             except Exception as e:
                 logger.warning(f"更新任务进度失败: {e}")  # 不抛出异常，避免中断下载
     
-async def _complete_task_execution(self, task_id: int, message: str):
+    async def _complete_task_execution(self, task_id: int, message: str):
         """完成任务执行"""
         # 使用快速状态更新
         await task_db_manager.quick_status_update(task_id, "completed")
         await self._log_task_event(task_id, "INFO", message)
     
-async def _handle_task_error_simple(self, task_id: int, error_message: str):
+    async def _handle_task_error_simple(self, task_id: int, error_message: str):
         """处理任务错误（简化版，使用快速状态更新）"""
         # 使用快速状态更新
         await task_db_manager.quick_status_update(task_id, "failed", error_message)
