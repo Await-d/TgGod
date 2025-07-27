@@ -31,7 +31,7 @@ import {
   Collapse,
   TimePicker
 } from 'antd';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { useIsMobile } from '../hooks/useMobileGestures';
 import {
   PlayCircleOutlined,
@@ -444,10 +444,10 @@ const TaskManagement: React.FC = () => {
     if (task.date_from || task.date_to) {
       const timeRange = [];
       if (task.date_from) {
-        timeRange.push(moment(task.date_from));
+        timeRange.push(dayjs(task.date_from));
       }
       if (task.date_to) {
-        timeRange.push(moment(task.date_to));
+        timeRange.push(dayjs(task.date_to));
       }
       formData.time_range = timeRange;
     }
@@ -456,7 +456,7 @@ const TaskManagement: React.FC = () => {
     if (task.schedule_config && task.schedule_config.time) {
       formData.schedule_config = {
         ...task.schedule_config,
-        time: moment(task.schedule_config.time, 'HH:mm')
+        time: dayjs(task.schedule_config.time, 'HH:mm')
       };
     }
 
