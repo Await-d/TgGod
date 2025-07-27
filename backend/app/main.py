@@ -312,12 +312,35 @@ async def startup_event():
         logger.error(f"运行数据库字段修复脚本失败: {e}")
         logger.warning("将继续启动，但可能出现字段访问错误")
     
-    # 初始化数据库优化配置
+# 初始化数据库优化配置和健康检查
     try:
         logger.info("🔧 初始化数据库优化配置...")
         from .utils.db_optimization import initialize_database_optimization
         initialize_database_optimization()
         logger.info("✅ 数据库优化配置完成")
+        
+        # 运行数据库健康检查
+        logger.info("🏥 执行数据库健康检查...")
+        import subprocess
+        import sys
+        from pathlib import Path
+        
+        health_check_script = Path(__file__).parent.parent / "database_health_check.py"
+        if health_check_script.exists():
+            result = subprocess.run([sys.executable, str(health_check_script)], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                logger.info("✅ 数据库健康检查完成")
+                # 输出关键健康信息
+                for line in result.stdout.split('
+'):
+                    if '数据库状态:' in line or '修复后状态:' in line:
+                        logger.info(f"健康检查: {line.strip()}")
+            else:
+                logger.warning(f"数据库健康检查异常: {result.stderr}")
+        else:
+            logger.info("未找到健康检查脚本，跳过检查")
+            
     except Exception as e:
         logger.error(f"数据库优化配置失败: {e}")
         logger.warning("将继续启动，但可能影响并发性能")

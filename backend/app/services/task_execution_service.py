@@ -13,6 +13,7 @@ from .media_downloader import TelegramMediaDownloader
 from .rule_sync_service import rule_sync_service
 from ..utils.db_optimization import optimized_db_session
 from ..websocket.manager import websocket_manager
+from .task_db_manager import task_db_manager
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ class TaskExecutionService:
         self._initialized = False
         # 日志批量处理
         self.pending_logs = []
-        self.log_batch_size = 20  # 累积20条日志再批量写入，减少数据库访问
+        self.log_batch_size = 50  # 累积50条日志再批量写入，进一步减少数据库访问
         self.last_log_flush = time.time()  # 上次刷新时间
     
     async def initialize(self):
@@ -166,8 +167,8 @@ class TaskExecutionService:
                     # 发送进度更新
                     await self._send_progress_update(task_id, progress, downloaded_count, total_messages)
                     
-                    # 避免过于频繁的下载
-                    await asyncio.sleep(0.5)
+                    # 避免过于频繁的下载，同时让其他任务有机会访问数据库
+                    await asyncio.sleep(0.2)  # 减少延迟，提高效率
                     
                 except Exception as e:
                     logger.error(f"下载消息 {message.id} 失败: {e}")
@@ -279,18 +280,19 @@ class TaskExecutionService:
         
         last_update = self._last_progress_update.get(task_id, {'progress': -1, 'count': -1})
         
-        # 只有在进度变化超过5%或下载数量变化超过10时才更新
+        # 减少数据库更新频率：只有在进度变化超过10%或下载数量变化超过20时才更新
         progress_diff = abs(progress - last_update['progress'])
         count_diff = abs(downloaded_count - last_update['count'])
         
-        if progress_diff >= 5 or count_diff >= 10 or progress == 0 or progress == 100:
-            try:
-                with optimized_db_session(max_retries=3) as db:
-                    download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
+        if progress_diff >= 10 or count_diff >= 20 or progress == 0 or progress == 100:
+try:
+                # 使用专用数据库管理器进行进度更新
+                async with task_db_manager.get_task_session(task_id, "progress") as session:
+                    download_task = session.query(DownloadTask).filter(DownloadTask.id == task_id).first()
                     if download_task:
                         download_task.progress = progress
                         download_task.downloaded_messages = downloaded_count
-                        db.commit()
+                        session.commit()
                         
                         # 记录最后更新的进度
                         self._last_progress_update[task_id] = {
@@ -301,26 +303,17 @@ class TaskExecutionService:
             except Exception as e:
                 logger.warning(f"更新任务进度失败: {e}")  # 不抛出异常，避免中断下载
     
-    async def _complete_task_execution(self, task_id: int, message: str):
+async def _complete_task_execution(self, task_id: int, message: str):
         """完成任务执行"""
-        with optimized_db_session() as db:
-            download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
-            if download_task:
-                download_task.status = "completed"
-                download_task.progress = 100
-                download_task.completed_at = datetime.now(timezone.utc)
-                db.commit()
-            await self._log_task_event(task_id, "INFO", message)
+        # 使用快速状态更新
+        await task_db_manager.quick_status_update(task_id, "completed")
+        await self._log_task_event(task_id, "INFO", message)
     
-    async def _handle_task_error_simple(self, task_id: int, error_message: str):
-        """处理任务错误（简化版，不需要传入db会话）"""
-        with optimized_db_session() as db:
-            download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
-            if download_task:
-                download_task.status = "failed"
-                download_task.error_message = error_message
-                db.commit()
-            await self._log_task_event(task_id, "ERROR", error_message)
+async def _handle_task_error_simple(self, task_id: int, error_message: str):
+        """处理任务错误（简化版，使用快速状态更新）"""
+        # 使用快速状态更新
+        await task_db_manager.quick_status_update(task_id, "failed", error_message)
+        await self._log_task_event(task_id, "ERROR", error_message)
     
     async def _ensure_rule_data_availability(self, rule_id: int, task_id: int):
         """确保规则数据可用性（在会话外执行）"""
@@ -345,8 +338,8 @@ class TaskExecutionService:
             'force_full_scan': task_data.get('force_full_scan', False)
         }
         
-        # 第二步：使用更短的会话执行查询
-        with optimized_db_session(max_retries=8) as db:  # 增加重试次数
+# 第二步：使用专用数据库管理器执行查询
+        async with task_db_manager.get_task_session(task_id, "batch_query") as db:
             try:
                 # 基础查询 - 减少预加载以提高速度
                 query = db.query(TelegramMessage).filter(TelegramMessage.group_id == base_query_params['group_id'])
@@ -403,7 +396,7 @@ class TaskExecutionService:
         """单独的会话更新任务处理时间"""
         try:
             latest_message_time = max(msg.date for msg in messages if msg.date)
-            with optimized_db_session(max_retries=3) as update_db:
+            with optimized_db_session(max_retries=10) as update_db:
                 task_update = update_db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
                 if task_update:
                     task_update.last_processed_time = latest_message_time
@@ -859,7 +852,7 @@ class TaskExecutionService:
         self.last_log_flush = time.time()  # 更新刷新时间
         
         try:
-            with optimized_db_session(max_retries=5) as db:
+            with optimized_db_session(max_retries=10) as db:
                 for log in logs_to_write:
                     # 只保存重要日志到数据库
                     if log["level"] in ["ERROR", "WARNING", "INFO"]:
