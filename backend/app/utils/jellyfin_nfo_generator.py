@@ -356,8 +356,8 @@ class JellyfinNFOGenerator:
             }
             media_info.append(f"类型: {type_names.get(message.media_type, message.media_type)}")
         
-        if message.file_size:
-            size_mb = message.file_size / (1024 * 1024)
+        if message.media_size:
+            size_mb = message.media_size / (1024 * 1024)
             if size_mb >= 1024:
                 size_str = f"{size_mb/1024:.1f} GB"
             else:

@@ -237,7 +237,7 @@ async def test_rule(
                 "sender_username": msg.sender_username,
                 "text": msg.text[:100] + "..." if msg.text and len(msg.text) > 100 else msg.text,
                 "media_type": msg.media_type,
-                "file_size": msg.file_size,
+                "file_size": msg.media_size,
                 "date": msg.date.isoformat() if msg.date else None,
                 "views": msg.views,
                 "is_forwarded": msg.is_forwarded
@@ -310,10 +310,10 @@ async def _apply_rule_filter(rule: FilterRule, group: TelegramGroup, db: Session
     
     # 文件大小过滤
     if rule.min_file_size is not None:
-        query = query.filter(TelegramMessage.file_size >= rule.min_file_size)
+        query = query.filter(TelegramMessage.media_size >= rule.min_file_size)
     
     if rule.max_file_size is not None:
-        query = query.filter(TelegramMessage.file_size <= rule.max_file_size)
+        query = query.filter(TelegramMessage.media_size <= rule.max_file_size)
     
     # 转发消息过滤
     if not rule.include_forwarded:

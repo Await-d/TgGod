@@ -302,10 +302,10 @@ class TaskExecutionService:
         
         # 文件大小过滤
         if rule.min_file_size is not None:
-            query = query.filter(TelegramMessage.file_size >= rule.min_file_size)
+            query = query.filter(TelegramMessage.media_size >= rule.min_file_size)
         
         if rule.max_file_size is not None:
-            query = query.filter(TelegramMessage.file_size <= rule.max_file_size)
+            query = query.filter(TelegramMessage.media_size <= rule.max_file_size)
         
         if not rule.include_forwarded:
             query = query.filter(TelegramMessage.is_forwarded == False)
@@ -391,7 +391,7 @@ class TaskExecutionService:
                 
                 # 使用媒体下载器下载文件
                 success = await self.media_downloader.download_file(
-                    file_id=message.file_id or "",
+                    file_id=message.media_file_id or "",
                     file_path=file_path,
                     chat_id=message.group_id,
                     message_id=message.message_id,
