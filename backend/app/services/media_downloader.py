@@ -192,9 +192,20 @@ class TelegramMediaDownloader:
                     def progress_wrapper(current, total):
                         try:
                             if total > 0:
-                                progress = int((current / total) * 100)
-                                # 调用回调函数
-                                progress_callback(current, total, progress)
+                                # 检查回调函数是否是异步的
+                                import asyncio
+                                if asyncio.iscoroutinefunction(progress_callback):
+                                    # 对于异步回调，我们需要在当前事件循环中运行它
+                                    loop = asyncio.get_event_loop()
+                                    if loop.is_running():
+                                        # 如果循环已经在运行，创建一个task
+                                        loop.create_task(progress_callback(current, total))
+                                    else:
+                                        # 如果循环没有运行，直接运行
+                                        loop.run_until_complete(progress_callback(current, total))
+                                else:
+                                    # 同步回调直接调用
+                                    progress_callback(current, total)
                         except Exception as e:
                             logger.error(f"进度回调执行失败: {e}")
                             # 如果是取消下载的异常，停止下载
