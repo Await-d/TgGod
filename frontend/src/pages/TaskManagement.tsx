@@ -31,6 +31,7 @@ import {
   Collapse,
   TimePicker
 } from 'antd';
+import moment from 'moment';
 import { useIsMobile } from '../hooks/useMobileGestures';
 import {
   PlayCircleOutlined,
@@ -48,7 +49,8 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   WarningOutlined,
-  DownOutlined
+  DownOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { taskApi, telegramApi, ruleApi, logApi } from '../services/apiService';
 import { DownloadTask, TelegramGroup, FilterRule, LogEntry, TaskScheduleForm, ScheduleConfig } from '../types';
@@ -94,21 +96,30 @@ const TaskManagement: React.FC = () => {
 
   // 模态框状态
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [taskDetailVisible, setTaskDetailVisible] = useState(false);
   const [taskLogsVisible, setTaskLogsVisible] = useState(false);
 
   // 表单和过滤
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
   const [filterForm] = Form.useForm();
 
   // 调度表单状态
   const [taskType, setTaskType] = useState<'once' | 'recurring'>('once');
   const [scheduleType, setScheduleType] = useState<string>('');
+  const [editTaskType, setEditTaskType] = useState<'once' | 'recurring'>('once');
+  const [editScheduleType, setEditScheduleType] = useState<string>('');
 
   // 重置调度表单状态
   const resetScheduleState = () => {
     setTaskType('once');
     setScheduleType('');
+  };
+
+  const resetEditScheduleState = () => {
+    setEditTaskType('once');
+    setEditScheduleType('');
   };
   const [filters, setFilters] = useState<any>({});
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -415,6 +426,98 @@ const TaskManagement: React.FC = () => {
     }
   };
 
+  const handleEditTask = (task: DownloadTask) => {
+    console.log('开始编辑任务:', task);
+    setSelectedTask(task);
+    
+    // 设置表单数据
+    const formData: any = {
+      name: task.name,
+      download_path: task.download_path,
+      task_type: task.task_type || 'once',
+      schedule_type: task.schedule_type,
+      schedule_config: task.schedule_config,
+      max_runs: task.max_runs
+    };
+
+    // 处理时间范围
+    if (task.date_from || task.date_to) {
+      const timeRange = [];
+      if (task.date_from) {
+        timeRange.push(moment(task.date_from));
+      }
+      if (task.date_to) {
+        timeRange.push(moment(task.date_to));
+      }
+      formData.time_range = timeRange;
+    }
+
+    // 处理调度配置中的时间
+    if (task.schedule_config && task.schedule_config.time) {
+      formData.schedule_config = {
+        ...task.schedule_config,
+        time: moment(task.schedule_config.time, 'HH:mm')
+      };
+    }
+
+    editForm.setFieldsValue(formData);
+    setEditTaskType(task.task_type || 'once');
+    setEditScheduleType(task.schedule_type || '');
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateTask = async (values: any) => {
+    if (!selectedTask) return;
+    
+    try {
+      console.log('开始更新任务，原始表单数据:', values);
+      // 处理时间范围数据
+      const taskData = { ...values };
+      if (values.time_range && values.time_range.length >= 1) {
+        // 开始时间（必填）
+        if (values.time_range[0]) {
+          taskData.date_from = values.time_range[0].toISOString();
+        }
+        // 结束时间（可选）
+        if (values.time_range[1]) {
+          taskData.date_to = values.time_range[1].toISOString();
+        }
+        delete taskData.time_range;
+      }
+
+      // 处理调度配置数据
+      if (values.task_type === 'recurring' && values.schedule_type && values.schedule_config) {
+        // 处理时间字段 - 将moment对象转换为字符串
+        if (values.schedule_config.time) {
+          taskData.schedule_config = {
+            ...values.schedule_config,
+            time: values.schedule_config.time.format('HH:mm')
+          };
+        }
+      } else if (values.task_type === 'once') {
+        // 一次性任务，清除调度相关字段
+        taskData.task_type = 'once';
+        taskData.schedule_type = null;
+        taskData.schedule_config = null;
+        taskData.max_runs = null;
+      }
+
+      console.log('处理后的任务数据:', taskData);
+
+      const result = await taskApi.updateTask(selectedTask.id, taskData);
+      console.log('任务更新成功，返回数据:', result);
+      message.success('任务更新成功');
+      setEditModalVisible(false);
+      editForm.resetFields();
+      resetEditScheduleState();
+      setSelectedTask(null);
+      loadTasks();
+    } catch (error: any) {
+      console.error('更新任务失败，错误详情:', error);
+      message.error(`更新任务失败: ${error.message}`);
+    }
+  };
+
   const handleViewTaskDetail = (task: DownloadTask) => {
     setSelectedTask(task);
     setTaskDetailVisible(true);
@@ -680,6 +783,11 @@ const TaskManagement: React.FC = () => {
                   <Menu.Item key="logs" icon={<FileTextOutlined />} onClick={() => handleViewTaskLogs(record)}>
                     查看日志
                   </Menu.Item>
+                  {!['running'].includes(record.status) && (
+                    <Menu.Item key="edit" icon={<EditOutlined />} onClick={() => handleEditTask(record)}>
+                      编辑任务
+                    </Menu.Item>
+                  )}
                   {record.status === 'pending' && (
                     <Menu.Item
                       key="start"
@@ -756,6 +864,16 @@ const TaskManagement: React.FC = () => {
                   onClick={() => handleViewTaskLogs(record)}
                 />
               </Tooltip>
+
+              {!['running'].includes(record.status) && (
+                <Tooltip title="编辑任务">
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => handleEditTask(record)}
+                  />
+                </Tooltip>
+              )}
 
               {record.status === 'pending' && (
                 <Tooltip title="立即执行">
@@ -1363,6 +1481,231 @@ const TaskManagement: React.FC = () => {
                 setCreateModalVisible(false);
                 form.resetFields();
                 resetScheduleState();
+              }}>
+                取消
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 编辑任务模态框 */}
+      <Modal
+        title="编辑下载任务"
+        open={editModalVisible}
+        onCancel={() => {
+          setEditModalVisible(false);
+          editForm.resetFields();
+          resetEditScheduleState();
+          setSelectedTask(null);
+        }}
+        footer={null}
+        width={isMobile ? '95%' : 600}
+        style={isMobile ? { top: 20 } : undefined}
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          onFinish={handleUpdateTask}
+        >
+          <Form.Item
+            name="name"
+            label="任务名称"
+            rules={[{ required: true, message: '请输入任务名称' }]}
+          >
+            <Input placeholder="输入任务名称" />
+          </Form.Item>
+          <Form.Item
+            name="time_range"
+            label="时间范围过滤"
+            help="设置消息的时间范围。结束时间可不填，表示从开始时间一直有效"
+          >
+            <RangePicker
+              showTime
+              placeholder={['开始时间', '结束时间(可选)']}
+              style={{ width: '100%' }}
+              allowEmpty={[false, true]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="download_path"
+            label="下载路径"
+            rules={[{ required: true, message: '请输入下载路径' }]}
+          >
+            <Input placeholder="输入下载路径，如: /downloads/task1" />
+          </Form.Item>
+
+          {/* 调度配置 */}
+          <Collapse size="small" ghost>
+            <Collapse.Panel header="调度配置" key="schedule">
+              <Form.Item
+                name="task_type"
+                label="任务类型"
+                initialValue="once"
+              >
+                <Select
+                  value={editTaskType}
+                  onChange={(value) => {
+                    setEditTaskType(value);
+                    if (value === 'once') {
+                      setEditScheduleType('');
+                      editForm.setFieldsValue({
+                        schedule_type: undefined,
+                        schedule_config: undefined,
+                        max_runs: undefined
+                      });
+                    }
+                  }}
+                >
+                  <Option value="once">一次性任务</Option>
+                  <Option value="recurring">循环任务</Option>
+                </Select>
+              </Form.Item>
+
+              {editTaskType === 'recurring' && (
+                <>
+                  <Form.Item
+                    name="schedule_type"
+                    label="调度类型"
+                    rules={[{ required: editTaskType === 'recurring', message: '请选择调度类型' }]}
+                  >
+                    <Select
+                      placeholder="选择调度类型"
+                      value={editScheduleType}
+                      onChange={setEditScheduleType}
+                    >
+                      <Option value="interval">间隔执行</Option>
+                      <Option value="daily">每日执行</Option>
+                      <Option value="weekly">每周执行</Option>
+                      <Option value="monthly">每月执行</Option>
+                      <Option value="cron">Cron表达式</Option>
+                    </Select>
+                  </Form.Item>
+
+                  {editScheduleType === 'interval' && (
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'interval']}
+                          label="间隔数值"
+                          rules={[{ required: true, message: '请输入间隔数值' }]}
+                        >
+                          <InputNumber min={1} placeholder="1" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'unit']}
+                          label="时间单位"
+                          initialValue="hours"
+                        >
+                          <Select>
+                            <Option value="minutes">分钟</Option>
+                            <Option value="hours">小时</Option>
+                            <Option value="days">天</Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {editScheduleType === 'daily' && (
+                    <Form.Item
+                      name={['schedule_config', 'time']}
+                      label="执行时间"
+                      rules={[{ required: true, message: '请选择执行时间' }]}
+                    >
+                      <TimePicker format="HH:mm" placeholder="选择时间" style={{ width: '100%' }} />
+                    </Form.Item>
+                  )}
+
+                  {editScheduleType === 'weekly' && (
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'day_of_week']}
+                          label="星期几"
+                          rules={[{ required: true, message: '请选择星期几' }]}
+                        >
+                          <Select placeholder="选择星期几">
+                            <Option value={1}>星期一</Option>
+                            <Option value={2}>星期二</Option>
+                            <Option value={3}>星期三</Option>
+                            <Option value={4}>星期四</Option>
+                            <Option value={5}>星期五</Option>
+                            <Option value={6}>星期六</Option>
+                            <Option value={0}>星期日</Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'time']}
+                          label="执行时间"
+                          rules={[{ required: true, message: '请选择执行时间' }]}
+                        >
+                          <TimePicker format="HH:mm" placeholder="选择时间" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {editScheduleType === 'monthly' && (
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'day_of_month']}
+                          label="每月第几天"
+                          rules={[{ required: true, message: '请输入日期' }]}
+                        >
+                          <InputNumber min={1} max={31} placeholder="1" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          name={['schedule_config', 'time']}
+                          label="执行时间"
+                          rules={[{ required: true, message: '请选择执行时间' }]}
+                        >
+                          <TimePicker format="HH:mm" placeholder="选择时间" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  )}
+
+                  {editScheduleType === 'cron' && (
+                    <Form.Item
+                      name={['schedule_config', 'cron_expression']}
+                      label="Cron表达式"
+                      rules={[{ required: true, message: '请输入Cron表达式' }]}
+                      help="格式: 秒 分 时 日 月 周"
+                    >
+                      <Input placeholder="0 0 9 * * *" />
+                    </Form.Item>
+                  )}
+
+                  <Form.Item
+                    name="max_runs"
+                    label="最大执行次数"
+                    help="留空表示无限制"
+                  >
+                    <InputNumber min={1} placeholder="不限制" style={{ width: '100%' }} />
+                  </Form.Item>
+                </>
+              )}
+            </Collapse.Panel>
+          </Collapse>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit">
+                更新任务
+              </Button>
+              <Button onClick={() => {
+                setEditModalVisible(false);
+                editForm.resetFields();
+                resetEditScheduleState();
+                setSelectedTask(null);
               }}>
                 取消
               </Button>

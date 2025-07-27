@@ -658,7 +658,7 @@ export const taskApi = {
     skip?: number;
     limit?: number;
   }): Promise<DownloadTask[]> => {
-    return api.get('/task/tasks', { params });
+    return api.get('/tasks', { params });
   },
 
   // 创建任务
@@ -670,18 +670,18 @@ export const taskApi = {
     date_from?: string;
     date_to?: string;
   }): Promise<DownloadTask> => {
-    return api.post('/task/tasks', task);
+    return api.post('/tasks', task);
   },
 
   // 获取任务详情
   getTask: (taskId: number): Promise<DownloadTask> => {
-    return api.get(`/task/tasks/${taskId}`);
+    return api.get(`/tasks/${taskId}`);
   },
 
   // 启动任务 - 带重试机制
   startTask: async (taskId: number): Promise<{ message: string }> => {
     try {
-      const response = await api.post(`/task/tasks/${taskId}/start`);
+      const response = await api.post(`/tasks/${taskId}/start`);
       return response.data;
     } catch (error: any) {
       // 如果任务执行服务未初始化，提供友好的错误消息
@@ -695,7 +695,7 @@ export const taskApi = {
   // 暂停任务 - 带重试机制
   pauseTask: async (taskId: number): Promise<{ message: string }> => {
     try {
-      const response = await api.post(`/task/tasks/${taskId}/pause`);
+      const response = await api.post(`/tasks/${taskId}/pause`);
       return response.data;
     } catch (error: any) {
       if (error.message.includes('未在运行') || error.message.includes('服务不可用')) {
@@ -708,7 +708,7 @@ export const taskApi = {
   // 停止任务 - 带重试机制
   stopTask: async (taskId: number): Promise<{ message: string }> => {
     try {
-      const response = await api.post(`/task/tasks/${taskId}/stop`);
+      const response = await api.post(`/tasks/${taskId}/stop`);
       return response.data;
     } catch (error: any) {
       if (error.message.includes('未在运行') || error.message.includes('服务不可用')) {
@@ -718,9 +718,23 @@ export const taskApi = {
     }
   },
 
+  // 更新任务
+  updateTask: (taskId: number, task: {
+    name?: string;
+    download_path?: string;
+    date_from?: string;
+    date_to?: string;
+    task_type?: string;
+    schedule_type?: string;
+    schedule_config?: any;
+    max_runs?: number;
+  }): Promise<DownloadTask> => {
+    return api.put(`/tasks/${taskId}`, task);
+  },
+
   // 删除任务
   deleteTask: (taskId: number): Promise<{ message: string }> => {
-    return api.delete(`/task/tasks/${taskId}`);
+    return api.delete(`/tasks/${taskId}`);
   },
 
   // 获取任务统计
@@ -731,7 +745,7 @@ export const taskApi = {
     failed: number;
     pending: number;
   }> => {
-    return api.get('/task/tasks/stats');
+    return api.get('/tasks/stats');
   },
 };
 
