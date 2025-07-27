@@ -285,11 +285,13 @@ class TaskExecutionService:
         count_diff = abs(downloaded_count - last_update['count'])
         
         if progress_diff >= 10 or count_diff >= 20 or progress == 0 or progress == 100:
+            logger.debug(f"任务{task_id}: 触发进度更新 - 进度: {progress}%, 下载数: {downloaded_count}")
             try:
                 # 使用专用数据库管理器进行进度更新
                 async with task_db_manager.get_task_session(task_id, "progress") as session:
                     download_task = session.query(DownloadTask).filter(DownloadTask.id == task_id).first()
                     if download_task:
+                        logger.debug(f"任务{task_id}: 找到任务记录，更新进度数据")
                         download_task.progress = progress
                         download_task.downloaded_messages = downloaded_count
                         session.commit()
@@ -299,9 +301,12 @@ class TaskExecutionService:
                             'progress': progress, 
                             'count': downloaded_count
                         }
+                        logger.debug(f"任务{task_id}: 进度更新成功 - 进度: {progress}%, 下载数: {downloaded_count}")
+                    else:
+                        logger.warning(f"任务{task_id}: 未找到任务记录，无法更新进度")
                         
             except Exception as e:
-                logger.warning(f"更新任务进度失败: {e}")  # 不抛出异常，避免中断下载
+                logger.error(f"任务{task_id}: 更新任务进度失败 - {e}", exc_info=True)  # 不抛出异常，避免中断下载
     
     async def _complete_task_execution(self, task_id: int, message: str):
         """完成任务执行"""
@@ -339,9 +344,11 @@ class TaskExecutionService:
         }
         
 # 第二步：使用专用数据库管理器执行查询
+        logger.info(f"任务{task_id}: 开始批量查询操作，群组ID: {base_query_params['group_id']}")
         async with task_db_manager.get_task_session(task_id, "batch_query") as db:
             try:
                 # 基础查询 - 减少预加载以提高速度
+                logger.debug(f"任务{task_id}: 构建基础查询条件")
                 query = db.query(TelegramMessage).filter(TelegramMessage.group_id == base_query_params['group_id'])
                 
                 # 增量查询优化
@@ -388,7 +395,7 @@ class TaskExecutionService:
                 return all_results
                 
             except Exception as e:
-                logger.error(f"消息筛选查询失败: {e}")
+                logger.error(f"任务{task_id}: 消息筛选查询失败: {e}", exc_info=True)
                 await self._log_task_event(task_id, "ERROR", f"消息筛选失败: {str(e)}")
                 raise
     

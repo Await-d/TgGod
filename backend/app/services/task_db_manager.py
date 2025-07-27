@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from typing import Any, Callable, Optional, Dict, List
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import text
 from ..database import SessionLocal
 from ..utils.db_optimization import optimized_db_session
 
@@ -34,6 +35,8 @@ class TaskDatabaseManager:
         session_key = f"task_{task_id}_{operation_type}"
         max_retries = self._get_max_retries_by_type(operation_type)
         
+        logger.debug(f"任务{task_id}: 请求{operation_type}类型数据库会话 (最大重试: {max_retries})")
+        
         session = None
         retry_count = 0
         
@@ -51,38 +54,48 @@ class TaskDatabaseManager:
                             del self.active_sessions[session_key]
                 
                 # 创建新会话
+                logger.debug(f"任务{task_id}: 创建新的{operation_type}数据库会话")
                 session = SessionLocal()
                 
                 # 根据操作类型设置会话参数
                 if operation_type == "progress":
                     # 进度更新使用更快的事务模式
-                    session.execute("PRAGMA journal_mode=WAL;")
-                    session.execute("PRAGMA synchronous=NORMAL;")
+                    logger.debug(f"任务{task_id}: 配置进度更新会话参数")
+                    session.execute(text("PRAGMA journal_mode=WAL;"))
+                    session.execute(text("PRAGMA synchronous=NORMAL;"))
+                    logger.debug(f"任务{task_id}: 进度更新会话配置完成")
                 elif operation_type == "batch_query":
                     # 批量查询优化
-                    session.execute("PRAGMA cache_size=20000;")
-                    session.execute("PRAGMA temp_store=MEMORY;")
+                    logger.debug(f"任务{task_id}: 配置批量查询会话参数")
+                    session.execute(text("PRAGMA cache_size=20000;"))
+                    session.execute(text("PRAGMA temp_store=MEMORY;"))
+                    logger.debug(f"任务{task_id}: 批量查询会话配置完成")
                 
                 async with self.session_lock:
                     self.active_sessions[session_key] = session
                 
+                logger.debug(f"任务{task_id}: {operation_type}会话创建成功，开始使用")
                 yield session
                 
                 if session.in_transaction():
+                    logger.debug(f"任务{task_id}: 提交{operation_type}会话事务")
                     session.commit()
+                logger.debug(f"任务{task_id}: {operation_type}会话操作完成")
                 break
                 
             except OperationalError as e:
                 error_msg = str(e).lower()
+                logger.error(f"任务{task_id}: {operation_type}操作遇到数据库错误: {error_msg}")
                 
                 if any(keyword in error_msg for keyword in ['database is locked', 'timeout', 'busy']):
                     retry_count += 1
                     
                     if session:
                         try:
+                            logger.debug(f"任务{task_id}: 回滚失败的{operation_type}会话")
                             session.rollback()
-                        except:
-                            pass
+                        except Exception as rollback_err:
+                            logger.warning(f"任务{task_id}: {operation_type}会话回滚失败: {rollback_err}")
                         finally:
                             session.close()
                             async with self.session_lock:
@@ -95,18 +108,20 @@ class TaskDatabaseManager:
                         await asyncio.sleep(delay)
                         continue
                     else:
-                        logger.error(f"任务{task_id} {operation_type}操作达到最大重试次数")
+                        logger.error(f"任务{task_id} {operation_type}操作达到最大重试次数，放弃操作")
                         raise
                 else:
                     # 非锁相关错误，直接抛出
+                    logger.error(f"任务{task_id}: {operation_type}操作遇到非锁定相关错误，直接抛出: {error_msg}")
                     raise
                     
             except Exception as e:
+                logger.error(f"任务{task_id}: {operation_type}操作遇到未预期错误: {str(e)}")
                 if session:
                     try:
                         session.rollback()
-                    except:
-                        pass
+                    except Exception as rollback_err:
+                        logger.error(f"任务{task_id}: {operation_type}会话回滚时也发生错误: {rollback_err}")
                 raise
                 
             finally:
@@ -134,8 +149,10 @@ class TaskDatabaseManager:
     async def batch_progress_update(self, updates: List[Dict[str, Any]]):
         """批量更新进度，减少数据库访问次数"""
         if not updates:
+            logger.debug("批量进度更新: 没有需要更新的项目")
             return
         
+        logger.info(f"批量进度更新: 开始处理 {len(updates)} 个更新项目")
         try:
             async with self.get_task_session(0, "progress") as session:
                 from ..models.rule import DownloadTask
@@ -155,13 +172,14 @@ class TaskDatabaseManager:
                             task.status = update['status']
                 
                 session.commit()
-                logger.debug(f"批量更新了 {len(updates)} 个任务的进度")
+                logger.info(f"批量进度更新: 成功更新了 {len(updates)} 个任务的进度")
                 
         except Exception as e:
-            logger.error(f"批量进度更新失败: {e}")
+            logger.error(f"批量进度更新失败: {e}", exc_info=True)
     
     async def quick_status_update(self, task_id: int, status: str, error_message: str = None):
         """快速状态更新，用于任务完成或失败"""
+        logger.info(f"快速状态更新: 任务{task_id} 状态更新为 {status}" + (f" (错误: {error_message})" if error_message else ""))
         try:
             async with self.get_task_session(task_id, "completion") as session:
                 from ..models.rule import DownloadTask
@@ -177,10 +195,10 @@ class TaskDatabaseManager:
                         task.error_message = error_message
                 
                 session.commit()
-                logger.debug(f"快速更新任务 {task_id} 状态为 {status}")
+                logger.info(f"快速状态更新: 任务 {task_id} 状态成功更新为 {status}")
                 
         except Exception as e:
-            logger.error(f"快速状态更新失败: {e}")
+            logger.error(f"快速状态更新失败: 任务{task_id} 状态{status}: {e}", exc_info=True)
     
     async def cleanup_sessions(self):
         """清理所有活跃会话"""

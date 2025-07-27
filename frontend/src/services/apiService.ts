@@ -1092,17 +1092,33 @@ export const logApi = {
     task_log_count: number;
     system_log_count: number;
   }> => {
-    const response = await api.get('/log/logs/stats', { params });
-    const data = response.data;
-    return {
-      total_logs: data.total_logs,
-      error_count: data.total_errors,
-      warning_count: data.total_warnings || 0,
-      info_count: data.total_info || 0,  
-      debug_count: data.total_debug || 0,
-      task_log_count: data.task_logs.total,
-      system_log_count: data.system_logs.total
-    };
+    try {
+      const response = await api.get('/log/logs/stats', { params });
+      const data = response.data;
+      
+      // 安全的数据提取，提供默认值
+      return {
+        total_logs: data?.total_logs || 0,
+        error_count: data?.total_errors || 0,
+        warning_count: data?.total_warnings || 0,
+        info_count: data?.total_info || 0,  
+        debug_count: data?.total_debug || 0,
+        task_log_count: data?.task_logs?.total || 0,
+        system_log_count: data?.system_logs?.total || 0
+      };
+    } catch (error) {
+      console.error('获取日志统计失败:', error);
+      // 返回默认值避免前端错误
+      return {
+        total_logs: 0,
+        error_count: 0,
+        warning_count: 0,
+        info_count: 0,
+        debug_count: 0,
+        task_log_count: 0,
+        system_log_count: 0
+      };
+    }
   },
 
   // 获取最新日志
