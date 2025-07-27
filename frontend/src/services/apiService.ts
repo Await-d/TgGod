@@ -988,7 +988,7 @@ export const groupApi = {
 // 日志管理相关API
 export const logApi = {
   // 获取日志列表
-  getLogs: (params?: {
+  getLogs: async (params?: {
     level?: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
     search?: string;
     start_time?: string;
@@ -1002,7 +1002,30 @@ export const logApi = {
     page: number;
     size: number;
   }> => {
-    return api.get('/log/logs/system', { params });
+    const response = await api.get('/log/logs/recent', { 
+      params: {
+        limit: params?.limit || 100,
+        log_type: 'all',
+        ...params
+      }
+    });
+    // 转换为期望格式
+    const data = response.data;
+    const logs = Array.isArray(data) ? data.map((log: any) => ({
+      id: log.id,
+      level: log.level,
+      message: log.message,
+      created_at: log.created_at,
+      timestamp: log.created_at, // timestamp与created_at相同
+      task_id: log.task_id,
+      details: log.details
+    })) : [];
+    return {
+      logs,
+      total: logs.length,
+      page: Math.floor((params?.skip || 0) / (params?.limit || 100)) + 1,
+      size: params?.limit || 100
+    };
   },
 
   // 获取任务日志
@@ -1057,7 +1080,7 @@ export const logApi = {
   },
 
   // 获取日志统计
-  getLogStats: (params?: {
+  getLogStats: async (params?: {
     start_time?: string;
     end_time?: string;
   }): Promise<{
@@ -1069,7 +1092,17 @@ export const logApi = {
     task_log_count: number;
     system_log_count: number;
   }> => {
-    return api.get('/log/logs/stats', { params });
+    const response = await api.get('/log/logs/stats', { params });
+    const data = response.data;
+    return {
+      total_logs: data.total_logs,
+      error_count: data.total_errors,
+      warning_count: data.total_warnings || 0,
+      info_count: data.total_info || 0,  
+      debug_count: data.total_debug || 0,
+      task_log_count: data.task_logs.total,
+      system_log_count: data.system_logs.total
+    };
   },
 
   // 获取最新日志
