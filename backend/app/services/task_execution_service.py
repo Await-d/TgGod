@@ -227,7 +227,18 @@ class TaskExecutionService:
             logger.warning(f"规则数据同步失败，继续使用现有数据: {e}")
             await self._log_task_event(task.id, "WARNING", f"规则数据同步失败: {str(e)}")
         
+        # 基础查询
         query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group.id)
+        
+        # 优化: 增量查询 - 如果任务有上次处理时间，只查询新消息
+        if hasattr(task, 'last_processed_time') and task.last_processed_time:
+            query = query.filter(TelegramMessage.date > task.last_processed_time)
+            await self._log_task_event(task.id, "INFO", f"增量筛选: 只查询 {task.last_processed_time} 之后的消息")
+            logger.info(f"增量筛选: 只查询 {task.last_processed_time} 之后的消息")
+        elif not getattr(task, 'force_full_scan', False):
+            # 如果不是强制全量扫描，记录使用完整数据集
+            await self._log_task_event(task.id, "INFO", "使用完整数据集进行筛选")
+            logger.info("使用规则的完整数据集进行筛选")
         
         # 应用规则筛选
         if rule.keywords:
@@ -303,7 +314,22 @@ class TaskExecutionService:
         query = query.filter(TelegramMessage.media_type != 'text')
         query = query.filter(TelegramMessage.media_type.isnot(None))
         
-        return query.order_by(TelegramMessage.date.desc()).all()
+        results = query.order_by(TelegramMessage.date.desc()).all()
+        
+        # 优化: 更新任务的最后处理时间，用于下次增量查询
+        if results:
+            latest_processed = max(msg.date for msg in results)
+            try:
+                # 更新任务的最后处理时间
+                if hasattr(task, 'last_processed_time'):
+                    task.last_processed_time = latest_processed
+                    db.commit()
+                    await self._log_task_event(task.id, "INFO", f"已更新任务最后处理时间: {latest_processed}")
+                    logger.info(f"任务 {task.id} 最后处理时间已更新: {latest_processed}")
+            except Exception as e:
+                logger.warning(f"更新任务最后处理时间失败: {e}")
+        
+        return results
     
     async def _download_message_media(self, message: TelegramMessage, download_task: DownloadTask, group: TelegramGroup, task_id: int) -> bool:
         """下载单个消息的媒体文件"""

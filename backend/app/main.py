@@ -280,7 +280,8 @@ async def startup_event():
         # 修复脚本列表
         repair_scripts = [
             ("fix_task_fields.py", "任务表字段修复"),
-            ("fix_filter_rules_fields.py", "过滤规则表字段修复")
+            ("fix_filter_rules_fields.py", "过滤规则表字段修复"),
+            ("fix_incremental_fields.py", "增量查询字段修复")
         ]
         
         for script_name, description in repair_scripts:

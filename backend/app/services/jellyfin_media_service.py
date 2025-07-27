@@ -47,6 +47,8 @@ class JellyfinMediaService:
                 base_path=task.download_path,
                 group=group,
                 message=message,
+                task=task,
+                rule=task.rule,  # 传递规则对象以获取关键词
                 use_series_structure=jellyfin_config.get('use_series_structure', False)
             )
             
@@ -65,7 +67,7 @@ class JellyfinMediaService:
             
             # 生成 NFO 文件
             if jellyfin_config.get('include_metadata', True):
-                nfo_success = await self._generate_nfo_file(message, group, path_info, jellyfin_config)
+                nfo_success = await self._generate_nfo_file(message, group, task, path_info, jellyfin_config)
                 if nfo_success:
                     result_paths['nfo'] = os.path.join(path_info['episode_dir'], f"{path_info['video_filename']}.nfo")
             
@@ -120,6 +122,7 @@ class JellyfinMediaService:
     async def _generate_nfo_file(self,
                                message: TelegramMessage,
                                group: TelegramGroup,
+                               task: DownloadTask,
                                path_info: Dict[str, str],
                                jellyfin_config: Dict[str, Any]) -> bool:
         """生成 NFO 文件"""
@@ -131,6 +134,7 @@ class JellyfinMediaService:
                 success = self.nfo_generator.generate_episode_nfo(
                     message=message,
                     group=group,
+                    task=task,
                     episode_title=path_info['video_title'],
                     season=1,  # 默认第一季
                     episode=message.message_id % 10000,  # 使用消息ID作为集数
@@ -141,6 +145,7 @@ class JellyfinMediaService:
                 success = self.nfo_generator.generate_movie_nfo(
                     message=message,
                     group=group,
+                    task=task,
                     video_title=path_info['video_title'],
                     video_file_path=path_info['episode_dir'],
                     output_path=nfo_path

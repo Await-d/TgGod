@@ -71,15 +71,17 @@ class JellyfinNFOGenerator:
     def generate_movie_nfo(self, 
                           message: TelegramMessage, 
                           group: TelegramGroup,
-                          video_title: str,
-                          video_file_path: str,
-                          output_path: str) -> bool:
+                          task: 'DownloadTask' = None,
+                          video_title: str = '',
+                          video_file_path: str = '',
+                          output_path: str = '') -> bool:
         """
         生成电影类型的NFO文件
         
         Args:
             message: Telegram消息对象
             group: Telegram群组对象
+            task: 下载任务对象（包含订阅名）
             video_title: 视频标题
             video_file_path: 视频文件路径
             output_path: NFO文件输出路径
@@ -95,8 +97,8 @@ class JellyfinNFOGenerator:
             self._add_element(movie, "title", video_title)
             self._add_element(movie, "originaltitle", video_title)
             
-            # 描述信息
-            plot = message.text or f"来自 {group.title} 的媒体内容"
+            # 描述信息 - 改进版
+            plot = self._generate_enhanced_plot(message, group, task)
             self._add_element(movie, "plot", plot)
             self._add_element(movie, "outline", plot[:200] + "..." if len(plot) > 200 else plot)
             
@@ -114,7 +116,9 @@ class JellyfinNFOGenerator:
             
             # 分类和来源信息
             self._add_element(movie, "genre", "Telegram")
-            self._add_element(movie, "studio", group.title)
+            # 优先使用订阅名作为工作室，否则使用群组名
+            studio_name = task.name if task and task.name else group.title
+            self._add_element(movie, "studio", studio_name)
             
             # 发送者信息
             if message.sender_name:
@@ -167,13 +171,15 @@ class JellyfinNFOGenerator:
     
     def generate_tvshow_nfo(self, 
                            group: TelegramGroup,
-                           series_title: str,
-                           output_path: str) -> bool:
+                           task: 'DownloadTask' = None,
+                           series_title: str = '',
+                           output_path: str = '') -> bool:
         """
         生成电视剧系列的NFO文件
         
         Args:
             group: Telegram群组对象
+            task: 下载任务对象（包含订阅名）
             series_title: 系列标题
             output_path: NFO文件输出路径
         
@@ -194,7 +200,9 @@ class JellyfinNFOGenerator:
             
             # 分类信息
             self._add_element(tvshow, "genre", "Telegram")
-            self._add_element(tvshow, "studio", group.title)
+            # 优先使用订阅名作为工作室，否则使用群组名
+            studio_name = task.name if task and task.name else group.title
+            self._add_element(tvshow, "studio", studio_name)
             
             # 状态信息
             self._add_element(tvshow, "status", "Continuing")
@@ -220,10 +228,11 @@ class JellyfinNFOGenerator:
     def generate_episode_nfo(self,
                             message: TelegramMessage,
                             group: TelegramGroup,
-                            episode_title: str,
-                            season: int,
-                            episode: int,
-                            output_path: str) -> bool:
+                            task: 'DownloadTask' = None,
+                            episode_title: str = '',
+                            season: int = 1,
+                            episode: int = 1,
+                            output_path: str = '') -> bool:
         """
         生成剧集NFO文件
         
@@ -311,6 +320,67 @@ class JellyfinNFOGenerator:
         except Exception as e:
             logger.error(f"保存NFO文件失败: {e}")
             return False
+    
+    def _generate_enhanced_plot(self, message: TelegramMessage, group: TelegramGroup, task: 'DownloadTask' = None) -> str:
+        """生成增强的剧情描述"""
+        plot_parts = []
+        
+        # 如果有消息文本，作为主要描述
+        if message.text and message.text.strip():
+            plot_parts.append(message.text.strip())
+        
+        # 添加来源信息
+        source_info = []
+        if task and task.name:
+            source_info.append(f"订阅: {task.name}")
+        
+        source_info.append(f"群组: {group.title}")
+        
+        if message.sender_name:
+            source_info.append(f"发送者: {message.sender_name}")
+        
+        if message.date:
+            date_str = message.date.strftime("%Y年%m月%d日")
+            source_info.append(f"发布时间: {date_str}")
+        
+        # 添加媒体信息
+        media_info = []
+        if message.media_type:
+            type_names = {
+                'video': '视频',
+                'photo': '图片', 
+                'audio': '音频',
+                'document': '文档',
+                'voice': '语音',
+                'sticker': '贴纸'
+            }
+            media_info.append(f"类型: {type_names.get(message.media_type, message.media_type)}")
+        
+        if message.file_size:
+            size_mb = message.file_size / (1024 * 1024)
+            if size_mb >= 1024:
+                size_str = f"{size_mb/1024:.1f} GB"
+            else:
+                size_str = f"{size_mb:.1f} MB"
+            media_info.append(f"大小: {size_str}")
+        
+        # 组合描述
+        if not plot_parts and not source_info:
+            return f"来自 {group.title} 的媒体内容"
+        
+        result = []
+        if plot_parts:
+            result.extend(plot_parts)
+        
+        if source_info:
+            result.append("\n来源信息:")
+            result.append(" | ".join(source_info))
+            
+        if media_info:
+            result.append("\n媒体信息:")
+            result.append(" | ".join(media_info))
+        
+        return "\n".join(result)
 
 class JellyfinPathManager:
     """Jellyfin 路径管理器"""
@@ -322,6 +392,8 @@ class JellyfinPathManager:
                            base_path: str,
                            group: TelegramGroup, 
                            message: TelegramMessage,
+                           task: 'DownloadTask' = None,
+                           rule: 'FilterRule' = None,
                            use_series_structure: bool = False) -> Dict[str, str]:
         """
         生成Jellyfin兼容的媒体路径结构
@@ -330,14 +402,16 @@ class JellyfinPathManager:
             base_path: 基础下载路径
             group: Telegram群组
             message: Telegram消息
+            task: 下载任务（包含订阅名）
+            rule: 过滤规则（包含关键词）
             use_series_structure: 是否使用剧集结构
         
         Returns:
             包含各种路径的字典
         """
         try:
-            # 清理群组名称
-            group_name = self.nfo_generator.sanitize_filename(group.title, 100)
+            # 优先使用规则的触发关键词作为文件夹名
+            folder_name = self._generate_folder_name_from_keywords(rule, task, group)
             
             # 生成视频标题
             video_title = self._generate_video_title(message)
@@ -347,16 +421,16 @@ class JellyfinPathManager:
             
             # 生成目录名
             if use_series_structure:
-                # 剧集结构: [群组名]/Season 01/
-                series_dir = os.path.join(base_path, group_name)
+                # 剧集结构: [关键词]/Season 01/
+                series_dir = os.path.join(base_path, folder_name)
                 season_dir = os.path.join(series_dir, "Season 01")  # 默认第一季
                 episode_dir = season_dir
                 video_filename = f"S01E{message.message_id:06d} - {video_title}"
             else:
-                # 电影结构: [群组名]/[视频标题 - 日期]/
+                # 电影结构: [关键词]/[视频标题 - 日期]/
                 video_dir_name = f"{video_title} - {date_str}"
                 video_dir_name = self.nfo_generator.sanitize_filename(video_dir_name, 150)
-                episode_dir = os.path.join(base_path, group_name, video_dir_name)
+                episode_dir = os.path.join(base_path, folder_name, video_dir_name)
                 video_filename = video_title
             
             # 清理文件名
@@ -364,12 +438,14 @@ class JellyfinPathManager:
             
             return {
                 'base_path': base_path,
-                'group_dir': os.path.join(base_path, group_name),
+                'keyword_dir': os.path.join(base_path, folder_name),
                 'episode_dir': episode_dir,
                 'video_filename': video_filename,
                 'video_title': video_title,
                 'date_str': date_str,
-                'group_name': group_name
+                'folder_name': folder_name,
+                'group_name': group.title,  # 保留原始群组名用于NFO元数据
+                'keywords': rule.keywords if rule else []  # 保留关键词信息
             }
             
         except Exception as e:
@@ -377,16 +453,128 @@ class JellyfinPathManager:
             return {}
     
     def _generate_video_title(self, message: TelegramMessage) -> str:
-        """生成视频标题"""
+        """生成视频标题 - 改进版"""
         # 优先使用媒体文件名
         if message.media_filename:
             title = os.path.splitext(message.media_filename)[0]
+            # 移除常见的文件编号后缀
+            title = self._clean_filename_title(title)
             return self.nfo_generator.sanitize_filename(title, 100)
         
-        # 其次使用消息文本的前50个字符
+        # 其次使用消息文本，但进行智能提取
         if message.text:
-            title = message.text.strip()[:50]
+            title = self._extract_title_from_text(message.text.strip())
             return self.nfo_generator.sanitize_filename(title, 100)
         
-        # 最后使用消息ID
-        return f"Media_{message.message_id}"
+        # 最后使用消息ID和日期
+        date_str = message.date.strftime("%Y%m%d") if message.date else "unknown"
+        return f"Media_{date_str}_{message.message_id}"
+    
+    def _clean_filename_title(self, filename: str) -> str:
+        """清理文件名标题，移除常见的编号和后缀"""
+        import re
+        
+        # 移除常见的文件编号模式
+        patterns = [
+            r'_\d+$',           # 结尾的下划线+数字
+            r'\(\d+\)$',        # 结尾的括号数字
+            r'\[\d+\]$',        # 结尾的方括号数字
+            r'\.part\d+$',      # .part文件后缀
+            r'_[a-f0-9]{8,}$',  # 哈希值后缀
+        ]
+        
+        cleaned = filename
+        for pattern in patterns:
+            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+        
+        return cleaned.strip()
+    
+    def _extract_title_from_text(self, text: str) -> str:
+        """从消息文本中智能提取标题"""
+        # 如果文本很短，直接使用
+        if len(text) <= 50:
+            return text
+        
+        # 尝试找到第一行作为标题
+        lines = text.split('\n')
+        first_line = lines[0].strip()
+        
+        # 如果第一行合理长度，使用第一行
+        if 10 <= len(first_line) <= 100:
+            return first_line
+        
+        # 否则使用前50个字符并在合适的地方截断
+        truncated = text[:80]
+        # 尝试在标点符号处截断
+        for punct in ['。', '！', '？', '.', '!', '?']:
+            if punct in truncated:
+                return truncated[:truncated.find(punct) + 1]
+        
+        # 尝试在空格处截断
+        if ' ' in truncated:
+            words = truncated.split(' ')
+            result = ''
+            for word in words:
+                if len(result + word) <= 50:
+                    result += word + ' '
+                else:
+                    break
+            return result.strip()
+        
+        # 最后直接截断
+        return truncated[:50] + "..."
+    
+    def _generate_folder_name_from_keywords(self, rule: 'FilterRule' = None, task: 'DownloadTask' = None, group: TelegramGroup = None) -> str:
+        """根据规则关键词生成文件夹名称"""
+        # 优先级: 规则关键词 > 任务名 > 群组名
+        
+        # 1. 尝试使用规则的第一个关键词
+        if rule and rule.keywords and len(rule.keywords) > 0:
+            # 如果有多个关键词，选择最合适的一个
+            primary_keyword = self._select_primary_keyword(rule.keywords)
+            return self.nfo_generator.sanitize_filename(primary_keyword, 50)
+        
+        # 2. 兜底使用任务名称
+        if task and task.name:
+            return self.nfo_generator.sanitize_filename(task.name, 50)
+        
+        # 3. 最后兜底使用群组名称
+        if group and group.title:
+            return self.nfo_generator.sanitize_filename(group.title, 50)
+        
+        # 4. 最后的兜底
+        return "Unknown"
+    
+    def _select_primary_keyword(self, keywords: list) -> str:
+        """从多个关键词中选择最合适的作为主要关键词"""
+        if not keywords:
+            return "Unknown"
+        
+        # 如果只有一个关键词，直接返回
+        if len(keywords) == 1:
+            return keywords[0]
+        
+        # 如果有多个关键词，选择策略：
+        # 1. 优先选择最短的关键词（通常是主要名称）
+        # 2. 避免选择过长的关键词
+        # 3. 优先选择中文关键词
+        
+        suitable_keywords = []
+        for keyword in keywords:
+            # 过滤掉过长的关键词
+            if len(keyword) <= 20:
+                suitable_keywords.append(keyword)
+        
+        if not suitable_keywords:
+            suitable_keywords = keywords
+        
+        # 按长度排序，优先选择较短的
+        suitable_keywords.sort(key=len)
+        
+        # 优先选择包含中文字符的关键词
+        for keyword in suitable_keywords:
+            if any('\u4e00' <= char <= '\u9fff' for char in keyword):
+                return keyword
+        
+        # 如果没有中文关键词，返回最短的
+        return suitable_keywords[0]
