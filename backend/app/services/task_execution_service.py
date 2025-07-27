@@ -131,14 +131,14 @@ class TaskExecutionService:
             if not task_info:
                 return
             
-            download_task, rule, group, messages = task_info
+            task_data, messages = task_info
             total_messages = len(messages)
             
-            await self._log_task_event(task_id, "INFO", f"开始执行任务: {download_task.name}")
+            await self._log_task_event(task_id, "INFO", f"开始执行任务: {task_data['task_name']}")
             await self._log_task_event(task_id, "INFO", f"找到 {total_messages} 条符合条件的消息")
             
             # 创建下载目录
-            download_dir = os.path.join(download_task.download_path)
+            download_dir = os.path.join(task_data['download_path'])
             os.makedirs(download_dir, exist_ok=True)
             
             # 第二阶段：执行下载循环（无数据库会话持有）
@@ -154,7 +154,7 @@ class TaskExecutionService:
                     
                     # 下载媒体文件
                     if message.media_type and message.media_type != 'text':
-                        success = await self._download_message_media(message, download_task, group, task_id)
+                        success = await self._download_message_media(message, task_data, task_id)
                         if success:
                             downloaded_count += 1
                         else:
@@ -216,7 +216,15 @@ class TaskExecutionService:
                 'task_id': download_task.id,
                 'task_name': download_task.name,
                 'download_path': download_task.download_path,
-                'use_jellyfin_structure': download_task.use_jellyfin_structure,
+                'use_jellyfin_structure': getattr(download_task, 'use_jellyfin_structure', False),
+                'include_metadata': getattr(download_task, 'include_metadata', False),
+                'download_thumbnails': getattr(download_task, 'download_thumbnails', False),
+                'use_series_structure': getattr(download_task, 'use_series_structure', False),
+                'organize_by_date': getattr(download_task, 'organize_by_date', False),
+                'max_filename_length': getattr(download_task, 'max_filename_length', 255),
+                'thumbnail_size': getattr(download_task, 'thumbnail_size', '400x300'),
+                'poster_size': getattr(download_task, 'poster_size', '400x600'),
+                'fanart_size': getattr(download_task, 'fanart_size', '1920x1080'),
                 'rule_id': rule.id,
                 'group_id': group.id,
                 'group_telegram_id': group.telegram_id,
@@ -266,11 +274,10 @@ class TaskExecutionService:
             download_task.progress = 0
             db.commit()
             
-            # 重新获取对象用于后续使用
-            rule = db.query(FilterRule).filter(FilterRule.id == task_data['rule_id']).first()
-            group = db.query(TelegramGroup).filter(TelegramGroup.id == task_data['group_id']).first()
+            # 不返回ORM对象，避免会话绑定问题
+            # 改为返回数据字典
         
-        return download_task, rule, group, messages
+        return task_data, messages
     
     async def _update_task_progress(self, task_id: int, progress: int, downloaded_count: int):
         """更新任务进度（优化：减少频繁的数据库更新）"""
@@ -666,30 +673,43 @@ class TaskExecutionService:
         
         return results
     
-    async def _download_message_media(self, message: TelegramMessage, download_task: DownloadTask, group: TelegramGroup, task_id: int) -> bool:
+    async def _download_message_media(self, message: TelegramMessage, task_data: dict, task_id: int) -> bool:
         """下载单个消息的媒体文件"""
         try:
             # 检查是否使用 Jellyfin 格式
-            if download_task.use_jellyfin_structure and self.jellyfin_service:
+            if task_data.get('use_jellyfin_structure') and self.jellyfin_service:
                 # 使用 Jellyfin 服务下载
                 jellyfin_config = {
-                    'use_jellyfin_structure': download_task.use_jellyfin_structure,
-                    'include_metadata': download_task.include_metadata,
-                    'download_thumbnails': download_task.download_thumbnails,
-                    'use_series_structure': download_task.use_series_structure,
-                    'organize_by_date': download_task.organize_by_date,
-                    'max_filename_length': download_task.max_filename_length,
-                    'thumbnail_size': self._parse_size_string(download_task.thumbnail_size),
-                    'poster_size': self._parse_size_string(download_task.poster_size),
-                    'fanart_size': self._parse_size_string(download_task.fanart_size)
+                    'use_jellyfin_structure': task_data.get('use_jellyfin_structure'),
+                    'include_metadata': task_data.get('include_metadata'),
+                    'download_thumbnails': task_data.get('download_thumbnails'),
+                    'use_series_structure': task_data.get('use_series_structure'),
+                    'organize_by_date': task_data.get('organize_by_date'),
+                    'max_filename_length': task_data.get('max_filename_length'),
+                    'thumbnail_size': self._parse_size_string(task_data.get('thumbnail_size')),
+                    'poster_size': self._parse_size_string(task_data.get('poster_size')),
+                    'fanart_size': self._parse_size_string(task_data.get('fanart_size'))
                 }
                 
-                success, error_msg, file_paths = await self.jellyfin_service.download_media_with_jellyfin_structure(
-                    message=message,
-                    group=group,
-                    task=download_task,
-                    jellyfin_config=jellyfin_config
-                )
+                # 需要重新获取group和task对象用于Jellyfin服务
+                # 使用短时间数据库会话
+                async with task_db_manager.get_task_session(task_id, "jellyfin_download") as session:
+                    from ..models.rule import DownloadTask
+                    from ..models.telegram import TelegramGroup
+                    
+                    download_task = session.query(DownloadTask).filter(DownloadTask.id == task_data['task_id']).first()
+                    group = session.query(TelegramGroup).filter(TelegramGroup.id == task_data['group_id']).first()
+                    
+                    if not download_task or not group:
+                        logger.error(f"任务{task_id}: 无法获取下载任务或群组信息")
+                        return False
+                    
+                    success, error_msg, file_paths = await self.jellyfin_service.download_media_with_jellyfin_structure(
+                        message=message,
+                        group=group,
+                        task=download_task,
+                        jellyfin_config=jellyfin_config
+                    )
                 
                 if success:
                     logger.info(f"Jellyfin格式下载成功: {file_paths.get('main_media', 'unknown')}")
@@ -699,49 +719,49 @@ class TaskExecutionService:
                     logger.error(f"Jellyfin格式下载失败: {error_msg}")
                     await self._log_task_event(task_id, "ERROR", f"Jellyfin格式下载失败: {error_msg}")
                     return False
-            elif download_task.use_jellyfin_structure and not self.jellyfin_service:
+            elif task_data.get('use_jellyfin_structure') and not self.jellyfin_service:
                 # Jellyfin服务未可用，回退到传统下载
                 logger.warning("Jellyfin服务不可用，使用传统下载方式")
                 await self._log_task_event(task_id, "WARNING", "Jellyfin服务不可用，使用传统下载方式")
+            
+            # 使用传统下载方式
+            download_dir = task_data['download_path']
+            # 确保下载目录存在
+            os.makedirs(download_dir, exist_ok=True)
+            
+            file_extension = self._get_file_extension(message.media_type)
+            filename = f"{message.message_id}_{message.id}{file_extension}"
+            file_path = os.path.join(download_dir, filename)
+            
+            # 检查文件是否已存在
+            if os.path.exists(file_path):
+                logger.info(f"文件已存在，跳过下载: {file_path}")
+                return True
+            
+            # 检查媒体下载器是否可用
+            if not self.media_downloader:
+                logger.error(f"媒体下载器不可用，无法下载文件: {filename}")
+                return False
+            
+            # 定义进度回调函数
+            async def progress_callback(current: int, total: int):
+                await self._log_download_progress(task_id, message.id, current, total)
+            
+            # 使用媒体下载器下载文件
+            success = await self.media_downloader.download_file(
+                file_id=message.media_file_id or "",
+                file_path=file_path,
+                chat_id=task_data['group_telegram_id'],
+                message_id=message.message_id,
+                progress_callback=progress_callback
+            )
+            
+            if success:
+                logger.info(f"成功下载文件: {filename}")
+                return True
             else:
-                # 使用传统下载方式
-                download_dir = download_task.download_path
-                # 确保下载目录存在
-                os.makedirs(download_dir, exist_ok=True)
-                
-                file_extension = self._get_file_extension(message.media_type)
-                filename = f"{message.message_id}_{message.id}{file_extension}"
-                file_path = os.path.join(download_dir, filename)
-                
-                # 检查文件是否已存在
-                if os.path.exists(file_path):
-                    logger.info(f"文件已存在，跳过下载: {file_path}")
-                    return True
-                
-                # 检查媒体下载器是否可用
-                if not self.media_downloader:
-                    logger.error(f"媒体下载器不可用，无法下载文件: {filename}")
-                    return False
-                
-                # 定义进度回调函数
-                async def progress_callback(current: int, total: int):
-                    await self._log_download_progress(task_id, message.id, current, total)
-                
-                # 使用媒体下载器下载文件
-                success = await self.media_downloader.download_file(
-                    file_id=message.media_file_id or "",
-                    file_path=file_path,
-                    chat_id=message.group.telegram_id,
-                    message_id=message.message_id,
-                    progress_callback=progress_callback
-                )
-                
-                if success:
-                    logger.info(f"成功下载文件: {filename}")
-                    return True
-                else:
-                    logger.warning(f"下载文件失败: {filename}")
-                    return False
+                logger.warning(f"下载文件失败: {filename}")
+                return False
             
         except Exception as e:
             logger.error(f"下载消息 {message.id} 的媒体文件失败: {e}")
