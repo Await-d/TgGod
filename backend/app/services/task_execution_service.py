@@ -749,9 +749,15 @@ class TaskExecutionService:
                 logger.error(f"媒体下载器不可用，无法下载文件: {filename}")
                 return False
             
-            # 定义进度回调函数
-            async def progress_callback(current: int, total: int):
-                await self._log_download_progress(task_id, message.id, current, total)
+            # 定义进度回调函数（兼容不同的进度回调签名）
+            async def progress_callback(current: int, total: int, progress_percent: float = None):
+                # 如果没有提供进度百分比，自己计算
+                if progress_percent is None and total > 0:
+                    progress_percent = (current / total) * 100
+                elif progress_percent is None:
+                    progress_percent = 0
+                    
+                await self._log_download_progress(task_id, message.id, current, total, progress_percent)
             
             # 使用媒体下载器下载文件
             success = await self.media_downloader.download_file(
@@ -904,10 +910,14 @@ class TaskExecutionService:
                 if log["level"] in ["ERROR", "WARNING", "INFO"]:
                     self.pending_logs.append(log)
     
-    async def _log_download_progress(self, task_id: int, message_id: int, current: int, total: int):
+    async def _log_download_progress(self, task_id: int, message_id: int, current: int, total: int, progress_percent: float = None):
         """记录下载进度（优化：减少数据库写入频率）"""
         if total > 0:
-            progress = int(current / total * 100)
+            # 使用提供的进度百分比，或者自己计算
+            if progress_percent is not None:
+                progress = int(progress_percent)
+            else:
+                progress = int(current / total * 100)
             
             # 只在特定进度节点记录日志，避免频繁数据库写入导致锁定
             # 记录：0%, 25%, 50%, 75%, 100% 和每10%的整数进度
@@ -916,7 +926,7 @@ class TaskExecutionService:
                     task_id, 
                     "DEBUG", 
                     f"消息 {message_id} 下载进度: {progress}%",
-                    {"message_id": message_id, "current": current, "total": total}
+                    {"message_id": message_id, "current": current, "total": total, "progress_percent": progress_percent}
                 )
     
     async def _send_progress_update(self, task_id: int, progress: int, downloaded: int, total: int):
