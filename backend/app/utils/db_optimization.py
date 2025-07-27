@@ -41,8 +41,8 @@ def optimize_sqlite_database(db_path: str) -> bool:
         # 启用外键约束
         cursor.execute("PRAGMA foreign_keys=ON;")
         
-        # 设置锁超时
-        cursor.execute("PRAGMA busy_timeout=60000;")  # 60秒，增加等待时间
+        # 设置锁超时 - 更积极的超时设置
+        cursor.execute("PRAGMA busy_timeout=120000;")  # 120秒，进一步增加等待时间
         
         # 启用内存映射I/O (提高读性能)
         cursor.execute("PRAGMA mmap_size=536870912;")  # 512MB，提高到512MB
@@ -117,7 +117,12 @@ def optimized_db_session(autocommit: bool = True, max_retries: int = 5):
                     session = None
                 
                 if retry_count <= max_retries:
-                    wait_time = min(0.2 * (2 ** retry_count), 5.0)  # 指数退避，最大5秒，更积极的重试等待
+                    # 更合理的重试等待时间，考虑数据库busy_timeout
+                    if retry_count <= 2:
+                        wait_time = 0.5 * retry_count  # 前两次快速重试
+                    else:
+                        wait_time = min(1.0 * (2 ** (retry_count - 2)), 10.0)  # 后续指数退避，最大10秒
+                    
                     logger.warning(f"数据库锁定，{wait_time:.2f}秒后重试 (尝试 {retry_count}/{max_retries})")
                     time.sleep(wait_time)
                     continue

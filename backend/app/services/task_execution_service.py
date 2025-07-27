@@ -272,13 +272,34 @@ class TaskExecutionService:
         return download_task, rule, group, messages
     
     async def _update_task_progress(self, task_id: int, progress: int, downloaded_count: int):
-        """更新任务进度"""
-        with optimized_db_session() as db:
-            download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
-            if download_task:
-                download_task.progress = progress
-                download_task.downloaded_messages = downloaded_count
-                db.commit()
+        """更新任务进度（优化：减少频繁的数据库更新）"""
+        # 只在进度发生显著变化时才更新数据库
+        if not hasattr(self, '_last_progress_update'):
+            self._last_progress_update = {}
+        
+        last_update = self._last_progress_update.get(task_id, {'progress': -1, 'count': -1})
+        
+        # 只有在进度变化超过5%或下载数量变化超过10时才更新
+        progress_diff = abs(progress - last_update['progress'])
+        count_diff = abs(downloaded_count - last_update['count'])
+        
+        if progress_diff >= 5 or count_diff >= 10 or progress == 0 or progress == 100:
+            try:
+                with optimized_db_session(max_retries=3) as db:
+                    download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
+                    if download_task:
+                        download_task.progress = progress
+                        download_task.downloaded_messages = downloaded_count
+                        db.commit()
+                        
+                        # 记录最后更新的进度
+                        self._last_progress_update[task_id] = {
+                            'progress': progress, 
+                            'count': downloaded_count
+                        }
+                        
+            except Exception as e:
+                logger.warning(f"更新任务进度失败: {e}")  # 不抛出异常，避免中断下载
     
     async def _complete_task_execution(self, task_id: int, message: str):
         """完成任务执行"""
@@ -316,37 +337,80 @@ class TaskExecutionService:
             await self._log_task_event(task_id, "WARNING", f"规则数据同步失败: {str(e)}")
     
     async def _filter_messages_optimized(self, rule_data: dict, task_data: dict, task_id: int) -> List[TelegramMessage]:
-        """优化的消息筛选方法（使用数据字典）"""
-        with optimized_db_session() as db:
-            # 基础查询 - 预加载群组关系
-            from sqlalchemy.orm import joinedload
-            query = db.query(TelegramMessage).options(joinedload(TelegramMessage.group)).filter(TelegramMessage.group_id == task_data['group_id'])
-            
-            # 增量查询优化
-            if task_data.get('last_processed_time'):
-                query = query.filter(TelegramMessage.date > task_data['last_processed_time'])
-                await self._log_task_event(task_id, "INFO", f"增量筛选: 只查询 {task_data['last_processed_time']} 之后的消息")
-                logger.info(f"增量筛选: 只查询 {task_data['last_processed_time']} 之后的消息")
-            elif not task_data.get('force_full_scan', False):
-                await self._log_task_event(task_id, "INFO", "使用完整数据集进行筛选")
-                logger.info("使用规则的完整数据集进行筛选")
-            
-            # 应用规则筛选
-            query = self._apply_rule_filters_from_dict(query, rule_data)
-            
-            # 执行查询
-            results = query.order_by(TelegramMessage.date.desc()).all()
-            
-            # 更新任务的最后处理时间，用于下次增量查询
-            if results and task_data.get('last_processed_time') is not None:
-                latest_message_time = max(msg.date for msg in results if msg.date)
-                with optimized_db_session() as update_db:
-                    task_update = update_db.query(DownloadTask).filter(DownloadTask.id == task_data['task_id']).first()
-                    if task_update:
-                        task_update.last_processed_time = latest_message_time
-                        update_db.commit()
-            
-            return results
+        """优化的消息筛选方法（使用数据字典，减少数据库锁定时间）"""
+        # 第一步：快速构建查询，不立即执行
+        base_query_params = {
+            'group_id': task_data['group_id'],
+            'last_processed_time': task_data.get('last_processed_time'),
+            'force_full_scan': task_data.get('force_full_scan', False)
+        }
+        
+        # 第二步：使用更短的会话执行查询
+        with optimized_db_session(max_retries=8) as db:  # 增加重试次数
+            try:
+                # 基础查询 - 减少预加载以提高速度
+                query = db.query(TelegramMessage).filter(TelegramMessage.group_id == base_query_params['group_id'])
+                
+                # 增量查询优化
+                if base_query_params['last_processed_time']:
+                    query = query.filter(TelegramMessage.date > base_query_params['last_processed_time'])
+                    await self._log_task_event(task_id, "INFO", f"增量筛选: 只查询 {base_query_params['last_processed_time']} 之后的消息")
+                    logger.info(f"增量筛选: 只查询 {base_query_params['last_processed_time']} 之后的消息")
+                elif not base_query_params['force_full_scan']:
+                    await self._log_task_event(task_id, "INFO", "使用完整数据集进行筛选")
+                    logger.info("使用规则的完整数据集进行筛选")
+                
+                # 应用规则筛选
+                query = self._apply_rule_filters_from_dict(query, rule_data)
+                
+                # 分批查询以减少锁定时间
+                batch_size = 1000  # 每批1000条记录
+                all_results = []
+                offset = 0
+                
+                while True:
+                    # 执行分批查询
+                    batch_query = query.order_by(TelegramMessage.date.desc()).offset(offset).limit(batch_size)
+                    batch_results = batch_query.all()
+                    
+                    if not batch_results:
+                        break
+                        
+                    all_results.extend(batch_results)
+                    offset += batch_size
+                    
+                    # 如果批次小于限制，说明已经是最后一批
+                    if len(batch_results) < batch_size:
+                        break
+                        
+                    # 每批之间短暂释放锁
+                    await asyncio.sleep(0.01)
+                
+                logger.info(f"任务 {task_id} 筛选完成，共找到 {len(all_results)} 条消息")
+                
+                # 第三步：使用单独的会话更新任务时间
+                if all_results and base_query_params['last_processed_time'] is not None:
+                    await self._update_task_processed_time(task_data['task_id'], all_results)
+                
+                return all_results
+                
+            except Exception as e:
+                logger.error(f"消息筛选查询失败: {e}")
+                await self._log_task_event(task_id, "ERROR", f"消息筛选失败: {str(e)}")
+                raise
+    
+    async def _update_task_processed_time(self, task_id: int, messages: List[TelegramMessage]):
+        """单独的会话更新任务处理时间"""
+        try:
+            latest_message_time = max(msg.date for msg in messages if msg.date)
+            with optimized_db_session(max_retries=3) as update_db:
+                task_update = update_db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
+                if task_update:
+                    task_update.last_processed_time = latest_message_time
+                    update_db.commit()
+                    logger.debug(f"更新任务 {task_id} 处理时间: {latest_message_time}")
+        except Exception as e:
+            logger.warning(f"更新任务处理时间失败: {e}")  # 不抛出异常，因为这不是关键操作
     
     def _apply_rule_filters(self, query, rule: FilterRule):
         """应用规则筛选条件"""
