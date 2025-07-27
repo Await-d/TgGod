@@ -2,6 +2,7 @@ import asyncio
 import logging
 import shutil
 import os
+import time
 from typing import Optional, List, Dict
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session
@@ -26,7 +27,8 @@ class TaskExecutionService:
         self._initialized = False
         # 日志批量处理
         self.pending_logs = []
-        self.log_batch_size = 10  # 累积10条日志再批量写入
+        self.log_batch_size = 20  # 累积20条日志再批量写入，减少数据库访问
+        self.last_log_flush = time.time()  # 上次刷新时间
     
     async def initialize(self):
         """初始化服务"""
@@ -492,8 +494,8 @@ class TaskExecutionService:
         except Exception as e:
             logger.error(f"WebSocket广播日志失败: {e}")
         
-        # 只添加重要日志到批处理队列
-        if level in ["ERROR", "WARNING", "INFO", "DEBUG"]:
+        # 只添加重要日志到批处理队列，跳过DEBUG级别的进度日志
+        if level in ["ERROR", "WARNING", "INFO"]:
             # 添加到待处理队列
             log_entry = {
                 "task_id": task_id,
@@ -504,8 +506,15 @@ class TaskExecutionService:
             }
             self.pending_logs.append(log_entry)
             
-            # 当积累足够日志或遇到错误/警告级别时立即刷新
-            if level in ["ERROR", "WARNING"] or len(self.pending_logs) >= self.log_batch_size:
+            # 当积累足够日志或遇到错误/警告级别或超时时立即刷新
+            current_time = time.time()
+            should_flush = (
+                level in ["ERROR", "WARNING"] or  # 重要日志立即刷新
+                len(self.pending_logs) >= self.log_batch_size or  # 批量大小达到
+                (self.pending_logs and current_time - self.last_log_flush > 5.0)  # 超过5秒未刷新
+            )
+            
+            if should_flush:
                 await self._flush_pending_logs()
                 
     async def _flush_pending_logs(self):
@@ -515,6 +524,7 @@ class TaskExecutionService:
             
         logs_to_write = self.pending_logs.copy()
         self.pending_logs = []
+        self.last_log_flush = time.time()  # 更新刷新时间
         
         try:
             with optimized_db_session(max_retries=5) as db:
