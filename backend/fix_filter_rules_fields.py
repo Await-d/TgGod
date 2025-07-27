@@ -7,6 +7,7 @@ import os
 import sys
 import sqlite3
 from pathlib import Path
+from datetime import datetime
 
 # 设置环境变量和路径
 # 使用应用程序默认的数据库路径或环境变量中的路径
@@ -22,7 +23,12 @@ def fix_filter_rules_fields():
         from app.database import engine
         import sqlalchemy as sa
         
-        print("🔧 检查 filter_rules 表字段...")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print("=" * 50)
+        print("🔧 Filter Rules 表字段修复工具")
+        print(f"⏰ 执行时间: {timestamp}")
+        print("=" * 50)
+        print("📋 检查 filter_rules 表字段...")
         
         # 检查现有字段
         inspector = sa.inspect(engine)
@@ -67,6 +73,12 @@ def fix_filter_rules_fields():
             print("✅ filter_rules 表字段修复完成!")
         else:
             print("\n✅ 所有同步字段已存在，无需修复")
+        
+        end_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print("\n" + "=" * 50)
+        print("🎉 Filter Rules 字段检查完成!")
+        print(f"⏰ 完成时间: {end_timestamp}")
+        print("=" * 50)
             
     except Exception as e:
         print(f"❌ 修复 filter_rules 表字段失败: {e}")

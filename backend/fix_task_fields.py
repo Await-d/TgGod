@@ -8,6 +8,7 @@ import os
 import sys
 import sqlite3
 from pathlib import Path
+from datetime import datetime
 
 # 设置环境变量
 # 使用应用程序默认的数据库路径或环境变量中的路径
@@ -145,8 +146,10 @@ def verify_sqlalchemy_compatibility():
 
 def main():
     """主函数"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print("=" * 60)
-    print("🛠️  Download Tasks 表调度字段修复工具")
+    print(f"🛠️  Download Tasks 表调度字段修复工具")
+    print(f"⏰ 执行时间: {timestamp}")
     print("=" * 60)
     
     # 步骤1: 修复数据库表
@@ -159,9 +162,11 @@ def main():
         print("\n❌ SQLAlchemy兼容性验证失败")
         sys.exit(1)
     
+    end_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print("\n" + "=" * 60)
     print("🎉 所有修复完成！调度功能应该可以正常工作了")
     print("建议重启应用以确保所有更改生效")
+    print(f"⏰ 完成时间: {end_timestamp}")
     print("=" * 60)
 
 if __name__ == '__main__':
