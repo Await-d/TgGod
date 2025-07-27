@@ -10,7 +10,9 @@ import sqlite3
 from pathlib import Path
 
 # 设置环境变量
-os.environ['DATABASE_URL'] = 'sqlite:////app/data/tggod.db'
+# 使用应用程序默认的数据库路径或环境变量中的路径
+if 'DATABASE_URL' not in os.environ:
+    os.environ['DATABASE_URL'] = 'sqlite:////app/data/tggod.db'
 
 def fix_download_tasks_table():
     """修复download_tasks表的调度字段"""

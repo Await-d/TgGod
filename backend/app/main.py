@@ -267,40 +267,48 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 async def startup_event():
     logger.info("Starting TgGod API...")
     
-    # 首先运行任务字段修复脚本 - 确保数据库字段完整
+    # 首先运行数据库字段修复脚本 - 确保数据库字段完整
     try:
-        logger.info("🔧 开始运行任务字段修复脚本...")
+        logger.info("🔧 开始运行数据库字段修复脚本...")
         
         from pathlib import Path
         import subprocess
         import sys
         
-        # 找到任务字段修复脚本
         project_root = Path(__file__).parent.parent
-        fix_task_script = project_root / "fix_task_fields.py"
         
-        if fix_task_script.exists():
-            logger.info("运行任务字段修复脚本...")
-            result = subprocess.run([sys.executable, str(fix_task_script)], 
-                                  capture_output=True, text=True, cwd=str(project_root))
+        # 修复脚本列表
+        repair_scripts = [
+            ("fix_task_fields.py", "任务表字段修复"),
+            ("fix_filter_rules_fields.py", "过滤规则表字段修复")
+        ]
+        
+        for script_name, description in repair_scripts:
+            script_path = project_root / script_name
             
-            if result.returncode == 0:
-                logger.info("✅ 任务字段修复完成")
-                # 输出修复脚本的详细信息
-                if result.stdout:
-                    for line in result.stdout.strip().split('\n'):
-                        if line.strip():
-                            logger.info(f"修复脚本: {line}")
+            if script_path.exists():
+                logger.info(f"运行{description}脚本...")
+                result = subprocess.run([sys.executable, str(script_path)], 
+                                      capture_output=True, text=True, cwd=str(project_root))
+                
+                if result.returncode == 0:
+                    logger.info(f"✅ {description}完成")
+                    # 输出修复脚本的详细信息
+                    if result.stdout:
+                        for line in result.stdout.strip().split('\n'):
+                            if line.strip():
+                                logger.info(f"修复脚本: {line}")
+                else:
+                    logger.error(f"❌ {description}失败: {result.stderr}")
+                    if result.stdout:
+                        logger.info(f"修复脚本输出: {result.stdout}")
             else:
-                logger.error(f"❌ 任务字段修复失败: {result.stderr}")
-                if result.stdout:
-                    logger.info(f"修复脚本输出: {result.stdout}")
-        else:
-            logger.warning("未找到任务字段修复脚本，跳过自动修复")
-            logger.warning("这可能导致SQLAlchemy字段访问错误")
+                logger.warning(f"未找到{script_name}，跳过{description}")
+        
+        logger.info("🎯 所有数据库字段修复脚本执行完成")
             
     except Exception as e:
-        logger.error(f"运行任务字段修复脚本失败: {e}")
+        logger.error(f"运行数据库字段修复脚本失败: {e}")
         logger.warning("将继续启动，但可能出现字段访问错误")
     
     # 初始化数据库优化配置
