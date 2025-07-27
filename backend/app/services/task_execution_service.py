@@ -372,13 +372,16 @@ class TaskExecutionService:
             else:
                 # 使用传统下载方式
                 download_dir = download_task.download_path
+                # 确保下载目录存在
+                os.makedirs(download_dir, exist_ok=True)
+                
                 file_extension = self._get_file_extension(message.media_type)
                 filename = f"{message.message_id}_{message.id}{file_extension}"
                 file_path = os.path.join(download_dir, filename)
                 
                 # 检查文件是否已存在
                 if os.path.exists(file_path):
-                    logger.info(f"文件已存在，跳过下载: {filename}")
+                    logger.info(f"文件已存在，跳过下载: {file_path}")
                     return True
                 
                 # 检查媒体下载器是否可用
@@ -534,15 +537,19 @@ class TaskExecutionService:
                     self.pending_logs.append(log)
     
     async def _log_download_progress(self, task_id: int, message_id: int, current: int, total: int):
-        """记录下载进度"""
+        """记录下载进度（优化：减少数据库写入频率）"""
         if total > 0:
             progress = int(current / total * 100)
-            await self._log_task_event(
-                task_id, 
-                "DEBUG", 
-                f"消息 {message_id} 下载进度: {progress}%",
-                {"message_id": message_id, "current": current, "total": total}
-            )
+            
+            # 只在特定进度节点记录日志，避免频繁数据库写入导致锁定
+            # 记录：0%, 25%, 50%, 75%, 100% 和每10%的整数进度
+            if progress == 0 or progress == 100 or progress % 25 == 0 or progress % 10 == 0:
+                await self._log_task_event(
+                    task_id, 
+                    "DEBUG", 
+                    f"消息 {message_id} 下载进度: {progress}%",
+                    {"message_id": message_id, "current": current, "total": total}
+                )
     
     async def _send_progress_update(self, task_id: int, progress: int, downloaded: int, total: int):
         """发送进度更新"""

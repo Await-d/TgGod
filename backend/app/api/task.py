@@ -491,6 +491,7 @@ async def reset_task(
 @router.delete("/tasks/{task_id}")
 async def delete_task(
     task_id: int,
+    force: bool = Query(False, description="强制删除，忽略任务状态"),
     db: Session = Depends(get_db)
 ):
     """删除任务"""
@@ -498,17 +499,31 @@ async def delete_task(
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     
-    if task.status == "running":
-        raise HTTPException(status_code=400, detail="任务正在运行，无法删除")
+    if task.status == "running" and not force:
+        raise HTTPException(status_code=400, detail="任务正在运行，无法删除。使用force=true参数强制删除")
+    
+    # 如果是强制删除，先尝试停止任务
+    if task.status == "running" and force:
+        try:
+            service = get_task_execution_service()
+            await service.stop_task(task_id)
+            logger.info(f"强制删除时已停止运行中的任务 {task_id}")
+        except Exception as e:
+            logger.warning(f"强制删除时停止任务失败，继续删除: {e}")
     
     db.delete(task)
     db.commit()
-    return {"message": "任务删除成功"}
+    
+    if force:
+        return {"message": "任务强制删除成功"}
+    else:
+        return {"message": "任务删除成功"}
 
 @router.post("/tasks/batch")
 async def batch_task_operation(
     operation: str,
     task_ids: List[int],
+    force: bool = Query(False, description="强制操作，忽略任务状态"),
     db: Session = Depends(get_db)
 ):
     """批量任务操作"""
@@ -623,11 +638,22 @@ async def batch_task_operation(
                     successful += 1
                     
             elif operation == "delete":
-                if task.status == "running":
-                    results.append({"task_id": task_id, "status": "skipped", "message": "任务正在运行，无法删除"})
+                if task.status == "running" and not force:
+                    results.append({"task_id": task_id, "status": "skipped", 
+                                  "message": "任务正在运行，无法删除。使用force=true强制删除"})
                 else:
+                    # 如果是强制删除运行中的任务，先尝试停止
+                    if task.status == "running" and force:
+                        try:
+                            service = get_task_execution_service()
+                            await service.stop_task(task_id)
+                            logger.info(f"批量强制删除时已停止运行中的任务 {task_id}")
+                        except Exception as e:
+                            logger.warning(f"批量强制删除时停止任务失败，继续删除: {e}")
+                    
                     db.delete(task)
-                    results.append({"task_id": task_id, "status": "success", "message": "任务删除成功"})
+                    message = "任务强制删除成功" if (task.status == "running" and force) else "任务删除成功"
+                    results.append({"task_id": task_id, "status": "success", "message": message})
                     successful += 1
             
             db.commit()
@@ -644,6 +670,47 @@ async def batch_task_operation(
         "failed": failed,
         "results": results
     }
+
+@router.post("/tasks/reset-orphaned")
+async def reset_orphaned_tasks(db: Session = Depends(get_db)):
+    """重置孤儿任务状态（处于running/paused状态但实际进程已停止的任务）"""
+    try:
+        # 查找所有可能的孤儿任务
+        orphaned_tasks = db.query(DownloadTask).filter(
+            DownloadTask.status.in_(["running", "paused"])
+        ).all()
+        
+        reset_count = 0
+        task_details = []
+        
+        for task in orphaned_tasks:
+            original_status = task.status
+            task.status = "failed"
+            task.error_message = f"手动重置：原状态为{original_status}，疑似孤儿进程"
+            reset_count += 1
+            
+            task_details.append({
+                "task_id": task.id,
+                "task_name": task.name,
+                "original_status": original_status,
+                "new_status": "failed"
+            })
+            
+            logger.info(f"手动重置孤儿任务 {task.id}({task.name}) 状态: {original_status} -> failed")
+        
+        if reset_count > 0:
+            db.commit()
+            logger.info(f"手动重置了 {reset_count} 个孤儿任务状态")
+        
+        return {
+            "message": f"成功重置 {reset_count} 个孤儿任务状态",
+            "reset_count": reset_count,
+            "tasks": task_details
+        }
+        
+    except Exception as e:
+        logger.error(f"重置孤儿任务状态失败: {e}")
+        raise HTTPException(status_code=500, detail=f"重置失败: {str(e)}")
 
 @router.post("/tasks/create-and-start", response_model=TaskResponse)
 async def create_and_start_task(

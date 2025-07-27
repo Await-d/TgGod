@@ -368,6 +368,46 @@ async def startup_event():
     except Exception as e:
         logger.error(f"数据库结构检查失败: {e}")
         logger.info("尝试使用传统方式创建数据库表...")
+    
+    # 重置异常任务状态 - 修复重启后的状态不同步问题
+    try:
+        logger.info("🔧 开始重置异常任务状态...")
+        
+        from .database import get_db
+        from .models.rule import DownloadTask
+        from sqlalchemy.orm import Session
+        
+        # 获取数据库会话
+        db_gen = get_db()
+        db: Session = next(db_gen)
+        
+        try:
+            # 查找所有状态异常的任务（running状态但实际进程已停止）
+            running_tasks = db.query(DownloadTask).filter(
+                DownloadTask.status.in_(["running", "paused"])
+            ).all()
+            
+            reset_count = 0
+            for task in running_tasks:
+                # 重置为failed状态，并记录原因
+                original_status = task.status
+                task.status = "failed"
+                task.error_message = f"应用重启时发现任务处于{original_status}状态，已自动重置"
+                reset_count += 1
+                logger.info(f"重置任务 {task.id}({task.name}) 状态: {original_status} -> failed")
+            
+            if reset_count > 0:
+                db.commit()
+                logger.info(f"✅ 成功重置 {reset_count} 个异常任务状态")
+            else:
+                logger.info("✅ 没有发现需要重置的异常任务状态")
+                
+        finally:
+            db.close()
+            
+    except Exception as e:
+        logger.error(f"重置任务状态失败: {e}")
+        logger.warning("任务状态可能不同步，建议手动检查")
         
         # 传统数据库创建方式作为备选
         try:
