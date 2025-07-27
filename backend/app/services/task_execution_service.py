@@ -227,8 +227,9 @@ class TaskExecutionService:
             logger.warning(f"规则数据同步失败，继续使用现有数据: {e}")
             await self._log_task_event(task.id, "WARNING", f"规则数据同步失败: {str(e)}")
         
-        # 基础查询
-        query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group.id)
+        # 基础查询 - 预加载群组关系以避免后续查询时的N+1问题
+        from sqlalchemy.orm import joinedload
+        query = db.query(TelegramMessage).options(joinedload(TelegramMessage.group)).filter(TelegramMessage.group_id == group.id)
         
         # 优化: 增量查询 - 如果任务有上次处理时间，只查询新消息
         if hasattr(task, 'last_processed_time') and task.last_processed_time:
@@ -393,7 +394,7 @@ class TaskExecutionService:
                 success = await self.media_downloader.download_file(
                     file_id=message.media_file_id or "",
                     file_path=file_path,
-                    chat_id=message.group_id,
+                    chat_id=message.group.telegram_id,
                     message_id=message.message_id,
                     progress_callback=progress_callback
                 )
