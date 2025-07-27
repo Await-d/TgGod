@@ -192,9 +192,9 @@ class TaskExecutionService:
                 del self.running_tasks[task_id]
     
     async def _prepare_task_execution(self, task_id: int):
-        """准备任务执行：获取任务信息和筛选消息（优化：分离耗时操作）"""
-        # 第一步：快速获取基本信息
-        task_info = None
+        """准备任务执行：获取任务信息和筛选消息（修复：使用数据字典而非对象传递）"""
+        # 第一步：快速获取基本信息并转换为字典
+        task_data = None
         with optimized_db_session() as db:
             # 获取任务信息
             download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
@@ -209,15 +209,45 @@ class TaskExecutionService:
             if not rule or not group:
                 await self._handle_task_error_simple(task_id, "规则或群组不存在")
                 return None
-                
-            task_info = (download_task, rule, group)
+            
+            # 将对象数据提取为字典，避免会话绑定问题
+            task_data = {
+                'task_id': download_task.id,
+                'task_name': download_task.name,
+                'download_path': download_task.download_path,
+                'use_jellyfin_structure': download_task.use_jellyfin_structure,
+                'rule_id': rule.id,
+                'group_id': group.id,
+                'group_telegram_id': group.telegram_id,
+                'group_title': group.title,
+                'group_username': group.username
+            }
+            
+            # 提取规则数据
+            rule_data = {
+                'id': rule.id,
+                'keywords': rule.keywords,
+                'exclude_keywords': rule.exclude_keywords,
+                'media_types': rule.media_types,
+                'sender_filter': rule.sender_filter,
+                'min_file_size': rule.min_file_size,
+                'max_file_size': rule.max_file_size,
+                'include_forwarded': rule.include_forwarded,
+                'date_from': rule.date_from,
+                'date_to': rule.date_to,
+                'min_views': rule.min_views,
+                'max_views': rule.max_views
+            }
+            
+            # 检查增量查询字段
+            task_data['last_processed_time'] = getattr(download_task, 'last_processed_time', None)
+            task_data['force_full_scan'] = getattr(download_task, 'force_full_scan', False)
         
         # 第二步：在会话外执行耗时的数据同步（如果需要）
-        download_task, rule, group = task_info
-        await self._ensure_rule_data_availability(rule.id, task_id)
+        await self._ensure_rule_data_availability(task_data['rule_id'], task_id)
         
         # 第三步：执行筛选查询
-        messages = await self._filter_messages_optimized(rule, group, download_task, task_id)
+        messages = await self._filter_messages_optimized(rule_data, task_data, task_id)
         
         if len(messages) == 0:
             await self._complete_task_execution(task_id, "没有找到符合条件的消息")
@@ -234,6 +264,10 @@ class TaskExecutionService:
             download_task.downloaded_messages = 0
             download_task.progress = 0
             db.commit()
+            
+            # 重新获取对象用于后续使用
+            rule = db.query(FilterRule).filter(FilterRule.id == task_data['rule_id']).first()
+            group = db.query(TelegramGroup).filter(TelegramGroup.id == task_data['group_id']).first()
         
         return download_task, rule, group, messages
     
@@ -281,33 +315,33 @@ class TaskExecutionService:
             logger.warning(f"规则数据同步失败，继续使用现有数据: {e}")
             await self._log_task_event(task_id, "WARNING", f"规则数据同步失败: {str(e)}")
     
-    async def _filter_messages_optimized(self, rule: FilterRule, group: TelegramGroup, task: DownloadTask, task_id: int) -> List[TelegramMessage]:
-        """优化的消息筛选方法"""
+    async def _filter_messages_optimized(self, rule_data: dict, task_data: dict, task_id: int) -> List[TelegramMessage]:
+        """优化的消息筛选方法（使用数据字典）"""
         with optimized_db_session() as db:
             # 基础查询 - 预加载群组关系
             from sqlalchemy.orm import joinedload
-            query = db.query(TelegramMessage).options(joinedload(TelegramMessage.group)).filter(TelegramMessage.group_id == group.id)
+            query = db.query(TelegramMessage).options(joinedload(TelegramMessage.group)).filter(TelegramMessage.group_id == task_data['group_id'])
             
             # 增量查询优化
-            if hasattr(task, 'last_processed_time') and task.last_processed_time:
-                query = query.filter(TelegramMessage.date > task.last_processed_time)
-                await self._log_task_event(task_id, "INFO", f"增量筛选: 只查询 {task.last_processed_time} 之后的消息")
-                logger.info(f"增量筛选: 只查询 {task.last_processed_time} 之后的消息")
-            elif not getattr(task, 'force_full_scan', False):
+            if task_data.get('last_processed_time'):
+                query = query.filter(TelegramMessage.date > task_data['last_processed_time'])
+                await self._log_task_event(task_id, "INFO", f"增量筛选: 只查询 {task_data['last_processed_time']} 之后的消息")
+                logger.info(f"增量筛选: 只查询 {task_data['last_processed_time']} 之后的消息")
+            elif not task_data.get('force_full_scan', False):
                 await self._log_task_event(task_id, "INFO", "使用完整数据集进行筛选")
                 logger.info("使用规则的完整数据集进行筛选")
             
             # 应用规则筛选
-            query = self._apply_rule_filters(query, rule)
+            query = self._apply_rule_filters_from_dict(query, rule_data)
             
             # 执行查询
             results = query.order_by(TelegramMessage.date.desc()).all()
             
             # 更新任务的最后处理时间，用于下次增量查询
-            if results and hasattr(task, 'last_processed_time'):
+            if results and task_data.get('last_processed_time') is not None:
                 latest_message_time = max(msg.date for msg in results if msg.date)
                 with optimized_db_session() as update_db:
-                    task_update = update_db.query(DownloadTask).filter(DownloadTask.id == task.id).first()
+                    task_update = update_db.query(DownloadTask).filter(DownloadTask.id == task_data['task_id']).first()
                     if task_update:
                         task_update.last_processed_time = latest_message_time
                         update_db.commit()
@@ -368,6 +402,78 @@ class TaskExecutionService:
             query = query.filter(TelegramMessage.media_size <= rule.max_file_size)
         
         if not rule.include_forwarded:
+            query = query.filter(TelegramMessage.is_forwarded == False)
+        
+        # 只选择有媒体的消息
+        query = query.filter(TelegramMessage.media_type != 'text')
+        query = query.filter(TelegramMessage.media_type.isnot(None))
+        
+        return query
+
+    def _apply_rule_filters_from_dict(self, query, rule_data: dict):
+        """应用规则筛选条件（使用字典数据，避免SQLAlchemy会话绑定问题）"""
+        from sqlalchemy import and_, or_
+        from ..models.telegram import TelegramMessage
+        
+        # 关键词筛选
+        keywords = rule_data.get('keywords')
+        if keywords:
+            keyword_conditions = []
+            for keyword in keywords:
+                text_condition = and_(
+                    TelegramMessage.text.isnot(None),
+                    TelegramMessage.text.contains(keyword)
+                )
+                sender_condition = and_(
+                    TelegramMessage.sender_name.isnot(None),
+                    TelegramMessage.sender_name.contains(keyword)
+                )
+                filename_condition = and_(
+                    TelegramMessage.media_filename.isnot(None),
+                    TelegramMessage.media_filename.contains(keyword)
+                )
+                keyword_conditions.append(or_(text_condition, sender_condition, filename_condition))
+            if keyword_conditions:
+                query = query.filter(or_(*keyword_conditions))
+        
+        # 排除关键词
+        exclude_keywords = rule_data.get('exclude_keywords')
+        if exclude_keywords:
+            for exclude_keyword in exclude_keywords:
+                text_exclude = and_(
+                    TelegramMessage.text.isnot(None),
+                    TelegramMessage.text.contains(exclude_keyword)
+                )
+                sender_exclude = and_(
+                    TelegramMessage.sender_name.isnot(None),
+                    TelegramMessage.sender_name.contains(exclude_keyword)
+                )
+                filename_exclude = and_(
+                    TelegramMessage.media_filename.isnot(None),
+                    TelegramMessage.media_filename.contains(exclude_keyword)
+                )
+                query = query.filter(~or_(text_exclude, sender_exclude, filename_exclude))
+        
+        # 其他筛选条件
+        media_types = rule_data.get('media_types')
+        if media_types:
+            query = query.filter(TelegramMessage.media_type.in_(media_types))
+        
+        sender_filter = rule_data.get('sender_filter')
+        if sender_filter:
+            query = query.filter(TelegramMessage.sender_username.in_(sender_filter))
+        
+        # 文件大小过滤
+        min_file_size = rule_data.get('min_file_size')
+        if min_file_size is not None:
+            query = query.filter(TelegramMessage.media_size >= min_file_size)
+        
+        max_file_size = rule_data.get('max_file_size')
+        if max_file_size is not None:
+            query = query.filter(TelegramMessage.media_size <= max_file_size)
+        
+        include_forwarded = rule_data.get('include_forwarded', True)
+        if not include_forwarded:
             query = query.filter(TelegramMessage.is_forwarded == False)
         
         # 只选择有媒体的消息
