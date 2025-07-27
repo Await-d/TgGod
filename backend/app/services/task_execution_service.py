@@ -354,9 +354,10 @@ class TaskExecutionService:
         logger.info(f"任务{task_id}: 开始批量查询操作，群组ID: {base_query_params['group_id']}")
         async with task_db_manager.get_task_session(task_id, "batch_query") as db:
             try:
-                # 基础查询 - 减少预加载以提高速度
+                # 基础查询 - 预加载group关联以避免后续会话绑定问题
                 logger.debug(f"任务{task_id}: 构建基础查询条件")
-                query = db.query(TelegramMessage).filter(TelegramMessage.group_id == base_query_params['group_id'])
+                from sqlalchemy.orm import joinedload
+                query = db.query(TelegramMessage).options(joinedload(TelegramMessage.group)).filter(TelegramMessage.group_id == base_query_params['group_id'])
                 
                 # 增量查询优化
                 if base_query_params['last_processed_time']:
@@ -382,6 +383,10 @@ class TaskExecutionService:
                     
                     if not batch_results:
                         break
+                    
+                    # 立即将批次结果从会话中分离
+                    for message in batch_results:
+                        db.expunge(message)
                         
                     all_results.extend(batch_results)
                     offset += batch_size
@@ -394,6 +399,7 @@ class TaskExecutionService:
                     await asyncio.sleep(0.01)
                 
                 logger.info(f"任务 {task_id} 筛选完成，共找到 {len(all_results)} 条消息")
+                logger.debug(f"任务{task_id}: 所有消息对象已在批次处理中从会话分离")
                 
                 # 第三步：使用单独的会话更新任务时间
                 if all_results and base_query_params['last_processed_time'] is not None:
