@@ -160,9 +160,11 @@ class TelegramMediaDownloader:
     async def _download_by_message(self, chat_id: int, message_id: int, file_path: str, progress_callback: Optional[callable] = None) -> bool:
         """通过消息ID下载文件"""
         max_retries = 3
+        logger.info(f"媒体下载器 - 接收到参数: chat_id={chat_id}, message_id={message_id}, file_path={file_path}")
         for attempt in range(max_retries):
             try:
                 # 获取聊天实体
+                logger.info(f"媒体下载器 - 尝试获取实体: chat_id={chat_id}")
                 chat = await self.client.get_entity(chat_id)
                 
                 # 获取消息

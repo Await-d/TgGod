@@ -796,6 +796,9 @@ class TaskExecutionService:
                     
                 await self._log_download_progress(task_id, message.id, current, total, progress_percent)
             
+            # 调试日志：确认传递的ID
+            logger.info(f"任务{task_id}: 准备下载文件 - group_telegram_id: {task_data['group_telegram_id']}, message_id: {message.message_id}")
+            
             # 使用媒体下载器下载文件
             success = await self.media_downloader.download_file(
                 file_id=message.media_file_id or "",
