@@ -196,9 +196,11 @@ class TaskExecutionService:
                 del self.running_tasks[task_id]
     
     async def _prepare_task_execution(self, task_id: int):
-        """准备任务执行：获取任务信息和筛选消息（修复：使用数据字典而非对象传递）"""
+        """准备任务执行：获取任务信息和筛选消息（修复：支持多规则架构）"""
         # 第一步：快速获取基本信息并转换为字典
         task_data = None
+        all_rules_data = []
+        
         with optimized_db_session() as db:
             # 获取任务信息
             download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
@@ -206,12 +208,31 @@ class TaskExecutionService:
                 logger.error(f"任务 {task_id} 不存在")
                 return None
             
-            # 获取规则和群组信息
-            rule = db.query(FilterRule).filter(FilterRule.id == download_task.rule_id).first()
+            # 获取群组信息
             group = db.query(TelegramGroup).filter(TelegramGroup.id == download_task.group_id).first()
+            if not group:
+                await self._handle_task_error_simple(task_id, "群组不存在")
+                return None
             
-            if not rule or not group:
-                await self._handle_task_error_simple(task_id, "规则或群组不存在")
+            # 获取任务关联的所有规则
+            from ..models.task_rule_association import TaskRuleAssociation
+            from ..models.rule import FilterRule
+            
+            rule_associations = db.query(TaskRuleAssociation).filter(
+                TaskRuleAssociation.task_id == task_id,
+                TaskRuleAssociation.is_active == True
+            ).order_by(TaskRuleAssociation.priority.desc()).all()
+            
+            if not rule_associations:
+                await self._handle_task_error_simple(task_id, "任务没有关联的活跃规则")
+                return None
+            
+            # 获取所有规则详细信息
+            rule_ids = [assoc.rule_id for assoc in rule_associations]
+            rules = db.query(FilterRule).filter(FilterRule.id.in_(rule_ids)).all()
+            
+            if not rules:
+                await self._handle_task_error_simple(task_id, "关联的规则不存在")
                 return None
             
             # 将对象数据提取为字典，避免会话绑定问题
@@ -228,7 +249,6 @@ class TaskExecutionService:
                 'thumbnail_size': getattr(download_task, 'thumbnail_size', '400x300'),
                 'poster_size': getattr(download_task, 'poster_size', '400x600'),
                 'fanart_size': getattr(download_task, 'fanart_size', '1920x1080'),
-                'rule_id': rule.id,
                 'group_id': group.id,
                 'group_telegram_id': group.telegram_id,
                 'group_title': group.title,
@@ -237,34 +257,53 @@ class TaskExecutionService:
                 'subscription_name': download_task.name  # 订阅名（任务名）- 用于Jellyfin格式
             }
             
-            # 提取规则数据
-            rule_data = {
-                'id': rule.id,
-                'keywords': rule.keywords,
-                'exclude_keywords': rule.exclude_keywords,
-                'media_types': rule.media_types,
-                'sender_filter': rule.sender_filter,
-                'min_file_size': rule.min_file_size,
-                'max_file_size': rule.max_file_size,
-                'include_forwarded': rule.include_forwarded,
-                'date_from': rule.date_from,
-                'date_to': rule.date_to,
-                'min_views': rule.min_views,
-                'max_views': rule.max_views
-            }
+            # 提取所有规则数据
+            for rule in rules:
+                rule_data = {
+                    'id': rule.id,
+                    'name': rule.name,
+                    'keywords': rule.keywords,
+                    'exclude_keywords': rule.exclude_keywords,
+                    'media_types': rule.media_types,
+                    'sender_filter': rule.sender_filter,
+                    'min_file_size': rule.min_file_size,
+                    'max_file_size': rule.max_file_size,
+                    'include_forwarded': rule.include_forwarded,
+                    'date_from': rule.date_from,
+                    'date_to': rule.date_to,
+                    'min_views': rule.min_views,
+                    'max_views': rule.max_views,
+                    # 添加高级过滤条件
+                    'min_duration': getattr(rule, 'min_duration', None),
+                    'max_duration': getattr(rule, 'max_duration', None),
+                    'min_width': getattr(rule, 'min_width', None),
+                    'max_width': getattr(rule, 'max_width', None),
+                    'min_height': getattr(rule, 'min_height', None),
+                    'max_height': getattr(rule, 'max_height', None),
+                    'min_text_length': getattr(rule, 'min_text_length', None),
+                    'max_text_length': getattr(rule, 'max_text_length', None),
+                    'has_urls': getattr(rule, 'has_urls', None),
+                    'has_mentions': getattr(rule, 'has_mentions', None),
+                    'has_hashtags': getattr(rule, 'has_hashtags', None),
+                    'is_reply': getattr(rule, 'is_reply', None),
+                    'is_edited': getattr(rule, 'is_edited', None),
+                    'is_pinned': getattr(rule, 'is_pinned', None)
+                }
+                all_rules_data.append(rule_data)
             
             # 检查增量查询字段
             task_data['last_processed_time'] = getattr(download_task, 'last_processed_time', None)
             task_data['force_full_scan'] = getattr(download_task, 'force_full_scan', False)
         
-        # 第二步：在会话外执行耗时的数据同步（如果需要）
-        await self._ensure_rule_data_availability(task_data['rule_id'], task_id)
+        # 第二步：在会话外执行耗时的数据同步（为所有规则确保数据可用性）
+        for rule_data in all_rules_data:
+            await self._ensure_rule_data_availability(rule_data['id'], task_id)
         
-        # 第三步：执行筛选查询
-        messages = await self._filter_messages_optimized(rule_data, task_data, task_id)
+        # 第三步：执行筛选查询（支持多规则OR逻辑）
+        messages = await self._filter_messages_with_multiple_rules(all_rules_data, task_data, task_id)
         
         if len(messages) == 0:
-            await self._complete_task_execution(task_id, "没有找到符合条件的消息")
+            await self._complete_task_execution(task_id, "没有找到符合任何规则条件的消息")
             return None
         
         # 第四步：更新任务总数
@@ -278,9 +317,6 @@ class TaskExecutionService:
             download_task.downloaded_messages = 0
             download_task.progress = 0
             db.commit()
-            
-            # 不返回ORM对象，避免会话绑定问题
-            # 改为返回数据字典
         
         return task_data, messages
     
@@ -438,6 +474,102 @@ class TaskExecutionService:
             except Exception as e:
                 logger.error(f"任务{task_id}: 消息筛选查询失败: {e}", exc_info=True)
                 await self._log_task_event(task_id, "ERROR", f"消息筛选失败: {str(e)}")
+                raise
+    
+    async def _filter_messages_with_multiple_rules(self, all_rules_data: List[dict], task_data: dict, task_id: int) -> List[TelegramMessage]:
+        """支持多规则的消息筛选方法（使用OR逻辑组合多个规则）"""
+        # 第一步：快速构建查询，不立即执行
+        base_query_params = {
+            'group_id': task_data['group_id'],
+            'last_processed_time': task_data.get('last_processed_time'),
+            'force_full_scan': task_data.get('force_full_scan', False)
+        }
+        
+        logger.info(f"任务{task_id}: 开始多规则批量查询操作，群组ID: {base_query_params['group_id']}, 规则数量: {len(all_rules_data)}")
+        
+        # 第二步：使用专用数据库管理器执行查询
+        async with task_db_manager.get_task_session(task_id, "batch_query") as db:
+            try:
+                # 基础查询 - 预加载group关联以避免后续会话绑定问题
+                logger.debug(f"任务{task_id}: 构建基础查询条件")
+                from sqlalchemy.orm import joinedload
+                from sqlalchemy import or_
+                
+                query = db.query(TelegramMessage).options(joinedload(TelegramMessage.group)).filter(
+                    TelegramMessage.group_id == base_query_params['group_id']
+                )
+                
+                # 增量查询优化
+                if base_query_params['last_processed_time']:
+                    query = query.filter(TelegramMessage.date > base_query_params['last_processed_time'])
+                    await self._log_task_event(task_id, "INFO", f"增量筛选: 只查询 {base_query_params['last_processed_time']} 之后的消息")
+                    logger.info(f"增量筛选: 只查询 {base_query_params['last_processed_time']} 之后的消息")
+                elif not base_query_params['force_full_scan']:
+                    await self._log_task_event(task_id, "INFO", "使用完整数据集进行多规则筛选")
+                    logger.info("使用规则的完整数据集进行多规则筛选")
+                
+                # 应用多规则筛选（OR逻辑）
+                rule_conditions = []
+                for rule_data in all_rules_data:
+                    logger.debug(f"任务{task_id}: 处理规则 {rule_data['id']} - {rule_data['name']}")
+                    
+                    # 为每个规则创建一个子查询条件
+                    rule_query = db.query(TelegramMessage.id).filter(TelegramMessage.group_id == base_query_params['group_id'])
+                    
+                    # 增量查询条件也应用到每个规则
+                    if base_query_params['last_processed_time']:
+                        rule_query = rule_query.filter(TelegramMessage.date > base_query_params['last_processed_time'])
+                    
+                    # 应用规则筛选条件
+                    rule_query = self._apply_rule_filters_from_dict(rule_query, rule_data)
+                    
+                    # 添加到OR条件中
+                    rule_conditions.append(TelegramMessage.id.in_(rule_query))
+                
+                # 如果有规则条件，应用OR逻辑
+                if rule_conditions:
+                    query = query.filter(or_(*rule_conditions))
+                    logger.info(f"任务{task_id}: 应用了 {len(rule_conditions)} 个规则的OR组合条件")
+                
+                # 分批查询以减少锁定时间
+                batch_size = 1000  # 每批1000条记录
+                all_results = []
+                offset = 0
+                
+                while True:
+                    # 执行分批查询
+                    batch_query = query.order_by(TelegramMessage.date.desc()).offset(offset).limit(batch_size)
+                    batch_results = batch_query.all()
+                    
+                    if not batch_results:
+                        break
+                    
+                    # 立即将批次结果从会话中分离
+                    for message in batch_results:
+                        db.expunge(message)
+                        
+                    all_results.extend(batch_results)
+                    offset += batch_size
+                    
+                    # 如果批次小于限制，说明已经是最后一批
+                    if len(batch_results) < batch_size:
+                        break
+                        
+                    # 每批之间短暂释放锁
+                    await asyncio.sleep(0.01)
+                
+                logger.info(f"任务 {task_id} 多规则筛选完成，共找到 {len(all_results)} 条消息")
+                logger.debug(f"任务{task_id}: 所有消息对象已在批次处理中从会话分离")
+                
+                # 第三步：使用单独的会话更新任务时间
+                if all_results and base_query_params['last_processed_time'] is not None:
+                    await self._update_task_processed_time(task_data['task_id'], all_results)
+                
+                return all_results
+                
+            except Exception as e:
+                logger.error(f"任务{task_id}: 多规则消息筛选查询失败: {e}", exc_info=True)
+                await self._log_task_event(task_id, "ERROR", f"多规则消息筛选失败: {str(e)}")
                 raise
     
     async def _update_task_processed_time(self, task_id: int, messages: List[TelegramMessage]):
