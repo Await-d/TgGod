@@ -1288,7 +1288,7 @@ const TaskManagement: React.FC = () => {
               placeholder="选择规则（可多选）"
               showSearch
               filterOption={(input, option) =>
-                (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+                String(option?.children || '').toLowerCase().includes(input.toLowerCase())
               }
             >
               {rules.map(rule => (
