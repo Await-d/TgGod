@@ -28,6 +28,35 @@ class RuleCreate(BaseModel):
     max_views: Optional[int] = None
     min_file_size: Optional[int] = None  # 最小文件大小（字节）
     max_file_size: Optional[int] = None  # 最大文件大小（字节）
+    
+    # 视频/音频时长过滤（秒）
+    min_duration: Optional[int] = None
+    max_duration: Optional[int] = None
+    
+    # 视频尺寸过滤（像素）
+    min_width: Optional[int] = None
+    max_width: Optional[int] = None
+    min_height: Optional[int] = None
+    max_height: Optional[int] = None
+    
+    # 文本长度过滤（字符数）
+    min_text_length: Optional[int] = None
+    max_text_length: Optional[int] = None
+    
+    # 高级过滤选项
+    has_urls: Optional[bool] = None
+    has_mentions: Optional[bool] = None
+    has_hashtags: Optional[bool] = None
+    is_reply: Optional[bool] = None
+    is_edited: Optional[bool] = None
+    is_pinned: Optional[bool] = None
+    
+    # 时间相关过滤
+    message_age_days: Optional[int] = None
+    exclude_weekends: bool = False
+    time_range_start: Optional[str] = None  # HH:MM格式
+    time_range_end: Optional[str] = None    # HH:MM格式
+    
     include_forwarded: bool = True
 
 class RuleUpdate(BaseModel):
@@ -42,6 +71,35 @@ class RuleUpdate(BaseModel):
     max_views: Optional[int] = None
     min_file_size: Optional[int] = None  # 最小文件大小（字节）
     max_file_size: Optional[int] = None  # 最大文件大小（字节）
+    
+    # 视频/音频时长过滤（秒）
+    min_duration: Optional[int] = None
+    max_duration: Optional[int] = None
+    
+    # 视频尺寸过滤（像素）
+    min_width: Optional[int] = None
+    max_width: Optional[int] = None
+    min_height: Optional[int] = None
+    max_height: Optional[int] = None
+    
+    # 文本长度过滤（字符数）
+    min_text_length: Optional[int] = None
+    max_text_length: Optional[int] = None
+    
+    # 高级过滤选项
+    has_urls: Optional[bool] = None
+    has_mentions: Optional[bool] = None
+    has_hashtags: Optional[bool] = None
+    is_reply: Optional[bool] = None
+    is_edited: Optional[bool] = None
+    is_pinned: Optional[bool] = None
+    
+    # 时间相关过滤
+    message_age_days: Optional[int] = None
+    exclude_weekends: Optional[bool] = None
+    time_range_start: Optional[str] = None  # HH:MM格式
+    time_range_end: Optional[str] = None    # HH:MM格式
+    
     include_forwarded: Optional[bool] = None
     is_active: Optional[bool] = None
 
@@ -59,6 +117,35 @@ class RuleResponse(BaseModel):
     max_views: Optional[int]
     min_file_size: Optional[int]  # 最小文件大小（字节）
     max_file_size: Optional[int]  # 最大文件大小（字节）
+    
+    # 视频/音频时长过滤（秒）
+    min_duration: Optional[int]
+    max_duration: Optional[int]
+    
+    # 视频尺寸过滤（像素）
+    min_width: Optional[int]
+    max_width: Optional[int]
+    min_height: Optional[int]
+    max_height: Optional[int]
+    
+    # 文本长度过滤（字符数）
+    min_text_length: Optional[int]
+    max_text_length: Optional[int]
+    
+    # 高级过滤选项
+    has_urls: Optional[bool]
+    has_mentions: Optional[bool]
+    has_hashtags: Optional[bool]
+    is_reply: Optional[bool]
+    is_edited: Optional[bool]
+    is_pinned: Optional[bool]
+    
+    # 时间相关过滤
+    message_age_days: Optional[int]
+    exclude_weekends: bool
+    time_range_start: Optional[str]  # HH:MM格式
+    time_range_end: Optional[str]    # HH:MM格式
+    
     include_forwarded: bool
     is_active: bool
     # 同步跟踪字段（暂时注释）

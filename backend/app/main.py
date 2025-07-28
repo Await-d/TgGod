@@ -282,7 +282,8 @@ async def startup_event():
             ("fix_task_fields.py", "任务表字段修复"),
             ("fix_filter_rules_fields.py", "过滤规则表字段修复"),
             ("fix_incremental_fields.py", "增量查询字段修复"),
-            ("remove_rule_group_id_field.py", "移除规则表group_id字段")
+            ("remove_rule_group_id_field.py", "移除规则表group_id字段"),
+            ("add_advanced_rule_fields.py", "添加高级规则过滤字段")
         ]
         
         for script_name, description in repair_scripts:

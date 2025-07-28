@@ -196,6 +196,35 @@ export interface FilterRule {
   max_views?: number;
   min_file_size?: number;  // 最小文件大小（字节）
   max_file_size?: number;  // 最大文件大小（字节）
+  
+  // 视频/音频时长过滤（秒）
+  min_duration?: number;
+  max_duration?: number;
+  
+  // 视频尺寸过滤（像素）
+  min_width?: number;
+  max_width?: number;
+  min_height?: number;
+  max_height?: number;
+  
+  // 文本长度过滤（字符数）
+  min_text_length?: number;
+  max_text_length?: number;
+  
+  // 高级过滤选项
+  has_urls?: boolean;
+  has_mentions?: boolean;
+  has_hashtags?: boolean;
+  is_reply?: boolean;
+  is_edited?: boolean;
+  is_pinned?: boolean;
+  
+  // 时间相关过滤
+  message_age_days?: number;
+  exclude_weekends?: boolean;
+  time_range_start?: string;  // HH:MM格式
+  time_range_end?: string;    // HH:MM格式
+  
   include_forwarded: boolean;
   is_active: boolean;
   created_at: string;

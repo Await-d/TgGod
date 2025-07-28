@@ -115,6 +115,37 @@ const Rules: React.FC = () => {
       ] : null,
       min_views: rule.min_views,
       max_views: rule.max_views,
+      min_file_size: rule.min_file_size,
+      max_file_size: rule.max_file_size,
+      
+      // 媒体时长
+      min_duration: rule.min_duration,
+      max_duration: rule.max_duration,
+      
+      // 视频尺寸
+      min_width: rule.min_width,
+      max_width: rule.max_width,
+      min_height: rule.min_height,
+      max_height: rule.max_height,
+      
+      // 文本长度
+      min_text_length: rule.min_text_length,
+      max_text_length: rule.max_text_length,
+      
+      // 高级选项
+      has_urls: rule.has_urls,
+      has_mentions: rule.has_mentions,
+      has_hashtags: rule.has_hashtags,
+      is_reply: rule.is_reply,
+      is_edited: rule.is_edited,
+      is_pinned: rule.is_pinned,
+      
+      // 时间过滤
+      message_age_days: rule.message_age_days,
+      exclude_weekends: rule.exclude_weekends,
+      time_range_start: rule.time_range_start,
+      time_range_end: rule.time_range_end,
+      
       include_forwarded: rule.include_forwarded,
     });
     setIsModalVisible(true);
@@ -546,6 +577,246 @@ const Rules: React.FC = () => {
                   style={{ width: '100%' }}
                   min={0}
                   placeholder="请输入最大浏览量"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* 媒体时长过滤 */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="最小时长（秒）"
+                name="min_duration"
+                tooltip="视频或音频的最小时长"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  placeholder="请输入最小时长"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="最大时长（秒）"
+                name="max_duration"
+                tooltip="视频或音频的最大时长"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  placeholder="请输入最大时长"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* 视频尺寸过滤 */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="最小宽度（像素）"
+                name="min_width"
+                tooltip="视频或图片的最小宽度"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  placeholder="请输入最小宽度"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="最大宽度（像素）"
+                name="max_width"
+                tooltip="视频或图片的最大宽度"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  placeholder="请输入最大宽度"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="最小高度（像素）"
+                name="min_height"
+                tooltip="视频或图片的最小高度"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  placeholder="请输入最小高度"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="最大高度（像素）"
+                name="max_height"
+                tooltip="视频或图片的最大高度"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  placeholder="请输入最大高度"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* 文本长度过滤 */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="最小文本长度"
+                name="min_text_length"
+                tooltip="消息文本的最小字符数"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  placeholder="请输入最小文本长度"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="最大文本长度"
+                name="max_text_length"
+                tooltip="消息文本的最大字符数"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  placeholder="请输入最大文本长度"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* 高级过滤选项 */}
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                label="包含链接"
+                name="has_urls"
+                valuePropName="checked"
+                tooltip="只筛选包含URL链接的消息"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                label="包含@提及"
+                name="has_mentions"
+                valuePropName="checked"
+                tooltip="只筛选包含@用户提及的消息"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                label="包含#话题"
+                name="has_hashtags"
+                valuePropName="checked"
+                tooltip="只筛选包含#话题标签的消息"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                label="回复消息"
+                name="is_reply"
+                valuePropName="checked"
+                tooltip="只筛选回复其他消息的消息"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                label="编辑过的消息"
+                name="is_edited"
+                valuePropName="checked"
+                tooltip="只筛选被编辑过的消息"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                label="置顶消息"
+                name="is_pinned"
+                valuePropName="checked"
+                tooltip="只筛选置顶的消息"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* 时间相关过滤 */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="消息年龄（天数内）"
+                name="message_age_days"
+                tooltip="只筛选指定天数内的消息"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={1}
+                  placeholder="请输入天数"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="排除周末消息"
+                name="exclude_weekends"
+                valuePropName="checked"
+                tooltip="排除周六日发送的消息"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="时间范围开始"
+                name="time_range_start"
+                tooltip="每日时间范围开始（24小时制，如：09:00）"
+              >
+                <Input 
+                  placeholder="请输入开始时间（HH:MM）"
+                  pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="时间范围结束"
+                name="time_range_end"
+                tooltip="每日时间范围结束（24小时制，如：18:00）"
+              >
+                <Input 
+                  placeholder="请输入结束时间（HH:MM）"
+                  pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
                 />
               </Form.Item>
             </Col>

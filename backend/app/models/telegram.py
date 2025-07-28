@@ -36,6 +36,13 @@ class TelegramMessage(Base):
     media_filename = Column(String(255), nullable=True)
     media_file_id = Column(String(255), nullable=True)  # Telegram文件ID（用于下载）
     media_file_unique_id = Column(String(255), nullable=True)  # Telegram唯一文件ID
+    
+    # 媒体详细信息
+    media_duration = Column(Integer, nullable=True)  # 视频/音频时长（秒）
+    media_width = Column(Integer, nullable=True)  # 视频/图片宽度
+    media_height = Column(Integer, nullable=True)  # 视频/图片高度
+    media_title = Column(String(255), nullable=True)  # 媒体标题
+    media_performer = Column(String(255), nullable=True)  # 音频演奏者
     media_downloaded = Column(Boolean, default=False)  # 是否已下载到本地
     media_download_url = Column(String(500), nullable=True)  # Telegram下载链接（临时）
     media_download_error = Column(Text, nullable=True)  # 下载失败错误信息

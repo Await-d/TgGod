@@ -28,6 +28,34 @@ class FilterRule(Base):
     min_file_size = Column(Integer, nullable=True)  # 最小文件大小
     max_file_size = Column(Integer, nullable=True)  # 最大文件大小
     
+    # 视频/音频时长过滤（秒）
+    min_duration = Column(Integer, nullable=True)  # 最小时长
+    max_duration = Column(Integer, nullable=True)  # 最大时长
+    
+    # 视频尺寸过滤（像素）
+    min_width = Column(Integer, nullable=True)  # 最小宽度
+    max_width = Column(Integer, nullable=True)  # 最大宽度
+    min_height = Column(Integer, nullable=True)  # 最小高度
+    max_height = Column(Integer, nullable=True)  # 最大高度
+    
+    # 文本长度过滤（字符数）
+    min_text_length = Column(Integer, nullable=True)  # 最小文本长度
+    max_text_length = Column(Integer, nullable=True)  # 最大文本长度
+    
+    # 高级过滤选项
+    has_urls = Column(Boolean, nullable=True)  # 是否包含链接
+    has_mentions = Column(Boolean, nullable=True)  # 是否包含@提及
+    has_hashtags = Column(Boolean, nullable=True)  # 是否包含#话题
+    is_reply = Column(Boolean, nullable=True)  # 是否为回复消息
+    is_edited = Column(Boolean, nullable=True)  # 是否为编辑过的消息
+    is_pinned = Column(Boolean, nullable=True)  # 是否为置顶消息
+    
+    # 时间相关过滤
+    message_age_days = Column(Integer, nullable=True)  # 消息年龄（天数内）
+    exclude_weekends = Column(Boolean, default=False)  # 排除周末消息
+    time_range_start = Column(String(5), nullable=True)  # 时间范围开始（HH:MM格式）
+    time_range_end = Column(String(5), nullable=True)  # 时间范围结束（HH:MM格式）
+    
     # 其他选项
     include_forwarded = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)
