@@ -665,7 +665,7 @@ export const taskApi = {
   createTask: (task: {
     name: string;
     group_id: number;
-    rule_id: number;
+    rule_ids: number[];
     download_path: string;
     date_from?: string;
     date_to?: string;

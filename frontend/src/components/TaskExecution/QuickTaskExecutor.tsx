@@ -73,14 +73,15 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
       
       // 生成默认任务名称
       const group = groups.find(g => g.id === values.group_id);
-      const rule = rules.find(r => r.id === values.rule_id);
-      const taskName = values.name || `${group?.title || 'Group'}_${rule?.name || 'Rule'}_${Date.now()}`;
+      const selectedRules = rules.filter(r => values.rule_ids.includes(r.id));
+      const rulesNames = selectedRules.map(r => r.name).join('_');
+      const taskName = values.name || `${group?.title || 'Group'}_${rulesNames || 'Rules'}_${Date.now()}`;
       
       // 创建任务
       const task = await taskApi.createTask({
         name: taskName,
         group_id: values.group_id,
-        rule_id: values.rule_id,
+        rule_ids: values.rule_ids,
         download_path: values.download_path || `/downloads/${taskName.replace(/[^a-zA-Z0-9]/g, '_')}`
       });
 
@@ -318,12 +319,13 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
             </Col>
             <Col span={12}>
               <Form.Item
-                name="rule_id"
+                name="rule_ids"
                 label="过滤规则"
-                rules={[{ required: true, message: '请选择规则' }]}
+                rules={[{ required: true, message: '请选择至少一个规则' }]}
               >
                 <Select 
-                  placeholder="选择规则"
+                  mode="multiple"
+                  placeholder="选择规则（可多选）"
                   showSearch
                   filterOption={(input, option) =>
                     String(option?.children || '').toLowerCase().indexOf(input.toLowerCase()) >= 0
