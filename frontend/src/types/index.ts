@@ -232,11 +232,18 @@ export interface FilterRule {
 }
 
 // 下载任务类型
+export interface TaskRuleAssociation {
+  rule_id: number;
+  rule_name: string;
+  is_active: boolean;
+  priority: number;
+}
+
 export interface DownloadTask {
   id: number;
   name: string;
   group_id: number;
-  rule_id: number;
+  rules: TaskRuleAssociation[];  // 改为规则关联列表
   status: 'pending' | 'running' | 'completed' | 'failed' | 'paused';
   progress: number;
   total_messages: number;

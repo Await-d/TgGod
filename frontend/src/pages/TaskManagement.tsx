@@ -1279,11 +1279,18 @@ const TaskManagement: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item
-            name="rule_id"
+            name="rule_ids"
             label="过滤规则"
-            rules={[{ required: true, message: '请选择规则' }]}
+            rules={[{ required: true, message: '请选择至少一个规则' }]}
           >
-            <Select placeholder="选择规则">
+            <Select 
+              mode="multiple" 
+              placeholder="选择规则（可多选）"
+              showSearch
+              filterOption={(input, option) =>
+                (option?.children as string)?.toLowerCase().includes(input.toLowerCase())
+              }
+            >
               {rules.map(rule => (
                 <Option key={rule.id} value={rule.id}>
                   {rule.name}
@@ -1739,8 +1746,17 @@ const TaskManagement: React.FC = () => {
                   <Text>{selectedTask.group_id}</Text>
                 </Col>
                 <Col span={12}>
-                  <Text strong>规则ID: </Text>
-                  <Text>{selectedTask.rule_id}</Text>
+                  <Text strong>关联规则: </Text>
+                  <Space direction="vertical" size="small">
+                    {selectedTask.rules?.map((rule, index) => (
+                      <Tag key={rule.rule_id} color={rule.is_active ? 'blue' : 'default'}>
+                        {rule.rule_name}
+                        {rule.priority > 0 && (
+                          <Badge count={rule.priority} style={{ backgroundColor: '#52c41a', marginLeft: 4 }} />
+                        )}
+                      </Tag>
+                    )) || <Text type="secondary">无关联规则</Text>}
+                  </Space>
                 </Col>
                 <Col span={12}>
                   <Text strong>状态: </Text>

@@ -71,7 +71,12 @@ class FilterRule(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # 关系 - 移除与群组的直接关联
-    tasks = relationship("DownloadTask", back_populates="rule")
+    task_associations = relationship("TaskRuleAssociation", back_populates="rule", cascade="all, delete-orphan")
+    
+    # 便捷属性：获取所有使用该规则的任务
+    @property
+    def tasks(self):
+        return [assoc.task for assoc in self.task_associations if assoc.is_active]
 
 class DownloadTask(Base):
     __tablename__ = "download_tasks"
@@ -79,7 +84,7 @@ class DownloadTask(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     group_id = Column(Integer, ForeignKey("telegram_groups.id"), nullable=False)
-    rule_id = Column(Integer, ForeignKey("filter_rules.id"), nullable=False)
+    # rule_id 字段已移除，改用多对多关联
     
     # 任务状态
     status = Column(String(50), default="pending")  # pending, running, completed, failed, paused
@@ -127,9 +132,16 @@ class DownloadTask(Base):
     
     # 关系
     group = relationship("TelegramGroup", back_populates="tasks")
-    rule = relationship("FilterRule", back_populates="tasks")
     logs = relationship("TaskLog", back_populates="task", cascade="all, delete-orphan")
     download_records = relationship("DownloadRecord", back_populates="task", cascade="all, delete-orphan")
+    
+    # 多对多关系：任务关联的规则
+    rule_associations = relationship("TaskRuleAssociation", back_populates="task", cascade="all, delete-orphan")
+    
+    # 便捷属性：获取所有关联的规则
+    @property
+    def rules(self):
+        return [assoc.rule for assoc in self.rule_associations if assoc.is_active]
 
 class DownloadRecord(Base):
     """下载记录模型 - 记录每个具体下载的文件"""

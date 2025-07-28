@@ -5,6 +5,7 @@ from ..database import get_db
 from ..models.rule import DownloadTask
 from ..models.telegram import TelegramGroup
 from ..models.rule import FilterRule
+from ..models.task_rule_association import TaskRuleAssociation
 from ..services.task_execution_service import task_execution_service
 from ..services.mock_task_execution_service import mock_task_execution_service
 from pydantic import BaseModel
@@ -29,10 +30,15 @@ def get_task_execution_service():
         return mock_task_execution_service
 
 # Pydantic模型
+class TaskRuleAssociation(BaseModel):
+    rule_id: int
+    is_active: bool = True
+    priority: int = 0
+
 class TaskCreate(BaseModel):
     name: str
     group_id: int
-    rule_id: int
+    rule_ids: List[int]  # 改为规则ID列表
     download_path: str
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
@@ -77,11 +83,17 @@ class TaskUpdate(BaseModel):
     schedule_config: Optional[dict] = None
     max_runs: Optional[int] = None
 
+class TaskRuleAssociationResponse(BaseModel):
+    rule_id: int
+    rule_name: str
+    is_active: bool
+    priority: int
+
 class TaskResponse(BaseModel):
     id: int
     name: str
     group_id: int
-    rule_id: int
+    rules: List[TaskRuleAssociationResponse]  # 改为规则列表
     status: str
     progress: int
     total_messages: int
@@ -158,10 +170,12 @@ async def create_task(
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
     
-    # 检查规则是否存在
-    rule = db.query(FilterRule).filter(FilterRule.id == task.rule_id).first()
-    if not rule:
-        raise HTTPException(status_code=404, detail="规则不存在")
+    # 检查所有规则是否存在
+    rules = db.query(FilterRule).filter(FilterRule.id.in_(task.rule_ids)).all()
+    if len(rules) != len(task.rule_ids):
+        found_rule_ids = [r.id for r in rules]
+        missing_rule_ids = [rid for rid in task.rule_ids if rid not in found_rule_ids]
+        raise HTTPException(status_code=404, detail=f"规则不存在: {missing_rule_ids}")
     
     # 检查任务名称是否已存在
     existing_task = db.query(DownloadTask).filter(
@@ -171,13 +185,73 @@ async def create_task(
     if existing_task:
         raise HTTPException(status_code=400, detail="任务名称已存在")
     
-    # 创建任务
-    new_task = DownloadTask(**task.dict())
+    # 创建任务（排除rule_ids字段）
+    task_data = task.dict()
+    rule_ids = task_data.pop('rule_ids')
+    new_task = DownloadTask(**task_data)
     db.add(new_task)
+    db.flush()  # 获取任务ID，但不提交事务
+    
+    # 创建任务-规则关联
+    for i, rule_id in enumerate(rule_ids):
+        association = TaskRuleAssociation(
+            task_id=new_task.id,
+            rule_id=rule_id,
+            is_active=True,
+            priority=i  # 按照传入顺序设置优先级
+        )
+        db.add(association)
+    
     db.commit()
     db.refresh(new_task)
     
-    return new_task
+    # 构建响应数据
+    task_rules = []
+    for assoc in new_task.rule_associations:
+        task_rules.append(TaskRuleAssociationResponse(
+            rule_id=assoc.rule_id,
+            rule_name=assoc.rule.name,
+            is_active=assoc.is_active,
+            priority=assoc.priority
+        ))
+    
+    # 构建完整响应
+    response_data = {
+        "id": new_task.id,
+        "name": new_task.name,
+        "group_id": new_task.group_id,
+        "rules": task_rules,
+        "status": new_task.status,
+        "progress": new_task.progress,
+        "total_messages": new_task.total_messages,
+        "downloaded_messages": new_task.downloaded_messages,
+        "download_path": new_task.download_path,
+        "date_from": new_task.date_from,
+        "date_to": new_task.date_to,
+        "use_jellyfin_structure": new_task.use_jellyfin_structure,
+        "include_metadata": new_task.include_metadata,
+        "download_thumbnails": new_task.download_thumbnails,
+        "use_series_structure": new_task.use_series_structure,
+        "organize_by_date": new_task.organize_by_date,
+        "max_filename_length": new_task.max_filename_length,
+        "thumbnail_size": new_task.thumbnail_size,
+        "poster_size": new_task.poster_size,
+        "fanart_size": new_task.fanart_size,
+        "task_type": new_task.task_type,
+        "schedule_type": new_task.schedule_type,
+        "schedule_config": new_task.schedule_config,
+        "next_run_time": new_task.next_run_time,
+        "last_run_time": new_task.last_run_time,
+        "is_active": new_task.is_active,
+        "max_runs": new_task.max_runs,
+        "run_count": new_task.run_count,
+        "created_at": new_task.created_at,
+        "updated_at": new_task.updated_at,
+        "completed_at": new_task.completed_at,
+        "error_message": new_task.error_message
+    }
+    
+    return TaskResponse(**response_data)
 
 @router.get("/tasks/stats")
 async def get_task_stats(

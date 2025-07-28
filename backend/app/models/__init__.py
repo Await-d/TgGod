@@ -7,6 +7,7 @@ from .user import User
 from .user_settings import UserSettings
 # 其他模型
 from .rule import *
+from .task_rule_association import TaskRuleAssociation
 from .log import *
 from .telegram import *
 from .config import *
