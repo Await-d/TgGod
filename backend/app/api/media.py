@@ -1505,7 +1505,7 @@ async def download_media_background(message_id: int, force: bool = False):
             logger.warning(f"记录下载开始状态失败: {start_err}")
         
         # 下载文件
-        from ..services.media_downloader import get_media_downloader
+        from ..services.media_downloader import get_media_downloader, TelegramMediaDownloader
         import time
         
         # 创建进度回调函数
@@ -1590,8 +1590,36 @@ async def download_media_background(message_id: int, force: bool = False):
             
             # 如果是认证错误，提供更详细的信息
             if "EOF when reading a line" in str(download_err) or "AuthKeyUnregisteredError" in str(download_err):
-                download_error = "Telegram认证失败，请检查API配置和session状态"
-                logger.error("Telegram认证失败，可能需要重新登录或检查API配置")
+                download_error = "Telegram认证失败，正在尝试重新初始化下载器"
+                logger.error("Telegram认证失败，尝试重新初始化媒体下载器")
+                
+                # 尝试重新初始化下载器并重试一次下载
+                try:
+                    logger.info("正在重新初始化媒体下载器...")
+                    media_downloader = TelegramMediaDownloader()
+                    await media_downloader.initialize()
+                    
+                    logger.info(f"重新尝试下载媒体文件: 消息 {message_id}")
+                    download_success = await media_downloader.download_file(
+                        file_id=str(message_id),
+                        file_path=file_path,
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        progress_callback=progress_callback if progress_callback else None
+                    )
+                    
+                    if download_success:
+                        download_error = None
+                        logger.info(f"重试下载成功: {file_path}")
+                    else:
+                        download_error = "重新初始化后下载仍然失败"
+                        logger.error("重新初始化后下载仍然失败")
+                        
+                    await media_downloader.cleanup()
+                    
+                except Exception as retry_err:
+                    download_error = f"重新初始化下载器失败: {str(retry_err)}"
+                    logger.error(f"重新初始化下载器异常: {download_error}")
             # 判断是否是取消下载导致的异常
             elif "下载已取消" in str(download_err):
                 download_error = "下载已被用户取消"

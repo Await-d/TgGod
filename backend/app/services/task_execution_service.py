@@ -797,8 +797,9 @@ class TaskExecutionService:
                 await self._log_download_progress(task_id, message.id, current, total, progress_percent)
             
             # 实时从数据库获取最新的群组ID，避免使用缓存的过期数据
+            from ..models.telegram import TelegramGroup as TGGroup  # 使用别名避免作用域问题
             with optimized_db_session() as db:
-                current_group = db.query(TelegramGroup).filter(TelegramGroup.id == task_data['group_id']).first()
+                current_group = db.query(TGGroup).filter(TGGroup.id == task_data['group_id']).first()
                 if not current_group:
                     logger.error(f"任务{task_id}: 无法找到群组ID {task_data['group_id']}")
                     return False, None

@@ -1,5 +1,6 @@
 import os
 import logging
+import os
 import shutil
 from typing import Optional, Dict, Any
 from telethon import TelegramClient
@@ -55,38 +56,93 @@ class TelegramMediaDownloader:
                 f"downloader_{threading.get_ident()}_{int(time.time() * 1000) % 100000}"
             )
             
-            # 尝试复制主session文件到下载器session（如果主session存在）
+            # 优先使用主session文件，确保认证状态同步
             main_session_path = os.path.join("./telegram_sessions", "tggod_session.session")
             downloader_session_path = f"{downloader_session_name}.session"
             
-            if os.path.exists(main_session_path) and not os.path.exists(downloader_session_path):
+            # 检查主session是否存在且认证成功
+            main_session_valid = False
+            if os.path.exists(main_session_path):
                 try:
-                    import shutil
-                    shutil.copy2(main_session_path, downloader_session_path)
-                    logger.info(f"已复制主session到下载器session: {downloader_session_path}")
-                except Exception as copy_error:
-                    logger.warning(f"复制session文件失败，将使用独立session: {copy_error}")
+                    # 先尝试使用主session创建临时客户端来检查认证状态
+                    temp_client = TelegramClient(
+                        os.path.join("./telegram_sessions", "tggod_session"),
+                        api_id,
+                        api_hash,
+                        connection_retries=1,
+                        retry_delay=1,
+                        timeout=10
+                    )
+                    await temp_client.connect()
+                    main_session_valid = await temp_client.is_user_authorized()
+                    await temp_client.disconnect()
+                    
+                    if main_session_valid:
+                        logger.info("主session认证状态有效，复制到下载器session")
+                        # 复制主session到下载器session
+                        import shutil
+                        shutil.copy2(main_session_path, downloader_session_path)
+                        logger.info(f"已复制主session到下载器session: {downloader_session_path}")
+                    else:
+                        logger.warning("主session认证状态无效")
+                        
+                except Exception as temp_check_error:
+                    logger.warning(f"检查主session状态失败: {temp_check_error}")
+                    main_session_valid = False
             
-            # 创建客户端，使用独立的session文件
-            self.client = TelegramClient(
-                downloader_session_name,
-                api_id,
-                api_hash,
-                # 使用更保守的连接配置
-                connection_retries=2,
-                retry_delay=2,
-                timeout=30,
-                use_ipv6=False
-            )
+            # 创建下载器客户端
+            if main_session_valid and os.path.exists(downloader_session_path):
+                # 使用复制的session
+                self.client = TelegramClient(
+                    downloader_session_name,
+                    api_id,
+                    api_hash,
+                    connection_retries=2,
+                    retry_delay=2,
+                    timeout=30,
+                    use_ipv6=False
+                )
+            else:
+                # 直接使用主session（共享session模式）
+                logger.info("使用主session共享模式")
+                self.client = TelegramClient(
+                    os.path.join("./telegram_sessions", "tggod_session"),
+                    api_id,
+                    api_hash,
+                    connection_retries=2,
+                    retry_delay=2,
+                    timeout=30,
+                    use_ipv6=False
+                )
             
             # 连接客户端
             logger.info("正在连接媒体下载器客户端...")
             await self.client.connect()
             
             # 检查认证状态
-            if not await self.client.is_user_authorized():
+            is_authorized = await self.client.is_user_authorized()
+            if not is_authorized:
                 logger.error("媒体下载器 - Telegram客户端未授权，请先在主服务中完成认证")
-                raise AuthKeyUnregisteredError("Telegram客户端未授权")
+                # 如果使用复制session失败，尝试直接使用主session
+                if main_session_valid and downloader_session_name in str(self.client.session.filename):
+                    logger.info("尝试切换到主session共享模式")
+                    await self.client.disconnect()
+                    
+                    # 重新创建使用主session的客户端
+                    self.client = TelegramClient(
+                        os.path.join("./telegram_sessions", "tggod_session"),
+                        api_id,
+                        api_hash,
+                        connection_retries=2,
+                        retry_delay=2,
+                        timeout=30,
+                        use_ipv6=False
+                    )
+                    await self.client.connect()
+                    is_authorized = await self.client.is_user_authorized()
+                
+                if not is_authorized:
+                    raise AuthKeyUnregisteredError("Telegram客户端未授权")
             
             self._initialized = True
             logger.info("Telegram媒体下载器初始化成功")
@@ -371,6 +427,70 @@ class TelegramMediaDownloader:
         """关闭客户端连接"""
         await self.cleanup()
         logger.info("Telegram媒体下载器已关闭")
+
+# 全局session状态管理
+_session_status_cache = {}
+_last_session_check = 0
+
+async def check_main_session_status():
+    """检查主session的认证状态，并缓存结果"""
+    global _session_status_cache, _last_session_check
+    
+    import time
+    current_time = time.time()
+    
+    # 缓存5分钟
+    if current_time - _last_session_check < 300 and 'main_session_valid' in _session_status_cache:
+        return _session_status_cache['main_session_valid']
+    
+    try:
+        main_session_path = os.path.join("./telegram_sessions", "tggod_session.session")
+        
+        if not os.path.exists(main_session_path):
+            _session_status_cache['main_session_valid'] = False
+            _last_session_check = current_time
+            return False
+        
+        # 使用主session创建临时客户端检查认证状态
+        api_id = settings.telegram_api_id
+        api_hash = settings.telegram_api_hash
+        
+        if not api_id or not api_hash:
+            _session_status_cache['main_session_valid'] = False
+            _last_session_check = current_time
+            return False
+        
+        temp_client = TelegramClient(
+            os.path.join("./telegram_sessions", "tggod_session"),
+            api_id,
+            api_hash,
+            connection_retries=1,
+            retry_delay=1,
+            timeout=10
+        )
+        
+        await temp_client.connect()
+        is_authorized = await temp_client.is_user_authorized()
+        await temp_client.disconnect()
+        
+        _session_status_cache['main_session_valid'] = is_authorized
+        _last_session_check = current_time
+        
+        logger.info(f"主session认证状态: {'有效' if is_authorized else '无效'}")
+        return is_authorized
+        
+    except Exception as e:
+        logger.warning(f"检查主session状态失败: {e}")
+        _session_status_cache['main_session_valid'] = False
+        _last_session_check = current_time
+        return False
+
+async def invalidate_session_cache():
+    """清除session状态缓存，强制重新检查"""
+    global _session_status_cache, _last_session_check
+    _session_status_cache.clear()
+    _last_session_check = 0
+    logger.info("已清除session状态缓存")
 
 async def get_media_downloader() -> TelegramMediaDownloader:
     """获取媒体下载器实例 - 每次创建独立实例避免session冲突"""

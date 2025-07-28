@@ -39,7 +39,7 @@ import {
 import { LogEntry } from '../types';
 import { useLogStore, useGlobalStore } from '../store';
 import { logApi } from '../services/apiService';
-import { subscribeToLogs } from '../services/websocket';
+import { subscribeToLogs, webSocketService } from '../services/websocket';
 import { message } from 'antd';
 
 const { Title, Text } = Typography;
@@ -64,6 +64,8 @@ const Logs: React.FC = () => {
   const [exportForm] = Form.useForm();
   const [autoRefresh, setAutoRefresh] = React.useState<boolean>(true);
   const [refreshInterval, setRefreshInterval] = React.useState<NodeJS.Timeout | null>(null);
+  const [loadingError, setLoadingError] = React.useState<string | null>(null);
+  const [retryCount, setRetryCount] = React.useState(0);
 
   const loadLogs = React.useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true);
@@ -106,31 +108,91 @@ const Logs: React.FC = () => {
       });
       setLogStats(stats);
       
+      // 成功加载后重置错误状态
+      setLoadingError(null);
+      setRetryCount(0);
+      
     } catch (error) {
-      setError('加载日志失败');
-      messageApi.error('加载日志失败');
-      console.error('加载日志失败:', error);
+      const errorMsg = error instanceof Error ? error.message : '加载日志失败';
+      setLoadingError(errorMsg);
+      setError(errorMsg);
+      
+      // 只在非用户主动触发的情况下显示错误消息
+      if (retryCount < 3) {
+        console.warn(`日志加载失败，将自动重试 (${retryCount + 1}/3):`, error);
+        setRetryCount(prev => prev + 1);
+        // 延迟重试
+        setTimeout(() => {
+          loadLogs(page, pageSize);
+        }, 2000);
+      } else {
+        messageApi.error('加载日志失败，请检查网络连接');
+        console.error('加载日志失败:', error);
+      }
     } finally {
       setLoading(false);
     }
   }, [setLoading, setError, levelFilter, searchText, timeRange, activeTab, messageApi]);
 
+  // 初始加载
   React.useEffect(() => {
-    loadLogs();
+    // 首次加载时强制加载日志，不依赖其他状态
+    const initialLoad = async () => {
+      setLoading(true);
+      try {
+        const logsResponse = await logApi.getLogs({
+          skip: 0,
+          limit: 20
+        });
+        setFilteredLogs(logsResponse.logs);
+        setPagination(prev => ({
+          ...prev,
+          current: logsResponse.page,
+          total: logsResponse.total
+        }));
+
+        // 加载日志统计
+        const stats = await logApi.getLogStats();
+        setLogStats(stats);
+        
+      } catch (error) {
+        setError('加载日志失败');
+        messageApi.error('加载日志失败');
+        console.error('加载日志失败:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    initialLoad();
+    
+    // 确保WebSocket连接已建立
+    if (!webSocketService.isConnected()) {
+      console.log('启动WebSocket连接...');
+      webSocketService.connect();
+    }
     
     // 订阅实时日志
     const unsubscribe = subscribeToLogs((logData) => {
+      console.log('收到实时日志:', logData);
       addLog(logData);
+      // 实时日志到达时，如果在实时日志标签页且没有筛选条件，更新列表
+      if (activeTab === 'realtime' && !levelFilter && !searchText && !timeRange) {
+        setFilteredLogs(prev => [logData, ...prev].slice(0, pagination.pageSize));
+      }
     });
     
     return unsubscribe;
-  }, [loadLogs, addLog]);
+  }, [setLoading, setError, messageApi, addLog]); // 移除 loadLogs 依赖
 
   // 自动刷新
   React.useEffect(() => {
     if (autoRefresh && activeTab === 'realtime') {
       const interval = setInterval(() => {
-        loadLogs(pagination.current, pagination.pageSize);
+        // 只有在没有筛选条件时才自动刷新，避免干扰用户筛选操作
+        if (!levelFilter && !searchText && !timeRange) {
+          loadLogs(pagination.current, pagination.pageSize);
+        }
       }, 10000); // 每10秒刷新一次
       setRefreshInterval(interval);
       return () => clearInterval(interval);
@@ -138,12 +200,18 @@ const Logs: React.FC = () => {
       clearInterval(refreshInterval);
       setRefreshInterval(null);
     }
-  }, [autoRefresh, activeTab, loadLogs, pagination.current, pagination.pageSize]);
+  }, [autoRefresh, activeTab, levelFilter, searchText, timeRange, loadLogs, pagination.current, pagination.pageSize]);
 
   // 筛选参数变化时重新加载
   React.useEffect(() => {
-    loadLogs(1, pagination.pageSize); // 重置到第一页
-  }, [levelFilter, searchText, timeRange, activeTab]);
+    if (activeTab === 'realtime' && (levelFilter || searchText || timeRange)) {
+      // 只有在实时日志标签页且有筛选条件时才重新加载
+      loadLogs(1, pagination.pageSize); // 重置到第一页
+    } else if (activeTab !== 'realtime') {
+      // 非实时日志标签页总是重新加载
+      loadLogs(1, pagination.pageSize);
+    }
+  }, [levelFilter, searchText, timeRange, activeTab, loadLogs, pagination.pageSize]);
 
 
   const handleClearLogs = async (type: 'task' | 'system' | 'all') => {
@@ -297,6 +365,36 @@ const Logs: React.FC = () => {
   return (
     <div>
       {contextHolder}
+      
+      {/* 错误状态显示 */}
+      {loadingError && (
+        <Card 
+          style={{ marginBottom: 16, borderColor: '#ff4d4f' }}
+          size="small"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+              <Text type="danger">日志加载失败: {loadingError}</Text>
+              {retryCount > 0 && (
+                <Text type="secondary">({retryCount}/3 次重试)</Text>
+              )}
+            </div>
+            <Button 
+              size="small" 
+              type="primary" 
+              onClick={() => {
+                setLoadingError(null);
+                setRetryCount(0);
+                loadLogs(pagination.current, pagination.pageSize);
+              }}
+            >
+              重新加载
+            </Button>
+          </div>
+        </Card>
+      )}
+      
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <Title level={2}>日志查看</Title>
@@ -318,7 +416,17 @@ const Logs: React.FC = () => {
           <Button icon={<ExportOutlined />} onClick={() => setExportModalVisible(true)}>
             导出日志
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => loadLogs()}>
+          <Button 
+            icon={<ReloadOutlined />} 
+            onClick={() => {
+              // 强制刷新当前标签页的数据
+              if (activeTab === 'realtime') {
+                loadLogs(pagination.current, pagination.pageSize);
+              } else {
+                loadLogs(1, 20); // 其他标签页重置到第一页
+              }
+            }}
+          >
             刷新
           </Button>
           <Popconfirm
