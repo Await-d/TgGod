@@ -3,6 +3,7 @@ import logging
 import shutil
 import os
 import time
+import asyncio
 from typing import Optional, List, Dict
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session
@@ -14,6 +15,7 @@ from .rule_sync_service import rule_sync_service
 from ..utils.db_optimization import optimized_db_session
 from ..websocket.manager import websocket_manager
 from .task_db_manager import task_db_manager
+from .file_organizer_service import FileOrganizerService
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -25,11 +27,12 @@ class TaskExecutionService:
         self.running_tasks: Dict[int, asyncio.Task] = {}
         self.media_downloader = TelegramMediaDownloader()
         self.jellyfin_service = None  # 延迟导入
+        self.file_organizer = FileOrganizerService()  # 文件组织服务
         self._initialized = False
         # 日志批量处理
         self.pending_logs = []
         self.log_batch_size = 50  # 累积50条日志再批量写入，进一步减少数据库访问
-        self.last_log_flush = time.time()  # 上次刷新时间
+        self.last_log_flush = time.time()  # 上次刷新时间  # 上次刷新时间
     
     async def initialize(self):
         """初始化服务"""
@@ -317,9 +320,32 @@ class TaskExecutionService:
     
     async def _complete_task_execution(self, task_id: int, message: str):
         """完成任务执行"""
+        # 添加文件组织统计信息到完成消息
+        completion_message = message
+        if hasattr(self, '_organization_stats') and self._organization_stats:
+            stats = self.file_organizer.get_organization_stats()
+            organized_count = self._organization_stats.get('organized_files', 0)
+            duplicate_count = stats.get('duplicate_files_count', 0)
+            
+            if organized_count > 0 or duplicate_count > 0:
+                stats_msg = f" [文件整理: 已整理{organized_count}个文件"
+                if duplicate_count > 0:
+                    stats_msg += f", 跳过{duplicate_count}个重复文件"
+                stats_msg += "]"
+                completion_message += stats_msg
+                
+                # 记录详细统计信息
+                await self._log_task_event(task_id, "INFO", 
+                    f"文件组织统计: 整理文件{organized_count}个, 重复文件{duplicate_count}个")
+                
+                # 清理文件组织缓存
+                self.file_organizer.clear_cache()
+                if hasattr(self, '_organization_stats'):
+                    delattr(self, '_organization_stats')
+        
         # 使用快速状态更新
         await task_db_manager.quick_status_update(task_id, "completed")
-        await self._log_task_event(task_id, "INFO", message)
+        await self._log_task_event(task_id, "INFO", completion_message)
     
     async def _handle_task_error_simple(self, task_id: int, error_message: str):
         """处理任务错误（简化版，使用快速状态更新）"""
@@ -742,6 +768,8 @@ class TaskExecutionService:
             # 检查文件是否已存在
             if os.path.exists(file_path):
                 logger.info(f"文件已存在，跳过下载: {file_path}")
+                # 即使文件已存在，也检查是否需要整理
+                await self._organize_downloaded_file(file_path, message, task_data, task_id)
                 return True
             
             # 检查媒体下载器是否可用
@@ -770,6 +798,9 @@ class TaskExecutionService:
             
             if success:
                 logger.info(f"成功下载文件: {filename}")
+                
+                # 文件下载成功后进行整理
+                await self._organize_downloaded_file(file_path, message, task_data, task_id)
                 return True
             else:
                 logger.warning(f"下载文件失败: {filename}")
@@ -778,6 +809,66 @@ class TaskExecutionService:
         except Exception as e:
             logger.error(f"下载消息 {message.id} 的媒体文件失败: {e}")
             await self._log_task_event(task_id, "ERROR", f"下载文件失败: {str(e)}")
+            return False
+
+    async def _organize_downloaded_file(self, 
+                                       file_path: str, 
+                                       message: 'TelegramMessage', 
+                                       task_data: dict, 
+                                       task_id: int) -> bool:
+        """
+        整理已下载的文件
+        
+        Args:
+            file_path: 下载的文件路径
+            message: 消息对象
+            task_data: 任务数据
+            task_id: 任务ID
+        
+        Returns:
+            整理是否成功
+        """
+        try:
+            logger.info(f"任务{task_id}: 开始整理文件 {file_path}")
+            
+            # 添加群组名称到task_data，用于文件组织
+            if 'group_name' not in task_data:
+                # 从消息中获取群组信息
+                if hasattr(message, 'group') and message.group:
+                    task_data['group_name'] = getattr(message.group, 'title', 'Unknown_Group')
+                else:
+                    task_data['group_name'] = 'Unknown_Group'
+            
+            # 使用文件组织服务整理文件
+            success, organized_path, error_msg = self.file_organizer.organize_downloaded_file(
+                source_path=file_path,
+                message=message,
+                task_data=task_data
+            )
+            
+            if success:
+                if organized_path != file_path:
+                    logger.info(f"任务{task_id}: 文件已整理到 {organized_path}")
+                    await self._log_task_event(task_id, "INFO", f"文件已整理: {os.path.basename(organized_path)}")
+                else:
+                    logger.info(f"任务{task_id}: 文件已在正确位置 {organized_path}")
+                
+                # 记录组织统计信息
+                if hasattr(self, '_organization_stats'):
+                    self._organization_stats['organized_files'] = self._organization_stats.get('organized_files', 0) + 1
+                else:
+                    self._organization_stats = {'organized_files': 1}
+                
+                return True
+            else:
+                logger.error(f"任务{task_id}: 文件整理失败 - {error_msg}")
+                await self._log_task_event(task_id, "ERROR", f"文件整理失败: {error_msg}")
+                return False
+                
+        except Exception as e:
+            error_msg = f"整理文件时发生异常: {str(e)}"
+            logger.error(f"任务{task_id}: {error_msg}")
+            await self._log_task_event(task_id, "ERROR", error_msg)
             return False
     
     def _get_file_extension(self, media_type: str) -> str:
