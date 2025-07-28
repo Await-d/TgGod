@@ -69,7 +69,7 @@ const Rules: React.FC = () => {
 
   const handleSubmit = async (values: any) => {
     try {
-      // 处理关键词数据
+      // 处理关键词和文件大小数据
       const processedValues = {
         ...values,
         keywords: values.keywords ? values.keywords.split('\n').filter((k: string) => k.trim()) : [],
@@ -77,9 +77,15 @@ const Rules: React.FC = () => {
         sender_filter: values.sender_filter ? values.sender_filter.split('\n').filter((s: string) => s.trim()) : [],
         date_from: values.date_range?.[0]?.toISOString() || null,
         date_to: values.date_range?.[1]?.toISOString() || null,
+        // 将MB转换为字节
+        min_file_size: values.min_file_size_mb ? Math.round(values.min_file_size_mb * 1024 * 1024) : null,
+        max_file_size: values.max_file_size_mb ? Math.round(values.max_file_size_mb * 1024 * 1024) : null,
       };
 
+      // 删除临时字段
       delete processedValues.date_range;
+      delete processedValues.min_file_size_mb;
+      delete processedValues.max_file_size_mb;
 
       if (editingRule) {
         const updatedRule = await ruleApi.updateRule(editingRule.id, processedValues);
@@ -115,8 +121,8 @@ const Rules: React.FC = () => {
       ] : null,
       min_views: rule.min_views,
       max_views: rule.max_views,
-      min_file_size: rule.min_file_size,
-      max_file_size: rule.max_file_size,
+      min_file_size_mb: rule.min_file_size ? (rule.min_file_size / 1024 / 1024) : undefined,
+      max_file_size_mb: rule.max_file_size ? (rule.max_file_size / 1024 / 1024) : undefined,
       
       // 媒体时长
       min_duration: rule.min_duration,
@@ -577,6 +583,42 @@ const Rules: React.FC = () => {
                   style={{ width: '100%' }}
                   min={0}
                   placeholder="请输入最大浏览量"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* 文件大小过滤 */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="最小文件大小（MB）"
+                name="min_file_size_mb"
+                tooltip="过滤小于此大小的文件"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  step={0.1}
+                  precision={1}
+                  placeholder="请输入最小文件大小"
+                  addonAfter="MB"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="最大文件大小（MB）"
+                name="max_file_size_mb"
+                tooltip="过滤大于此大小的文件"
+              >
+                <InputNumber 
+                  style={{ width: '100%' }}
+                  min={0}
+                  step={0.1}
+                  precision={1}
+                  placeholder="请输入最大文件大小"
+                  addonAfter="MB"
                 />
               </Form.Item>
             </Col>
