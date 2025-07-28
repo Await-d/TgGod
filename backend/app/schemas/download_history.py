@@ -109,3 +109,61 @@ class DetailedStatsResponse(BaseModel):
     daily_stats: List[DailyDownloadStats] = Field(..., description="每日统计")
     top_senders: List[Dict[str, Any]] = Field(..., description="发送者排行")
     largest_files: List[DownloadRecordResponse] = Field(..., description="最大文件列表")
+
+class FileReorganizeRequest(BaseModel):
+    """文件重新整理请求"""
+    target_path: Optional[str] = Field(None, description="目标路径（可选）")
+    new_filename: Optional[str] = Field(None, description="新文件名（可选）")
+
+class BatchReorganizeRequest(BaseModel):
+    """批量重新整理请求"""
+    record_ids: List[int] = Field(..., description="要整理的记录ID列表")
+    target_base_path: Optional[str] = Field(None, description="目标基础路径（可选）")
+
+class BatchMoveRequest(BaseModel):
+    """批量移动请求"""
+    record_ids: List[int] = Field(..., description="要移动的记录ID列表")
+    target_directory: str = Field(..., description="目标目录")
+    preserve_structure: bool = Field(False, description="是否保持原有目录结构")
+
+class FileRenameRequest(BaseModel):
+    """文件重命名请求"""
+    new_filename: str = Field(..., description="新文件名")
+
+class OrganizePreviewResponse(BaseModel):
+    """整理预览响应"""
+    record_id: int = Field(..., description="记录ID")
+    current_path: str = Field(..., description="当前文件路径")
+    preview_path: str = Field(..., description="预览的目标路径")
+    would_move: bool = Field(..., description="是否需要移动文件")
+    target_directory_exists: bool = Field(..., description="目标目录是否存在")
+    target_file_exists: bool = Field(..., description="目标文件是否已存在")
+
+class FileOperationResult(BaseModel):
+    """文件操作结果"""
+    record_id: int = Field(..., description="记录ID")
+    success: bool = Field(..., description="操作是否成功")
+    old_path: Optional[str] = Field(None, description="原路径")
+    new_path: Optional[str] = Field(None, description="新路径")
+    error: Optional[str] = Field(None, description="错误信息")
+
+class BatchOperationResponse(BaseModel):
+    """批量操作响应"""
+    message: str = Field(..., description="操作结果消息")
+    total: int = Field(..., description="总操作数")
+    success: int = Field(..., description="成功数")
+    failed: int = Field(..., description="失败数")
+    skipped: int = Field(0, description="跳过数")
+    results: List[FileOperationResult] = Field(..., description="详细结果")
+    errors: List[Dict[str, Any]] = Field(..., description="错误列表")
+
+class CleanupResult(BaseModel):
+    """清理结果"""
+    total_checked: int = Field(..., description="检查的记录总数")
+    missing_files: int = Field(..., description="缺失文件数量")
+    cleaned_records: List[Dict[str, Any]] = Field(..., description="清理的记录列表")
+
+class CleanupResponse(BaseModel):
+    """清理响应"""
+    message: str = Field(..., description="操作结果消息")
+    results: CleanupResult = Field(..., description="清理结果详情")

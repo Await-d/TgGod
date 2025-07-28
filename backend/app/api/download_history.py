@@ -4,6 +4,7 @@
 """
 
 import logging
+import os
 from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -354,6 +355,218 @@ async def batch_delete_records(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"批量删除下载记录失败: {str(e)}")
+
+@router.post("/records/{record_id}/reorganize", summary="重新整理单个文件")
+async def reorganize_single_file(
+    record_id: int,
+    target_path: Optional[str] = None,
+    new_filename: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    重新整理单个历史文件，可以重新组织路径或重命名
+    """
+    try:
+        from ..services.history_organizer_service import history_organizer_service
+        
+        success, new_path, error_msg = history_organizer_service.reorganize_single_file(
+            record_id=record_id,
+            db=db,
+            target_path=target_path,
+            new_filename=new_filename
+        )
+        
+        if success:
+            return {
+                "message": "文件重新整理成功",
+                "record_id": record_id,
+                "new_path": new_path,
+                "note": error_msg if error_msg else None
+            }
+        else:
+            raise HTTPException(status_code=400, detail=error_msg)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"重新整理文件失败: {str(e)}")
+
+@router.post("/records/batch-reorganize", summary="批量重新整理文件")
+async def batch_reorganize_files(
+    record_ids: List[int],
+    target_base_path: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    批量重新整理历史文件
+    """
+    try:
+        if not record_ids:
+            raise HTTPException(status_code=400, detail="请提供要整理的记录ID列表")
+        
+        from ..services.history_organizer_service import history_organizer_service
+        
+        results = history_organizer_service.batch_reorganize_files(
+            record_ids=record_ids,
+            db=db,
+            target_base_path=target_base_path
+        )
+        
+        return {
+            "message": f"批量整理完成: 成功{results['success']}个, 失败{results['failed']}个",
+            "results": results
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量整理文件失败: {str(e)}")
+
+@router.post("/records/batch-move", summary="批量移动文件")
+async def batch_move_files(
+    record_ids: List[int],
+    target_directory: str,
+    preserve_structure: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    批量移动文件到指定目录
+    """
+    try:
+        if not record_ids:
+            raise HTTPException(status_code=400, detail="请提供要移动的记录ID列表")
+        
+        if not target_directory:
+            raise HTTPException(status_code=400, detail="请提供目标目录")
+        
+        from ..services.history_organizer_service import history_organizer_service
+        
+        results = history_organizer_service.batch_move_files(
+            record_ids=record_ids,
+            target_directory=target_directory,
+            db=db,
+            preserve_structure=preserve_structure
+        )
+        
+        return {
+            "message": f"批量移动完成: 成功{results['success']}个, 失败{results['failed']}个",
+            "results": results
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量移动文件失败: {str(e)}")
+
+@router.put("/records/{record_id}/rename", summary="重命名文件")
+async def rename_file(
+    record_id: int,
+    new_filename: str,
+    db: Session = Depends(get_db)
+):
+    """
+    重命名单个文件
+    """
+    try:
+        if not new_filename.strip():
+            raise HTTPException(status_code=400, detail="请提供有效的文件名")
+        
+        from ..services.history_organizer_service import history_organizer_service
+        
+        success, new_path, error_msg = history_organizer_service.rename_file(
+            record_id=record_id,
+            new_filename=new_filename.strip(),
+            db=db
+        )
+        
+        if success:
+            return {
+                "message": "文件重命名成功",
+                "record_id": record_id,
+                "new_path": new_path,
+                "new_filename": new_filename.strip()
+            }
+        else:
+            raise HTTPException(status_code=400, detail=error_msg)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"重命名文件失败: {str(e)}")
+
+@router.post("/maintenance/cleanup-missing", summary="清理缺失文件记录")
+async def cleanup_missing_files(
+    db: Session = Depends(get_db)
+):
+    """
+    清理数据库中指向不存在文件的记录
+    """
+    try:
+        from ..services.history_organizer_service import history_organizer_service
+        
+        results = history_organizer_service.cleanup_missing_files(db=db)
+        
+        return {
+            "message": f"清理完成: 检查了{results['total_checked']}个记录，发现{results['missing_files']}个缺失文件",
+            "results": results
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"清理缺失文件失败: {str(e)}")
+
+@router.get("/records/{record_id}/organize-preview", summary="预览文件整理效果")
+async def preview_file_organization(
+    record_id: int,
+    target_path: Optional[str] = None,
+    new_filename: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    预览文件整理后的路径，不实际移动文件
+    """
+    try:
+        # 获取下载记录
+        record = db.query(DownloadRecord).filter(DownloadRecord.id == record_id).first()
+        if not record:
+            raise HTTPException(status_code=404, detail="下载记录不存在")
+        
+        task = db.query(DownloadTask).filter(DownloadTask.id == record.task_id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="关联的下载任务不存在")
+        
+        group = db.query(TelegramGroup).filter(TelegramGroup.id == task.group_id).first()
+        
+        from ..services.history_organizer_service import history_organizer_service
+        
+        # 创建模拟数据
+        mock_message = history_organizer_service._create_mock_message_from_record(record)
+        task_data = history_organizer_service._create_task_data_from_task(task, group)
+        
+        # 生成预览路径
+        if target_path:
+            if new_filename:
+                preview_path = os.path.join(target_path, new_filename)
+            else:
+                preview_path = os.path.join(target_path, os.path.basename(record.local_file_path))
+        else:
+            original_filename = new_filename if new_filename else os.path.basename(record.local_file_path)
+            preview_path = history_organizer_service.file_organizer.generate_organized_path(
+                mock_message, task_data, original_filename
+            )
+        
+        return {
+            "record_id": record_id,
+            "current_path": record.local_file_path,
+            "preview_path": preview_path,
+            "would_move": os.path.abspath(record.local_file_path) != os.path.abspath(preview_path),
+            "target_directory_exists": os.path.exists(os.path.dirname(preview_path)),
+            "target_file_exists": os.path.exists(preview_path)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"预览整理效果失败: {str(e)}")
 
 @router.get("/tasks/{task_id}/records", response_model=DownloadHistoryListResponse, summary="获取任务的下载记录")
 async def get_task_download_records(

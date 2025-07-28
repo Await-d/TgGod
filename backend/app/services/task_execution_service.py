@@ -769,7 +769,14 @@ class TaskExecutionService:
             if os.path.exists(file_path):
                 logger.info(f"文件已存在，跳过下载: {file_path}")
                 # 即使文件已存在，也检查是否需要整理
-                await self._organize_downloaded_file(file_path, message, task_data, task_id)
+                organize_success = await self._organize_downloaded_file(file_path, message, task_data, task_id)
+                
+                # 创建下载记录（使用整理后的文件路径）
+                final_file_path = file_path
+                if organize_success and hasattr(self, '_last_organized_path'):
+                    final_file_path = self._last_organized_path
+                
+                await self._create_download_record(message, task_data, final_file_path, task_id)
                 return True
             
             # 检查媒体下载器是否可用
@@ -800,7 +807,14 @@ class TaskExecutionService:
                 logger.info(f"成功下载文件: {filename}")
                 
                 # 文件下载成功后进行整理
-                await self._organize_downloaded_file(file_path, message, task_data, task_id)
+                organize_success = await self._organize_downloaded_file(file_path, message, task_data, task_id)
+                
+                # 创建下载记录（使用整理后的文件路径）
+                final_file_path = file_path  # 如果整理失败，使用原始路径
+                if organize_success and hasattr(self, '_last_organized_path'):
+                    final_file_path = self._last_organized_path
+                
+                await self._create_download_record(message, task_data, final_file_path, task_id)
                 return True
             else:
                 logger.warning(f"下载文件失败: {filename}")
@@ -847,6 +861,9 @@ class TaskExecutionService:
             )
             
             if success:
+                # 记录整理后的路径，供后续创建下载记录使用
+                self._last_organized_path = organized_path
+                
                 if organized_path != file_path:
                     logger.info(f"任务{task_id}: 文件已整理到 {organized_path}")
                     await self._log_task_event(task_id, "INFO", f"文件已整理: {os.path.basename(organized_path)}")
@@ -869,6 +886,71 @@ class TaskExecutionService:
             error_msg = f"整理文件时发生异常: {str(e)}"
             logger.error(f"任务{task_id}: {error_msg}")
             await self._log_task_event(task_id, "ERROR", error_msg)
+            return False
+
+    async def _create_download_record(self, 
+                                     message: 'TelegramMessage', 
+                                     task_data: dict, 
+                                     file_path: str, 
+                                     task_id: int) -> bool:
+        """
+        为下载的文件创建下载记录
+        
+        Args:
+            message: 消息对象
+            task_data: 任务数据
+            file_path: 文件路径
+            task_id: 任务ID
+        
+        Returns:
+            创建是否成功
+        """
+        try:
+            from ..models.rule import DownloadRecord
+            from datetime import datetime, timezone
+            
+            # 使用短时间数据库会话创建记录
+            async with task_db_manager.get_task_session(task_id, "create_record") as db:
+                # 检查记录是否已存在（避免重复创建）
+                existing_record = db.query(DownloadRecord).filter(
+                    DownloadRecord.task_id == task_data['task_id'],
+                    DownloadRecord.message_id == message.message_id
+                ).first()
+                
+                if existing_record:
+                    # 更新现有记录的路径
+                    existing_record.local_file_path = file_path
+                    logger.debug(f"任务{task_id}: 更新现有下载记录 {existing_record.id}")
+                else:
+                    # 创建新的下载记录
+                    file_stat = os.stat(file_path) if os.path.exists(file_path) else None
+                    
+                    record = DownloadRecord(
+                        task_id=task_data['task_id'],
+                        file_name=os.path.basename(file_path),
+                        local_file_path=file_path,
+                        file_size=file_stat.st_size if file_stat else None,
+                        file_type=message.media_type,
+                        message_id=message.message_id,
+                        sender_id=getattr(message, 'sender_id', None),
+                        sender_name=getattr(message, 'sender_name', None),
+                        message_date=getattr(message, 'date', None),
+                        message_text=getattr(message, 'text', None),
+                        download_status="completed",
+                        download_progress=100,
+                        download_started_at=datetime.now(timezone.utc),
+                        download_completed_at=datetime.now(timezone.utc)
+                    )
+                    
+                    db.add(record)
+                    logger.debug(f"任务{task_id}: 创建新下载记录 {message.message_id}")
+                
+                db.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"任务{task_id}: 创建下载记录失败 - {str(e)}")
+            await self._log_task_event(task_id, "WARNING", f"创建下载记录失败: {str(e)}")
             return False
     
     def _get_file_extension(self, media_type: str) -> str:
