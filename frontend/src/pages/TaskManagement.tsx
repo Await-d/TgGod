@@ -433,6 +433,8 @@ const TaskManagement: React.FC = () => {
     // 设置表单数据
     const formData: any = {
       name: task.name,
+      group_id: task.group_id,
+      rule_ids: task.rules ? task.rules.map(r => r.rule_id) : [],
       download_path: task.download_path,
       task_type: task.task_type || 'once',
       schedule_type: task.schedule_type,
@@ -1522,6 +1524,53 @@ const TaskManagement: React.FC = () => {
           >
             <Input placeholder="输入任务名称" />
           </Form.Item>
+          
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="group_id"
+                label="目标群组"
+                rules={[{ required: true, message: '请选择群组' }]}
+              >
+                <Select 
+                  placeholder="选择群组"
+                  showSearch
+                  filterOption={(input, option) =>
+                    String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                  }
+                >
+                  {groups.map(group => (
+                    <Option key={group.id} value={group.id}>
+                      {group.title}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="rule_ids"
+                label="过滤规则"
+                rules={[{ required: true, message: '请选择至少一个规则' }]}
+              >
+                <Select 
+                  mode="multiple"
+                  placeholder="选择规则（可多选）"
+                  showSearch
+                  filterOption={(input, option) =>
+                    String(option?.children || '').toLowerCase().includes(input.toLowerCase())
+                  }
+                >
+                  {rules.map(rule => (
+                    <Option key={rule.id} value={rule.id}>
+                      {rule.name}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          
           <Form.Item
             name="time_range"
             label="时间范围过滤"

@@ -721,6 +721,8 @@ export const taskApi = {
   // 更新任务
   updateTask: (taskId: number, task: {
     name?: string;
+    group_id?: number;
+    rule_ids?: number[];
     download_path?: string;
     date_from?: string;
     date_to?: string;
