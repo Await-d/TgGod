@@ -97,8 +97,10 @@ class TaskExecutionService:
             download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
             if download_task:
                 download_task.status = "paused"
-                
-                await self._log_task_event(task_id, "INFO", f"任务已暂停")
+                db.commit()
+        
+        # 在会话外记录日志事件
+        await self._log_task_event(task_id, "INFO", f"任务已暂停")
         
         del self.running_tasks[task_id]
         logger.info(f"任务 {task_id} 已暂停")
@@ -119,8 +121,10 @@ class TaskExecutionService:
             if download_task:
                 download_task.status = "failed"
                 download_task.error_message = "任务被手动停止"
-                
-                await self._log_task_event(task_id, "INFO", f"任务已停止")
+                db.commit()
+        
+        # 在会话外记录日志事件
+        await self._log_task_event(task_id, "INFO", f"任务已停止")
         
         del self.running_tasks[task_id]
         logger.info(f"任务 {task_id} 已停止")
@@ -201,6 +205,9 @@ class TaskExecutionService:
         task_data = None
         all_rules_data = []
         
+        # 第一步：获取基本数据，检查数据完整性
+        error_message = None
+        
         with optimized_db_session() as db:
             # 获取任务信息
             download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
@@ -211,10 +218,39 @@ class TaskExecutionService:
             # 获取群组信息
             group = db.query(TelegramGroup).filter(TelegramGroup.id == download_task.group_id).first()
             if not group:
-                await self._handle_task_error_simple(task_id, "群组不存在")
-                return None
+                error_message = "群组不存在"
+            else:
+                # 获取任务关联的所有规则
+                from ..models.task_rule_association import TaskRuleAssociation
+                from ..models.rule import FilterRule
+                
+                rule_associations = db.query(TaskRuleAssociation).filter(
+                    TaskRuleAssociation.task_id == task_id,
+                    TaskRuleAssociation.is_active == True
+                ).order_by(TaskRuleAssociation.priority.desc()).all()
+                
+                if not rule_associations:
+                    error_message = "任务没有关联的活跃规则"
+                else:
+                    # 获取所有规则详细信息
+                    rule_ids = [assoc.rule_id for assoc in rule_associations]
+                    rules = db.query(FilterRule).filter(FilterRule.id.in_(rule_ids)).all()
+                    
+                    if not rules:
+                        error_message = "关联的规则不存在"
+        
+        # 第二步：在会话外处理错误（避免数据库锁定）
+        if error_message:
+            await self._handle_task_error_simple(task_id, error_message)
+            return None
+        
+        # 第三步：重新获取数据进行处理（会话已关闭，重新开启）
+        with optimized_db_session() as db:
+            # 重新获取任务信息
+            download_task = db.query(DownloadTask).filter(DownloadTask.id == task_id).first()
+            group = db.query(TelegramGroup).filter(TelegramGroup.id == download_task.group_id).first()
             
-            # 获取任务关联的所有规则
+            # 重新获取规则信息
             from ..models.task_rule_association import TaskRuleAssociation
             from ..models.rule import FilterRule
             
@@ -223,17 +259,8 @@ class TaskExecutionService:
                 TaskRuleAssociation.is_active == True
             ).order_by(TaskRuleAssociation.priority.desc()).all()
             
-            if not rule_associations:
-                await self._handle_task_error_simple(task_id, "任务没有关联的活跃规则")
-                return None
-            
-            # 获取所有规则详细信息
             rule_ids = [assoc.rule_id for assoc in rule_associations]
             rules = db.query(FilterRule).filter(FilterRule.id.in_(rule_ids)).all()
-            
-            if not rules:
-                await self._handle_task_error_simple(task_id, "关联的规则不存在")
-                return None
             
             # 将对象数据提取为字典，避免会话绑定问题
             task_data = {
