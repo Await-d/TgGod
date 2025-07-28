@@ -110,9 +110,16 @@ class FileOrganizerService:
         try:
             base_path = task_data.get('download_path', '/downloads')
             
+            # 调试日志：确认路径生成逻辑
+            logger.info(f"生成组织路径 - use_jellyfin_structure: {task_data.get('use_jellyfin_structure', False)}")
+            logger.info(f"生成组织路径 - base_path: {base_path}")
+            logger.info(f"生成组织路径 - original_filename: {original_filename}")
+            
             # 如果启用了Jellyfin结构，交给Jellyfin服务处理
             if task_data.get('use_jellyfin_structure', False):
-                return self._generate_jellyfin_path(message, task_data, original_filename)
+                jellyfin_path = self._generate_jellyfin_path(message, task_data, original_filename)
+                logger.info(f"生成Jellyfin路径: {jellyfin_path}")
+                return jellyfin_path
             
             # 标准文件组织
             return self._generate_standard_path(message, task_data, original_filename)
@@ -191,6 +198,10 @@ class FileOrganizerService:
         group_name = task_data.get('group_name', 'Unknown_Group')
         # 清理文件名中的非法字符
         safe_group_name = self._sanitize_filename(group_name)
+        
+        logger.info(f"Jellyfin路径生成 - group_name: {group_name}")
+        logger.info(f"Jellyfin路径生成 - safe_group_name: {safe_group_name}")
+        logger.info(f"Jellyfin路径生成 - use_series_structure: {task_data.get('use_series_structure', False)}")
         
         # 如果启用了系列结构
         if task_data.get('use_series_structure', False):

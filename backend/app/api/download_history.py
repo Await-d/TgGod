@@ -568,6 +568,257 @@ async def preview_file_organization(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"预览整理效果失败: {str(e)}")
 
+@router.get("/records/{record_id}/file-info", summary="获取文件详细信息")
+async def get_file_info(
+    record_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取下载记录对应文件的详细信息
+    """
+    try:
+        record = db.query(DownloadRecord).filter(DownloadRecord.id == record_id).first()
+        if not record:
+            raise HTTPException(status_code=404, detail="下载记录不存在")
+        
+        file_path = record.local_file_path
+        file_exists = os.path.exists(file_path)
+        
+        file_info = {
+            "record_id": record_id,
+            "file_name": record.file_name,
+            "file_path": file_path,
+            "file_exists": file_exists,
+            "file_type": record.file_type,
+            "is_media": record.file_type in ['photo', 'video', 'audio'],
+            "directory": os.path.dirname(file_path),
+        }
+        
+        if file_exists:
+            try:
+                stat_info = os.stat(file_path)
+                file_info.update({
+                    "file_size": stat_info.st_size,
+                    "created_time": datetime.fromtimestamp(stat_info.st_ctime),
+                    "modified_time": datetime.fromtimestamp(stat_info.st_mtime),
+                    "is_readable": os.access(file_path, os.R_OK),
+                    "is_writable": os.access(file_path, os.W_OK),
+                })
+            except Exception as e:
+                logger.warning(f"获取文件统计信息失败: {e}")
+        
+        return file_info
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取文件信息失败: {str(e)}")
+
+@router.post("/records/{record_id}/open-folder", summary="打开文件所在文件夹")
+async def open_file_folder(
+    record_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    打开文件所在的文件夹（服务器端操作）
+    """
+    try:
+        record = db.query(DownloadRecord).filter(DownloadRecord.id == record_id).first()
+        if not record:
+            raise HTTPException(status_code=404, detail="下载记录不存在")
+        
+        file_path = record.local_file_path
+        directory = os.path.dirname(file_path)
+        
+        if not os.path.exists(directory):
+            raise HTTPException(status_code=404, detail="文件夹不存在")
+        
+        # 返回文件夹信息，前端可以根据需要处理
+        return {
+            "message": "文件夹路径获取成功",
+            "directory": directory,
+            "file_name": os.path.basename(file_path),
+            "file_exists": os.path.exists(file_path)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取文件夹路径失败: {str(e)}")
+
+@router.get("/records/{record_id}/media-preview", summary="获取媒体文件预览信息")
+async def get_media_preview(
+    record_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取媒体文件的预览信息（如果是图片/视频）
+    """
+    try:
+        record = db.query(DownloadRecord).filter(DownloadRecord.id == record_id).first()
+        if not record:
+            raise HTTPException(status_code=404, detail="下载记录不存在")
+        
+        file_path = record.local_file_path
+        
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="文件不存在")
+        
+        if record.file_type not in ['photo', 'video']:
+            raise HTTPException(status_code=400, detail="文件类型不支持预览")
+        
+        preview_info = {
+            "record_id": record_id,
+            "file_type": record.file_type,
+            "file_path": file_path,  # 注意：实际部署时可能需要转换为可访问的URL
+            "file_size": record.file_size,
+            "can_preview": True
+        }
+        
+        # 对于图片文件，可以添加更多信息
+        if record.file_type == 'photo':
+            try:
+                # 这里可以集成PIL或其他图像库获取图像信息
+                preview_info.update({
+                    "width": None,  # 实际实现时可以获取图像尺寸
+                    "height": None,
+                    "format": os.path.splitext(file_path)[1].lower()
+                })
+            except Exception as e:
+                logger.warning(f"获取图像信息失败: {e}")
+        
+        return preview_info
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取媒体预览信息失败: {str(e)}")
+
+@router.get("/folders/browse", summary="浏览服务器文件夹")
+async def browse_folders(
+    path: str = Query("/downloads", description="要浏览的路径"),
+    show_files: bool = Query(True, description="是否显示文件"),
+    media_only: bool = Query(False, description="仅显示媒体文件")
+):
+    """
+    浏览服务器上的文件夹和文件
+    """
+    try:
+        # 安全检查：确保路径在允许的范围内
+        allowed_paths = ["/downloads", "/data", "/media"]  # 根据实际情况调整
+        if not any(path.startswith(allowed_path) for allowed_path in allowed_paths):
+            raise HTTPException(status_code=403, detail="访问路径不被允许")
+        
+        if not os.path.exists(path):
+            raise HTTPException(status_code=404, detail="路径不存在")
+        
+        if not os.path.isdir(path):
+            raise HTTPException(status_code=400, detail="路径不是文件夹")
+        
+        items = []
+        
+        try:
+            for item_name in sorted(os.listdir(path)):
+                item_path = os.path.join(path, item_name)
+                
+                try:
+                    stat_info = os.stat(item_path)
+                    is_dir = os.path.isdir(item_path)
+                    
+                    if is_dir:
+                        items.append({
+                            "name": item_name,
+                            "path": item_path,
+                            "type": "directory",
+                            "size": None,
+                            "modified_time": datetime.fromtimestamp(stat_info.st_mtime)
+                        })
+                    elif show_files:
+                        # 检查是否为媒体文件
+                        ext = os.path.splitext(item_name)[1].lower()
+                        media_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.avi', '.mkv', '.mp3', '.wav']
+                        is_media = ext in media_extensions
+                        
+                        if not media_only or is_media:
+                            items.append({
+                                "name": item_name,
+                                "path": item_path,
+                                "type": "file",
+                                "size": stat_info.st_size,
+                                "modified_time": datetime.fromtimestamp(stat_info.st_mtime),
+                                "is_media": is_media,
+                                "extension": ext
+                            })
+                            
+                except (OSError, PermissionError) as e:
+                    logger.warning(f"无法访问项目 {item_path}: {e}")
+                    continue
+                    
+        except PermissionError:
+            raise HTTPException(status_code=403, detail="没有权限访问此文件夹")
+        
+        return {
+            "current_path": path,
+            "parent_path": os.path.dirname(path) if path != "/" else None,
+            "items": items,
+            "total_items": len(items)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"浏览文件夹失败: {str(e)}")
+
+@router.post("/records/batch-organize-by-type", summary="按文件类型批量整理")
+async def batch_organize_by_type(
+    file_type: str,
+    target_base_path: str,
+    task_ids: Optional[List[int]] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    按文件类型批量整理文件到指定目录
+    """
+    try:
+        # 构建查询条件
+        query = db.query(DownloadRecord).filter(DownloadRecord.file_type == file_type)
+        
+        if task_ids:
+            query = query.filter(DownloadRecord.task_id.in_(task_ids))
+        
+        records = query.all()
+        
+        if not records:
+            return {
+                "message": "没有找到符合条件的文件",
+                "total": 0,
+                "results": {
+                    "success": 0,
+                    "failed": 0,
+                    "errors": []
+                }
+            }
+        
+        # 使用历史整理服务进行批量整理
+        from ..services.history_organizer_service import history_organizer_service
+        
+        record_ids = [record.id for record in records]
+        results = history_organizer_service.batch_reorganize_files(
+            record_ids=record_ids,
+            db=db,
+            target_base_path=target_base_path
+        )
+        
+        return {
+            "message": f"按类型'{file_type}'批量整理完成",
+            "file_type": file_type,
+            "total": len(records),
+            "results": results
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"按类型批量整理失败: {str(e)}")
+
 @router.get("/tasks/{task_id}/records", response_model=DownloadHistoryListResponse, summary="获取任务的下载记录")
 async def get_task_download_records(
     task_id: int,

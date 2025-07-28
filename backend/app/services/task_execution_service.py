@@ -232,6 +232,7 @@ class TaskExecutionService:
                 'group_id': group.id,
                 'group_telegram_id': group.telegram_id,
                 'group_title': group.title,
+                'group_name': group.title,  # 添加group_name用于文件组织
                 'group_username': group.username
             }
             
@@ -844,6 +845,12 @@ class TaskExecutionService:
         """
         try:
             logger.info(f"任务{task_id}: 开始整理文件 {file_path}")
+            
+            # 调试日志：输出Jellyfin相关配置
+            logger.info(f"任务{task_id}: Jellyfin配置检查 - use_jellyfin_structure: {task_data.get('use_jellyfin_structure', False)}")
+            logger.info(f"任务{task_id}: Jellyfin配置检查 - use_series_structure: {task_data.get('use_series_structure', False)}")
+            logger.info(f"任务{task_id}: Jellyfin配置检查 - organize_by_date: {task_data.get('organize_by_date', False)}")
+            logger.info(f"任务{task_id}: Jellyfin配置检查 - group_name: {task_data.get('group_name', 'None')}")
             
             # 添加群组名称到task_data，用于文件组织
             if 'group_name' not in task_data:

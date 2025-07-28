@@ -167,3 +167,66 @@ class CleanupResponse(BaseModel):
     """清理响应"""
     message: str = Field(..., description="操作结果消息")
     results: CleanupResult = Field(..., description="清理结果详情")
+
+class FileInfoResponse(BaseModel):
+    """文件信息响应"""
+    record_id: int = Field(..., description="记录ID")
+    file_name: str = Field(..., description="文件名")
+    file_path: str = Field(..., description="文件路径")
+    file_exists: bool = Field(..., description="文件是否存在")
+    file_type: Optional[str] = Field(None, description="文件类型")
+    is_media: bool = Field(..., description="是否为媒体文件")
+    directory: str = Field(..., description="所在目录")
+    file_size: Optional[int] = Field(None, description="文件大小")
+    created_time: Optional[datetime] = Field(None, description="创建时间")
+    modified_time: Optional[datetime] = Field(None, description="修改时间")
+    is_readable: Optional[bool] = Field(None, description="是否可读")
+    is_writable: Optional[bool] = Field(None, description="是否可写")
+
+class FolderOpenResponse(BaseModel):
+    """打开文件夹响应"""
+    message: str = Field(..., description="操作结果消息")
+    directory: str = Field(..., description="文件夹路径")
+    file_name: str = Field(..., description="文件名")
+    file_exists: bool = Field(..., description="文件是否存在")
+
+class MediaPreviewResponse(BaseModel):
+    """媒体预览响应"""
+    record_id: int = Field(..., description="记录ID")
+    file_type: str = Field(..., description="文件类型")
+    file_path: str = Field(..., description="文件路径")
+    file_size: Optional[int] = Field(None, description="文件大小")
+    can_preview: bool = Field(..., description="是否可预览")
+    width: Optional[int] = Field(None, description="图像宽度")
+    height: Optional[int] = Field(None, description="图像高度")
+    format: Optional[str] = Field(None, description="文件格式")
+
+class BrowserItem(BaseModel):
+    """浏览器项目"""
+    name: str = Field(..., description="项目名称")
+    path: str = Field(..., description="项目路径")
+    type: str = Field(..., description="项目类型 (file/directory)")
+    size: Optional[int] = Field(None, description="文件大小")
+    modified_time: datetime = Field(..., description="修改时间")
+    is_media: Optional[bool] = Field(None, description="是否为媒体文件")
+    extension: Optional[str] = Field(None, description="文件扩展名")
+
+class FolderBrowseResponse(BaseModel):
+    """文件夹浏览响应"""
+    current_path: str = Field(..., description="当前路径")
+    parent_path: Optional[str] = Field(None, description="父级路径")
+    items: List[BrowserItem] = Field(..., description="项目列表")
+    total_items: int = Field(..., description="项目总数")
+
+class BatchOrganizeByTypeRequest(BaseModel):
+    """按类型批量整理请求"""
+    file_type: str = Field(..., description="文件类型")
+    target_base_path: str = Field(..., description="目标基础路径")
+    task_ids: Optional[List[int]] = Field(None, description="任务ID列表（可选）")
+
+class BatchOrganizeByTypeResponse(BaseModel):
+    """按类型批量整理响应"""
+    message: str = Field(..., description="操作结果消息")
+    file_type: str = Field(..., description="文件类型")
+    total: int = Field(..., description="处理的文件总数")
+    results: Dict[str, Any] = Field(..., description="详细结果")
