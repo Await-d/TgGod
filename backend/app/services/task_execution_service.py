@@ -847,10 +847,18 @@ class TaskExecutionService:
             
             # 添加群组名称到task_data，用于文件组织
             if 'group_name' not in task_data:
-                # 从消息中获取群组信息
-                if hasattr(message, 'group') and message.group:
-                    task_data['group_name'] = getattr(message.group, 'title', 'Unknown_Group')
-                else:
+                # 从task_data中获取群组信息，避免访问已脱离会话的关联对象
+                try:
+                    # 使用短暂的数据库会话获取群组信息
+                    async with task_db_manager.get_task_session(task_id, "get_group_info") as db:
+                        from ..models.telegram import TelegramGroup
+                        group = db.query(TelegramGroup).filter(TelegramGroup.id == task_data.get('group_id')).first()
+                        if group:
+                            task_data['group_name'] = group.title
+                        else:
+                            task_data['group_name'] = 'Unknown_Group'
+                except Exception as e:
+                    logger.warning(f"任务{task_id}: 获取群组信息失败，使用默认名称: {e}")
                     task_data['group_name'] = 'Unknown_Group'
             
             # 使用文件组织服务整理文件
