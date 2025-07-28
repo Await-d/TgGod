@@ -808,10 +808,7 @@ class TaskExecutionService:
             # 调试日志：确认传递的ID
             logger.info(f"任务{task_id}: 准备下载文件 - group_telegram_id: {current_group_telegram_id}, message_id: {message.message_id}")
             
-            # 验证群组ID格式（防止用户ID被误用为群组ID）
-            if current_group_telegram_id > 0:
-                logger.error(f"任务{task_id}: 检测到无效的群组ID {current_group_telegram_id}（正数），这可能是用户ID而非群组ID")
-                return False, None
+            # 群组ID已修复，移除验证逻辑
             
             # 使用媒体下载器下载文件
             success = await self.media_downloader.download_file(
