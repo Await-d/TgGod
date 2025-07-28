@@ -30,44 +30,50 @@ def create_task_rule_association_table():
             WHERE type='table' AND name='task_rule_associations'
         """)
         
-        if cursor.fetchone():
-            logger.info("task_rule_associations 表已存在，跳过创建")
+        association_table_exists = cursor.fetchone() is not None
+        
+        # 检查download_tasks表是否还有rule_id字段
+        cursor.execute("PRAGMA table_info(download_tasks)")
+        columns = [col[1] for col in cursor.fetchall()]
+        rule_id_exists = 'rule_id' in columns
+        
+        if association_table_exists and not rule_id_exists:
+            logger.info("task_rule_associations 表已存在且 rule_id 字段已移除，跳过迁移")
             conn.close()
             return True
         
-        logger.info("创建 task_rule_associations 表...")
-        
-        # 创建关联表
-        cursor.execute("""
-            CREATE TABLE task_rule_associations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                task_id INTEGER NOT NULL,
-                rule_id INTEGER NOT NULL,
-                is_active BOOLEAN DEFAULT 1,
-                priority INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (task_id) REFERENCES download_tasks (id) ON DELETE CASCADE,
-                FOREIGN KEY (rule_id) REFERENCES filter_rules (id) ON DELETE CASCADE,
-                UNIQUE(task_id, rule_id)
-            )
-        """)
-        
-        # 创建索引
-        cursor.execute("CREATE INDEX idx_task_rule_task_id ON task_rule_associations(task_id)")
-        cursor.execute("CREATE INDEX idx_task_rule_rule_id ON task_rule_associations(rule_id)")
-        cursor.execute("CREATE INDEX idx_task_rule_active ON task_rule_associations(is_active)")
-        
-        logger.info("✅ task_rule_associations 表创建成功")
+        # 创建关联表（如果不存在）
+        if not association_table_exists:
+            logger.info("创建 task_rule_associations 表...")
+            
+            cursor.execute("""
+                CREATE TABLE task_rule_associations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id INTEGER NOT NULL,
+                    rule_id INTEGER NOT NULL,
+                    is_active BOOLEAN DEFAULT 1,
+                    priority INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (task_id) REFERENCES download_tasks (id) ON DELETE CASCADE,
+                    FOREIGN KEY (rule_id) REFERENCES filter_rules (id) ON DELETE CASCADE,
+                    UNIQUE(task_id, rule_id)
+                )
+            """)
+            
+            # 创建索引
+            cursor.execute("CREATE INDEX idx_task_rule_task_id ON task_rule_associations(task_id)")
+            cursor.execute("CREATE INDEX idx_task_rule_rule_id ON task_rule_associations(rule_id)")
+            cursor.execute("CREATE INDEX idx_task_rule_active ON task_rule_associations(is_active)")
+            
+            logger.info("✅ task_rule_associations 表创建成功")
+        else:
+            logger.info("task_rule_associations 表已存在，跳过创建")
         
         # 迁移现有数据：从 download_tasks 表的 rule_id 字段迁移到关联表
         logger.info("检查是否需要迁移现有数据...")
         
-        # 检查 download_tasks 表是否还有 rule_id 字段
-        cursor.execute("PRAGMA table_info(download_tasks)")
-        columns = [col[1] for col in cursor.fetchall()]
-        
-        if 'rule_id' in columns:
+        if rule_id_exists:
             logger.info("发现 rule_id 字段，开始迁移数据...")
             
             # 查询所有有 rule_id 的任务

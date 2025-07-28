@@ -62,6 +62,8 @@ class TaskCreate(BaseModel):
 
 class TaskUpdate(BaseModel):
     name: Optional[str] = None
+    group_id: Optional[int] = None
+    rule_ids: Optional[List[int]] = None
     download_path: Optional[str] = None
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
@@ -394,16 +396,100 @@ async def update_task(
     if task.status == "running":
         raise HTTPException(status_code=400, detail="任务正在运行，无法更新")
     
-    # 更新任务字段
+    # 处理规则关联更新
+    rule_ids = None
     update_data = task_update.dict(exclude_unset=True)
+    if 'rule_ids' in update_data:
+        rule_ids = update_data.pop('rule_ids')  # 从update_data中移除，单独处理
+        
+        # 验证规则存在
+        if rule_ids:
+            from ..models.rule import FilterRule
+            existing_rules = db.query(FilterRule).filter(FilterRule.id.in_(rule_ids)).all()
+            if len(existing_rules) != len(rule_ids):
+                raise HTTPException(status_code=400, detail="部分规则不存在")
+    
+    # 验证群组存在（如果提供了group_id）
+    if 'group_id' in update_data:
+        from ..models.telegram import TelegramGroup
+        group = db.query(TelegramGroup).filter(TelegramGroup.id == update_data['group_id']).first()
+        if not group:
+            raise HTTPException(status_code=400, detail="指定的群组不存在")
+    
+    # 更新任务基本字段
     for field, value in update_data.items():
         setattr(task, field, value)
+    
+    # 更新规则关联
+    if rule_ids is not None:
+        from ..models.task_rule_association import TaskRuleAssociation
+        
+        # 删除旧的规则关联
+        db.query(TaskRuleAssociation).filter(TaskRuleAssociation.task_id == task_id).delete()
+        
+        # 创建新的规则关联
+        for i, rule_id in enumerate(rule_ids):
+            association = TaskRuleAssociation(
+                task_id=task_id,
+                rule_id=rule_id,
+                is_active=True,
+                priority=len(rule_ids) - i  # 根据顺序设置优先级
+            )
+            db.add(association)
     
     task.updated_at = datetime.now()
     db.commit()
     db.refresh(task)
     
-    return task
+    # 构建响应数据（包含规则关联信息）
+    from ..models.task_rule_association import TaskRuleAssociation
+    from ..models.rule import FilterRule
+    
+    # 获取规则关联信息
+    rule_associations = db.query(TaskRuleAssociation).filter(
+        TaskRuleAssociation.task_id == task_id,
+        TaskRuleAssociation.is_active == True
+    ).order_by(TaskRuleAssociation.priority.desc()).all()
+    
+    rules_info = []
+    for assoc in rule_associations:
+        rule = db.query(FilterRule).filter(FilterRule.id == assoc.rule_id).first()
+        if rule:
+            rules_info.append(TaskRuleAssociationResponse(
+                rule_id=rule.id,
+                rule_name=rule.name,
+                is_active=assoc.is_active,
+                priority=assoc.priority
+            ))
+    
+    # 构建任务响应数据
+    response_data = {
+        "id": task.id,
+        "name": task.name,
+        "group_id": task.group_id,
+        "rules": rules_info,
+        "status": task.status,
+        "progress": task.progress,
+        "total_messages": task.total_messages,
+        "downloaded_messages": task.downloaded_messages,
+        "download_path": task.download_path,
+        "date_from": task.date_from,
+        "date_to": task.date_to,
+        "task_type": getattr(task, 'task_type', 'once'),
+        "schedule_type": getattr(task, 'schedule_type', None),
+        "schedule_config": getattr(task, 'schedule_config', None),
+        "next_run_time": getattr(task, 'next_run_time', None),
+        "last_run_time": getattr(task, 'last_run_time', None),
+        "is_active": getattr(task, 'is_active', True),
+        "max_runs": getattr(task, 'max_runs', None),
+        "run_count": getattr(task, 'run_count', 0),
+        "created_at": task.created_at,
+        "updated_at": task.updated_at,
+        "completed_at": task.completed_at,
+        "error_message": task.error_message
+    }
+    
+    return TaskResponse(**response_data)
 
 @router.post("/tasks/{task_id}/restart")
 async def restart_task(
