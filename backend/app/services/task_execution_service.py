@@ -232,8 +232,9 @@ class TaskExecutionService:
                 'group_id': group.id,
                 'group_telegram_id': group.telegram_id,
                 'group_title': group.title,
-                'group_name': group.title,  # 添加group_name用于文件组织
-                'group_username': group.username
+                'group_name': group.title,  # 群组名称（保留兼容性）
+                'group_username': group.username,
+                'subscription_name': download_task.name  # 订阅名（任务名）- 用于Jellyfin格式
             }
             
             # 提取规则数据

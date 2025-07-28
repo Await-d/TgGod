@@ -194,13 +194,13 @@ class FileOrganizerService:
         """
         base_path = task_data.get('download_path', '/downloads')
         
-        # 获取群组名称作为系列名
-        group_name = task_data.get('group_name', 'Unknown_Group')
+        # 获取订阅名作为系列名（优先使用订阅名，回退到群组名）
+        subscription_name = task_data.get('subscription_name') or task_data.get('task_name') or task_data.get('group_name', 'Unknown_Subscription')
         # 清理文件名中的非法字符
-        safe_group_name = self._sanitize_filename(group_name)
+        safe_subscription_name = self._sanitize_filename(subscription_name)
         
-        logger.info(f"Jellyfin路径生成 - group_name: {group_name}")
-        logger.info(f"Jellyfin路径生成 - safe_group_name: {safe_group_name}")
+        logger.info(f"Jellyfin路径生成 - subscription_name: {subscription_name}")
+        logger.info(f"Jellyfin路径生成 - safe_subscription_name: {safe_subscription_name}")
         logger.info(f"Jellyfin路径生成 - use_series_structure: {task_data.get('use_series_structure', False)}")
         
         # 如果启用了系列结构
@@ -219,16 +219,16 @@ class FileOrganizerService:
                 
                 jellyfin_path = os.path.join(
                     base_path,
-                    safe_group_name,
+                    safe_subscription_name,
                     f"Season {season}",
-                    f"{safe_group_name} - S{season}{episode} - {self._sanitize_filename(original_filename)}"
+                    f"{safe_subscription_name} - S{season}{episode} - {self._sanitize_filename(original_filename)}"
                 )
             else:
                 # 无日期信息，使用简单结构
                 jellyfin_path = os.path.join(
                     base_path,
-                    safe_group_name,
-                    f"{safe_group_name} - {self._sanitize_filename(original_filename)}"
+                    safe_subscription_name,
+                    f"{safe_subscription_name} - {self._sanitize_filename(original_filename)}"
                 )
         else:
             # 使用Movies结构（按年份分组）
@@ -241,7 +241,7 @@ class FileOrganizerService:
                         date_obj = datetime.now()
                 
                 year = date_obj.strftime('%Y')
-                movie_folder = f"{safe_group_name} ({year})"
+                movie_folder = f"{safe_subscription_name} ({year})"
                 
                 jellyfin_path = os.path.join(
                     base_path,
@@ -250,7 +250,7 @@ class FileOrganizerService:
                 )
             else:
                 # 无日期信息
-                movie_folder = safe_group_name
+                movie_folder = safe_subscription_name
                 jellyfin_path = os.path.join(
                     base_path,
                     movie_folder,

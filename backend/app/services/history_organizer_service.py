@@ -416,6 +416,7 @@ class HistoryOrganizerService:
             'fanart_size': getattr(task, 'fanart_size', '1920x1080'),
             'group_id': task.group_id,
             'group_name': group.title if group else 'Unknown_Group',
+            'subscription_name': task.name,  # 添加订阅名用于Jellyfin格式
             'group_telegram_id': getattr(group, 'telegram_id', None) if group else None
         }
     
