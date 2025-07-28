@@ -32,9 +32,9 @@ import {
   FilterOutlined,
   ReloadOutlined
 } from '@ant-design/icons';
-import { FilterRule, TelegramGroup } from '../types';
-import { useRuleStore, useTelegramStore, useGlobalStore } from '../store';
-import { ruleApi, telegramApi } from '../services/apiService';
+import { FilterRule } from '../types';
+import { useRuleStore, useGlobalStore } from '../store';
+import { ruleApi } from '../services/apiService';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -43,7 +43,7 @@ const { TextArea } = Input;
 const Rules: React.FC = () => {
   const isMobile = useIsMobile();
   const { rules, setRules, addRule, updateRule, removeRule } = useRuleStore();
-  const { groups, setGroups } = useTelegramStore();
+  // 移除群组状态 - 规则不再直接关联群组
   const { setLoading, setError } = useGlobalStore();
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [editingRule, setEditingRule] = React.useState<FilterRule | null>(null);
@@ -52,11 +52,7 @@ const Rules: React.FC = () => {
   const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
-      // 加载群组数据
-      const groupsData = await telegramApi.getGroups();
-      setGroups(groupsData);
-
-      // 加载规则数据
+      // 只加载规则数据 - 不再需要群组数据
       const rulesData = await ruleApi.getRules();
       setRules(rulesData);
     } catch (error) {
@@ -65,7 +61,7 @@ const Rules: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [setLoading, setError, setGroups, setRules]);
+  }, [setLoading, setError, setRules]);
 
   React.useEffect(() => {
     loadData();
@@ -108,7 +104,7 @@ const Rules: React.FC = () => {
     setEditingRule(rule);
     form.setFieldsValue({
       name: rule.name,
-      group_id: rule.group_id,
+      // 移除 group_id
       keywords: rule.keywords?.join('\n') || '',
       exclude_keywords: rule.exclude_keywords?.join('\n') || '',
       sender_filter: rule.sender_filter?.join('\n') || '',
@@ -167,7 +163,7 @@ const Rules: React.FC = () => {
         <div>
           <div style={{ fontWeight: 'bold' }}>{text}</div>
           <div style={{ fontSize: '12px', color: '#666' }}>
-            {groups.find(g => g.id === record.group_id)?.title || '未知群组'}
+            通用规则 - 由任务指定群组
           </div>
           {isMobile && (
             <div style={{ marginTop: 8 }}>
@@ -426,7 +422,7 @@ const Rules: React.FC = () => {
           onFinish={handleSubmit}
         >
           <Row gutter={16}>
-            <Col span={12}>
+            <Col span={24}>
               <Form.Item
                 label="规则名称"
                 name="name"
@@ -435,22 +431,13 @@ const Rules: React.FC = () => {
                 <Input placeholder="请输入规则名称" />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item
-                label="目标群组"
-                name="group_id"
-                rules={[{ required: true, message: '请选择目标群组' }]}
-              >
-                <Select placeholder="请选择群组">
-                  {groups.map(group => (
-                    <Select.Option key={group.id} value={group.id}>
-                      {group.title}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
           </Row>
+          
+          <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6 }}>
+            <Text type="secondary">
+              💡 提示：规则不再直接绑定群组。创建任务时可以选择规则和群组的组合。
+            </Text>
+          </div>
 
           <Row gutter={16}>
             <Col span={12}>

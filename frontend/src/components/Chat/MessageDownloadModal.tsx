@@ -65,7 +65,8 @@ const MessageDownloadModal: React.FC<MessageDownloadModalProps> = ({
     if (!selectedGroup) return;
     
     try {
-      const rules = await ruleApi.getGroupRules(selectedGroup.id);
+      // 获取所有规则，不再按群组过滤
+      const rules = await ruleApi.getRules();
       setAvailableRules(rules.filter(rule => rule.is_active));
     } catch (error: any) {
       message.error('获取规则失败: ' + error.message);

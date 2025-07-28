@@ -185,7 +185,7 @@ export interface MessageSearchRequest {
 export interface FilterRule {
   id: number;
   name: string;
-  group_id: number;
+  // 移除 group_id - 群组关联由任务管理
   keywords: string[];
   exclude_keywords: string[];
   sender_filter?: string[];

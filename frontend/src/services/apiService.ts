@@ -615,10 +615,10 @@ export const ruleApi = {
     return api.get('/rules', { params: { skip, limit } });
   },
 
-  // 获取群组规则
-  getGroupRules: (groupId: number): Promise<FilterRule[]> => {
-    return api.get('/rules', { params: { group_id: groupId } });
-  },
+  // 获取群组规则 - 已移除，规则不再直接关联群组
+  // getGroupRules: (groupId: number): Promise<FilterRule[]> => {
+  //   return api.get('/rules', { params: { group_id: groupId } });
+  // },
 
   // 创建规则
   createRule: (rule: Partial<FilterRule>): Promise<FilterRule> => {
