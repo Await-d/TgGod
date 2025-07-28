@@ -796,14 +796,27 @@ class TaskExecutionService:
                     
                 await self._log_download_progress(task_id, message.id, current, total, progress_percent)
             
+            # 实时从数据库获取最新的群组ID，避免使用缓存的过期数据
+            with optimized_db_session() as db:
+                current_group = db.query(TelegramGroup).filter(TelegramGroup.id == task_data['group_id']).first()
+                if not current_group:
+                    logger.error(f"任务{task_id}: 无法找到群组ID {task_data['group_id']}")
+                    return False, None
+                current_group_telegram_id = current_group.telegram_id
+            
             # 调试日志：确认传递的ID
-            logger.info(f"任务{task_id}: 准备下载文件 - group_telegram_id: {task_data['group_telegram_id']}, message_id: {message.message_id}")
+            logger.info(f"任务{task_id}: 准备下载文件 - group_telegram_id: {current_group_telegram_id}, message_id: {message.message_id}")
+            
+            # 验证群组ID格式（防止用户ID被误用为群组ID）
+            if current_group_telegram_id > 0:
+                logger.error(f"任务{task_id}: 检测到无效的群组ID {current_group_telegram_id}（正数），这可能是用户ID而非群组ID")
+                return False, None
             
             # 使用媒体下载器下载文件
             success = await self.media_downloader.download_file(
                 file_id=message.media_file_id or "",
                 file_path=file_path,
-                chat_id=task_data['group_telegram_id'],
+                chat_id=current_group_telegram_id,
                 message_id=message.message_id,
                 progress_callback=progress_callback
             )

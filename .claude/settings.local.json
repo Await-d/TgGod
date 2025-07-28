@@ -82,7 +82,6 @@
       "Bash(echo)",
       "Bash(convert:*)",
       "Bash(ping:*)",
-      "Bash(docker-compose config:*)",
       "Bash(docker exec:*)",
       "Bash(DATABASE_URL=\"sqlite:///data/tggod_test.db\" python check_database.py)",
       "Bash(docker logs:*)",
