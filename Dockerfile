@@ -11,8 +11,13 @@ RUN apk add --no-cache git python3 make g++
 ENV NODE_OPTIONS=--max-old-space-size=4096
 ENV CI=false
 
+# 设置npm淘宝镜像源
+RUN npm config set registry https://registry.npmmirror.com
+
 # 安装pnpm
 RUN npm install -g pnpm
+# 设置pnpm淘宝镜像源
+RUN pnpm config set registry https://registry.npmmirror.com
 
 # 复制前端package文件
 COPY frontend/package*.json ./
@@ -40,6 +45,10 @@ RUN apt-get update && apt-get install -y \
     nginx \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# 设置pip淘宝镜像源
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ \
+    && pip config set global.trusted-host mirrors.aliyun.com
 
 # 复制requirements文件
 COPY backend/requirements.txt .
