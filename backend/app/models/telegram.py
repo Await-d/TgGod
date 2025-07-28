@@ -16,9 +16,8 @@ class TelegramGroup(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # 关系
+    # 关系 - 移除与规则的直接关联，群组通过任务关联规则
     messages = relationship("TelegramMessage", back_populates="group", cascade="all, delete-orphan")
-    rules = relationship("FilterRule", back_populates="group", cascade="all, delete-orphan")
     tasks = relationship("DownloadTask", back_populates="group", cascade="all, delete-orphan")
 
 class TelegramMessage(Base):

@@ -8,7 +8,7 @@ class FilterRule(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
-    group_id = Column(Integer, ForeignKey("telegram_groups.id"), nullable=False)
+    # 移除群组关联 - 群组关联现在由任务管理
     
     # 过滤条件
     keywords = Column(JSON, nullable=True)  # 包含关键词列表
@@ -42,8 +42,7 @@ class FilterRule(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # 关系
-    group = relationship("TelegramGroup", back_populates="rules")
+    # 关系 - 移除与群组的直接关联
     tasks = relationship("DownloadTask", back_populates="rule")
 
 class DownloadTask(Base):
