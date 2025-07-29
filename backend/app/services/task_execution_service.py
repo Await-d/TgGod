@@ -137,7 +137,7 @@ class TaskExecutionService:
             if not task_info:
                 return
             
-            task_data, messages = task_info
+            task_data, messages, all_rules_data = task_info
             total_messages = len(messages)
             
             await self._log_task_event(task_id, "INFO", f"开始执行任务: {task_data['task_name']}")
@@ -361,7 +361,7 @@ class TaskExecutionService:
             download_task.progress = 0
             db.commit()
         
-        return task_data, messages
+        return task_data, messages, all_rules_data
     
     async def _update_task_progress(self, task_id: int, progress: int, downloaded_count: int):
         """更新任务进度（优化：减少频繁的数据库更新）"""
