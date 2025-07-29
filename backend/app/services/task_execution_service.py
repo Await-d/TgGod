@@ -65,7 +65,6 @@ class TaskExecutionService:
         # 即使某些服务初始化失败，也标记为已初始化，允许基本功能运行
         self._initialized = True
         logger.info("任务执行服务初始化完成（可能以有限模式运行）")
-        raise
     
     async def start_task(self, task_id: int) -> bool:
         """启动任务执行"""

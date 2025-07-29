@@ -19,9 +19,10 @@ class TelegramMediaDownloader:
         self.client: Optional[TelegramClient] = None
         self._initialized = False
         self._shared_client = None  # 共享的客户端实例
-        # 使用独立的session路径，添加进程ID避免并发冲突
-        import time
-        session_id = f"downloader_{int(time.time() * 1000) % 100000}"
+        # 使用独立的session路径，添加进程ID和线程ID避免并发冲突 
+        import threading
+        import uuid
+        session_id = f"downloader_{os.getpid()}_{threading.get_ident()}_{uuid.uuid4().hex[:8]}"
         self.session_name = os.path.join("./telegram_sessions", session_id)
     
     async def initialize(self):
@@ -50,28 +51,55 @@ class TelegramMediaDownloader:
             # 确保session目录存在
             os.makedirs(os.path.dirname(self.session_name), exist_ok=True)
             
-            # 直接使用主session避免认证问题，使用进程锁避免数据库冲突
-            import threading
-            import time
-            
+            # 使用独立session文件避免数据库锁定问题
             main_session_path = os.path.join("./telegram_sessions", "tggod_session")
             
             # 检查主session是否存在
             if not os.path.exists(f"{main_session_path}.session"):
                 raise ValueError("主session文件不存在，请确保主服务已完成认证")
             
-            logger.info("使用主session进行媒体下载（共享模式）")
+            logger.info(f"复制主session到独立文件: {self.session_name}")
             
-            # 直接使用主session，避免复制导致的认证失效
-            self.client = TelegramClient(
-                main_session_path,
-                api_id,
-                api_hash,
-                connection_retries=3,
-                retry_delay=2,
-                timeout=30,
-                use_ipv6=False
-            )
+            # 使用临时文件安全地复制session文件
+            import tempfile
+            
+            try:
+                # 复制session文件到独立路径，避免并发访问
+                if os.path.exists(f"{main_session_path}.session"):
+                    # 使用临时文件确保原子性复制
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.session') as temp_file:
+                        with open(f"{main_session_path}.session", 'rb') as src:
+                            shutil.copyfileobj(src, temp_file)
+                        temp_path = temp_file.name
+                    
+                    # 原子性移动到目标位置
+                    shutil.move(temp_path, f"{self.session_name}.session")
+                    logger.info("Session文件复制完成")
+                
+                # 使用独立的session文件
+                self.client = TelegramClient(
+                    self.session_name,
+                    api_id,
+                    api_hash,
+                    connection_retries=3,
+                    retry_delay=2,
+                    timeout=30,
+                    use_ipv6=False
+                )
+                
+            except Exception as e:
+                logger.error(f"Session文件复制失败: {e}")
+                # 回退到内存session
+                logger.info("回退到内存session模式")
+                self.client = TelegramClient(
+                    f":memory:",
+                    api_id,
+                    api_hash,
+                    connection_retries=3,
+                    retry_delay=2,
+                    timeout=30,
+                    use_ipv6=False
+                )
             
             # 使用信号量控制并发连接，避免数据库锁定
             async with _connection_semaphore:
@@ -93,16 +121,45 @@ class TelegramMediaDownloader:
         except AuthKeyUnregisteredError as e:
             logger.error(f"媒体下载器认证失败: {str(e)}")
             logger.error("请确保主Telegram服务已完成认证")
-            if self.client:
-                await self.client.disconnect()
-                self.client = None
+            await self._cleanup()
             raise
         except Exception as e:
             logger.error(f"Telegram媒体下载器初始化失败: {str(e)}")
+            await self._cleanup()
+            raise
+    
+    async def _cleanup(self):
+        """清理资源和临时文件"""
+        try:
+            # 断开客户端连接
             if self.client:
                 await self.client.disconnect()
                 self.client = None
-            raise
+            
+            # 清理临时session文件
+            if hasattr(self, 'session_name') and self.session_name:
+                session_file = f"{self.session_name}.session"
+                if os.path.exists(session_file):
+                    try:
+                        os.remove(session_file)
+                        logger.info(f"已清理临时session文件: {session_file}")
+                    except Exception as e:
+                        logger.warning(f"清理session文件失败: {e}")
+            
+            self._initialized = False
+            
+        except Exception as e:
+            logger.error(f"资源清理失败: {e}")
+    
+    def __del__(self):
+        """析构函数，确保资源被清理"""
+        if hasattr(self, 'session_name') and self.session_name:
+            session_file = f"{self.session_name}.session"
+            if os.path.exists(session_file):
+                try:
+                    os.remove(session_file)
+                except:
+                    pass  # 忽略析构函数中的错误
     
     async def download_file(
         self, 
