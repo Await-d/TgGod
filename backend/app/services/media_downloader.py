@@ -110,8 +110,11 @@ class TelegramMediaDownloader:
             if not api_id or not api_hash:
                 raise ValueError(f"Telegram API配置不完整: API ID={api_id}, API Hash={'已设置' if api_hash else '未设置'}")
             
-            # 确保session目录存在
-            os.makedirs(os.path.dirname(self.session_name), exist_ok=True)
+            # 确保session目录存在并有正确权限
+            session_dir = os.path.dirname(self.session_name)
+            os.makedirs(session_dir, exist_ok=True)
+            # 设置目录权限，确保可读写
+            os.chmod(session_dir, 0o755)
             
             # 使用独立session文件避免数据库锁定问题
             main_session_path = os.path.join("./telegram_sessions", "tggod_session")
@@ -119,6 +122,16 @@ class TelegramMediaDownloader:
             # 检查主session是否存在
             if not os.path.exists(f"{main_session_path}.session"):
                 raise ValueError("主session文件不存在，请确保主服务已完成认证")
+            
+            # 检查并修复主session文件权限
+            try:
+                main_session_file = f"{main_session_path}.session"
+                current_stat = os.stat(main_session_file)
+                if oct(current_stat.st_mode)[-3:] != '666':
+                    logger.info("修复主session文件权限")
+                    os.chmod(main_session_file, 0o666)
+            except Exception as perm_error:
+                logger.warning(f"无法修复主session文件权限: {perm_error}")
             
             logger.info(f"复制主session到独立文件: {self.session_name}")
             
@@ -136,7 +149,10 @@ class TelegramMediaDownloader:
                     
                     # 原子性移动到目标位置
                     shutil.move(temp_path, f"{self.session_name}.session")
-                    logger.info("Session文件复制完成")
+                    
+                    # 设置文件权限为可读写，解决只读数据库问题
+                    os.chmod(f"{self.session_name}.session", 0o666)
+                    logger.info("Session文件复制完成，权限已设置为可读写")
                 
                 # 使用独立的session文件
                 self.client = TelegramClient(
@@ -195,8 +211,16 @@ class TelegramMediaDownloader:
         try:
             # 断开客户端连接
             if self.client:
-                await self.client.disconnect()
-                self.client = None
+                try:
+                    await self.client.disconnect()
+                except Exception as e:
+                    # 处理SQLite只读错误，避免影响清理过程
+                    if "attempt to write a readonly database" in str(e):
+                        logger.warning(f"断开下载器连接时遇到只读数据库错误（已忽略）: {e}")
+                    else:
+                        logger.warning(f"断开下载器连接时出错: {e}")
+                finally:
+                    self.client = None
             
             # 根据参数决定是否清理session文件
             if force_remove_session and hasattr(self, 'session_name') and self.session_name:
@@ -387,12 +411,26 @@ class TelegramMediaDownloader:
                     logger.error(f"媒体下载达到最大重试次数，Flood Wait错误: {e}")
                     raise
             except Exception as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"下载尝试 {attempt + 1} 失败: {e}, 重试中...")
-                    await asyncio.sleep(1)
+                error_msg = str(e)
+                # 特殊处理SQLite只读数据库错误
+                if "attempt to write a readonly database" in error_msg:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"下载尝试 {attempt + 1} 遇到只读数据库错误，尝试重新初始化连接后重试...")
+                        # 强制重新初始化客户端
+                        await self._cleanup(force_remove_session=True)
+                        self._initialized = False
+                        await asyncio.sleep(2)  # 等待更长时间确保清理完成
+                        await self.initialize()
+                    else:
+                        logger.error(f"通过消息ID下载失败（只读数据库错误）: {e}")
+                        raise
                 else:
-                    logger.error(f"通过消息ID下载失败: {e}")
-                    raise
+                    if attempt < max_retries - 1:
+                        logger.warning(f"下载尝试 {attempt + 1} 失败: {e}, 重试中...")
+                        await asyncio.sleep(1)
+                    else:
+                        logger.error(f"通过消息ID下载失败: {e}")
+                        raise
         
         return False
     
