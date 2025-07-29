@@ -89,9 +89,20 @@ def check_and_remove_group_id_field():
             )
         """)
         
-        # 复制数据（排除group_id）
+        # 复制数据（排除group_id，只复制存在的字段）
         non_group_id_columns = [col for col in column_names if col != 'group_id']
-        columns_str = ', '.join(non_group_id_columns)
+        
+        # 定义新表的所有字段
+        new_table_columns = [
+            'id', 'name', 'keywords', 'exclude_keywords', 'sender_filter', 'media_types',
+            'date_from', 'date_to', 'min_views', 'max_views', 'min_file_size', 'max_file_size',
+            'include_forwarded', 'is_active', 'last_sync_time', 'last_sync_message_count',
+            'sync_status', 'needs_full_resync', 'created_at', 'updated_at'
+        ]
+        
+        # 只选择原表中存在的字段
+        existing_columns = [col for col in new_table_columns if col in non_group_id_columns]
+        columns_str = ', '.join(existing_columns)
         
         cursor.execute(f"""
             INSERT INTO filter_rules_new ({columns_str})
