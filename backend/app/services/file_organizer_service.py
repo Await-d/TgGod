@@ -970,21 +970,36 @@ class FileOrganizerService:
             temp_image = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
             temp_image.close()
             
+            # 更强大的ffmpeg命令，包含更多选项
             cmd = [
                 'ffmpeg',
                 '-i', video_path,
                 '-ss', timestamp,
                 '-vframes', '1',
+                '-q:v', '2',  # 高质量
+                '-vf', 'scale=400:300:force_original_aspect_ratio=decrease,pad=400:300:(ow-iw)/2:(oh-ih)/2',  # 缩放并居中
                 '-y',  # 覆盖输出文件
                 temp_image.name
             ]
             
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode == 0 and os.path.exists(temp_image.name):
-                logger.info(f"从视频提取帧成功: {temp_image.name}")
-                return temp_image.name
+                # 验证生成的图片文件大小
+                file_size = os.path.getsize(temp_image.name)
+                if file_size > 1000:  # 至少1KB，避免空文件
+                    logger.info(f"从视频提取帧成功: {temp_image.name} (大小: {file_size} bytes)")
+                    return temp_image.name
+                else:
+                    logger.warning(f"提取的帧文件太小，可能损坏: {file_size} bytes")
+                    try:
+                        os.remove(temp_image.name)
+                    except:
+                        pass
+                    return None
             else:
-                logger.warning(f"ffmpeg提取帧失败: {result.stderr}")
+                logger.warning(f"ffmpeg提取帧失败 (return code: {result.returncode})")
+                logger.warning(f"ffmpeg stderr: {result.stderr}")
+                logger.warning(f"ffmpeg stdout: {result.stdout}")
                 try:
                     os.remove(temp_image.name)
                 except:
@@ -993,12 +1008,20 @@ class FileOrganizerService:
                 
         except subprocess.TimeoutExpired:
             logger.warning(f"ffmpeg提取帧超时: {video_path}")
+            try:
+                os.remove(temp_image.name)
+            except:
+                pass
             return None
         except FileNotFoundError:
-            logger.warning("ffmpeg未找到，无法提取视频帧")
+            logger.warning("ffmpeg未安装，无法提取视频帧。请安装ffmpeg: apt-get install ffmpeg")
             return None
         except Exception as e:
             logger.error(f"提取视频帧失败: {e}")
+            try:
+                os.remove(temp_image.name)
+            except:
+                pass
             return None
     
     def _create_poster_image(self, 
@@ -1232,36 +1255,42 @@ class FileOrganizerService:
         """创建默认海报图片"""
         try:
             poster_size = task_data.get('poster_size', (600, 900))
-            poster = Image.new('RGB', poster_size, color='#1a1a1a')
             
+            # 创建带渐变的背景
+            poster = Image.new('RGB', poster_size, color='#2c3e50')
             draw = ImageDraw.Draw(poster)
             
-            # 添加渐变背景效果（简单的矩形）
-            for i in range(0, poster_size[1], 20):
-                alpha = int(50 * (1 - i / poster_size[1]))
-                color = f'#{alpha:02x}{alpha:02x}{alpha:02x}'
-                draw.rectangle([0, i, poster_size[0], i + 20], fill=color)
+            # 创建蓝色渐变背景
+            for i in range(poster_size[1]):
+                # 从深蓝到较浅的蓝色
+                ratio = i / poster_size[1]
+                r = int(44 + (52 - 44) * ratio)    # 44 -> 52
+                g = int(62 + (152 - 62) * ratio)   # 62 -> 152  
+                b = int(80 + (219 - 80) * ratio)   # 80 -> 219
+                color = f'#{r:02x}{g:02x}{b:02x}'
+                draw.line([(0, i), (poster_size[0], i)], fill=color)
+            
+            # 添加装饰性的圆形
+            circle_color = '#ffffff'
+            alpha_overlay = Image.new('RGBA', poster_size, (255, 255, 255, 0))
+            alpha_draw = ImageDraw.Draw(alpha_overlay)
+            
+            # 绘制半透明圆形
+            alpha_draw.ellipse([50, 100, 150, 200], fill=(255, 255, 255, 30))
+            alpha_draw.ellipse([poster_size[0] - 150, poster_size[1] - 200, poster_size[0] - 50, poster_size[1] - 100], fill=(255, 255, 255, 30))
+            
+            poster = Image.alpha_composite(poster.convert('RGBA'), alpha_overlay).convert('RGB')
+            draw = ImageDraw.Draw(poster)
+            
+            # 添加视频图标
+            self._draw_video_icon(draw, poster_size[0] // 2, poster_size[1] // 3, 60, '#ffffff')
             
             # 添加标题
-            if len(title) > 25:
-                title = title[:25] + "..."
+            if len(title) > 20:
+                title = title[:20] + "..."
             
-            # 尝试加载字体
-            font_size = 36
-            try:
-                font_paths = [
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                    "/usr/share/fonts/TTF/simhei.ttf"
-                ]
-                font = None
-                for font_path in font_paths:
-                    if os.path.exists(font_path):
-                        font = ImageFont.truetype(font_path, font_size)
-                        break
-                if not font:
-                    font = ImageFont.load_default()
-            except:
-                font = ImageFont.load_default()
+            # 加载字体
+            font = self._get_font(32)
             
             # 居中绘制标题
             bbox = draw.textbbox((0, 0), title, font=font)
@@ -1269,11 +1298,15 @@ class FileOrganizerService:
             text_height = bbox[3] - bbox[1]
             
             x = (poster_size[0] - text_width) // 2
-            y = (poster_size[1] - text_height) // 2
+            y = poster_size[1] // 2 + 50
             
-            draw.text((x, y), title, font=font, fill='white')
+            # 绘制文字阴影
+            draw.text((x + 2, y + 2), title, font=font, fill='#000000')
+            # 绘制主文字
+            draw.text((x, y), title, font=font, fill='#ffffff')
             
             poster.save(output_path, 'JPEG', quality=85)
+            logger.info(f"默认海报图片已生成: {output_path}")
             return True
             
         except Exception as e:
@@ -1283,8 +1316,23 @@ class FileOrganizerService:
     def _create_default_fanart(self, output_path: str, title: str) -> bool:
         """创建默认背景图片"""
         try:
-            fanart = Image.new('RGB', (1920, 1080), color='#2a2a2a')
+            fanart = Image.new('RGB', (1920, 1080), color='#34495e')
+            draw = ImageDraw.Draw(fanart)
+            
+            # 创建横向渐变
+            for i in range(1920):
+                ratio = i / 1920
+                r = int(52 + (46 - 52) * ratio)    # 52 -> 46
+                g = int(73 + (204 - 73) * ratio)   # 73 -> 204
+                b = int(94 + (113 - 94) * ratio)   # 94 -> 113
+                color = f'#{r:02x}{g:02x}{b:02x}'
+                draw.line([(i, 0), (i, 1080)], fill=color)
+            
+            # 添加装饰元素
+            self._draw_video_icon(draw, 1920 // 2, 1080 // 2, 120, '#ffffff')
+            
             fanart.save(output_path, 'JPEG', quality=85)
+            logger.info(f"默认背景图片已生成: {output_path}")
             return True
         except Exception as e:
             logger.error(f"创建默认背景图失败: {e}")
@@ -1293,9 +1341,90 @@ class FileOrganizerService:
     def _create_default_thumbnail(self, output_path: str, title: str) -> bool:
         """创建默认缩略图"""
         try:
-            thumb = Image.new('RGB', (400, 300), color='#3a3a3a')
+            thumb = Image.new('RGB', (400, 300), color='#3498db')
+            draw = ImageDraw.Draw(thumb)
+            
+            # 创建对角渐变
+            for i in range(300):
+                ratio = i / 300
+                r = int(52 + (231 - 52) * ratio)    # 52 -> 231
+                g = int(152 + (76 - 152) * ratio)   # 152 -> 76
+                b = int(219 + (60 - 219) * ratio)   # 219 -> 60
+                color = f'#{r:02x}{g:02x}{b:02x}'
+                draw.line([(0, i), (400, i)], fill=color)
+            
+            # 添加播放图标
+            self._draw_play_icon(draw, 200, 150, 40, '#ffffff')
+            
+            # 添加标题（如果不为空）
+            if title and title != "Media":
+                font = self._get_font(16)
+                if len(title) > 25:
+                    title = title[:25] + "..."
+                
+                bbox = draw.textbbox((0, 0), title, font=font)
+                text_width = bbox[2] - bbox[0]
+                
+                x = (400 - text_width) // 2
+                y = 250
+                
+                # 绘制文字阴影
+                draw.text((x + 1, y + 1), title, font=font, fill='#000000')
+                # 绘制主文字
+                draw.text((x, y), title, font=font, fill='#ffffff')
+            
             thumb.save(output_path, 'JPEG', quality=80)
+            logger.info(f"默认缩略图已生成: {output_path}")
             return True
         except Exception as e:
             logger.error(f"创建默认缩略图失败: {e}")
             return False
+    
+    def _get_font(self, size: int):
+        """获取字体，优先尝试系统字体"""
+        try:
+            font_paths = [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/TTF/simhei.ttf",
+                "/System/Library/Fonts/PingFang.ttc",
+                "/Windows/Fonts/msyh.ttc"
+            ]
+            for font_path in font_paths:
+                if os.path.exists(font_path):
+                    return ImageFont.truetype(font_path, size)
+            return ImageFont.load_default()
+        except:
+            return ImageFont.load_default()
+    
+    def _draw_video_icon(self, draw, x: int, y: int, size: int, color: str):
+        """绘制视频图标"""
+        try:
+            # 绘制视频播放按钮（三角形）
+            half_size = size // 2
+            triangle_points = [
+                (x - half_size, y - half_size),
+                (x - half_size, y + half_size),
+                (x + half_size, y)
+            ]
+            draw.polygon(triangle_points, fill=color)
+            
+            # 绘制外框
+            draw.ellipse([x - half_size - 10, y - half_size - 10, 
+                         x + half_size + 10, y + half_size + 10], 
+                        outline=color, width=3)
+        except Exception as e:
+            logger.warning(f"绘制视频图标失败: {e}")
+    
+    def _draw_play_icon(self, draw, x: int, y: int, size: int, color: str):
+        """绘制播放图标"""
+        try:
+            # 绘制播放按钮（三角形）
+            half_size = size // 2
+            triangle_points = [
+                (x - half_size // 2, y - half_size),
+                (x - half_size // 2, y + half_size),
+                (x + half_size, y)
+            ]
+            draw.polygon(triangle_points, fill=color)
+        except Exception as e:
+            logger.warning(f"绘制播放图标失败: {e}")
