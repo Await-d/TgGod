@@ -53,3 +53,30 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPExcept
 ### 修复前后对比
 **修复前**：❌ Docker启动失败，uvicorn无法找到FastAPI类
 **修复后**：✅ Docker正常启动，所有服务功能完整
+
+---
+
+## 2025-07-29 后续修复 - requests依赖缺失
+
+### 新发现问题
+Docker启动时出现新错误：
+```
+ModuleNotFoundError: No module named 'requests'
+```
+
+### 问题分析
+- `service_installer.py` 需要使用 `requests` 库进行HTTP请求
+- `requirements.txt` 中缺少该依赖声明
+- Docker构建时未安装requests模块
+
+### 解决方案
+✅ **已修复** - 在requirements.txt中添加 `requests==2.31.0`
+✅ **已验证** - FastAPI应用启动无依赖错误
+✅ **已测试** - 服务安装器功能正常工作
+
+### 最终状态
+🎉 **Docker线上项目问题完全解决！**
+- ✅ FastAPI导入问题修复
+- ✅ requests依赖缺失修复  
+- ✅ 应用完整启动流程验证通过
+- ✅ 所有修复已提交推送到远程仓库

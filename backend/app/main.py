@@ -96,15 +96,158 @@ async def lifespan(app: FastAPI):
         logger.error(f"服务监控器启动失败: {e}")
         logger.warning("服务监控功能不可用，但系统将继续运行")
 
+    # 数据库检查和修复
+    try:
+        logger.info("🔧 开始运行数据库字段修复脚本...")
+        from pathlib import Path
+        import subprocess
+        import sys
+        
+        project_root = Path(__file__).parent.parent
+        
+        # 修复脚本列表
+        repair_scripts = [
+            ("fix_task_fields.py", "任务表字段修复"),
+            ("fix_filter_rules_fields.py", "过滤规则表字段修复"), 
+            ("fix_incremental_fields.py", "增量查询字段修复"),
+            ("remove_rule_group_id_field.py", "移除规则表group_id字段"),
+            ("add_advanced_rule_fields.py", "添加高级规则过滤字段"),
+            ("create_task_rule_association_table.py", "创建任务-规则多对多关联表")
+        ]
+        
+        for script_name, description in repair_scripts:
+            script_path = project_root / script_name
+            if script_path.exists():
+                logger.info(f"运行{description}脚本...")
+                result = subprocess.run([sys.executable, str(script_path)], 
+                                      capture_output=True, text=True, cwd=str(project_root))
+                if result.returncode == 0:
+                    logger.info(f"✅ {description}完成")
+                else:
+                    logger.error(f"❌ {description}失败: {result.stderr}")
+            else:
+                logger.warning(f"未找到{script_name}，跳过{description}")
+        
+        logger.info("🎯 所有数据库字段修复脚本执行完成")
+    except Exception as e:
+        logger.error(f"运行数据库字段修复脚本失败: {e}")
+        logger.warning("将继续启动，但可能出现字段访问错误")
+
+    # 数据库健康检查
+    try:
+        logger.info("🏥 执行数据库健康检查...")
+        from pathlib import Path
+        import subprocess
+        import sys
+        
+        health_check_script = Path(__file__).parent.parent / "database_health_check.py"
+        if health_check_script.exists():
+            result = subprocess.run([sys.executable, str(health_check_script)], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                logger.info("✅ 数据库健康检查完成")
+            else:
+                logger.warning(f"数据库健康检查异常: {result.stderr}")
+        else:
+            logger.info("未找到健康检查脚本，跳过检查")
+    except Exception as e:
+        logger.error(f"数据库健康检查失败: {e}")
+
+    # 重置异常任务状态
+    try:
+        logger.info("🔧 开始重置异常任务状态...")
+        from .database import get_db
+        from .models.rule import DownloadTask
+        from sqlalchemy.orm import Session
+        
+        db_gen = get_db()
+        db: Session = next(db_gen)
+        
+        try:
+            running_tasks = db.query(DownloadTask).filter(
+                DownloadTask.status.in_(["running", "paused"])
+            ).all()
+            
+            reset_count = 0
+            for task in running_tasks:
+                original_status = task.status
+                task.status = "failed"
+                task.error_message = f"应用重启时发现任务处于{original_status}状态，已自动重置"
+                reset_count += 1
+                logger.info(f"重置任务 {task.id}({task.name}) 状态: {original_status} -> failed")
+            
+            if reset_count > 0:
+                db.commit()
+                logger.info(f"✅ 成功重置 {reset_count} 个异常任务状态")
+            else:
+                logger.info("✅ 没有发现需要重置的异常任务状态")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"重置任务状态失败: {e}")
+        logger.warning("任务状态可能不同步，建议手动检查")
+
     # 数据库和其他启动逻辑
     try:
         # 初始化设置
         init_settings()
         logger.info("Settings initialized")
         
+        # 初始化任务执行服务
+        try:
+            from .services.task_execution_service import task_execution_service
+            await task_execution_service.initialize()
+            logger.info("Task execution service initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize task execution service: {e}")
+            logger.warning("Task execution service disabled, system will continue startup without it")
+
+        # 启动任务调度器
+        try:
+            from .services.task_scheduler import task_scheduler
+            await task_scheduler.start()
+            logger.info("Task scheduler started successfully")
+        except ImportError as e:
+            logger.error(f"Failed to import task scheduler: {e}")
+            logger.warning("Task scheduler disabled, recurring tasks will not work")
+        except Exception as e:
+            logger.error(f"Failed to start task scheduler: {e}")
+            logger.warning("Task scheduler disabled, recurring tasks will not work")
+        
         # 启动消息同步任务
         message_sync_task.start()
         logger.info("Message sync task started")
+
+        # 创建默认账户
+        try:
+            from .services.user_service import user_service
+            from .database import SessionLocal
+            
+            db = SessionLocal()
+            try:
+                init_result = user_service.initialize_system(db)
+                
+                if init_result["success"]:
+                    admin_info = user_service.get_admin_info()
+                    system_status = init_result["system_status"]
+                    
+                    logger.info("=" * 50)
+                    logger.info("TgGod 系统初始化完成")
+                    logger.info("=" * 50)
+                    logger.info(f"总用户数: {system_status['total_users']}")
+                    logger.info(f"管理员数: {system_status['admin_users']}")
+                    logger.info(f"默认管理员: {admin_info['username']}")
+                    logger.info(f"默认密码: {admin_info['password']}")
+                    logger.info("⚠️  首次登录后请立即修改密码！")
+                    logger.info("=" * 50)
+                else:
+                    logger.error(f"系统初始化失败: {init_result['message']}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"系统初始化异常: {e}")
+            logger.error("系统将继续启动，但可能缺少默认账户")
+
     except Exception as e:
         logger.error(f"Startup initialization failed: {e}")
         logger.warning("Some features may not work properly")
@@ -114,6 +257,14 @@ async def lifespan(app: FastAPI):
     
     # 关闭时执行
     logger.info("Shutting down TgGod API...")
+    
+    # 停止任务调度器
+    try:
+        from .services.task_scheduler import task_scheduler
+        await task_scheduler.stop()
+        logger.info("Task scheduler stopped successfully")
+    except Exception as e:
+        logger.error(f"Failed to stop task scheduler: {e}")
     
     # 停止消息同步任务
     try:
