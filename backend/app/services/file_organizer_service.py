@@ -146,6 +146,11 @@ class FileOrganizerService:
         """
         base_path = task_data.get('download_path', '/downloads')
         
+        # 获取群组名称，用于文件路径组织
+        group_name = task_data.get('group_name', 'Unknown_Group')
+        # 清理群组名称，移除文件系统不支持的字符
+        safe_group_name = self._sanitize_path_component(group_name)
+        
         # 根据是否按日期组织决定目录结构
         if task_data.get('organize_by_date', True):
             # 使用消息日期组织
@@ -157,23 +162,21 @@ class FileOrganizerService:
                         date_obj = datetime.fromisoformat(date_obj.replace('Z', '+00:00'))
                     except:
                         date_obj = datetime.now()
-                
-                year = date_obj.strftime('%Y')
-                month = date_obj.strftime('%m-%B')  # 01-January格式
-                day = date_obj.strftime('%d')
-                
-                organized_path = os.path.join(base_path, year, month, day, original_filename)
             else:
                 # 使用当天日期
-                today = datetime.now()
-                year = today.strftime('%Y')
-                month = today.strftime('%m-%B')
-                day = today.strftime('%d')
-                
-                organized_path = os.path.join(base_path, year, month, day, original_filename)
+                date_obj = datetime.now()
+            
+            # 生成视频标题目录名：[视频标题] - [YYYY-MM-DD]
+            video_title = self._extract_video_title(message, original_filename)
+            date_str = date_obj.strftime('%Y-%m-%d')
+            video_dir_name = f"{video_title} - {date_str}"
+            safe_video_dir = self._sanitize_path_component(video_dir_name)
+            
+            # 标准格式：base_path/群组名/[视频标题] - [YYYY-MM-DD]/文件名
+            organized_path = os.path.join(base_path, safe_group_name, safe_video_dir, original_filename)
         else:
-            # 不按日期组织，直接存储在基础路径
-            organized_path = os.path.join(base_path, original_filename)
+            # 不按日期组织，包含群组名称：base_path/群组名/文件名
+            organized_path = os.path.join(base_path, safe_group_name, original_filename)
         
         return organized_path
     
@@ -196,8 +199,8 @@ class FileOrganizerService:
         
         # 获取订阅名作为系列名（优先使用订阅名，回退到群组名）
         subscription_name = task_data.get('subscription_name') or task_data.get('task_name') or task_data.get('group_name', 'Unknown_Subscription')
-        # 清理文件名中的非法字符
-        safe_subscription_name = self._sanitize_filename(subscription_name)
+        # 清理路径组件中的非法字符
+        safe_subscription_name = self._sanitize_path_component(subscription_name)
         
         logger.info(f"Jellyfin路径生成 - subscription_name: {subscription_name}")
         logger.info(f"Jellyfin路径生成 - safe_subscription_name: {safe_subscription_name}")
@@ -289,6 +292,70 @@ class FileOrganizerService:
             clean_name = name[:max_length-len(ext)] + ext
         
         return clean_name if clean_name else "unknown"
+    
+    def _sanitize_path_component(self, path_component: str, max_length: int = 100) -> str:
+        """
+        清理路径组件（如群组名称），移除文件系统不支持的字符
+        
+        Args:
+            path_component: 原始路径组件
+            max_length: 最大长度
+            
+        Returns:
+            清理后的路径组件
+        """
+        if not path_component:
+            return "Unknown"
+        
+        # 移除或替换文件系统不支持的字符
+        illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*', '\n', '\r', '\t']
+        clean_component = path_component
+        for char in illegal_chars:
+            clean_component = clean_component.replace(char, '_')
+        
+        # 移除多余的空格
+        clean_component = ' '.join(clean_component.split())
+        clean_component = clean_component.strip('. ')
+        
+        # 限制长度，避免过长的目录名
+        if len(clean_component) > max_length:
+            clean_component = clean_component[:max_length].rstrip()
+        
+        return clean_component if clean_component else "Unknown"
+    
+    def _extract_video_title(self, message: Any, original_filename: str) -> str:
+        """
+        从消息中提取视频标题
+        
+        Args:
+            message: 消息对象
+            original_filename: 原始文件名
+            
+        Returns:
+            视频标题
+        """
+        # 优先使用消息文本作为标题
+        if hasattr(message, 'text') and message.text:
+            title = message.text.strip()
+            # 如果文本太长，截取前50个字符
+            if len(title) > 50:
+                title = title[:50] + "..."
+            return title
+        
+        # 其次使用消息说明
+        if hasattr(message, 'caption') and message.caption:
+            caption = message.caption.strip()
+            if len(caption) > 50:
+                caption = caption[:50] + "..."
+            return caption
+        
+        # 最后使用文件名（去除扩展名）
+        if original_filename:
+            title = os.path.splitext(original_filename)[0]
+            return title
+        
+        # 默认标题
+        return "Media"
     
     def organize_downloaded_file(self, 
                                 source_path: str, 
