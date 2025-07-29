@@ -1568,7 +1568,11 @@ async def download_media_background(message_id: int, force: bool = False):
                 logger.error(f"进度回调执行失败: {e}")
         
         try:
-            downloader = await get_media_downloader()
+            # 使用消息信息创建持久化的下载器实例
+            downloader = await get_media_downloader(
+                chat_id=group_telegram_id,
+                message_id=message_id_telegram
+            )
             
             download_success = await downloader.download_file(
                 file_id=media_file_id,
@@ -1596,15 +1600,18 @@ async def download_media_background(message_id: int, force: bool = False):
                 # 尝试重新初始化下载器并重试一次下载
                 try:
                     logger.info("正在重新初始化媒体下载器...")
-                    media_downloader = TelegramMediaDownloader()
+                    media_downloader = TelegramMediaDownloader(
+                        chat_id=group_telegram_id,
+                        message_id=message_id_telegram
+                    )
                     await media_downloader.initialize()
                     
                     logger.info(f"重新尝试下载媒体文件: 消息 {message_id}")
                     download_success = await media_downloader.download_file(
-                        file_id=str(message_id),
+                        file_id=media_file_id,
                         file_path=file_path,
-                        chat_id=chat_id,
-                        message_id=message_id,
+                        chat_id=group_telegram_id,
+                        message_id=message_id_telegram,
                         progress_callback=progress_callback if progress_callback else None
                     )
                     

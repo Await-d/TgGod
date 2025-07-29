@@ -6,6 +6,7 @@ from telethon import TelegramClient
 from telethon.errors import AuthKeyUnregisteredError, FloodWaitError
 from ..config import settings
 import asyncio
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +16,76 @@ _connection_semaphore = asyncio.Semaphore(2)
 class TelegramMediaDownloader:
     """Telegram媒体文件下载器"""
     
-    def __init__(self):
+    def __init__(self, chat_id: Optional[int] = None, message_id: Optional[int] = None):
         self.client: Optional[TelegramClient] = None
         self._initialized = False
         self._shared_client = None  # 共享的客户端实例
-        # 使用独立的session路径，添加进程ID和线程ID避免并发冲突 
-        import threading
-        import uuid
-        session_id = f"downloader_{os.getpid()}_{threading.get_ident()}_{uuid.uuid4().hex[:8]}"
+        self.chat_id = chat_id
+        self.message_id = message_id
+        
+        # 使用消息ID创建持久化session，这样可以保持下载进度
+        if chat_id and message_id:
+            # 基于聊天ID和消息ID创建唯一但持久的session名称
+            import hashlib
+            session_key = f"{chat_id}_{message_id}"
+            session_hash = hashlib.md5(session_key.encode()).hexdigest()[:12]
+            session_id = f"download_{session_hash}"
+        else:
+            # 如果没有提供消息信息，使用进程ID作为备用方案
+            import threading
+            session_id = f"downloader_{os.getpid()}_{threading.get_ident()}"
+        
         self.session_name = os.path.join("./telegram_sessions", session_id)
+        
+        # 下载进度文件路径
+        self.progress_file = f"{self.session_name}.progress"
+    
+    def _save_progress(self, file_path: str, current: int, total: int):
+        """保存下载进度到文件"""
+        try:
+            import json
+            progress_data = {
+                "file_path": file_path,
+                "current": current,
+                "total": total,
+                "timestamp": str(datetime.now()),
+                "chat_id": self.chat_id,
+                "message_id": self.message_id
+            }
+            
+            os.makedirs(os.path.dirname(self.progress_file), exist_ok=True)
+            with open(self.progress_file, 'w', encoding='utf-8') as f:
+                json.dump(progress_data, f, indent=2)
+                
+        except Exception as e:
+            logger.warning(f"保存下载进度失败: {e}")
+    
+    def _load_progress(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """从文件加载下载进度"""
+        try:
+            if not os.path.exists(self.progress_file):
+                return None
+                
+            import json
+            with open(self.progress_file, 'r', encoding='utf-8') as f:
+                progress_data = json.load(f)
+            
+            # 验证进度数据是否匹配当前下载任务
+            if progress_data.get("file_path") == file_path:
+                return progress_data
+                
+        except Exception as e:
+            logger.warning(f"加载下载进度失败: {e}")
+        
+        return None
+    
+    def _clear_progress(self):
+        """清理进度文件"""
+        try:
+            if os.path.exists(self.progress_file):
+                os.remove(self.progress_file)
+        except Exception as e:
+            logger.warning(f"清理进度文件失败: {e}")
     
     async def initialize(self):
         """初始化Telegram客户端"""
@@ -128,7 +190,7 @@ class TelegramMediaDownloader:
             await self._cleanup()
             raise
     
-    async def _cleanup(self):
+    async def _cleanup(self, force_remove_session: bool = False):
         """清理资源和临时文件"""
         try:
             # 断开客户端连接
@@ -136,13 +198,13 @@ class TelegramMediaDownloader:
                 await self.client.disconnect()
                 self.client = None
             
-            # 清理临时session文件
-            if hasattr(self, 'session_name') and self.session_name:
+            # 根据参数决定是否清理session文件
+            if force_remove_session and hasattr(self, 'session_name') and self.session_name:
                 session_file = f"{self.session_name}.session"
                 if os.path.exists(session_file):
                     try:
                         os.remove(session_file)
-                        logger.info(f"已清理临时session文件: {session_file}")
+                        logger.info(f"已清理session文件: {session_file}")
                     except Exception as e:
                         logger.warning(f"清理session文件失败: {e}")
             
@@ -246,14 +308,25 @@ class TelegramMediaDownloader:
                     return False
                 
                 if progress_callback:
-                    # 简化的进度处理包装器 - 避免复杂的异步处理
+                    # 检查是否有之前的下载进度
+                    saved_progress = self._load_progress(file_path)
+                    if saved_progress:
+                        current_progress = saved_progress.get('current', 0)
+                        total_size = saved_progress.get('total', 0)
+                        if total_size > 0:
+                            logger.info(f"发现之前的下载进度: {current_progress}/{total_size} ({current_progress/total_size*100:.1f}%)")
+                    
+                    # 增强的进度处理包装器 - 包含进度保存功能
                     def progress_wrapper(current, total):
                         try:
                             if total > 0:
+                                # 保存下载进度到文件
+                                self._save_progress(file_path, current, total)
+                                
                                 # 使用简化的进度报告，避免异步回调问题
                                 progress_percent = (current / total) * 100
-                                # 每10%报告一次进度，减少回调频率
-                                if int(progress_percent) % 10 == 0 or current == total:
+                                # 每5%报告一次进度，提供更细粒度的进度信息
+                                if int(progress_percent) % 5 == 0 or current == total:
                                     logger.info(f"下载进度: {current}/{total} ({progress_percent:.1f}%)")
                                 
                                 # 尝试调用回调，但不要让回调错误中断下载
@@ -283,6 +356,8 @@ class TelegramMediaDownloader:
                         )
                         
                         logger.info(f"通过消息下载文件成功: {file_path}")
+                        # 下载成功后清理进度文件
+                        self._clear_progress()
                         return True
                     except asyncio.TimeoutError:
                         logger.error(f"下载超时 (10分钟): {file_path}")
@@ -299,6 +374,8 @@ class TelegramMediaDownloader:
                     )
                     
                     logger.info(f"通过消息下载文件成功: {file_path}")
+                    # 下载成功后清理进度文件
+                    self._clear_progress()
                     return True
                 
             except FloodWaitError as e:
@@ -502,10 +579,23 @@ async def invalidate_session_cache():
     _last_session_check = 0
     logger.info("已清除session状态缓存")
 
-async def get_media_downloader() -> TelegramMediaDownloader:
-    """获取媒体下载器实例 - 每次创建独立实例避免session冲突"""
-    logger.info("创建独立的媒体下载器实例")
-    downloader = TelegramMediaDownloader()
+async def get_media_downloader(chat_id: Optional[int] = None, message_id: Optional[int] = None) -> TelegramMediaDownloader:
+    """
+    获取媒体下载器实例 - 使用消息ID创建持久化session
+    
+    Args:
+        chat_id: 聊天ID，用于创建持久化session
+        message_id: 消息ID，用于创建持久化session
+        
+    Returns:
+        TelegramMediaDownloader实例
+    """
+    if chat_id and message_id:
+        logger.info(f"创建基于消息ID的持久化媒体下载器实例: {chat_id}_{message_id}")
+    else:
+        logger.info("创建临时媒体下载器实例")
+    
+    downloader = TelegramMediaDownloader(chat_id=chat_id, message_id=message_id)
     
     try:
         await downloader.initialize()
