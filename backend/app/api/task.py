@@ -152,7 +152,74 @@ async def get_tasks(
             query = query.filter(DownloadTask.status == status)
         
         tasks = query.order_by(DownloadTask.created_at.desc()).offset(skip).limit(limit).all()
-        return tasks
+        
+        # 为每个任务构建完整的响应数据
+        task_responses = []
+        for task in tasks:
+            # 获取规则关联信息
+            from ..models.task_rule_association import TaskRuleAssociation
+            from ..models.rule import FilterRule
+            
+            rule_associations = db.query(TaskRuleAssociation).filter(
+                TaskRuleAssociation.task_id == task.id,
+                TaskRuleAssociation.is_active == True
+            ).order_by(TaskRuleAssociation.priority.desc()).all()
+            
+            rules_info = []
+            for assoc in rule_associations:
+                rule = db.query(FilterRule).filter(FilterRule.id == assoc.rule_id).first()
+                if rule:
+                    rules_info.append(TaskRuleAssociationResponse(
+                        rule_id=rule.id,
+                        rule_name=rule.name,
+                        is_active=assoc.is_active,
+                        priority=assoc.priority
+                    ))
+            
+            # 构建任务响应数据
+            response_data = {
+                "id": task.id,
+                "name": task.name,
+                "group_id": task.group_id,
+                "rules": rules_info,
+                "status": task.status,
+                "progress": task.progress,
+                "total_messages": task.total_messages,
+                "downloaded_messages": task.downloaded_messages,
+                "download_path": task.download_path,
+                "date_from": task.date_from,
+                "date_to": task.date_to,
+                
+                # Jellyfin 配置
+                "use_jellyfin_structure": getattr(task, 'use_jellyfin_structure', False),
+                "include_metadata": getattr(task, 'include_metadata', True),
+                "download_thumbnails": getattr(task, 'download_thumbnails', True),
+                "use_series_structure": getattr(task, 'use_series_structure', False),
+                "organize_by_date": getattr(task, 'organize_by_date', True),
+                "max_filename_length": getattr(task, 'max_filename_length', 150),
+                "thumbnail_size": getattr(task, 'thumbnail_size', '400x300'),
+                "poster_size": getattr(task, 'poster_size', '600x900'),
+                "fanart_size": getattr(task, 'fanart_size', '1920x1080'),
+                
+                # 调度配置
+                "task_type": getattr(task, 'task_type', 'once'),
+                "schedule_type": getattr(task, 'schedule_type', None),
+                "schedule_config": getattr(task, 'schedule_config', None),
+                "next_run_time": getattr(task, 'next_run_time', None),
+                "last_run_time": getattr(task, 'last_run_time', None),
+                "is_active": getattr(task, 'is_active', True),
+                "max_runs": getattr(task, 'max_runs', None),
+                "run_count": getattr(task, 'run_count', 0),
+                
+                "created_at": task.created_at,
+                "updated_at": task.updated_at,
+                "completed_at": task.completed_at,
+                "error_message": task.error_message
+            }
+            
+            task_responses.append(TaskResponse(**response_data))
+        
+        return task_responses
     except Exception as e:
         logger.error(f"查询任务列表失败: {str(e)}")
         # 如果是数据库结构问题，返回空列表

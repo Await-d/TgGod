@@ -5,6 +5,8 @@
 1. 规则初始化时的自动消息同步
 2. 后续任务执行的增量同步
 3. 规则修改后的重新查找机制
+
+注意：规则现在通过任务-规则关联表与群组关联，不再直接包含group_id字段
 """
 
 import logging
@@ -13,7 +15,8 @@ from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, and_, or_
 
-from ..models.rule import FilterRule
+from ..models.rule import FilterRule, DownloadTask
+from ..models.task_rule_association import TaskRuleAssociation
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..services.telegram_service import telegram_service
 from ..database import get_db
@@ -40,38 +43,88 @@ class RuleSyncService:
         if not rule:
             raise ValueError(f"规则 {rule_id} 不存在")
         
-        # 检查是否需要同步
-        sync_result = await self._check_sync_requirements(rule, db)
+        # 获取使用此规则的所有任务的群组
+        associated_groups = self._get_rule_associated_groups(rule_id, db)
+        if not associated_groups:
+            self.logger.warning(f"规则 {rule_id} 没有关联的任务或群组，跳过同步")
+            return {
+                "rule_id": rule_id,
+                "sync_performed": False,
+                "sync_type": "no_association",
+                "message_count": 0,
+                "sync_status": "no_association"
+            }
         
-        if sync_result["needs_sync"]:
-            # 执行同步
-            await self._perform_sync(rule, db, sync_result["sync_type"])
+        # 对每个相关群组检查同步需求
+        total_synced = 0
+        sync_performed = False
+        
+        for group in associated_groups:
+            sync_result = await self._check_sync_requirements_for_group(rule, group, db)
             
+            if sync_result["needs_sync"]:
+                # 执行同步
+                await self._perform_sync_for_group(rule, group, db, sync_result["sync_type"])
+                sync_performed = True
+                total_synced += sync_result.get("synced_count", 0)
+        
         return {
             "rule_id": rule_id,
-            "sync_performed": sync_result["needs_sync"],
-            "sync_type": sync_result.get("sync_type"),
-            "message_count": self._get_available_message_count(rule, db),
+            "sync_performed": sync_performed,
+            "associated_groups_count": len(associated_groups),
+            "total_synced_messages": total_synced,
+            "message_count": self._get_available_message_count(rule_id, db),
             "sync_status": getattr(rule, 'sync_status', 'pending')
         }
     
-    async def _check_sync_requirements(self, rule: FilterRule, db: Session) -> Dict[str, Any]:
+    def _get_rule_associated_groups(self, rule_id: int, db: Session) -> List[TelegramGroup]:
         """
-        检查规则的同步需求
+        获取规则关联的所有群组
+        通过任务-规则关联表和任务表来查找
+        """
+        # 查询使用此规则的所有活跃任务
+        task_associations = db.query(TaskRuleAssociation).filter(
+            TaskRuleAssociation.rule_id == rule_id,
+            TaskRuleAssociation.is_active == True
+        ).all()
         
+        if not task_associations:
+            return []
+        
+        # 获取所有相关任务的群组ID
+        task_ids = [assoc.task_id for assoc in task_associations]
+        tasks = db.query(DownloadTask).filter(
+            DownloadTask.id.in_(task_ids)
+        ).all()
+        
+        # 获取唯一的群组ID
+        group_ids = list(set([task.group_id for task in tasks]))
+        
+        # 查询群组信息
+        groups = db.query(TelegramGroup).filter(
+            TelegramGroup.id.in_(group_ids)
+        ).all()
+        
+        return groups
+    
+    async def _check_sync_requirements_for_group(self, rule: FilterRule, group: TelegramGroup, db: Session) -> Dict[str, Any]:
+        """
+        检查规则在特定群组中的同步需求
+        
+        Args:
+            rule: 规则对象
+            group: 群组对象
+            db: 数据库会话
+            
         Returns:
             包含是否需要同步和同步类型的字典
         """
-        group = db.query(TelegramGroup).filter(TelegramGroup.id == rule.group_id).first()
-        if not group:
-            return {"needs_sync": False, "reason": "群组不存在"}
-        
         # 情况1: 规则从未同步过
         if not hasattr(rule, 'last_sync_time') or rule.last_sync_time is None:
             return {
                 "needs_sync": True,
                 "sync_type": "initial",
-                "reason": "规则初次使用，需要初始同步"
+                "reason": f"规则初次使用，需要为群组 {group.title} 进行初始同步"
             }
         
         # 情况2: 规则被修改，需要完全重新同步
@@ -79,21 +132,21 @@ class RuleSyncService:
             return {
                 "needs_sync": True,
                 "sync_type": "full_resync",
-                "reason": "规则已修改，需要完全重新同步"
+                "reason": f"规则已修改，需要为群组 {group.title} 完全重新同步"
             }
         
         # 情况3: 检查是否需要增量同步
-        # 获取规则时间范围内的最新消息时间
+        # 获取群组中规则时间范围内的最新消息时间
         latest_message_query = db.query(TelegramMessage).filter(
-            TelegramMessage.group_id == rule.group_id
+            TelegramMessage.group_id == group.id
         )
         
         # 如果规则有时间限制，应用它
-        if rule.date_from:
+        if hasattr(rule, 'date_from') and rule.date_from:
             latest_message_query = latest_message_query.filter(
                 TelegramMessage.date >= rule.date_from
             )
-        if rule.date_to:
+        if hasattr(rule, 'date_to') and rule.date_to:
             latest_message_query = latest_message_query.filter(
                 TelegramMessage.date <= rule.date_to
             )
@@ -104,12 +157,12 @@ class RuleSyncService:
             return {
                 "needs_sync": True,
                 "sync_type": "initial",
-                "reason": "规则时间范围内没有消息数据"
+                "reason": f"群组 {group.title} 在规则时间范围内没有消息数据"
             }
         
         # 检查群组是否有更新的消息（在规则最后同步时间之后）
         newer_messages_count = db.query(TelegramMessage).filter(
-            TelegramMessage.group_id == rule.group_id,
+            TelegramMessage.group_id == group.id,
             TelegramMessage.date > getattr(rule, 'last_sync_time', datetime.now() - timedelta(days=90))
         ).count()
         
@@ -117,20 +170,21 @@ class RuleSyncService:
             return {
                 "needs_sync": True,
                 "sync_type": "incremental",
-                "reason": f"检测到 {newer_messages_count} 条新消息需要同步"
+                "reason": f"群组 {group.title} 中检测到 {newer_messages_count} 条新消息需要同步"
             }
         
         return {
             "needs_sync": False,
-            "reason": "数据已是最新"
+            "reason": f"群组 {group.title} 数据已是最新"
         }
     
-    async def _perform_sync(self, rule: FilterRule, db: Session, sync_type: str):
+    async def _perform_sync_for_group(self, rule: FilterRule, group: TelegramGroup, db: Session, sync_type: str):
         """
-        执行同步操作
+        为特定群组执行同步操作
         
         Args:
             rule: 规则对象
+            group: 群组对象
             db: 数据库会话
             sync_type: 同步类型 ('initial', 'full_resync', 'incremental')
         """
@@ -140,16 +194,12 @@ class RuleSyncService:
                 rule.sync_status = 'syncing'
             db.commit()
             
-            group = db.query(TelegramGroup).filter(TelegramGroup.id == rule.group_id).first()
-            if not group:
-                raise ValueError(f"群组 {rule.group_id} 不存在")
-            
             # 根据同步类型确定同步参数
             sync_params = self._determine_sync_params(rule, sync_type)
             
             self.logger.info(
-                f"开始为规则 {rule.id} 执行 {sync_type} 同步，"
-                f"群组: {group.title}, 参数: {sync_params}"
+                f"开始为规则 {rule.id} 在群组 {group.title} 中执行 {sync_type} 同步，"
+                f"参数: {sync_params}"
             )
             
             # 执行消息同步
@@ -159,7 +209,9 @@ class RuleSyncService:
             if hasattr(rule, 'last_sync_time'):
                 rule.last_sync_time = datetime.now()
             if hasattr(rule, 'last_sync_message_count'):
-                rule.last_sync_message_count = sync_result.get('synced_count', 0)
+                # 累加同步计数而不是覆盖
+                current_count = getattr(rule, 'last_sync_message_count', 0)
+                rule.last_sync_message_count = current_count + sync_result.get('synced_count', 0)
             if hasattr(rule, 'sync_status'):
                 rule.sync_status = 'completed'
             if hasattr(rule, 'needs_full_resync'):
@@ -168,7 +220,8 @@ class RuleSyncService:
             db.commit()
             
             self.logger.info(
-                f"规则 {rule.id} 同步完成，同步了 {sync_result.get('synced_count', 0)} 条消息"
+                f"规则 {rule.id} 在群组 {group.title} 中同步完成，"
+                f"同步了 {sync_result.get('synced_count', 0)} 条消息"
             )
             
         except Exception as e:
@@ -177,7 +230,7 @@ class RuleSyncService:
                 rule.sync_status = 'failed'
             db.commit()
             
-            self.logger.error(f"规则 {rule.id} 同步失败: {str(e)}")
+            self.logger.error(f"规则 {rule.id} 在群组 {group.title} 中同步失败: {str(e)}")
             raise
     
     def _determine_sync_params(self, rule: FilterRule, sync_type: str) -> Dict[str, Any]:
@@ -234,21 +287,35 @@ class RuleSyncService:
                 'error': str(e)
             }
     
-    def _get_available_message_count(self, rule: FilterRule, db: Session) -> int:
+    def _get_available_message_count(self, rule_id: int, db: Session) -> int:
         """
         获取规则范围内的可用消息数量
+        现在通过任务-规则关联来计算所有相关群组的消息总数
         """
-        query = db.query(TelegramMessage).filter(
-            TelegramMessage.group_id == rule.group_id
-        )
+        rule = db.query(FilterRule).filter(FilterRule.id == rule_id).first()
+        if not rule:
+            return 0
         
-        # 应用时间过滤
-        if rule.date_from:
-            query = query.filter(TelegramMessage.date >= rule.date_from)
-        if rule.date_to:
-            query = query.filter(TelegramMessage.date <= rule.date_to)
+        # 获取规则关联的所有群组
+        associated_groups = self._get_rule_associated_groups(rule_id, db)
+        if not associated_groups:
+            return 0
         
-        return query.count()
+        total_count = 0
+        for group in associated_groups:
+            query = db.query(TelegramMessage).filter(
+                TelegramMessage.group_id == group.id
+            )
+            
+            # 应用时间过滤
+            if hasattr(rule, 'date_from') and rule.date_from:
+                query = query.filter(TelegramMessage.date >= rule.date_from)
+            if hasattr(rule, 'date_to') and rule.date_to:
+                query = query.filter(TelegramMessage.date <= rule.date_to)
+            
+            total_count += query.count()
+        
+        return total_count
     
     async def mark_rule_for_resync(self, rule_id: int, db: Session):
         """
@@ -272,13 +339,18 @@ class RuleSyncService:
         if not rule:
             raise ValueError(f"规则 {rule_id} 不存在")
         
+        # 获取关联的群组信息
+        associated_groups = self._get_rule_associated_groups(rule_id, db)
+        
         return {
             "rule_id": rule_id,
             "sync_status": getattr(rule, 'sync_status', 'pending'),
             "last_sync_time": getattr(rule, 'last_sync_time', None),
             "last_sync_message_count": getattr(rule, 'last_sync_message_count', 0),
             "needs_full_resync": getattr(rule, 'needs_full_resync', True),
-            "available_message_count": self._get_available_message_count(rule, db)
+            "available_message_count": self._get_available_message_count(rule_id, db),
+            "associated_groups_count": len(associated_groups),
+            "associated_groups": [{"id": g.id, "title": g.title} for g in associated_groups]
         }
 
 # 创建全局服务实例
