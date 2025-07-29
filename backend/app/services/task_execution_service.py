@@ -160,7 +160,14 @@ class TaskExecutionService:
                     
                     # 下载媒体文件
                     if message.media_type and message.media_type != 'text':
-                        success = await self._download_message_media(message, task_data, task_id)
+                        # 检测匹配的关键字
+                        matched_keyword = self._get_matched_keyword(message, all_rules_data[0] if all_rules_data else {})
+                        
+                        # 创建带有匹配关键字的临时任务数据
+                        temp_task_data = task_data.copy()
+                        temp_task_data['matched_keyword'] = matched_keyword
+                        
+                        success = await self._download_message_media(message, temp_task_data, task_id)
                         if success:
                             downloaded_count += 1
                         else:
@@ -754,6 +761,37 @@ class TaskExecutionService:
         query = query.filter(TelegramMessage.media_type.isnot(None))
         
         return query
+    
+    def _get_matched_keyword(self, message: 'TelegramMessage', rule_data: dict) -> str:
+        """
+        检测消息匹配了哪个关键字，用于文件命名
+        
+        Args:
+            message: 消息对象
+            rule_data: 规则数据字典
+            
+        Returns:
+            匹配的关键字，如果没有匹配则返回规则名称
+        """
+        keywords = rule_data.get('keywords', [])
+        if not keywords:
+            return rule_data.get('name', 'Unknown')
+        
+        # 检查消息文本
+        message_text = getattr(message, 'text', '') or ''
+        sender_name = getattr(message, 'sender_name', '') or ''
+        media_filename = getattr(message, 'media_filename', '') or ''
+        
+        # 合并所有可能的文本内容
+        all_text = f"{message_text} {sender_name} {media_filename}".lower()
+        
+        # 找到第一个匹配的关键字
+        for keyword in keywords:
+            if keyword.lower() in all_text:
+                return keyword
+        
+        # 如果没有找到匹配的关键字，返回第一个关键字作为默认值
+        return keywords[0] if keywords else rule_data.get('name', 'Unknown')
     
     async def _filter_messages(self, rule: FilterRule, group: TelegramGroup, task: DownloadTask, db: Session) -> List[TelegramMessage]:
         """根据规则筛选消息，同时考虑任务的日期范围"""

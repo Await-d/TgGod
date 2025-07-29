@@ -146,8 +146,15 @@ class FileOrganizerService:
         """
         base_path = task_data.get('download_path', '/downloads')
         
-        # 获取规则名称，用于文件路径组织
-        rule_name = task_data.get('rule_name', 'Unknown_Rule')
+        # 获取匹配的关键字，优先使用触发下载的关键字，否则使用规则名称
+        matched_keyword = task_data.get('matched_keyword')
+        if matched_keyword:
+            rule_name = matched_keyword
+            logger.info(f"使用匹配关键字作为规则名: {matched_keyword}")
+        else:
+            rule_name = task_data.get('rule_name', 'Unknown_Rule')
+            logger.info(f"使用规则名称: {rule_name}")
+        
         # 清理规则名称，移除文件系统不支持的字符
         safe_rule_name = self._sanitize_path_component(rule_name)
         
