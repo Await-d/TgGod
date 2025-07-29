@@ -45,7 +45,7 @@ class DatabaseChecker:
                 'include_forwarded', 'is_active', 'created_at', 'updated_at'
             ],
             'download_tasks': [
-                'id', 'name', 'group_id', 'rule_id', 'status', 'progress',
+                'id', 'name', 'group_id', 'status', 'progress',
                 'total_messages', 'downloaded_messages', 'download_path',
                 'date_from', 'date_to',
                 # Jellyfin 兼容字段
@@ -100,7 +100,6 @@ class DatabaseChecker:
                 'max_file_size': 'INTEGER'
             },
             'download_tasks': {
-                'rule_id': 'INTEGER',
                 'date_from': 'TIMESTAMP WITH TIME ZONE',
                 'date_to': 'TIMESTAMP WITH TIME ZONE',
                 # Jellyfin 兼容字段定义
@@ -316,5 +315,10 @@ class DatabaseChecker:
             logger.error(f"获取数据库信息失败: {e}")
             return {'error': str(e)}
 
-# 创建全局实例
+# 创建数据库检查器实例的工厂函数
+def get_database_checker():
+    """获取数据库检查器实例（每次创建新实例以确保使用最新的配置）"""
+    return DatabaseChecker()
+
+# 保持向后兼容的全局实例（但建议使用工厂函数）
 database_checker = DatabaseChecker()

@@ -137,6 +137,8 @@ def create_task_rule_association_table():
                 ("schedule_config", "TEXT"),
                 ("next_run_time", "TIMESTAMP"),
                 ("last_run_time", "TIMESTAMP"),
+                ("last_processed_time", "TIMESTAMP"),  # 增量查询字段
+                ("force_full_scan", "BOOLEAN DEFAULT 0"),  # 强制全扫描字段
                 ("is_active", "BOOLEAN DEFAULT 1"),
                 ("max_runs", "INTEGER"),
                 ("run_count", "INTEGER DEFAULT 0")

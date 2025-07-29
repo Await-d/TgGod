@@ -379,9 +379,10 @@ async def startup_event():
     try:
         logger.info("🔧 开始数据库结构检查和自动修复...")
         
-        from .utils.database_checker import database_checker
+        from .utils.database_checker import get_database_checker
         
-        # 运行启动检查
+        # 运行启动检查（使用新实例确保使用最新配置）
+        database_checker = get_database_checker()
         check_success = database_checker.run_startup_check()
         
         if check_success:
