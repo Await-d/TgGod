@@ -78,11 +78,29 @@ class DatabaseChecker:
         
         # 字段类型映射（用于添加缺失字段）
         self.field_definitions = {
+            'telegram_groups': {
+                'chat_id': 'BIGINT',
+                'type': 'VARCHAR(50)',
+                'invite_link': 'VARCHAR(500)',
+                'last_sync_date': 'TIMESTAMP WITH TIME ZONE'
+            },
+            'telegram_messages': {
+                'file_size': 'BIGINT',
+                'file_path': 'VARCHAR(1000)',
+                'forward_from': 'VARCHAR(255)',
+                'views': 'INTEGER DEFAULT 0'
+            },
+            'user_settings': {
+                'setting_key': 'VARCHAR(255) DEFAULT ""',
+                'setting_value': 'TEXT'
+            },
             'filter_rules': {
+                'group_id': 'INTEGER',
                 'min_file_size': 'INTEGER',
                 'max_file_size': 'INTEGER'
             },
             'download_tasks': {
+                'rule_id': 'INTEGER',
                 'date_from': 'TIMESTAMP WITH TIME ZONE',
                 'date_to': 'TIMESTAMP WITH TIME ZONE',
                 # Jellyfin 兼容字段定义
