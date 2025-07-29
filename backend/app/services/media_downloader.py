@@ -331,6 +331,10 @@ class TelegramMediaDownloader:
                     logger.warning(f"消息 {message_id} 无媒体内容")
                     return False
                 
+                # 获取媒体信息用于日志描述
+                media_info = self._get_media_description(message.media)
+                logger.info(f"准备下载媒体: {media_info}")
+                
                 if progress_callback:
                     # 检查是否有之前的下载进度
                     saved_progress = self._load_progress(file_path)
@@ -341,6 +345,8 @@ class TelegramMediaDownloader:
                             logger.info(f"发现之前的下载进度: {current_progress}/{total_size} ({current_progress/total_size*100:.1f}%)")
                     
                     # 增强的进度处理包装器 - 包含进度保存功能
+                    last_logged_percent = [-1]  # 使用列表以便在嵌套函数中修改
+                    
                     def progress_wrapper(current, total):
                         try:
                             if total > 0:
@@ -349,9 +355,15 @@ class TelegramMediaDownloader:
                                 
                                 # 使用简化的进度报告，避免异步回调问题
                                 progress_percent = (current / total) * 100
-                                # 每5%报告一次进度，提供更细粒度的进度信息
-                                if int(progress_percent) % 5 == 0 or current == total:
-                                    logger.info(f"下载进度: {current}/{total} ({progress_percent:.1f}%)")
+                                
+                                # 每10%或下载完成时才打印日志，减少频繁输出
+                                current_ten_percent = int(progress_percent // 10) * 10
+                                if (current_ten_percent != last_logged_percent[0] and current_ten_percent % 10 == 0) or current == total:
+                                    last_logged_percent[0] = current_ten_percent
+                                    # 格式化文件大小显示
+                                    current_mb = current / (1024 * 1024)
+                                    total_mb = total / (1024 * 1024)
+                                    logger.info(f"下载进度 [{media_info}]: {current_mb:.1f}MB/{total_mb:.1f}MB ({progress_percent:.1f}%)")
                                 
                                 # 尝试调用回调，但不要让回调错误中断下载
                                 try:
@@ -390,14 +402,14 @@ class TelegramMediaDownloader:
                         logger.error(f"下载失败: {e}")
                         raise
                 else:
-                    logger.info(f"开始下载文件 (无进度回调): {file_path}")
+                    logger.info(f"开始下载 [{media_info}]: {file_path}")
                     # 添加下载超时，即使没有进度回调
                     await asyncio.wait_for(
                         self.client.download_media(message.media, file_path),
                         timeout=600
                     )
                     
-                    logger.info(f"通过消息下载文件成功: {file_path}")
+                    logger.info(f"下载完成 [{media_info}]: {file_path}")
                     # 下载成功后清理进度文件
                     self._clear_progress()
                     return True
@@ -433,6 +445,71 @@ class TelegramMediaDownloader:
                         raise
         
         return False
+    
+    def _get_media_description(self, media) -> str:
+        """获取媒体文件的描述信息"""
+        try:
+            if hasattr(media, 'photo'):
+                # 照片
+                return "照片"
+            elif hasattr(media, 'document'):
+                doc = media.document
+                if hasattr(doc, 'attributes'):
+                    for attr in doc.attributes:
+                        attr_type = type(attr).__name__
+                        if 'Video' in attr_type:
+                            duration = getattr(attr, 'duration', 0)
+                            if duration > 0:
+                                return f"视频 ({duration}秒)"
+                            return "视频"
+                        elif 'Audio' in attr_type:
+                            duration = getattr(attr, 'duration', 0)
+                            title = getattr(attr, 'title', '') or getattr(attr, 'file_name', '')
+                            if duration > 0:
+                                desc = f"音频 ({duration}秒)"
+                                if title:
+                                    desc += f" - {title}"
+                                return desc
+                            return "音频"
+                        elif 'Animated' in attr_type:
+                            return "GIF动图"
+                        elif 'Sticker' in attr_type:
+                            return "贴纸"
+                
+                # 通用文档
+                if hasattr(doc, 'mime_type'):
+                    mime_type = doc.mime_type
+                    if mime_type:
+                        if mime_type.startswith('video/'):
+                            return "视频文件"
+                        elif mime_type.startswith('audio/'):
+                            return "音频文件"
+                        elif mime_type.startswith('image/'):
+                            return "图片文件"
+                        else:
+                            return f"文档 ({mime_type})"
+                
+                # 根据文件名推断
+                if hasattr(doc, 'attributes'):
+                    for attr in doc.attributes:
+                        if hasattr(attr, 'file_name') and attr.file_name:
+                            ext = attr.file_name.split('.')[-1].lower() if '.' in attr.file_name else ''
+                            if ext in ['mp4', 'avi', 'mkv', 'mov']:
+                                return f"视频文件 ({attr.file_name})"
+                            elif ext in ['mp3', 'wav', 'flac', 'aac']:
+                                return f"音频文件 ({attr.file_name})"
+                            elif ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp']:
+                                return f"图片文件 ({attr.file_name})"
+                            else:
+                                return f"文档 ({attr.file_name})"
+                
+                return "文档"
+            else:
+                return "媒体文件"
+                
+        except Exception as e:
+            logger.warning(f"获取媒体描述失败: {e}")
+            return "未知媒体"
     
     async def get_file_info(self, file_id: str) -> Optional[Dict[str, Any]]:
         """
