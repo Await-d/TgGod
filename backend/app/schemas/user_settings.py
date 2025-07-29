@@ -25,7 +25,7 @@ class UserSettingsDB(UserSettingsBase):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserSettingsOut(BaseModel):
     """用户设置输出模型，直接作为字典返回"""
