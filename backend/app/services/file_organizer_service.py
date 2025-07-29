@@ -146,10 +146,10 @@ class FileOrganizerService:
         """
         base_path = task_data.get('download_path', '/downloads')
         
-        # 获取群组名称，用于文件路径组织
-        group_name = task_data.get('group_name', 'Unknown_Group')
-        # 清理群组名称，移除文件系统不支持的字符
-        safe_group_name = self._sanitize_path_component(group_name)
+        # 获取规则名称，用于文件路径组织
+        rule_name = task_data.get('rule_name', 'Unknown_Rule')
+        # 清理规则名称，移除文件系统不支持的字符
+        safe_rule_name = self._sanitize_path_component(rule_name)
         
         # 根据是否按日期组织决定目录结构
         if task_data.get('organize_by_date', True):
@@ -166,17 +166,25 @@ class FileOrganizerService:
                 # 使用当天日期
                 date_obj = datetime.now()
             
-            # 生成视频标题目录名：[视频标题] - [YYYY-MM-DD]
+            # 生成视频标题
             video_title = self._extract_video_title(message, original_filename)
             date_str = date_obj.strftime('%Y-%m-%d')
-            video_dir_name = f"{video_title} - {date_str}"
-            safe_video_dir = self._sanitize_path_component(video_dir_name)
             
-            # 标准格式：base_path/群组名/[视频标题] - [YYYY-MM-DD]/文件名
-            organized_path = os.path.join(base_path, safe_group_name, safe_video_dir, original_filename)
+            # 生成目录名：[规则名] - [视频标题] - [YYYY-MM-DD]
+            dir_name = f"{safe_rule_name} - {video_title} - {date_str}"
+            safe_dir_name = self._sanitize_path_component(dir_name)
+            
+            # 生成文件名：[规则名] - [视频标题] - [YYYY-MM-DD].扩展名
+            file_name_without_ext = os.path.splitext(original_filename)[0]
+            file_ext = os.path.splitext(original_filename)[1]
+            new_filename = f"{safe_rule_name} - {video_title} - {date_str}{file_ext}"
+            safe_filename = self._sanitize_filename(new_filename)
+            
+            # 标准格式：base_path/规则名/[规则名] - [视频标题] - [YYYY-MM-DD]/[规则名] - [视频标题] - [YYYY-MM-DD].扩展名
+            organized_path = os.path.join(base_path, safe_rule_name, safe_dir_name, safe_filename)
         else:
-            # 不按日期组织，包含群组名称：base_path/群组名/文件名
-            organized_path = os.path.join(base_path, safe_group_name, original_filename)
+            # 不按日期组织，使用规则名：base_path/规则名/原文件名
+            organized_path = os.path.join(base_path, safe_rule_name, original_filename)
         
         return organized_path
     

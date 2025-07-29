@@ -283,6 +283,16 @@ class TaskExecutionService:
                 'subscription_name': download_task.name  # 订阅名（任务名）- 用于Jellyfin格式
             }
             
+            # 添加主要规则名称（使用第一个规则作为主要规则）
+            if rules:
+                primary_rule = rules[0]  # 按优先级排序后的第一个规则
+                task_data['rule_name'] = primary_rule.name
+                task_data['primary_rule_id'] = primary_rule.id
+                logger.info(f"任务{task_id}: 使用主要规则 '{primary_rule.name}' 作为文件组织依据")
+            else:
+                task_data['rule_name'] = 'Unknown_Rule'
+                task_data['primary_rule_id'] = None
+            
             # 提取所有规则数据
             for rule in rules:
                 rule_data = {
