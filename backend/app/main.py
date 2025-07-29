@@ -196,6 +196,10 @@ app.include_router(download_history.router, prefix="/api", tags=["download_histo
 async def root():
     return {"message": "TgGod API is running"}
 
+# 服务健康检查API
+from .api import service_health
+app.include_router(service_health.router, prefix="/api", tags=["service_health"])
+
 # 健康检查
 @app.get("/health")
 async def health_check():
@@ -263,6 +267,16 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         logger.info(f"Client {client_id} disconnected from groups: {client_subscriptions}")
 
 # 启动事件
+    
+    # 🔍 启动服务监控器
+    try:
+        from .services.service_monitor import service_monitor
+        await service_monitor.start_monitoring()
+        logger.info("✅ 服务监控器启动成功")
+    except Exception as e:
+        logger.error(f"服务监控器启动失败: {e}")
+        logger.warning("服务监控功能不可用，但系统将继续运行")
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting TgGod API...")
@@ -622,6 +636,49 @@ async def startup_event():
     except Exception as e:
         logger.error(f"系统初始化异常: {e}")
         logger.error("系统将继续启动，但可能缺少默认账户")
+
+    
+    # 🚀 启动时自动检查和安装必要服务
+    try:
+        logger.info("🔍 开始检查和安装必要服务...")
+        
+        from .services.service_installer import run_service_installation
+        
+        # 运行服务安装检查
+        installation_result = await run_service_installation()
+        
+        if installation_result["success"]:
+            logger.info("✅ 服务依赖检查完成")
+            
+            # 记录安装统计
+            stats = {
+                "新安装": len(installation_result["installed_services"]),
+                "已存在": len(installation_result["already_installed"]),
+                "跳过": len(installation_result["skipped_services"]),
+                "失败": len(installation_result["failed_services"])
+            }
+            
+            logger.info(f"📊 服务统计: {stats}")
+            
+            # 如果有安装失败的服务，记录警告
+            if installation_result["failed_services"]:
+                logger.warning("⚠️ 以下服务安装失败，可能影响某些功能:")
+                for failed in installation_result["failed_services"]:
+                    logger.warning(f"  - {failed['name']}: {failed['error']}")
+                logger.warning("建议手动安装这些服务以确保完整功能")
+            
+            # 如果有新安装的服务，记录详情
+            if installation_result["installed_services"]:
+                logger.info("🎉 新安装的服务:")
+                for installed in installation_result["installed_services"]:
+                    logger.info(f"  - {installed['name']}: {installed['details']}")
+        else:
+            logger.error(f"❌ 服务依赖检查失败: {installation_result.get('error', '未知错误')}")
+            logger.warning("系统将继续启动，但某些功能可能不可用")
+            
+    except Exception as e:
+        logger.error(f"服务安装检查过程异常: {e}")
+        logger.warning("系统将继续启动，但建议检查服务依赖")
 
 # 关闭事件
 @app.on_event("shutdown")

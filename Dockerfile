@@ -38,13 +38,28 @@ FROM python:3.11.8-slim AS backend
 # 设置工作目录
 WORKDIR /app
 
-# 安装系统依赖
+# 安装系统依赖 (包含TgGod必要服务)
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     nginx \
     curl \
+    wget \
+    git \
+    unzip \
+    ffmpeg \
+    fonts-dejavu \
+    fonts-liberation \
+    fonts-noto-cjk \
+    imagemagick \
+    libimage-exiftool-perl \
+    htop \
+    iotop \
+    nethogs \
     && rm -rf /var/lib/apt/lists/*
+
+# 配置ImageMagick安全策略 (允许处理PDF等格式)
+RUN sed -i 's/policy domain="coder" rights="none" pattern="PDF"/policy domain="coder" rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml || true
 
 # 设置pip淘宝镜像源
 RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/ \
