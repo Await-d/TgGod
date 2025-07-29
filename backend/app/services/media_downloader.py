@@ -246,47 +246,57 @@ class TelegramMediaDownloader:
                     return False
                 
                 if progress_callback:
-                    # 创建进度处理包装器
+                    # 简化的进度处理包装器 - 避免复杂的异步处理
                     def progress_wrapper(current, total):
                         try:
                             if total > 0:
-                                # 检查回调函数是否是异步的
-                                import asyncio
-                                if asyncio.iscoroutinefunction(progress_callback):
-                                    # 对于异步回调，我们需要在当前事件循环中运行它
-                                    loop = asyncio.get_event_loop()
-                                    if loop.is_running():
-                                        # 如果循环已经在运行，创建一个task
-                                        loop.create_task(progress_callback(current, total))
+                                # 使用简化的进度报告，避免异步回调问题
+                                progress_percent = (current / total) * 100
+                                # 每10%报告一次进度，减少回调频率
+                                if int(progress_percent) % 10 == 0 or current == total:
+                                    logger.info(f"下载进度: {current}/{total} ({progress_percent:.1f}%)")
+                                
+                                # 尝试调用回调，但不要让回调错误中断下载
+                                try:
+                                    if asyncio.iscoroutinefunction(progress_callback):
+                                        # 对于异步回调，使用 call_soon_threadsafe 来避免死锁
+                                        loop = asyncio.get_event_loop()
+                                        if loop.is_running():
+                                            # 在这里我们不等待异步回调完成，避免死锁
+                                            asyncio.create_task(progress_callback(current, total, progress_percent))
                                     else:
-                                        # 如果循环没有运行，直接运行
-                                        loop.run_until_complete(progress_callback(current, total))
-                                else:
-                                    # 同步回调直接调用
-                                    progress_callback(current, total)
+                                        # 直接调用同步回调
+                                        progress_callback(current, total, progress_percent)
+                                except Exception as callback_error:
+                                    # 进度回调错误不应该中断下载
+                                    logger.warning(f"进度回调警告: {callback_error}")
                         except Exception as e:
-                            logger.error(f"进度回调执行失败: {e}")
-                            # 如果是取消下载的异常，停止下载
-                            if str(e) == "下载已取消":
-                                logger.info("检测到下载取消信号，停止下载过程")
-                                raise e  # 向上传递异常以中断下载过程
+                            # 包装器本身的错误也不应该中断下载
+                            logger.warning(f"进度包装器警告: {e}")
                     
                     try:
-                        await self.client.download_media(message.media, file_path, progress_callback=progress_wrapper)
+                        logger.info(f"开始下载文件: {file_path}")
+                        # 添加下载超时，防止卡住（10分钟超时）
+                        await asyncio.wait_for(
+                            self.client.download_media(message.media, file_path, progress_callback=progress_wrapper),
+                            timeout=600
+                        )
                         
                         logger.info(f"通过消息下载文件成功: {file_path}")
                         return True
+                    except asyncio.TimeoutError:
+                        logger.error(f"下载超时 (10分钟): {file_path}")
+                        raise
                     except Exception as e:
-                        # 特殊处理下载取消异常
-                        if str(e) == "下载已取消":
-                            logger.info("下载已被用户取消")
-                            # 重新抛出异常以便上层处理
-                            raise
-                        # 其他异常正常记录
                         logger.error(f"下载失败: {e}")
                         raise
                 else:
-                    await self.client.download_media(message.media, file_path)
+                    logger.info(f"开始下载文件 (无进度回调): {file_path}")
+                    # 添加下载超时，即使没有进度回调
+                    await asyncio.wait_for(
+                        self.client.download_media(message.media, file_path),
+                        timeout=600
+                    )
                     
                     logger.info(f"通过消息下载文件成功: {file_path}")
                     return True
