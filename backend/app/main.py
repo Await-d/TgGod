@@ -96,6 +96,134 @@ async def lifespan(app: FastAPI):
         logger.error(f"服务监控器启动失败: {e}")
         logger.warning("服务监控功能不可用，但系统将继续运行")
 
+    # 数据库结构检查和创建
+    try:
+        logger.info("🔧 开始数据库结构检查和自动修复...")
+        from .utils.database_checker import get_database_checker
+        
+        # 运行启动检查（使用新实例确保使用最新配置）
+        database_checker = get_database_checker()
+        check_success = database_checker.run_startup_check()
+        
+        if check_success:
+            logger.info("✅ 数据库结构检查和修复完成")
+        else:
+            logger.warning("⚠️ 数据库结构存在问题，但系统将继续启动")
+            logger.warning("建议手动运行 'alembic upgrade head' 来完成数据库迁移")
+    except Exception as e:
+        logger.error(f"数据库结构检查失败: {e}")
+        logger.info("尝试使用传统方式创建数据库表...")
+        
+        # 传统数据库创建方式作为备选
+        try:
+            from .database import engine, Base
+            Base.metadata.create_all(bind=engine)
+            logger.info("✅ 使用传统方式创建数据库表成功")
+        except Exception as create_error:
+            logger.error(f"❌ 创建数据库表失败: {create_error}")
+
+    # 传统数据库字段检查和修复
+    try:
+        logger.info("🔧 运行传统数据库字段检查...")
+        from pathlib import Path
+        import sys
+        import sqlite3
+        
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
+        
+        # 使用我们的数据库修复工具
+        from fix_database_schema import fix_telegram_messages_table, get_database_path
+        
+        # 获取数据库路径并修复
+        db_path = get_database_path()
+        logger.info(f"数据库路径: {db_path}")
+        
+        success = fix_telegram_messages_table(db_path)
+        if success:
+            logger.info("✅ 传统数据库字段检查和修复完成")
+        else:
+            logger.error("❌ 传统数据库字段修复失败")
+    except Exception as e:
+        logger.error(f"传统数据库字段检查失败: {e}")
+
+    # 数据库迁移脚本检查
+    try:
+        logger.info("🔧 正在检查用户设置表和下载状态字段...")
+        from importlib.util import spec_from_file_location, module_from_spec
+        from pathlib import Path
+        
+        project_root = Path(__file__).parent.parent
+        
+        # 需要运行的迁移脚本列表
+        migrations = [
+            ("add_user_settings_table", "用户设置表"),
+            ("add_is_downloading_field", "下载状态字段")
+        ]
+        
+        # 逐一运行迁移脚本
+        for migration_name, migration_desc in migrations:
+            migration_file = project_root / "migrations" / f"{migration_name}.py"
+            
+            if migration_file.exists():
+                logger.info(f"找到{migration_desc}迁移脚本: {migration_file}")
+                
+                # 动态导入迁移模块
+                spec = spec_from_file_location(migration_name, migration_file)
+                migration_module = module_from_spec(spec)
+                spec.loader.exec_module(migration_module)
+                
+                # 运行迁移
+                success, message = migration_module.run_migration()
+                if success:
+                    logger.info(f"✅ {migration_desc}检查完成: {message}")
+                else:
+                    logger.warning(f"⚠️ {migration_desc}检查警告: {message}")
+            else:
+                logger.warning(f"未找到{migration_desc}迁移脚本，将跳过自动迁移")
+    except Exception as e:
+        logger.error(f"运行数据库迁移脚本时出错: {e}")
+        logger.warning("将继续启动，但数据库表结构可能不完整")
+
+    # 使用db_utils进行数据库自动检查和修复
+    try:
+        from pathlib import Path
+        db_utils_file = Path(__file__).parent / "utils" / "db_utils.py"
+        
+        if db_utils_file.exists():
+            logger.info(f"找到数据库工具脚本: {db_utils_file}")
+            
+            # 导入工具模块
+            from .utils.db_utils import check_and_fix_database_on_startup
+            from .database import SessionLocal
+            
+            db = SessionLocal()
+            try:
+                # 检查和修复数据库
+                db_check_results = check_and_fix_database_on_startup(db)
+                logger.info(f"🔧 数据库自动检查结果: {db_check_results['status']}")
+                
+                # 输出详细信息
+                for table, detail in db_check_results.get("details", {}).items():
+                    if detail["status"] == "error":
+                        logger.error(f"❌ 表 {table}: {detail['message']}")
+                    elif detail["status"] == "fixed":
+                        logger.info(f"✅ 表 {table}: {detail['message']}")
+                    else:
+                        logger.debug(f"✓ 表 {table}: {detail['message']}")
+            finally:
+                db.close()
+        else:
+            logger.warning("未找到数据库工具脚本，跳过自动检查")
+            
+            # 确保基本表结构存在
+            logger.info("创建基本表结构...")
+            from .database import engine, Base
+            Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        logger.error(f"数据库自动检查和修复过程中出现错误: {e}")
+        logger.warning("系统将继续启动，但数据库结构可能不完整")
+
     # 数据库检查和修复
     try:
         logger.info("🔧 开始运行数据库字段修复脚本...")
