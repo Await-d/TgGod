@@ -1352,30 +1352,43 @@ auth_sessions = {}
 async def get_auth_status():
     """获取Telegram认证状态"""
     try:
-        await telegram_service.initialize()
-        is_authorized = await telegram_service.client.is_user_authorized()
+        # 使用超时控制，避免长时间阻塞
+        async def check_auth_status():
+            await telegram_service.initialize()
+            is_authorized = await telegram_service.client.is_user_authorized()
+            
+            if is_authorized:
+                me = await telegram_service.client.get_me()
+                user_info = {
+                    "id": me.id,
+                    "first_name": me.first_name,
+                    "last_name": me.last_name,
+                    "username": me.username,
+                    "phone": me.phone
+                }
+                return AuthStatusResponse(
+                    is_authorized=True,
+                    user_info=user_info,
+                    message="已授权"
+                )
+            else:
+                return AuthStatusResponse(
+                    is_authorized=False,
+                    message="未授权，需要进行手机验证"
+                )
         
-        if is_authorized:
-            me = await telegram_service.client.get_me()
-            user_info = {
-                "id": me.id,
-                "first_name": me.first_name,
-                "last_name": me.last_name,
-                "username": me.username,
-                "phone": me.phone
-            }
-            await telegram_service.disconnect()
-            return AuthStatusResponse(
-                is_authorized=True,
-                user_info=user_info,
-                message="已授权"
-            )
-        else:
-            await telegram_service.disconnect()
-            return AuthStatusResponse(
-                is_authorized=False,
-                message="未授权，需要进行手机验证"
-            )
+        # 设置30秒超时
+        result = await asyncio.wait_for(check_auth_status(), timeout=30.0)
+        await telegram_service.disconnect()
+        return result
+        
+    except asyncio.TimeoutError:
+        logger.error("获取认证状态超时")
+        await telegram_service.disconnect()
+        return AuthStatusResponse(
+            is_authorized=False,
+            message="获取认证状态超时，请检查网络连接"
+        )
     except Exception as e:
         logger.error(f"获取认证状态失败: {e}")
         await telegram_service.disconnect()

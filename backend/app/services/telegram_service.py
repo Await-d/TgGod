@@ -25,23 +25,45 @@ class TelegramService:
     async def initialize(self):
         """初始化Telegram客户端"""
         if self.client is None:
-            # 确保API配置不为空 - 使用缓存避免重复数据库访问
-            api_id = settings.telegram_api_id
-            api_hash = settings.telegram_api_hash
-            
-            logger.info(f"API ID: {api_id}, API Hash: {'*' * len(str(api_hash)) if api_hash else 'None'}")
-            
-            if not api_id or not api_hash:
-                raise ValueError(f"API配置不完整: API ID={api_id}, API Hash={'已设置' if api_hash else '未设置'}")
-            
-            self.client = TelegramClient(
-                self.session_name,
-                api_id,
-                api_hash
-            )
-            # 使用非交互式连接，避免在服务器环境中要求用户输入
-            await self.client.connect()
-            logger.info("Telegram客户端初始化成功")
+            try:
+                # 确保API配置不为空 - 使用缓存避免重复数据库访问
+                api_id = settings.telegram_api_id
+                api_hash = settings.telegram_api_hash
+                
+                logger.info(f"API ID: {api_id}, API Hash: {'*' * len(str(api_hash)) if api_hash else 'None'}")
+                
+                if not api_id or not api_hash:
+                    raise ValueError(f"API配置不完整: API ID={api_id}, API Hash={'已设置' if api_hash else '未设置'}")
+                
+                self.client = TelegramClient(
+                    self.session_name,
+                    api_id,
+                    api_hash
+                )
+                
+                # 使用非交互式连接，添加超时控制和错误处理
+                logger.info("正在连接Telegram服务器...")
+                try:
+                    # 设置连接超时
+                    import asyncio
+                    await asyncio.wait_for(self.client.connect(), timeout=15.0)
+                    logger.info("Telegram客户端初始化成功")
+                except asyncio.TimeoutError:
+                    logger.error("连接Telegram服务器超时")
+                    self.client = None
+                    raise ConnectionError("连接Telegram服务器超时，请检查网络连接")
+                except Exception as connect_error:
+                    logger.error(f"连接Telegram服务器失败: {connect_error}")
+                    self.client = None
+                    raise ConnectionError(f"连接Telegram服务器失败: {connect_error}")
+                    
+            except (ValueError, ConnectionError):
+                # 重新抛出已知错误
+                raise
+            except Exception as e:
+                logger.error(f"初始化Telegram客户端时出现未知错误: {e}")
+                self.client = None
+                raise RuntimeError(f"初始化Telegram客户端失败: {e}")
         
     async def disconnect(self):
         """断开Telegram客户端"""
