@@ -1,0 +1,281 @@
+name: Auto Release Pipeline
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release-pipeline:
+    runs-on: ubuntu-latest
+    # Skip commits created by GitHub Actions to avoid loops
+    if: github.event.pusher.name != 'github-actions[bot]' && !contains(github.event.head_commit.message, '[skip ci]')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if version bump is needed
+        id: check_changes
+        run: |
+          # Get the latest tag
+          LATEST_TAG=$(git tag --sort=-version:refname | head -n1)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No tags found, creating initial version"
+            echo "needs_version_bump=true" >> $GITHUB_OUTPUT
+          else
+            # Check if there are significant changes since last tag
+            CHANGES=$(git diff --name-only $LATEST_TAG..HEAD | grep -E '\.(py|js|jsx|ts|tsx|json|yml|yaml|dockerfile|md)$' | wc -l)
+            if [ $CHANGES -gt 0 ]; then
+              echo "Found $CHANGES significant changes, version bump needed"
+              echo "needs_version_bump=true" >> $GITHUB_OUTPUT
+            else
+              echo "No significant changes found, skipping version bump"
+              echo "needs_version_bump=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Get current version
+        id: get_version
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        run: |
+          if [ -f "VERSION" ]; then
+            VERSION=$(cat VERSION)
+          else
+            VERSION="1.0.0"
+          fi
+          echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate next version
+        id: calc_version
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        run: |
+          CURRENT="${{ steps.get_version.outputs.current_version }}"
+
+          # Parse version components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          # Check commit messages for version type
+          COMMIT_MESSAGES=$(git log --pretty=format:"%s" $(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")..HEAD)
+
+          if echo "$COMMIT_MESSAGES" | grep -qE "^(feat|feature)(\(.+\))?!:|^[^:]+!:|BREAKING CHANGE"; then
+            # Major version bump for breaking changes
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          elif echo "$COMMIT_MESSAGES" | grep -qE "^(feat|feature)(\(.+\))?:"; then
+            # Minor version bump for new features
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            # Patch version bump for fixes and other changes
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version will be: $NEW_VERSION"
+
+      - name: Update VERSION file
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        run: |
+          echo "${{ steps.calc_version.outputs.new_version }}" > VERSION
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add VERSION
+          git commit -m "chore: bump version to ${{ steps.calc_version.outputs.new_version }} [skip ci]"
+
+      - name: Set up Node.js
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install pnpm
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        run: npm install -g pnpm
+
+      - name: Build frontend
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        run: |
+          cd frontend
+          pnpm install
+          pnpm build
+          echo "Frontend build completed"
+
+      - name: Install git-cliff for changelog
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        run: |
+          curl -L https://github.com/orhun/git-cliff/releases/latest/download/git-cliff-0.24.1-x86_64-unknown-linux-gnu.tar.gz | tar xzf -
+          sudo mv git-cliff-0.24.1/git-cliff /usr/local/bin/
+
+      - name: Generate changelog
+        id: changelog
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        run: |
+          # Create a basic cliff.toml if it doesn't exist
+          if [ ! -f cliff.toml ]; then
+            cat > cliff.toml << 'EOF'
+          [changelog]
+          header = """
+          # Changelog
+          All notable changes to this project will be documented in this file.
+          """
+          body = """
+          {% for group, commits in commits | group_by(attribute="group") %}
+          ## {{ group | upper_first }}
+          {% for commit in commits %}
+          - {{ commit.message | upper_first }} ({{ commit.id | truncate(length=7, end="") }})
+          {% endfor %}
+          {% endfor %}
+          """
+          trim = true
+
+          [git]
+          conventional_commits = true
+          filter_unconventional = false
+          split_commits = false
+          commit_preprocessors = []
+          commit_parsers = [
+              { message = "^feat", group = "Features" },
+              { message = "^fix", group = "Bug Fixes" },
+              { message = "^doc", group = "Documentation" },
+              { message = "^perf", group = "Performance" },
+              { message = "^refactor", group = "Refactor" },
+              { message = "^style", group = "Styling" },
+              { message = "^test", group = "Testing" },
+              { message = "^chore", group = "Miscellaneous Tasks" },
+              { body = ".*security", group = "Security" },
+          ]
+          protect_breaking_commits = false
+          filter_commits = false
+          tag_pattern = "v[0-9]*"
+          skip_tags = "v0.1.0-beta.1"
+          ignore_tags = ""
+          topo_order = false
+          sort_commits = "oldest"
+          EOF
+          fi
+
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            CHANGELOG=$(git-cliff --unreleased --strip header)
+          else
+            CHANGELOG=$(git-cliff --latest --strip header)
+          fi
+
+          # Save changelog to file and output
+          echo "$CHANGELOG" > CHANGELOG.md
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        run: |
+          git tag "v${{ steps.calc_version.outputs.new_version }}"
+          git push origin "v${{ steps.calc_version.outputs.new_version }}"
+          git push origin master
+
+      - name: Create GitHub Release
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ steps.calc_version.outputs.new_version }}"
+          release_name: "Release v${{ steps.calc_version.outputs.new_version }}"
+          body: |
+            ## Changes in v${{ steps.calc_version.outputs.new_version }}
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## Docker Image
+            ```bash
+            docker pull ${{ secrets.DOCKERHUB_USERNAME || 'await2719' }}/tggod:v${{ steps.calc_version.outputs.new_version }}
+            docker pull ${{ secrets.DOCKERHUB_USERNAME || 'await2719' }}/tggod:latest
+            ```
+
+            ## Quick Start
+            ```bash
+            git clone https://github.com/Await-d/TgGod.git
+            cd TgGod
+            ./quick-start.sh
+            ```
+          draft: false
+          prerelease: false
+
+      - name: Clean up old tags (keep last 10)
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        run: |
+          # Get all tags sorted by version, skip the first 10 (most recent)
+          OLD_TAGS=$(git tag --sort=-version:refname | tail -n +11)
+
+          if [ ! -z "$OLD_TAGS" ]; then
+            echo "Cleaning up old tags: $OLD_TAGS"
+            for tag in $OLD_TAGS; do
+              git tag -d $tag
+              git push origin --delete $tag || true
+            done
+          else
+            echo "No old tags to clean up"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME || 'await2719' }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME || 'await2719' }}/tggod
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}},value=v${{ steps.calc_version.outputs.new_version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.calc_version.outputs.new_version }}
+            type=semver,pattern={{major}},value=v${{ steps.calc_version.outputs.new_version }}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Send Telegram notification
+        if: steps.check_changes.outputs.needs_version_bump == 'true' && secrets.TELEGRAM_BOT_TOKEN && secrets.TELEGRAM_CHAT_ID
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d parse_mode=Markdown \
+            -d text="🚀 *TgGod v${{ steps.calc_version.outputs.new_version }} Released!*
+
+          📦 **Docker Image:** \`${{ secrets.DOCKERHUB_USERNAME || 'await2719' }}/tggod:v${{ steps.calc_version.outputs.new_version }}\`
+
+          🔗 **Release:** [GitHub Release](https://github.com/Await-d/TgGod/releases/tag/v${{ steps.calc_version.outputs.new_version }})
+
+          ⚡ **Changes:**
+          ${{ steps.changelog.outputs.changelog }}"
