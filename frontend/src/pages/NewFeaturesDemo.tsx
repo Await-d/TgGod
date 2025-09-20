@@ -113,16 +113,16 @@ const NewFeaturesDemo: React.FC = () => {
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <Title level={2}>新功能演示 - 真实数据</Title>
-        <Button 
-          icon={<ReloadOutlined />} 
-          onClick={handleRefresh} 
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={handleRefresh}
           loading={refreshing}
           type="default"
         >
           刷新数据
         </Button>
       </div>
-      
+
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* 消息搜索高亮 - 使用真实消息数据 */}
         <Card title="消息搜索高亮 - 真实数据演示" size="small">
@@ -137,13 +137,13 @@ const NewFeaturesDemo: React.FC = () => {
             <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '8px' }}>
               <Text strong>真实消息内容：</Text>
               <div style={{ fontSize: '12px', color: '#666', marginBottom: 8 }}>
-                发送者: {realData.sampleMessage.sender_name} | 
-                群组ID: {realData.sampleMessage.group_id} | 
+                发送者: {realData.sampleMessage.sender_name || '未知用户'} |
+                群组ID: {realData.sampleMessage.group_id} |
                 消息ID: {realData.sampleMessage.message_id}
               </div>
               <div style={{ marginTop: 8 }}>
                 <MessageHighlight
-                  content={realData.sampleMessage.text}
+                  content={realData.sampleMessage.text || ''}
                   searchTerm={searchTerm}
                 />
               </div>
@@ -158,7 +158,7 @@ const NewFeaturesDemo: React.FC = () => {
               <div>
                 <Text strong>真实图片预览：</Text>
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: 8 }}>
-                  来源: {realData.mediaExamples.image.sender_name} | 
+                  来源: {realData.mediaExamples.image.sender_name || '未知用户'} |
                   群组: {realData.mediaExamples.image.group_id} |
                   文件大小: {realData.mediaExamples.image.media_size ? `${Math.round(realData.mediaExamples.image.media_size / 1024)} KB` : '未知'}
                 </div>
@@ -184,7 +184,7 @@ const NewFeaturesDemo: React.FC = () => {
               <div>
                 <Text strong>真实视频预览：</Text>
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: 8 }}>
-                  来源: {realData.mediaExamples.video.sender_name} | 
+                  来源: {realData.mediaExamples.video.sender_name || '未知用户'} |
                   群组: {realData.mediaExamples.video.group_id} |
                   时长: {realData.mediaExamples.video.video?.duration ? `${realData.mediaExamples.video.video.duration}秒` : '未知'}
                 </div>
@@ -215,7 +215,7 @@ const NewFeaturesDemo: React.FC = () => {
               <div>
                 <Text strong>真实语音消息：</Text>
                 <div style={{ fontSize: '12px', color: '#666', marginBottom: 8 }}>
-                  来源: {realData.mediaExamples.voice.sender_name} | 
+                  来源: {realData.mediaExamples.voice.sender_name || '未知用户'} |
                   群组: {realData.mediaExamples.voice.group_id} |
                   时长: {realData.mediaExamples.voice.voice?.duration ? `${realData.mediaExamples.voice.voice.duration}秒` : '未知'}
                 </div>
@@ -243,12 +243,12 @@ const NewFeaturesDemo: React.FC = () => {
             <div>
               <Text strong>真实消息示例：</Text>
               <div style={{ fontSize: '12px', color: '#666', marginBottom: 8 }}>
-                可用联系人数量: {realData.contacts.length} | 
+                可用联系人数量: {realData.contacts.length} |
                 数据来源: 真实Telegram群组
               </div>
-              <div style={{ 
-                background: '#f8f9fa', 
-                padding: '12px', 
+              <div style={{
+                background: '#f8f9fa',
+                padding: '12px',
                 borderRadius: '8px',
                 marginTop: 8,
                 display: 'flex',
@@ -257,9 +257,9 @@ const NewFeaturesDemo: React.FC = () => {
               }}>
                 <div>
                   <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                    {realData.sampleMessage.sender_name}
+                    {realData.sampleMessage.sender_name || '未知用户'}
                   </div>
-                  <div>{realData.sampleMessage.text}</div>
+                  <div>{realData.sampleMessage.text || '(无文本内容)'}</div>
                   <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
                     {new Date(realData.sampleMessage.date).toLocaleString()}
                   </div>
@@ -272,7 +272,7 @@ const NewFeaturesDemo: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             {quotedMessage && (
               <div>
                 <Text strong>引用消息预览：</Text>
@@ -286,11 +286,11 @@ const NewFeaturesDemo: React.FC = () => {
             {realData.contacts.length > 0 && (
               <div>
                 <Text strong>可用真实联系人列表：</Text>
-                <div style={{ 
-                  maxHeight: '200px', 
-                  overflow: 'auto', 
-                  background: '#fafafa', 
-                  padding: '8px', 
+                <div style={{
+                  maxHeight: '200px',
+                  overflow: 'auto',
+                  background: '#fafafa',
+                  padding: '8px',
                   borderRadius: '4px',
                   marginTop: 8
                 }}>
@@ -328,8 +328,8 @@ const NewFeaturesDemo: React.FC = () => {
             <div>
               <Text strong>• 媒体文件：</Text>
               <Text>
-                图片: {realData.mediaExamples.image ? '✓' : '✗'} | 
-                视频: {realData.mediaExamples.video ? '✓' : '✗'} | 
+                图片: {realData.mediaExamples.image ? '✓' : '✗'} |
+                视频: {realData.mediaExamples.video ? '✓' : '✗'} |
                 语音: {realData.mediaExamples.voice ? '✓' : '✗'}
               </Text>
             </div>

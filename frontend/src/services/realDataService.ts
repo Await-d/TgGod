@@ -18,8 +18,8 @@ export interface RealDataMessage {
   id: number;
   group_id: number;
   message_id: number;
-  sender_name: string;
-  text: string;
+  sender_name?: string;
+  text?: string;
   date: string;
   created_at: string;
   is_forwarded: boolean;
@@ -119,7 +119,7 @@ class RealDataService {
       }
 
       // Find the group with the most recent activity
-      const activeGroup = groups.reduce((most, current) => 
+      const activeGroup = groups.reduce((most, current) =>
         new Date(current.updated_at) > new Date(most.updated_at) ? current : most
       );
 
@@ -132,7 +132,7 @@ class RealDataService {
       }
 
       // Find a message with text content for demonstration
-      const textMessage = messages.find((msg: TelegramMessage) => 
+      const textMessage = messages.find((msg: TelegramMessage) =>
         msg.text && msg.text.length > 10
       ) || messages[0];
 
@@ -167,9 +167,9 @@ class RealDataService {
         try {
           const cacheKey = `media-${group.id}`;
           const messages = await this.getCachedOrFetch(cacheKey, async () => {
-            return await messageApi.getGroupMessages(group.id, { 
-              limit: 20, 
-              has_media: true 
+            return await messageApi.getGroupMessages(group.id, {
+              limit: 20,
+              has_media: true
             });
           });
 
@@ -271,7 +271,7 @@ class RealDataService {
       };
     } catch (error) {
       console.error('Failed to fetch real demo content:', error);
-      
+
       // Return minimal real data structure instead of mock data
       return {
         sampleMessage: {
@@ -304,7 +304,7 @@ class RealDataService {
     }
 
     try {
-      const groups = groupId ? 
+      const groups = groupId ?
         await telegramApi.getGroups(0, 1).then(data => data.filter(g => g.id === groupId)) :
         await this.getCachedOrFetch('search-groups', async () => {
           return await telegramApi.getAllGroups();
@@ -371,7 +371,7 @@ class RealDataService {
   } {
     const keys = Array.from(this.cache.keys());
     const timestamps = Array.from(this.cache.values()).map(v => v.timestamp);
-    
+
     return {
       size: this.cache.size,
       keys,
