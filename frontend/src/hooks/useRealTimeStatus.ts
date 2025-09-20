@@ -299,8 +299,8 @@ export function useRealTimeStatus(
   const getServicesByStatus = useCallback((status: string): ServiceInfo[] => {
     if (!currentStatus) return [];
 
-    return Object.values(currentStatus.services).filter(
-      service => service.status === status
+    return (Object.values(currentStatus.services) as ServiceInfo[]).filter(
+      (service: ServiceInfo) => service.status === status
     );
   }, [currentStatus]);
 
