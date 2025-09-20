@@ -17,6 +17,7 @@
  * @version 1.0.0
  */
 
+import React from 'react';
 import { webSocketService } from './websocket';
 import { notification, message, Modal } from 'antd';
 import {

@@ -3,6 +3,7 @@
  * 企业级错误处理，具备预测性故障检测、自动恢复和全面错误预防
  */
 
+import React from 'react';
 import { notification, message, Modal } from 'antd';
 
 // 错误严重程度

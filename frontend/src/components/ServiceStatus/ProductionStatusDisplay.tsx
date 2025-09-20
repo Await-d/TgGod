@@ -28,7 +28,7 @@ import {
   MonitorOutlined,
   DatabaseOutlined,
   CloudServerOutlined,
-  NetworkCheckOutlined,
+  GlobalOutlined,
   ApiOutlined,
 } from '@ant-design/icons';
 import { useGlobalStore } from '../../store';
@@ -467,7 +467,7 @@ const ProductionStatusDisplay: React.FC<ProductionStatusDisplayProps> = ({
               <Statistic
                 title="Active Connections"
                 value={systemMetrics.activeConnections}
-                prefix={<NetworkCheckOutlined />}
+                prefix={<GlobalOutlined />}
               />
             </Col>
 
