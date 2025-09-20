@@ -337,5 +337,46 @@ export const useStatisticsStore = create<StatisticsState>((set) => ({
   setStatistics: (statistics) => set({ statistics }),
 }));
 
+// Real-time Status Store Interface
+interface RealTimeStatusState {
+  isConnected: boolean;
+  currentStatus: any | null;
+  healthSummary: any | null;
+  systemMetrics: any | null;
+  lastUpdateTime: string | null;
+
+  setConnectionStatus: (connected: boolean) => void;
+  setCurrentStatus: (status: any) => void;
+  setHealthSummary: (summary: any) => void;
+  setSystemMetrics: (metrics: any) => void;
+  setLastUpdateTime: (time: string) => void;
+  reset: () => void;
+}
+
+// 创建实时状态store
+export const useRealTimeStatusStore = create<RealTimeStatusState>((set) => ({
+  isConnected: false,
+  currentStatus: null,
+  healthSummary: null,
+  systemMetrics: null,
+  lastUpdateTime: null,
+
+  setConnectionStatus: (isConnected) => set({ isConnected }),
+  setCurrentStatus: (currentStatus) => set({
+    currentStatus,
+    lastUpdateTime: new Date().toISOString()
+  }),
+  setHealthSummary: (healthSummary) => set({ healthSummary }),
+  setSystemMetrics: (systemMetrics) => set({ systemMetrics }),
+  setLastUpdateTime: (lastUpdateTime) => set({ lastUpdateTime }),
+  reset: () => set({
+    isConnected: false,
+    currentStatus: null,
+    healthSummary: null,
+    systemMetrics: null,
+    lastUpdateTime: null
+  }),
+}));
+
 // 导出用户设置Store (导入自userSettingsStore.ts)
 export { useUserSettingsStore } from './userSettingsStore';

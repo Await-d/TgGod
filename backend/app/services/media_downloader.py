@@ -1,3 +1,34 @@
+"""TgGod Telegram媒体文件下载服务模块
+
+该模块提供Telegram媒体文件的下载和管理功能，包括:
+
+- 高效的媒体文件下载器实现
+- 支持断点续传和进度跟踪
+- 多种媒体类型处理(图片、视频、音频、文档)
+- 并发下载控制和资源管理
+- 文件完整性验证和错误恢复
+- 智能缓存和重复文件检测
+
+Key Features:
+    - 异步并发下载，提高下载效率
+    - 智能会话管理，避免重复认证
+    - 详细的下载进度监控和报告
+    - 自动错误处理和重试机制
+    - 文件大小和格式验证
+    - 支持暂停、恢复和取消下载
+    - 完整的下载统计和日志记录
+
+Technical Details:
+    - 使用Telethon库与Telegram API交互
+    - 支持多种文件格式和编码
+    - 智能内存管理避免大文件下载内存溢出
+    - 并发控制防止API限速和数据库锁定
+    - 安全的临时文件处理和清理机制
+
+Author: TgGod Team
+Version: 1.0.0
+"""
+
 import os
 import logging
 import shutil
@@ -7,22 +38,66 @@ from telethon.errors import AuthKeyUnregisteredError, FloodWaitError
 from ..config import settings
 import asyncio
 from datetime import datetime
+from ..core.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+# 使用高性能批处理日志记录器
+logger = get_logger(__name__, use_batch=True)
 
 # 全局信号量控制并发连接数，避免数据库锁定
 _connection_semaphore = asyncio.Semaphore(2)
 
 class TelegramMediaDownloader:
-    """Telegram媒体文件下载器"""
-    
+    """Telegram媒体文件下载器
+
+    专用于从Telegram下载各种媒体文件的异步下载器，支持进度跟踪、
+    断点续传和并发控制。每个下载器实例可以处理特定聊天的媒体下载任务。
+
+    Attributes:
+        client (Optional[TelegramClient]): Telethon客户端实例
+        chat_id (Optional[int]): 目标聊天室ID
+        message_id (Optional[int]): 目标消息ID
+        session_name (str): 会话文件路径
+        progress_file (str): 进度文件路径
+
+    Features:
+        - 自动会话管理和持久化
+        - 基于消息的唯一会话标识
+        - 断点续传支持
+        - 下载进度实时跟踪
+        - 并发下载控制
+        - 智能错误恢复机制
+
+    Example:
+        ```python
+        downloader = TelegramMediaDownloader(chat_id=123, message_id=456)
+        await downloader.initialize()
+        result = await downloader.download_media(message, "/path/to/save")
+        await downloader.cleanup()
+        ```
+
+    Note:
+        - 每个下载器实例绑定到特定的聊天和消息
+        - 支持多个下载器实例并发工作
+        - 自动管理Telegram API限速
+    """
+
     def __init__(self, chat_id: Optional[int] = None, message_id: Optional[int] = None):
+        """初始化媒体下载器
+
+        Args:
+            chat_id (Optional[int]): 目标Telegram聊天室ID，用于会话标识
+            message_id (Optional[int]): 目标消息ID，用于会话标识
+
+        Note:
+            如果提供chat_id和message_id，将创建基于消息的持久化会话；
+            否则使用进程和线程ID创建临时会话。
+        """
         self.client: Optional[TelegramClient] = None
         self._initialized = False
         self._shared_client = None  # 共享的客户端实例
         self.chat_id = chat_id
         self.message_id = message_id
-        
+
         # 使用消息ID创建持久化session，这样可以保持下载进度
         if chat_id and message_id:
             # 基于聊天ID和消息ID创建唯一但持久的session名称
@@ -34,14 +109,29 @@ class TelegramMediaDownloader:
             # 如果没有提供消息信息，使用进程ID作为备用方案
             import threading
             session_id = f"downloader_{os.getpid()}_{threading.get_ident()}"
-        
+
         self.session_name = os.path.join("./telegram_sessions", session_id)
-        
+
         # 下载进度文件路径
         self.progress_file = f"{self.session_name}.progress"
     
     def _save_progress(self, file_path: str, current: int, total: int):
-        """保存下载进度到文件"""
+        """保存下载进度到文件
+
+        将当前下载进度保存到JSON文件中，用于断点续传功能。
+        包含文件路径、下载字节数、总大小和时间戳等信息。
+
+        Args:
+            file_path (str): 目标文件的完整路径
+            current (int): 已下载的字节数
+            total (int): 文件总大小(字节)
+
+        Note:
+            - 进度文件以JSON格式存储，便于读取和调试
+            - 包含时间戳用于进度监控和性能分析
+            - 自动创建进度文件目录
+            - 写入失败不会影响下载过程
+        """
         try:
             import json
             progress_data = {
@@ -58,7 +148,7 @@ class TelegramMediaDownloader:
                 json.dump(progress_data, f, indent=2)
                 
         except Exception as e:
-            logger.warning(f"保存下载进度失败: {e}")
+            logger.warning("保存下载进度失败", error=str(e), session=self.session_name)
     
     def _load_progress(self, file_path: str) -> Optional[Dict[str, Any]]:
         """从文件加载下载进度"""
@@ -75,7 +165,7 @@ class TelegramMediaDownloader:
                 return progress_data
                 
         except Exception as e:
-            logger.warning(f"加载下载进度失败: {e}")
+            logger.warning("加载下载进度失败", error=str(e), session=self.session_name)
         
         return None
     
@@ -85,7 +175,7 @@ class TelegramMediaDownloader:
             if os.path.exists(self.progress_file):
                 os.remove(self.progress_file)
         except Exception as e:
-            logger.warning(f"清理进度文件失败: {e}")
+            logger.warning("清理进度文件失败", error=str(e), progress_file=self.progress_file)
     
     async def initialize(self):
         """初始化Telegram客户端"""
@@ -105,7 +195,7 @@ class TelegramMediaDownloader:
             api_id = settings.telegram_api_id
             api_hash = settings.telegram_api_hash
             
-            logger.info(f"媒体下载器 - API ID: {api_id}, API Hash: {'*' * len(str(api_hash)) if api_hash else 'None'}")
+            logger.info("媒体下载器初始化", api_id=api_id, api_hash_masked=bool(api_hash), session=self.session_name)
             
             if not api_id or not api_hash:
                 raise ValueError(f"Telegram API配置不完整: API ID={api_id}, API Hash={'已设置' if api_hash else '未设置'}")
@@ -128,12 +218,12 @@ class TelegramMediaDownloader:
                 main_session_file = f"{main_session_path}.session"
                 current_stat = os.stat(main_session_file)
                 if oct(current_stat.st_mode)[-3:] != '666':
-                    logger.info("修复主session文件权限")
+                    logger.info("修复主session文件权限", session_file=session_file_path)
                     os.chmod(main_session_file, 0o666)
             except Exception as perm_error:
-                logger.warning(f"无法修复主session文件权限: {perm_error}")
+                logger.warning("无法修复主session文件权限", error=str(perm_error), session_file=session_file_path)
             
-            logger.info(f"复制主session到独立文件: {self.session_name}")
+            logger.info("复制主session到独立文件", target_session=self.session_name, source_session=session_file_path)
             
             # 使用临时文件安全地复制session文件
             import tempfile
@@ -152,7 +242,7 @@ class TelegramMediaDownloader:
                     
                     # 设置文件权限为可读写，解决只读数据库问题
                     os.chmod(f"{self.session_name}.session", 0o666)
-                    logger.info("Session文件复制完成，权限已设置为可读写")
+                    logger.info("Session文件复制完成", session=self.session_name, permissions="rw")
                 
                 # 使用独立的session文件
                 self.client = TelegramClient(
@@ -166,9 +256,9 @@ class TelegramMediaDownloader:
                 )
                 
             except Exception as e:
-                logger.error(f"Session文件复制失败: {e}")
+                logger.error("Session文件复制失败", error=str(e), session=self.session_name)
                 # 回退到内存session
-                logger.info("回退到内存session模式")
+                logger.info("回退到内存session模式", session=self.session_name)
                 self.client = TelegramClient(
                     f":memory:",
                     api_id,
@@ -185,7 +275,7 @@ class TelegramMediaDownloader:
                 await asyncio.sleep(0.5)
                 
                 # 连接客户端
-                logger.info("正在连接媒体下载器客户端...")
+                logger.info("正在连接媒体下载器客户端", session=self.session_name, api_id=api_id)
                 await self.client.connect()
             
             # 检查认证状态
@@ -194,15 +284,15 @@ class TelegramMediaDownloader:
                 raise AuthKeyUnregisteredError("主session未授权，请重新认证Telegram服务")
             
             self._initialized = True
-            logger.info("Telegram媒体下载器初始化成功")
+            logger.info("Telegram媒体下载器初始化成功", session=self.session_name, client_id=id(self.client))
             
         except AuthKeyUnregisteredError as e:
-            logger.error(f"媒体下载器认证失败: {str(e)}")
-            logger.error("请确保主Telegram服务已完成认证")
+            logger.error("媒体下载器认证失败", error=str(e), session=self.session_name)
+            logger.error("请确保主Telegram服务已完成认证", session=self.session_name)
             await self._cleanup()
             raise
         except Exception as e:
-            logger.error(f"Telegram媒体下载器初始化失败: {str(e)}")
+            logger.error("Telegram媒体下载器初始化失败", error=str(e), session=self.session_name)
             await self._cleanup()
             raise
     
@@ -216,9 +306,9 @@ class TelegramMediaDownloader:
                 except Exception as e:
                     # 处理SQLite只读错误，避免影响清理过程
                     if "attempt to write a readonly database" in str(e):
-                        logger.warning(f"断开下载器连接时遇到只读数据库错误（已忽略）: {e}")
+                        logger.warning("断开下载器连接时遇到只读数据库错误", error=str(e), ignored=True, session=self.session_name)
                     else:
-                        logger.warning(f"断开下载器连接时出错: {e}")
+                        logger.warning("断开下载器连接时出错", error=str(e), session=self.session_name)
                 finally:
                     self.client = None
             
@@ -228,14 +318,14 @@ class TelegramMediaDownloader:
                 if os.path.exists(session_file):
                     try:
                         os.remove(session_file)
-                        logger.info(f"已清理session文件: {session_file}")
+                        logger.info("已清理session文件", session_file=session_file)
                     except Exception as e:
-                        logger.warning(f"清理session文件失败: {e}")
+                        logger.warning("清理session文件失败", error=str(e), session_file=session_file)
             
             self._initialized = False
             
         except Exception as e:
-            logger.error(f"资源清理失败: {e}")
+            logger.error("资源清理失败", error=str(e), session=self.session_name)
     
     def __del__(self):
         """析构函数，确保资源被清理"""

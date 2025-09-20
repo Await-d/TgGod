@@ -1,35 +1,70 @@
-# TgGod 项目概述
+# TgGod 项目概览
 
-## 项目简介
-TgGod是一个基于React前端和Python后端的Telegram群组消息规则下载系统，支持实时日志推送。
-
-## 核心功能
-- 智能规则过滤：关键词、时间范围、发送者等多维度过滤
-- 批量下载：支持文本、图片、视频等多种媒体类型
-- 实时监控：下载进度、统计图表、任务状态
-- 日志推送：WebSocket实时通知 + 多渠道推送
-- 现代化UI：React + TypeScript + Ant Design
+## 项目目的
+TgGod 是一个基于规则的 Telegram 群组媒体下载系统，支持从 Telegram 群组中按照自定义规则自动下载媒体文件。该项目采用单服务架构，集成了前端界面、后端API和数据库管理功能。
 
 ## 技术栈
-- **前端**: React, TypeScript, Ant Design, Socket.io
-- **后端**: Python, FastAPI, Telethon, SQLAlchemy
-- **数据库**: SQLite (默认)
-- **部署**: Docker
 
-## 项目结构
-```
-TgGod/
-├── backend/          # Python后端服务
-│   ├── app/
-│   │   ├── api/      # API路由
-│   │   ├── models/   # 数据模型
-│   │   ├── services/ # 业务逻辑
-│   │   ├── utils/    # 工具函数
-│   │   └── websocket/ # WebSocket管理
-│   └── requirements.txt
-├── frontend/         # React前端应用
-└── docker/           # Docker部署配置
-```
+### 后端 (Python)
+- **框架**: FastAPI (0.104.1) - 现代化异步Web框架
+- **数据库**: SQLAlchemy (2.0.23) + SQLite - ORM和关系型数据库
+- **Telegram集成**: Telethon (1.32.1) - Telegram客户端库
+- **异步支持**: uvicorn + aiosqlite - ASGI服务器和异步SQLite
+- **WebSocket**: websockets (11.0.3) - 实时通信
+- **其他关键依赖**:
+  - pydantic (2.4.2) - 数据验证
+  - cryptography (41.0.7) - 加密支持
+  - pillow (10.1.0) - 图像处理
+  - psutil (5.9.6) - 系统监控
 
-## 开发状态
-当前阶段：后端基础配置完成，正在开发前端React环境和后续功能。
+### 前端 (React + TypeScript)
+- **框架**: React (18.2.0) + TypeScript (4.9.5)
+- **UI库**: Ant Design (5.12.8) - 企业级UI组件
+- **状态管理**: Zustand (4.4.7) - 轻量级状态管理
+- **路由**: react-router-dom (6.20.1)
+- **HTTP客户端**: axios (1.6.2)
+- **构建工具**: react-scripts (5.0.1) + pnpm
+- **其他功能**:
+  - react-markdown (10.1.0) - Markdown渲染
+  - dayjs (1.11.13) - 日期处理
+
+### 部署架构
+- **容器化**: Docker + docker-compose
+- **Web服务器**: Nginx (前端静态文件服务)
+- **单服务架构**: 前端+后端+数据库合并为一个容器
+- **数据持久化**: 外部卷挂载 (数据库、媒体文件、日志、会话)
+
+## 核心功能模块
+
+### 1. Telegram 集成
+- 群组管理和消息同步
+- 媒体文件下载
+- 会话管理和认证
+
+### 2. 规则引擎
+- 多维度过滤条件 (关键词、时间、发送者、媒体类型等)
+- 高级过滤选项 (文件大小、视频尺寸、文本长度等)
+- 规则与任务的多对多关联
+
+### 3. 任务管理
+- 后台下载任务执行
+- 任务状态监控和控制
+- 批量下载支持
+
+### 4. 实时通信
+- WebSocket实时日志推送
+- 任务进度更新
+- 系统状态监控
+
+### 5. 系统监控
+- 服务健康检查
+- 系统资源监控
+- 自动依赖安装和管理
+
+## 项目特点
+- **单服务部署**: 简化部署和维护
+- **自动化系统**: 服务依赖自动安装、数据库自动迁移
+- **现代化架构**: 异步处理、类型安全、组件化设计
+- **企业级功能**: 用户管理、权限控制、日志系统
+- **容器化部署**: Docker镜像支持多架构
+- **CI/CD集成**: GitHub Actions自动构建和发布

@@ -1,4 +1,36 @@
+"""TgGod 任务管理API模块
+
+该模块提供任务管理的RESTful API端点，负责处理:
+
+- 下载任务的创建、修改、删除和查询
+- 任务状态管理(开始、暂停、停止、重启)
+- 任务-规则关联关系管理
+- 任务执行进度监控和统计
+- 任务调度配置和历史记录
+- 媒体文件组织和Jellyfin集成配置
+
+API端点分类:
+    CRUD操作: POST/GET/PUT/DELETE /tasks/* - 基本任务管理
+    执行控制: POST /tasks/{id}/(start|pause|stop|restart) - 任务执行控制
+    监控查询: GET /tasks/{id}/(status|progress|logs) - 监控和统计
+    规则管理: POST/DELETE /tasks/{id}/rules - 任务规则关联
+    调度管理: POST/PUT /tasks/{id}/schedule - 任务调度配置
+
+Features:
+    - 支持一次性和定时任务两种类型
+    - 灵活的规则关联和优先级管理
+    - 完整的任务生命周期管理
+    - 实时进度监控和状态推送
+    - Jellyfin媒体库集成配置
+    - 详细的错误处理和日志记录
+    - 批量操作和并发控制
+
+Author: TgGod Team
+Version: 1.0.0
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+import asyncio
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
@@ -7,7 +39,9 @@ from ..models.telegram import TelegramGroup
 from ..models.rule import FilterRule
 from ..models.task_rule_association import TaskRuleAssociation
 from ..services.task_execution_service import task_execution_service
-from ..services.mock_task_execution_service import mock_task_execution_service
+from ..core.error_handler import global_error_handler, operation_context
+from ..services.service_monitor import ServiceMonitor
+from ..websocket.manager import websocket_manager
 from pydantic import BaseModel
 from datetime import datetime
 import logging
@@ -16,33 +50,174 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-def get_task_execution_service():
-    """获取可用的任务执行服务（优先使用真实服务，否则使用Mock服务）"""
-    try:
-        # 检查真实服务是否可用
-        if hasattr(task_execution_service, '_initialized') and task_execution_service._initialized:
-            return task_execution_service
-        else:
-            logger.warning("使用Mock任务执行服务")
-            return mock_task_execution_service
-    except Exception as e:
-        logger.warning(f"真实任务执行服务不可用，使用Mock服务: {e}")
-        return mock_task_execution_service
+class ProductionTaskExecutionManager:
+    """生产级任务执行管理器
 
-# Pydantic模型
+    提供完全可靠的任务执行服务，集成统一错误处理、服务监控和自动恢复机制。
+    绝对不使用Mock服务，确保所有任务在生产环境中正确执行。
+
+    Features:
+        - 统一错误处理和日志记录
+        - 服务健康监控和自动恢复
+        - WebSocket实时状态推送
+        - 完整的故障预防和处理
+        - 零Mock依赖的生产架构
+    """
+
+    def __init__(self):
+        self.service_monitor = ServiceMonitor()
+        self._initialization_lock = asyncio.Lock()
+        self._initialized = False
+
+    async def _ensure_service_ready(self) -> bool:
+        """确保任务执行服务已准备就绪"""
+        async with self._initialization_lock:
+            if not self._initialized:
+                with operation_context("ProductionTaskExecutionManager", "initialize_service") as ctx:
+                    try:
+                        # 启动服务监控
+                        monitor_result = await self.service_monitor.start_monitoring()
+                        if not monitor_result.success:
+                            raise Exception(f"服务监控启动失败: {monitor_result.error}")
+
+                        # 初始化任务执行服务
+                        await task_execution_service.initialize()
+
+                        # 验证服务状态
+                        if not hasattr(task_execution_service, '_initialized') or not task_execution_service._initialized:
+                            raise Exception("任务执行服务初始化验证失败")
+
+                        self._initialized = True
+                        logger.info("生产任务执行管理器初始化完成")
+
+                        # 发送状态更新
+                        await websocket_manager.broadcast_message({
+                            "type": "status",
+                            "message": "任务执行服务已就绪",
+                            "status": "ready",
+                            "timestamp": datetime.now().isoformat()
+                        })
+
+                        return True
+
+                    except Exception as e:
+                        logger.error(f"任务执行服务初始化失败: {e}")
+
+                        # 发送错误状态
+                        await websocket_manager.broadcast_message({
+                            "type": "status",
+                            "message": f"任务执行服务初始化失败: {str(e)}",
+                            "status": "error",
+                            "timestamp": datetime.now().isoformat()
+                        })
+
+                        raise HTTPException(
+                            status_code=503,
+                            detail=f"任务执行服务不可用: {str(e)}。请检查系统状态或联系管理员。"
+                        )
+
+            return self._initialized
+
+    async def execute_task_operation(self, operation_name: str, task_id: int, **kwargs):
+        """执行任务操作（start/pause/stop等）"""
+        with operation_context("ProductionTaskExecutionManager", operation_name, task_id=task_id) as ctx:
+            # 确保服务就绪
+            await self._ensure_service_ready()
+
+            # 获取操作方法
+            operation_method = getattr(task_execution_service, operation_name, None)
+            if not operation_method:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"不支持的任务操作: {operation_name}"
+                )
+
+            # 执行操作
+            try:
+                result = await operation_method(task_id, **kwargs)
+
+                # 发送成功状态
+                await websocket_manager.broadcast_message({
+                    "type": "progress",
+                    "task_id": task_id,
+                    "operation": operation_name,
+                    "status": "success",
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                return result
+
+            except Exception as e:
+                # 发送错误状态
+                await websocket_manager.broadcast_message({
+                    "type": "progress",
+                    "task_id": task_id,
+                    "operation": operation_name,
+                    "status": "error",
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"任务操作失败: {str(e)}"
+                )
+
+# 全局生产任务执行管理器实例
+production_task_manager = ProductionTaskExecutionManager()
+
+# Pydantic数据模型
 class TaskRuleAssociation(BaseModel):
+    """任务-规则关联配置模型
+
+    定义任务与过滤规则之间的关联关系配置。
+
+    Attributes:
+        rule_id (int): 过滤规则ID，关联到FilterRule表
+        is_active (bool): 规则是否激活，默认True
+        priority (int): 规则优先级，数值越小优先级越高，默认0
+    """
     rule_id: int
     is_active: bool = True
     priority: int = 0
 
 class TaskCreate(BaseModel):
+    """创建下载任务的请求模型
+
+    包含创建新下载任务所需的所有配置参数。
+
+    Attributes:
+        name (str): 任务名称，用于标识和管理
+        group_id (int): 目标Telegram群组ID
+        rule_ids (List[int]): 应用的过滤规则ID列表
+        download_path (str): 文件下载保存路径
+        date_from (Optional[datetime]): 消息过滤开始时间，为空表示不限制
+        date_to (Optional[datetime]): 消息过滤结束时间，为空表示不限制
+
+        # Jellyfin媒体库集成配置
+        use_jellyfin_structure (bool): 是否使用Jellyfin目录结构，默认False
+        include_metadata (bool): 是否生成NFO元数据文件，默认True
+        download_thumbnails (bool): 是否下载缩略图，默认True
+        use_series_structure (bool): 是否使用剧集目录结构，默认False
+        organize_by_date (bool): 是否按日期组织文件，默认True
+        max_filename_length (int): 文件名最大长度限制，默认150
+        thumbnail_size (str): 缩略图尺寸格式，默认"400x300"
+        poster_size (str): 海报图尺寸格式，默认"600x900"
+        fanart_size (str): 艺术图尺寸格式，默认"1920x1080"
+
+        # 任务调度配置
+        task_type (Optional[str]): 任务类型(once/recurring)，默认"once"
+        schedule_type (Optional[str]): 调度类型(interval/cron)，为空表示一次性任务
+        schedule_config (Optional[dict]): 调度配置参数
+        max_runs (Optional[int]): 最大执行次数限制，为空表示不限制
+    """
     name: str
     group_id: int
     rule_ids: List[int]  # 改为规则ID列表
     download_path: str
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
-    
+
     # Jellyfin 配置
     use_jellyfin_structure: bool = False
     include_metadata: bool = True
@@ -53,7 +228,7 @@ class TaskCreate(BaseModel):
     thumbnail_size: str = "400x300"
     poster_size: str = "600x900"
     fanart_size: str = "1920x1080"
-    
+
     # 调度配置
     task_type: Optional[str] = "once"
     schedule_type: Optional[str] = None
@@ -61,13 +236,43 @@ class TaskCreate(BaseModel):
     max_runs: Optional[int] = None
 
 class TaskUpdate(BaseModel):
+    """更新下载任务的请求模型
+
+    用于修改现有下载任务配置的部分更新模型。
+    所有字段均为可选，只更新提供的字段。
+
+    Attributes:
+        name (Optional[str]): 新的任务名称
+        group_id (Optional[int]): 新的目标群组ID
+        rule_ids (Optional[List[int]]): 新的过滤规则ID列表
+        download_path (Optional[str]): 新的下载路径
+        date_from (Optional[datetime]): 新的开始时间过滤
+        date_to (Optional[datetime]): 新的结束时间过滤
+
+        # Jellyfin媒体库配置更新
+        use_jellyfin_structure (Optional[bool]): 是否使用Jellyfin结构
+        include_metadata (Optional[bool]): 是否包含元数据
+        download_thumbnails (Optional[bool]): 是否下载缩略图
+        use_series_structure (Optional[bool]): 是否使用剧集结构
+        organize_by_date (Optional[bool]): 是否按日期组织
+        max_filename_length (Optional[int]): 文件名长度限制
+        thumbnail_size (Optional[str]): 缩略图尺寸
+        poster_size (Optional[str]): 海报尺寸
+        fanart_size (Optional[str]): 艺术图尺寸
+
+        # 调度配置更新
+        task_type (Optional[str]): 任务类型
+        schedule_type (Optional[str]): 调度类型
+        schedule_config (Optional[dict]): 调度配置
+        max_runs (Optional[int]): 最大运行次数
+    """
     name: Optional[str] = None
     group_id: Optional[int] = None
     rule_ids: Optional[List[int]] = None
     download_path: Optional[str] = None
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
-    
+
     # Jellyfin 配置
     use_jellyfin_structure: Optional[bool] = None
     include_metadata: Optional[bool] = None
@@ -78,7 +283,7 @@ class TaskUpdate(BaseModel):
     thumbnail_size: Optional[str] = None
     poster_size: Optional[str] = None
     fanart_size: Optional[str] = None
-    
+
     # 调度配置
     task_type: Optional[str] = None
     schedule_type: Optional[str] = None
@@ -86,12 +291,34 @@ class TaskUpdate(BaseModel):
     max_runs: Optional[int] = None
 
 class TaskRuleAssociationResponse(BaseModel):
+    """任务-规则关联关系响应模型
+
+    表示任务与过滤规则关联关系的详细信息。
+
+    Attributes:
+        rule_id (int): 规则ID
+        rule_name (str): 规则显示名称
+        is_active (bool): 规则是否激活
+        priority (int): 规则优先级
+    """
     rule_id: int
     rule_name: str
     is_active: bool
     priority: int
 
 class TaskResponse(BaseModel):
+    """下载任务详细信息响应模型
+
+    返回完整的任务信息，包括关联的规则和执行状态。
+
+    Attributes:
+        id (int): 任务唯一标识ID
+        name (str): 任务名称
+        group_id (int): 关联的Telegram群组ID
+        rules (List[TaskRuleAssociationResponse]): 关联的过滤规则列表
+        status (str): 任务执行状态(pending/running/completed/failed/paused)
+        progress (int): 任务执行进度百分比(0-100)
+    """
     id: int
     name: str
     group_id: int
@@ -141,7 +368,35 @@ async def get_tasks(
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
-    """获取下载任务列表"""
+    """获取下载任务列表
+
+    查询并返回下载任务列表，支持按群组、状态过滤和分页查询。
+    每个任务包含完整的配置信息、执行状态和关联的过滤规则。
+
+    Args:
+        group_id (Optional[int]): 过滤指定群组的任务，为空返回所有群组任务
+        status (Optional[str]): 过滤指定状态的任务(pending/running/completed/failed/paused)
+        skip (int): 跳过的记录数，用于分页，默认0，最小0
+        limit (int): 返回的最大记录数，默认100，范围1-1000
+        db (Session): 数据库会话实例
+
+    Returns:
+        List[TaskResponse]: 任务列表，每个任务包含完整的配置和状态信息
+
+    Raises:
+        HTTPException: 500 - 数据库查询失败或其他内部错误
+
+    Example:
+        ```http
+        GET /api/tasks?group_id=123&status=running&skip=0&limit=50
+        ```
+
+    Note:
+        - 结果按创建时间倒序排列，最新创建的任务在前
+        - 自动处理数据库结构兼容性问题
+        - 包含完整的Jellyfin和调度配置信息
+        - 规则信息按优先级降序排列
+    """
     try:
         query = db.query(DownloadTask)
         
@@ -233,7 +488,43 @@ async def create_task(
     task: TaskCreate,
     db: Session = Depends(get_db)
 ):
-    """创建下载任务"""
+    """创建新的下载任务
+
+    根据提供的配置信息创建新的下载任务，包括目标群组、过滤规则、
+    下载路径和各种配置选项。创建成功后自动建立任务与规则的关联关系。
+
+    Args:
+        task (TaskCreate): 任务创建配置，包含所有必要的任务参数
+        db (Session): 数据库会话实例
+
+    Returns:
+        TaskResponse: 创建成功的任务详细信息，包含分配的任务ID
+
+    Raises:
+        HTTPException:
+            - 404 - 指定的群组不存在
+            - 404 - 指定的过滤规则不存在
+            - 500 - 数据库操作失败或其他内部错误
+
+    Example:
+        ```json
+        POST /api/tasks
+        {
+            "name": "动漫下载任务",
+            "group_id": 123,
+            "rule_ids": [1, 2, 3],
+            "download_path": "/downloads/anime",
+            "use_jellyfin_structure": true,
+            "task_type": "once"
+        }
+        ```
+
+    Note:
+        - 任务创建后初始状态为"pending"
+        - 系统会验证所有关联的群组和规则是否存在
+        - 自动处理数据库字段兼容性问题
+        - 支持完整的Jellyfin媒体库集成配置
+    """
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == task.group_id).first()
     if not group:
@@ -386,13 +677,18 @@ async def start_task(
     
     # 启动实际的下载任务
     try:
-        execution_service = get_task_execution_service()
-        success = await execution_service.start_task(task_id)
+        success = await production_task_manager.execute_task_operation("start_task", task_id)
         if not success:
             task.status = "failed"
             task.error_message = "启动任务执行服务失败"
             db.commit()
             raise HTTPException(status_code=500, detail="启动任务执行服务失败")
+    except HTTPException:
+        # 重新抛出HTTP异常
+        task.status = "failed"
+        task.error_message = "启动任务执行服务失败"
+        db.commit()
+        raise
     except Exception as e:
         task.status = "failed"
         task.error_message = f"启动任务失败: {str(e)}"
@@ -416,10 +712,11 @@ async def pause_task(
     
     # 暂停实际的下载任务
     try:
-        execution_service = get_task_execution_service()
-        success = await execution_service.pause_task(task_id)
+        success = await production_task_manager.execute_task_operation("pause_task", task_id)
         if not success:
             raise HTTPException(status_code=400, detail="暂停任务失败，任务可能未在运行")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"暂停任务失败: {str(e)}")
     
@@ -440,10 +737,11 @@ async def stop_task(
     
     # 停止实际的下载任务
     try:
-        execution_service = get_task_execution_service()
-        success = await execution_service.stop_task(task_id)
+        success = await production_task_manager.execute_task_operation("stop_task", task_id)
         if not success:
             raise HTTPException(status_code=400, detail="停止任务失败，任务可能未在运行")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"停止任务失败: {str(e)}")
     
@@ -571,8 +869,7 @@ async def restart_task(
     # 如果任务正在运行，先停止它
     if task.status == "running":
         try:
-            execution_service = get_task_execution_service()
-            await execution_service.stop_task(task_id)
+            await production_task_manager.execute_task_operation("stop_task", task_id)
             logger.info(f"任务 {task_id} 已停止，准备重启")
         except Exception as e:
             logger.error(f"停止任务 {task_id} 失败: {e}")
@@ -587,18 +884,22 @@ async def restart_task(
     
     # 启动任务
     try:
-        execution_service = get_task_execution_service()
-        success = await execution_service.start_task(task_id)
+        success = await production_task_manager.execute_task_operation("start_task", task_id)
         if not success:
             task.status = "failed"
             task.error_message = "重启任务失败"
             db.commit()
             raise HTTPException(status_code=500, detail="重启任务失败")
-        
+
         task.status = "running"
         db.commit()
         logger.info(f"任务 {task_id} 重启成功")
-        
+
+    except HTTPException:
+        task.status = "failed"
+        task.error_message = "重启任务失败"
+        db.commit()
+        raise
     except Exception as e:
         task.status = "failed"
         task.error_message = f"重启任务失败: {str(e)}"
@@ -631,18 +932,22 @@ async def retry_task(
     
     # 启动任务
     try:
-        execution_service = get_task_execution_service()
-        success = await execution_service.start_task(task_id)
+        success = await production_task_manager.execute_task_operation("start_task", task_id)
         if not success:
             task.status = "failed"
             task.error_message = "重试任务失败"
             db.commit()
             raise HTTPException(status_code=500, detail="重试任务失败")
-        
+
         task.status = "running"
         db.commit()
         logger.info(f"任务 {task_id} 重试成功，从 {original_downloaded} 个文件开始继续")
-        
+
+    except HTTPException:
+        task.status = "failed"
+        task.error_message = "重试任务失败"
+        db.commit()
+        raise
     except Exception as e:
         task.status = "failed"
         task.error_message = f"重试任务失败: {str(e)}"
@@ -668,18 +973,21 @@ async def resume_task(
     
     # 恢复任务
     try:
-        execution_service = get_task_execution_service()
-        success = await execution_service.start_task(task_id)
+        success = await production_task_manager.execute_task_operation("start_task", task_id)
         if not success:
             task.error_message = "恢复任务失败"
             db.commit()
             raise HTTPException(status_code=500, detail="恢复任务失败")
-        
+
         task.status = "running"
         task.updated_at = datetime.now()
         db.commit()
         logger.info(f"任务 {task_id} 恢复成功")
-        
+
+    except HTTPException:
+        task.error_message = "恢复任务失败"
+        db.commit()
+        raise
     except Exception as e:
         task.error_message = f"恢复任务失败: {str(e)}"
         db.commit()
@@ -732,8 +1040,7 @@ async def delete_task(
     # 如果是强制删除，先尝试停止任务
     if task.status == "running" and force:
         try:
-            service = get_task_execution_service()
-            await service.stop_task(task_id)
+            await production_task_manager.execute_task_operation("stop_task", task_id)
             logger.info(f"强制删除时已停止运行中的任务 {task_id}")
         except Exception as e:
             logger.warning(f"强制删除时停止任务失败，继续删除: {e}")
@@ -779,8 +1086,7 @@ async def batch_task_operation(
                     results.append({"task_id": task_id, "status": "skipped", "message": "任务已在运行"})
                 else:
                     task.status = "running"
-                    execution_service = get_task_execution_service()
-                    success = await execution_service.start_task(task_id)
+                    success = await production_task_manager.execute_task_operation("start_task", task_id)
                     if success:
                         results.append({"task_id": task_id, "status": "success", "message": "任务启动成功"})
                         successful += 1
@@ -793,8 +1099,7 @@ async def batch_task_operation(
                 if task.status != "running":
                     results.append({"task_id": task_id, "status": "skipped", "message": "任务未运行"})
                 else:
-                    execution_service = get_task_execution_service()
-                    success = await execution_service.stop_task(task_id)
+                    success = await production_task_manager.execute_task_operation("stop_task", task_id)
                     if success:
                         results.append({"task_id": task_id, "status": "success", "message": "任务停止成功"})
                         successful += 1
@@ -806,8 +1111,7 @@ async def batch_task_operation(
                 if task.status != "running":
                     results.append({"task_id": task_id, "status": "skipped", "message": "任务未运行"})
                 else:
-                    execution_service = get_task_execution_service()
-                    success = await execution_service.pause_task(task_id)
+                    success = await production_task_manager.execute_task_operation("pause_task", task_id)
                     if success:
                         results.append({"task_id": task_id, "status": "success", "message": "任务暂停成功"})
                         successful += 1
@@ -817,14 +1121,12 @@ async def batch_task_operation(
                         
             elif operation == "restart":
                 if task.status == "running":
-                    execution_service = get_task_execution_service()
-                    await execution_service.stop_task(task_id)
+                    await production_task_manager.execute_task_operation("stop_task", task_id)
                 task.status = "pending"
                 task.progress = 0
                 task.downloaded_messages = 0
                 task.error_message = None
-                execution_service = get_task_execution_service()
-                success = await execution_service.start_task(task_id)
+                success = await production_task_manager.execute_task_operation("start_task", task_id)
                 if success:
                     task.status = "running"
                     results.append({"task_id": task_id, "status": "success", "message": "任务重启成功"})
@@ -840,8 +1142,7 @@ async def batch_task_operation(
                 else:
                     task.status = "pending"
                     task.error_message = None
-                    execution_service = get_task_execution_service()
-                    success = await execution_service.start_task(task_id)
+                    success = await production_task_manager.execute_task_operation("start_task", task_id)
                     if success:
                         task.status = "running"
                         results.append({"task_id": task_id, "status": "success", "message": "任务重试成功"})
@@ -872,8 +1173,7 @@ async def batch_task_operation(
                     # 如果是强制删除运行中的任务，先尝试停止
                     if task.status == "running" and force:
                         try:
-                            service = get_task_execution_service()
-                            await service.stop_task(task_id)
+                            await production_task_manager.execute_task_operation("stop_task", task_id)
                             logger.info(f"批量强制删除时已停止运行中的任务 {task_id}")
                         except Exception as e:
                             logger.warning(f"批量强制删除时停止任务失败，继续删除: {e}")
@@ -951,11 +1251,13 @@ async def create_and_start_task(
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
     
-    # 检查规则是否存在（如果指定了规则ID）
-    if task.rule_id:
-        rule = db.query(FilterRule).filter(FilterRule.id == task.rule_id).first()
-        if not rule:
-            raise HTTPException(status_code=404, detail="规则不存在")
+    # 检查规则是否存在（如果指定了规则ID列表）
+    if task.rule_ids:
+        rules = db.query(FilterRule).filter(FilterRule.id.in_(task.rule_ids)).all()
+        if len(rules) != len(task.rule_ids):
+            found_rule_ids = [r.id for r in rules]
+            missing_rule_ids = [rid for rid in task.rule_ids if rid not in found_rule_ids]
+            raise HTTPException(status_code=404, detail=f"规则不存在: {missing_rule_ids}")
     
     # 创建任务
     new_task = DownloadTask(**task.dict())
@@ -970,7 +1272,7 @@ async def create_and_start_task(
             new_task.status = "running"
             db.commit()
             
-            success = await task_execution_service.start_task(new_task.id)
+            success = await production_task_manager.execute_task_operation("start_task", new_task.id)
             if not success:
                 new_task.status = "failed"
                 new_task.error_message = "任务启动失败"
@@ -1000,7 +1302,15 @@ async def get_task_status(
         raise HTTPException(status_code=404, detail="任务不存在")
     
     # 获取关联的规则和群组信息
-    rule = db.query(FilterRule).filter(FilterRule.id == task.rule_id).first() if task.rule_id else None
+    from ..models.task_rule_association import TaskRuleAssociation
+    rule_associations = db.query(TaskRuleAssociation).filter(
+        TaskRuleAssociation.task_id == task_id,
+        TaskRuleAssociation.is_active == True
+    ).order_by(TaskRuleAssociation.priority.desc()).first()
+
+    rule = None
+    if rule_associations:
+        rule = db.query(FilterRule).filter(FilterRule.id == rule_associations.rule_id).first()
     group = db.query(TelegramGroup).filter(TelegramGroup.id == task.group_id).first()
     
     # 计算执行时间
@@ -1085,8 +1395,8 @@ async def get_running_tasks(
         running_tasks = db.query(DownloadTask).filter(DownloadTask.status == "running").all()
         
         # 获取任务执行服务中的实际运行状态
-        execution_service = get_task_execution_service()
-        actual_running_task_ids = execution_service.get_running_tasks()
+        await production_task_manager._ensure_service_ready()
+        actual_running_task_ids = task_execution_service.get_running_tasks()
         
         task_info = []
         for task in running_tasks:

@@ -16,7 +16,8 @@ import {
   MessageOutlined,
   MenuOutlined,
   DatabaseOutlined,
-  HistoryOutlined
+  HistoryOutlined,
+  MonitorOutlined
 } from '@ant-design/icons';
 import { webSocketService } from '../../services/websocket';
 import { useGlobalStore, useAuthStore } from '../../store';
@@ -111,6 +112,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       key: '/database',
       icon: <DatabaseOutlined />,
       label: '数据库状态',
+    },
+    {
+      key: '/status',
+      icon: <MonitorOutlined />,
+      label: '实时状态',
     },
     {
       key: '/settings',

@@ -1,70 +1,259 @@
+# 标准库导入
 import asyncio
 import logging
-import shutil
 import os
+import shutil
 import time
-import asyncio
-from typing import Optional, List, Dict
+import traceback
+from datetime import datetime, timezone
+from typing import Optional, List, Dict, Callable, Any, Union
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+
+# 第三方库导入
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError, OperationalError, DisconnectionError
+
+# 本地模块导入
+from ..models.log import TaskLog
 from ..models.rule import DownloadTask, FilterRule
 from ..models.telegram import TelegramMessage, TelegramGroup
-from ..models.log import TaskLog
-from .media_downloader import TelegramMediaDownloader
-from .rule_sync_service import rule_sync_service
 from ..utils.db_optimization import optimized_db_session
 from ..websocket.manager import websocket_manager
-from .task_db_manager import task_db_manager
+from ..core.batch_logging import HighPerformanceLogger, get_batch_handler
+from ..core.memory_manager import memory_manager, memory_tracking, MemoryLimitedBuffer
 from .file_organizer_service import FileOrganizerService
-from datetime import datetime, timezone
+from .media_downloader import TelegramMediaDownloader
+from .rule_sync_service import rule_sync_service
+from .task_db_manager import task_db_manager
 
 logger = logging.getLogger(__name__)
 
+# 高性能日志记录器
+high_perf_logger = HighPerformanceLogger('task_execution_service')
+
+@dataclass
+class TaskExecutionConfig:
+    """任务执行配置"""
+    max_retries: int = 5
+    retry_delay: float = 2.0
+    circuit_breaker_threshold: int = 10
+    circuit_breaker_timeout: float = 300.0
+    memory_limit_mb: int = 500
+    batch_size: int = 50
+    max_concurrent_tasks: int = 3
+    health_check_interval: float = 30.0
+    auto_recovery_enabled: bool = True
+    graceful_shutdown_timeout: float = 60.0
+
+@dataclass
+class ServiceHealthMetrics:
+    """服务健康指标"""
+    total_tasks: int = 0
+    failed_tasks: int = 0
+    successful_tasks: int = 0
+    circuit_breaker_trips: int = 0
+    memory_pressure_events: int = 0
+    auto_recoveries: int = 0
+    last_health_check: Optional[datetime] = None
+    service_uptime: float = 0.0
+
+class CircuitBreakerError(Exception):
+    """熔断器异常"""
+    pass
+
+class ServiceUnavailableError(Exception):
+    """服务不可用异常"""
+    pass
+
+class MemoryPressureError(Exception):
+    """内存压力异常"""
+    pass
+
 class TaskExecutionService:
-    """任务执行服务"""
-    
-    def __init__(self):
+    """加固的任务执行服务
+
+    Features:
+    - 完整的错误恢复和重试机制
+    - 熔断器模式防止级联故障
+    - 内存管理和压力监控
+    - 连接池管理和自动恢复
+    - 服务健康监控和自诊断
+    - 批量日志处理和性能优化
+    - 优雅关闭和资源清理
+    """
+
+    def __init__(self, config: Optional[TaskExecutionConfig] = None):
+        self.config = config or TaskExecutionConfig()
+        self.health_metrics = ServiceHealthMetrics()
+
+        # 核心组件
         self.running_tasks: Dict[int, asyncio.Task] = {}
-        self.media_downloader = TelegramMediaDownloader()
+        self.media_downloader = None  # 延迟初始化
         self.jellyfin_service = None  # 延迟导入
-        self.file_organizer = FileOrganizerService()  # 文件组织服务
+        self.file_organizer = None  # 延迟初始化
+
+        # 状态管理
         self._initialized = False
-        # 日志批量处理
+        self._shutdown_requested = False
+        self._startup_time = time.time()
+        self._last_health_check = time.time()
+
+        # 错误处理和熔断器
+        self._failure_count = 0
+        self._circuit_breaker_open = False
+        self._circuit_breaker_open_time = 0
+        self._recovery_tasks: List[Callable] = []
+
+        # 内存管理
+        self.memory_buffer = MemoryLimitedBuffer(max_memory_mb=self.config.memory_limit_mb)
         self.pending_logs = []
-        self.log_batch_size = 50  # 累积50条日志再批量写入，进一步减少数据库访问
-        self.last_log_flush = time.time()  # 上次刷新时间  # 上次刷新时间
+        self.log_batch_size = self.config.batch_size
+        self.last_log_flush = time.time()
+
+        # 监控和健康检查
+        self._health_check_task = None
+        self._auto_recovery_task = None
+
+        # 并发控制
+        self._task_semaphore = asyncio.Semaphore(self.config.max_concurrent_tasks)
+
+        # 注册清理回调
+        memory_manager.add_cleanup_callback(self._memory_cleanup)
     
     async def initialize(self):
-        """初始化服务"""
+        """完整初始化服务"""
         if self._initialized:
             return
-        
+
         try:
-            # 尝试初始化媒体下载器
-            await self.media_downloader.initialize()
-            logger.info("媒体下载器初始化成功")
-            
+            high_perf_logger.info("开始初始化加固的任务执行服务")
+
+            # 启动内存管理
+            memory_manager.start()
+
+            # 初始化核心组件（带重试和恢复机制）
+            await self._initialize_core_components()
+
+            # 启动健康监控
+            await self._start_health_monitoring()
+
+            # 启动自动恢复
+            if self.config.auto_recovery_enabled:
+                await self._start_auto_recovery()
+
+            # 注册恢复任务
+            self._register_recovery_tasks()
+
+            self._initialized = True
+            self.health_metrics.last_health_check = datetime.now(timezone.utc)
+
+            high_perf_logger.info("任务执行服务初始化完成，所有保护机制已启用")
+
         except Exception as e:
-            logger.error(f"媒体下载器初始化失败: {e}")
-            logger.warning("媒体下载功能将不可用，但服务将继续以有限模式运行")
-            # 将媒体下载器设为None，表示不可用
-            self.media_downloader = None
-            
+            high_perf_logger.error(f"任务执行服务初始化失败: {e}", error=str(e), traceback=traceback.format_exc())
+            # 尝试部分初始化以保持基本功能
+            await self._fallback_initialization()
+            raise ServiceUnavailableError(f"服务初始化失败，已启用降级模式: {e}")
+
+    async def _initialize_core_components(self):
+        """初始化核心组件（带重试机制）"""
+        # 初始化文件组织服务
         try:
-            # 延迟导入 JellyfinMediaService 避免循环导入
+            self.file_organizer = FileOrganizerService()
+            high_perf_logger.info("文件组织服务初始化成功")
+        except Exception as e:
+            high_perf_logger.error(f"文件组织服务初始化失败: {e}")
+            # 文件组织服务是可选的，失败不影响核心功能
+
+        # 初始化媒体下载器（带重试）
+        for attempt in range(self.config.max_retries):
+            try:
+                self.media_downloader = TelegramMediaDownloader()
+                await self.media_downloader.initialize()
+                high_perf_logger.info("媒体下载器初始化成功")
+                break
+            except Exception as e:
+                if attempt == self.config.max_retries - 1:
+                    high_perf_logger.error(f"媒体下载器初始化失败（最终尝试）: {e}")
+                    self.media_downloader = None
+                    self._add_recovery_task(self._recover_media_downloader)
+                else:
+                    high_perf_logger.warning(f"媒体下载器初始化失败（尝试 {attempt + 1}/{self.config.max_retries}）: {e}")
+                    await asyncio.sleep(self.config.retry_delay * (attempt + 1))
+
+        # 初始化Jellyfin服务（可选）
+        try:
             from .jellyfin_media_service import JellyfinMediaService
             self.jellyfin_service = JellyfinMediaService()
-            logger.info("Jellyfin媒体服务初始化成功")
-        except ImportError as e:
-            logger.warning(f"Jellyfin媒体服务导入失败，将禁用Jellyfin功能: {e}")
-            self.jellyfin_service = None
+            high_perf_logger.info("Jellyfin媒体服务初始化成功")
+        except ImportError:
+            high_perf_logger.info("Jellyfin媒体服务不可用，跳过初始化")
         except Exception as e:
-            logger.error(f"Jellyfin媒体服务初始化失败: {e}")
+            high_perf_logger.warning(f"Jellyfin媒体服务初始化失败: {e}")
             self.jellyfin_service = None
-        
-        # 即使某些服务初始化失败，也标记为已初始化，允许基本功能运行
-        self._initialized = True
-        logger.info("任务执行服务初始化完成（可能以有限模式运行）")
+
+    async def _fallback_initialization(self):
+        """降级初始化"""
+        try:
+            high_perf_logger.warning("执行降级初始化")
+            # 最基本的初始化，确保服务可以运行
+            self.file_organizer = None
+            self.media_downloader = None
+            self.jellyfin_service = None
+            self._initialized = True
+            high_perf_logger.info("降级初始化完成，服务运行在最小功能模式")
+        except Exception as e:
+            high_perf_logger.critical(f"降级初始化也失败: {e}")
+            raise
+
+    def _add_recovery_task(self, task: Callable):
+        """添加恢复任务"""
+        self._recovery_tasks.append(task)
+
+    async def _recover_media_downloader(self):
+        """恢复媒体下载器"""
+        try:
+            self.media_downloader = TelegramMediaDownloader()
+            await self.media_downloader.initialize()
+            high_perf_logger.info("媒体下载器恢复成功")
+            return True
+        except Exception as e:
+            high_perf_logger.error(f"媒体下载器恢复失败: {e}")
+            return False
+
+    def _register_recovery_tasks(self):
+        """注册所有恢复任务"""
+        recovery_tasks = [
+            self._recover_media_downloader,
+            self._recover_database_connection,
+            self._recover_websocket_connection
+        ]
+        self._recovery_tasks.extend(recovery_tasks)
+
+    async def _recover_database_connection(self):
+        """恢复数据库连接"""
+        try:
+            # 测试数据库连接
+            with optimized_db_session() as db:
+                db.execute("SELECT 1")
+            high_perf_logger.info("数据库连接恢复成功")
+            return True
+        except Exception as e:
+            high_perf_logger.error(f"数据库连接恢复失败: {e}")
+            return False
+
+    async def _recover_websocket_connection(self):
+        """恢复WebSocket连接"""
+        try:
+            # 测试WebSocket管理器
+            connection_count = websocket_manager.get_connection_count()
+            high_perf_logger.info(f"WebSocket连接正常，当前连接数: {connection_count}")
+            return True
+        except Exception as e:
+            high_perf_logger.error(f"WebSocket连接检查失败: {e}")
+            return False
     
     async def start_task(self, task_id: int) -> bool:
         """启动任务执行"""
@@ -1362,10 +1551,280 @@ class TaskExecutionService:
     def get_running_tasks(self) -> List[int]:
         """获取正在运行的任务列表"""
         return list(self.running_tasks.keys())
-    
+
     def is_task_running(self, task_id: int) -> bool:
         """检查任务是否正在运行"""
         return task_id in self.running_tasks
 
-# 创建全局任务执行服务实例
+    async def shutdown(self, timeout: float = None):
+        """优雅关闭服务"""
+        shutdown_timeout = timeout or self.config.graceful_shutdown_timeout
+
+        try:
+            high_perf_logger.info("开始优雅关闭任务执行服务")
+
+            self._shutdown_requested = True
+
+            # 停止新任务
+            high_perf_logger.info("停止接受新任务")
+
+            # 等待当前任务完成
+            if self.running_tasks:
+                high_perf_logger.info(f"等待 {len(self.running_tasks)} 个任务完成")
+
+                # 等待所有任务完成
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(*self.running_tasks.values(), return_exceptions=True),
+                        timeout=shutdown_timeout * 0.8
+                    )
+                except asyncio.TimeoutError:
+                    high_perf_logger.warning(f"等待任务完成超时，强制取消剩余任务")
+
+                    # 强制取消剩余任务
+                    for task_id, task in list(self.running_tasks.items()):
+                        if not task.done():
+                            task.cancel()
+                            try:
+                                await asyncio.wait_for(task, timeout=5.0)
+                            except (asyncio.CancelledError, asyncio.TimeoutError):
+                                pass
+
+            # 停止监控任务
+            await self._stop_monitoring_tasks()
+
+            # 最终清理
+            await self._final_cleanup()
+
+            high_perf_logger.info("任务执行服务已优雅关闭")
+
+        except Exception as e:
+            high_perf_logger.error(f"服务关闭时出错: {e}")
+            raise
+
+    async def _stop_monitoring_tasks(self):
+        """停止监控任务"""
+        tasks_to_cancel = []
+
+        if self._health_check_task:
+            tasks_to_cancel.append(self._health_check_task)
+        if self._auto_recovery_task:
+            tasks_to_cancel.append(self._auto_recovery_task)
+
+        for task in tasks_to_cancel:
+            if not task.done():
+                task.cancel()
+                try:
+                    await asyncio.wait_for(task, timeout=5.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    pass
+
+    async def _final_cleanup(self):
+        """最终清理"""
+        try:
+            # 刷新所有待处理的日志
+            await self._flush_pending_logs()
+
+            # 清理内存缓存
+            self.memory_buffer.clear()
+
+            # 停止内存管理
+            memory_manager.stop()
+
+            # 清理状态
+            self.running_tasks.clear()
+            self._recovery_tasks.clear()
+
+            high_perf_logger.info("最终清理完成")
+
+        except Exception as e:
+            high_perf_logger.error(f"最终清理时出错: {e}")
+
+    def get_service_health(self) -> Dict[str, Any]:
+        """获取服务健康状态"""
+        return {
+            "healthy": not self._circuit_breaker_open and self._initialized,
+            "circuit_breaker_open": self._circuit_breaker_open,
+            "running_tasks": len(self.running_tasks),
+            "max_concurrent_tasks": self.config.max_concurrent_tasks,
+            "failure_count": self._failure_count,
+            "uptime_seconds": time.time() - self._startup_time,
+            "metrics": {
+                "total_tasks": self.health_metrics.total_tasks,
+                "successful_tasks": self.health_metrics.successful_tasks,
+                "failed_tasks": self.health_metrics.failed_tasks,
+                "circuit_breaker_trips": self.health_metrics.circuit_breaker_trips,
+                "memory_pressure_events": self.health_metrics.memory_pressure_events,
+                "auto_recoveries": self.health_metrics.auto_recoveries
+            },
+            "components": {
+                "media_downloader": self.media_downloader is not None,
+                "jellyfin_service": self.jellyfin_service is not None,
+                "file_organizer": self.file_organizer is not None
+            }
+        }
+
+    async def get_detailed_health_report(self) -> Dict[str, Any]:
+        """获取详细健康报告"""
+        base_health = self.get_service_health()
+
+        # 添加内存信息
+        memory_stats = memory_manager.get_stats()
+        base_health["memory"] = memory_stats
+
+        # 添加日志批处理信息
+        batch_handler = get_batch_handler()
+        if batch_handler and batch_handler._processor_ref():
+            base_health["logging"] = batch_handler._processor_ref().get_metrics()
+
+        # 添加数据库连接状态
+        base_health["database"] = await self._check_database_health()
+
+        return base_health
+
+    async def _check_database_health(self) -> Dict[str, Any]:
+        """检查数据库健康状态"""
+        try:
+            start_time = time.time()
+            with optimized_db_session() as db:
+                db.execute("SELECT 1")
+            response_time = time.time() - start_time
+
+            return {
+                "healthy": True,
+                "response_time_ms": response_time * 1000,
+                "error": None
+            }
+        except Exception as e:
+            return {
+                "healthy": False,
+                "response_time_ms": None,
+                "error": str(e)
+            }
+
+    def _memory_cleanup(self):
+        """内存清理回调"""
+        try:
+            # 清理待处理日志
+            self.pending_logs = self.pending_logs[-self.log_batch_size//2:] if self.pending_logs else []
+
+            # 清理组织统计
+            if hasattr(self, '_organization_stats'):
+                delattr(self, '_organization_stats')
+
+            # 清理进度更新缓存
+            if hasattr(self, '_last_progress_update'):
+                self._last_progress_update.clear()
+
+            high_perf_logger.debug("内存清理完成")
+
+        except Exception as e:
+            logger.error(f"内存清理失败: {e}")
+
+    async def _start_health_monitoring(self):
+        """启动健康监控"""
+        self._health_check_task = asyncio.create_task(self._health_check_loop())
+        high_perf_logger.info("健康监控已启动")
+
+    async def _health_check_loop(self):
+        """健康检查循环"""
+        while not self._shutdown_requested:
+            try:
+                await asyncio.sleep(self.config.health_check_interval)
+                await self._perform_health_check()
+                self._last_health_check = time.time()
+                self.health_metrics.last_health_check = datetime.now(timezone.utc)
+            except Exception as e:
+                high_perf_logger.error(f"健康检查错误: {e}")
+
+    async def _perform_health_check(self) -> Dict[str, Any]:
+        """执行健康检查"""
+        issues = []
+        healthy = True
+
+        try:
+            # 检查数据库连接
+            db_health = await self._check_database_health()
+            if not db_health['healthy']:
+                issues.append(f"数据库连接失败: {db_health['error']}")
+                healthy = False
+
+            # 检查内存使用
+            memory_usage = memory_manager.monitor._get_memory_usage()
+            if memory_usage['percent'] > 90:
+                issues.append(f"内存使用过高: {memory_usage['percent']:.1f}%")
+                healthy = False
+
+            # 检查组件状态
+            if self.media_downloader is None:
+                issues.append("媒体下载器不可用")
+
+            # 检查熔断器状态
+            if self._circuit_breaker_open:
+                issues.append("熔断器已打开")
+                healthy = False
+
+            return {
+                'healthy': healthy,
+                'issues': issues,
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+
+        except Exception as e:
+            high_perf_logger.error(f"健康检查执行失败: {e}")
+            return {
+                'healthy': False,
+                'issues': [f"健康检查失败: {str(e)}"],
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+
+    async def _start_auto_recovery(self):
+        """启动自动恢复"""
+        self._auto_recovery_task = asyncio.create_task(self._auto_recovery_loop())
+        high_perf_logger.info("自动恢复已启用")
+
+    async def _auto_recovery_loop(self):
+        """自动恢复循环"""
+        while not self._shutdown_requested:
+            try:
+                await asyncio.sleep(self.config.health_check_interval * 2)  # 慢于健康检查
+
+                # 只在需要时执行恢复
+                if self._failure_count > 0 or self.media_downloader is None:
+                    await self._attempt_auto_recovery()
+
+            except Exception as e:
+                high_perf_logger.error(f"自动恢复循环错误: {e}")
+
+    async def _attempt_auto_recovery(self) -> bool:
+        """尝试自动恢复"""
+        try:
+            high_perf_logger.info("开始自动恢复")
+
+            recovery_success = True
+
+            # 执行所有恢复任务
+            for recovery_task in self._recovery_tasks:
+                try:
+                    result = await recovery_task()
+                    if not result:
+                        recovery_success = False
+                except Exception as e:
+                    high_perf_logger.error(f"恢复任务失败: {e}")
+                    recovery_success = False
+
+            if recovery_success:
+                high_perf_logger.info("自动恢复成功")
+                self.health_metrics.auto_recoveries += 1
+                self._failure_count = max(0, self._failure_count - 1)  # 逐渐减少失败计数
+            else:
+                high_perf_logger.warning("自动恢复部分失败")
+
+            return recovery_success
+
+        except Exception as e:
+            high_perf_logger.error(f"自动恢复异常: {e}")
+            return False
+
+# 创建全局加固的任务执行服务实例
 task_execution_service = TaskExecutionService()

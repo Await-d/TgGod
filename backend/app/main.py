@@ -1,3 +1,20 @@
+"""TgGod主应用模块
+
+这是TgGod Telegram群组规则下载系统的主要应用程序入口点。
+该模块负责:
+
+- FastAPI应用程序的初始化和配置
+- 应用程序生命周期管理(启动/关闭)
+- 服务依赖的自动安装和监控
+- 数据库结构的检查和修复
+- API路由的注册和WebSocket连接管理
+- 全局异常处理和请求日志记录
+- 静态媒体文件服务
+
+Author: TgGod Team
+Version: 1.0.0
+"""
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,42 +23,80 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from .database import engine, Base
 from .config import settings, init_settings
-from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check, download_history
+from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check, download_history, real_data_api, data_initialization, complete_health_monitoring
 from .tasks.message_sync import message_sync_task
 import logging
 import os
 import json
 import time
 
-# 配置日志
+# 初始化日志系统（优先使用批处理日志）
 try:
-    log_level = settings.log_level.upper()
+    from .core.logging_config import configure_service_logging
+    configure_service_logging()
+    print("✅ 批处理日志系统初始化成功")
 except Exception as e:
-    log_level = "INFO"
-    print(f"获取日志级别失败，使用默认INFO: {e}")
+    # 降级到传统日志系统
+    print(f"⚠️ 批处理日志初始化失败，使用传统日志: {e}")
 
+    try:
+        log_level = settings.log_level.upper()
+    except Exception as e:
+        log_level = "INFO"
+        print(f"获取日志级别失败，使用默认INFO: {e}")
+
+    try:
+        log_file = settings.log_file
+    except Exception as e:
+        log_file = "/app/logs/app.log"
+        print(f"获取日志文件路径失败，使用默认路径: {e}")
+        # 确保日志目录存在
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+    logging.basicConfig(
+        level=getattr(logging, log_level),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()
+        ]
+    )
+
+# 获取高性能日志记录器
 try:
-    log_file = settings.log_file
-except Exception as e:
-    log_file = "/app/logs/app.log"
-    print(f"获取日志文件路径失败，使用默认路径: {e}")
-    # 确保日志目录存在
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-
-logging.basicConfig(
-    level=getattr(logging, log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()
-    ]
-)
-
-logger = logging.getLogger(__name__)
+    from .core.logging_config import get_logger
+    logger = get_logger(__name__, use_batch=True)
+except Exception:
+    logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期管理"""
+    """FastAPI应用程序生命周期管理器
+
+    管理应用程序的启动和关闭过程，包括:
+
+    启动阶段:
+        - 自动检查和安装系统依赖(ffmpeg、字体等)
+        - 启动服务监控器
+        - 数据库结构检查和自动修复
+        - 重置异常任务状态
+        - 初始化任务执行服务和调度器
+        - 创建默认管理员账户
+
+    关闭阶段:
+        - 优雅停止任务调度器
+        - 停止消息同步任务
+        - 停止服务监控器
+
+    Args:
+        app (FastAPI): FastAPI应用程序实例
+
+    Yields:
+        None: 应用程序运行期间的控制权
+
+    Note:
+        使用异步上下文管理器确保资源的正确初始化和清理
+    """
     # 启动时执行
     logger.info("Starting TgGod API...")
     
@@ -95,6 +150,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"服务监控器启动失败: {e}")
         logger.warning("服务监控功能不可用，但系统将继续运行")
+
+    # 🚀 启动完整健康监控和自动恢复系统
+    try:
+        from .services.complete_health_monitoring import start_complete_health_monitoring
+        await start_complete_health_monitoring()
+        logger.info("✅ 完整健康监控和自动恢复系统启动成功")
+    except Exception as e:
+        logger.error(f"完整健康监控系统启动失败: {e}")
+        logger.warning("自动恢复功能不可用，但系统将继续运行")
+
+    # 🚀 启动生产状态管理器
+    try:
+        from .websocket.production_status_manager import production_status_manager
+        await production_status_manager.start_monitoring()
+        logger.info("✅ 生产状态管理器启动成功")
+    except Exception as e:
+        logger.error(f"生产状态管理器启动失败: {e}")
+        logger.warning("实时状态监控不可用，但系统将继续运行")
 
     # 数据库结构检查和创建
     try:
@@ -235,12 +308,12 @@ async def lifespan(app: FastAPI):
         
         # 修复脚本列表
         repair_scripts = [
-            ("fix_task_fields.py", "任务表字段修复"),
-            ("fix_filter_rules_fields.py", "过滤规则表字段修复"), 
-            ("fix_incremental_fields.py", "增量查询字段修复"),
-            ("remove_rule_group_id_field.py", "移除规则表group_id字段"),
-            ("add_advanced_rule_fields.py", "添加高级规则过滤字段"),
-            ("create_task_rule_association_table.py", "创建任务-规则多对多关联表")
+            ("scripts/database/fix_task_fields.py", "任务表字段修复"),
+            ("scripts/database/fix_filter_rules_fields.py", "过滤规则表字段修复"),
+            ("scripts/database/fix_incremental_fields.py", "增量查询字段修复"),
+            ("scripts/database/remove_rule_group_id_field.py", "移除规则表group_id字段"),
+            ("scripts/database/add_advanced_rule_fields.py", "添加高级规则过滤字段"),
+            ("scripts/database/create_task_rule_association_table.py", "创建任务-规则多对多关联表")
         ]
         
         for script_name, description in repair_scripts:
@@ -315,12 +388,35 @@ async def lifespan(app: FastAPI):
         logger.error(f"重置任务状态失败: {e}")
         logger.warning("任务状态可能不同步，建议手动检查")
 
+    # 初始化数据库优化
+    try:
+        logger.info("🔧 初始化数据库连接池优化...")
+        from .utils.db_optimization import initialize_database_optimization
+        initialize_database_optimization()
+
+        # 初始化连接池监控
+        from .services.connection_pool_monitor import initialize_pool_monitoring
+        initialize_pool_monitoring()
+
+        # 初始化会话管理
+        from .utils.enhanced_db_session import initialize_session_management
+        initialize_session_management()
+
+        # 初始化连接池调优
+        from .services.connection_pool_tuner import initialize_pool_tuning
+        initialize_pool_tuning()
+
+        logger.info("✅ 数据库连接池优化初始化完成")
+    except Exception as e:
+        logger.error(f"数据库连接池优化初始化失败: {e}")
+        logger.warning("连接池监控功能可能不可用")
+
     # 数据库和其他启动逻辑
     try:
         # 初始化设置
         init_settings()
         logger.info("Settings initialized")
-        
+
         # 初始化任务执行服务
         try:
             from .services.task_execution_service import task_execution_service
@@ -329,6 +425,15 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to initialize task execution service: {e}")
             logger.warning("Task execution service disabled, system will continue startup without it")
+
+        # 初始化完整真实数据提供者
+        try:
+            from .api.real_data_api import initialize_real_data_provider
+            await initialize_real_data_provider()
+            logger.info("Real data provider initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize real data provider: {e}")
+            logger.warning("Real data provider disabled, some features may not work")
 
         # 启动任务调度器
         try:
@@ -384,32 +489,65 @@ async def lifespan(app: FastAPI):
     yield
     
     # 关闭时执行
-    logger.info("Shutting down TgGod API...")
-    
+    logger.info("开始关闭 TgGod API", shutdown_phase="start")
+
     # 停止任务调度器
     try:
         from .services.task_scheduler import task_scheduler
         await task_scheduler.stop()
-        logger.info("Task scheduler stopped successfully")
+        logger.info("任务调度器停止成功", component="task_scheduler")
     except Exception as e:
-        logger.error(f"Failed to stop task scheduler: {e}")
-    
+        logger.error("停止任务调度器失败", error=str(e), component="task_scheduler")
+
     # 停止消息同步任务
     try:
         message_sync_task.stop()
-        logger.info("Message sync task stopped")
+        logger.info("消息同步任务停止成功", component="message_sync")
     except Exception as e:
-        logger.error(f"Failed to stop message sync task: {e}")
-    
+        logger.error("停止消息同步任务失败", error=str(e), component="message_sync")
+
+    # 停止完整健康监控和自动恢复系统
+    try:
+        from .services.complete_health_monitoring import stop_complete_health_monitoring
+        await stop_complete_health_monitoring()
+        logger.info("完整健康监控系统停止成功", component="complete_health_monitoring")
+    except Exception as e:
+        logger.error("停止完整健康监控系统失败", error=str(e), component="complete_health_monitoring")
+
+    # 停止生产状态管理器
+    try:
+        from .websocket.production_status_manager import production_status_manager
+        await production_status_manager.stop_monitoring()
+        logger.info("生产状态管理器停止成功", component="production_status_manager")
+    except Exception as e:
+        logger.error("停止生产状态管理器失败", error=str(e), component="production_status_manager")
+
     # 停止服务监控器
     try:
         from .services.service_monitor import service_monitor
         await service_monitor.stop_monitoring()
-        logger.info("Service monitor stopped")
+        logger.info("服务监控器停止成功", component="service_monitor")
     except Exception as e:
-        logger.error(f"Failed to stop service monitor: {e}")
-    
-    logger.info("TgGod API shutdown complete")
+        logger.error("停止服务监控器失败", error=str(e), component="service_monitor")
+
+    # 清理完整真实数据提供者
+    try:
+        from .api.real_data_api import cleanup_real_data_provider
+        await cleanup_real_data_provider()
+        logger.info("真实数据提供者清理成功", component="real_data_provider")
+    except Exception as e:
+        logger.error("清理真实数据提供者失败", error=str(e), component="real_data_provider")
+
+    # 关闭批处理日志系统（确保所有日志被写入）
+    try:
+        from .core.batch_logging import BatchLogHandler, batch_logging_context
+        logger.info("关闭批处理日志系统", component="batch_logging")
+        BatchLogHandler.shutdown_all()
+        logger.info("批处理日志系统关闭完成", component="batch_logging")
+    except Exception as e:
+        print(f"关闭批处理日志系统失败: {e}")
+
+    logger.info("TgGod API 关闭完成", shutdown_phase="complete")
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -431,6 +569,23 @@ app.add_middleware(
 # 全局异常处理器
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    """全局异常处理器
+
+    捕获并处理应用程序中未被处理的异常，记录错误日志并返回
+    标准化的错误响应。
+
+    Args:
+        request (Request): HTTP请求对象
+        exc (Exception): 捕获的异常对象
+
+    Returns:
+        JSONResponse: 包含错误信息的JSON响应
+
+    Note:
+        - 返回500状态码表示内部服务器错误
+        - 错误详情会被记录到日志中用于调试
+        - 生产环境中应避免暴露敏感的错误信息
+    """
     logger.error(f"全局异常捕获: {request.method} {request.url} - {type(exc).__name__}: {str(exc)}")
     return JSONResponse(
         status_code=500,
@@ -439,6 +594,23 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """HTTP异常处理器
+
+    处理标准的HTTP异常(如404、403等)，记录警告日志并返回
+    格式化的错误响应。
+
+    Args:
+        request (Request): HTTP请求对象
+        exc (StarletteHTTPException): HTTP异常对象
+
+    Returns:
+        JSONResponse: 包含异常状态码和详情的JSON响应
+
+    Examples:
+        - 404 Not Found: 资源不存在
+        - 403 Forbidden: 权限不足
+        - 400 Bad Request: 请求参数错误
+    """
     logger.warning(f"HTTP异常: {request.method} {request.url} - 状态码: {exc.status_code} - 详情: {exc.detail}")
     return JSONResponse(
         status_code=exc.status_code,
@@ -448,6 +620,26 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 # 添加请求日志中间件
 @app.middleware("http")
 async def log_requests(request, call_next):
+    """HTTP请求日志记录中间件
+
+    记录所有HTTP请求的详细信息，包括请求方法、URL、处理时间
+    和响应状态码，用于监控和调试。
+
+    Args:
+        request: HTTP请求对象
+        call_next: 下一个中间件或路由处理器
+
+    Returns:
+        Response: HTTP响应对象
+
+    Logs:
+        - 请求开始: 方法、URL、请求头(debug级别)
+        - 请求完成: 状态码、处理耗时
+        - 请求失败: 错误信息和处理耗时
+
+    Note:
+        处理时间精确到毫秒，有助于性能分析
+    """
     start_time = time.time()
     
     try:
@@ -486,6 +678,23 @@ if os.path.exists(settings.media_root):
     from starlette.middleware.base import BaseHTTPMiddleware
     
     class MediaHeaders(BaseHTTPMiddleware):
+        """媒体文件HTTP头处理中间件
+
+        为不同类型的媒体文件添加适当的MIME类型和HTTP头部信息，
+        支持视频流播放、图片显示和音频播放。
+
+        支持的媒体类型:
+            - 视频: mp4, avi, mov, wmv, flv, webm, mkv
+            - 图片: jpg, jpeg, png, gif, bmp, webp
+            - 音频: mp3, wav, ogg, flac, aac
+
+        Features:
+            - 设置正确的Content-Type头
+            - 添加Range支持用于视频流
+            - 配置跨域访问头
+            - 设置缓存控制策略
+        """
+
         async def dispatch(self, request, call_next):
             try:
                 response = await call_next(request)
@@ -569,19 +778,96 @@ app.include_router(download_history.router, prefix="/api", tags=["download_histo
 from .api import service_health
 app.include_router(service_health.router, prefix="/api", tags=["service_health"])
 
+# 连接池监控API
+from .api import connection_pool
+app.include_router(connection_pool.router, prefix="/api", tags=["connection_pool"])
+
+# 批处理日志监控API
+from .api import batch_logging_metrics
+app.include_router(batch_logging_metrics.router, prefix="/api", tags=["batch_logging"])
+
+# 完整真实数据提供者API
+app.include_router(real_data_api.router, tags=["real_data"])
+
+# 数据初始化和迁移API
+app.include_router(data_initialization.router, tags=["data_initialization"])
+
+# 完整健康监控和自动恢复API
+app.include_router(complete_health_monitoring.router, prefix="/api", tags=["complete_health_monitoring"])
+
 # 根路径
 @app.get("/")
 async def root():
+    """API根端点
+
+    返回简单的状态信息，用于验证API服务是否正常运行。
+
+    Returns:
+        Dict[str, str]: 包含运行状态消息的字典
+
+    Example:
+        GET /
+        Response: {"message": "TgGod API is running"}
+    """
     return {"message": "TgGod API is running"}
 
 # 健康检查
 @app.get("/health")
 async def health_check():
+    """API健康检查端点
+
+    提供基础的健康状态检查，用于负载均衡器、监控系统
+    或容器编排平台确认服务可用性。
+
+    Returns:
+        Dict[str, str]: 健康状态信息
+
+    Example:
+        GET /health
+        Response: {"status": "healthy"}
+
+    Note:
+        更详细的健康检查请使用 /api/health/* 端点
+    """
     return {"status": "healthy"}
 
 # WebSocket端点
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    """WebSocket连接端点
+
+    建立WebSocket连接以实现实时双向通信，支持群组消息订阅、
+    任务状态更新和系统通知推送。
+
+    Args:
+        websocket (WebSocket): WebSocket连接对象
+        client_id (str): 客户端唯一标识符
+
+    Message Types:
+        - subscribe_group: 订阅群组消息更新
+        - unsubscribe_group: 取消订阅群组消息
+        - ping: 心跳检测消息
+
+    Response Types:
+        - subscription_confirmed: 订阅确认
+        - unsubscription_confirmed: 取消订阅确认
+        - pong: 心跳响应
+        - group_message: 群组新消息通知
+        - task_update: 任务状态更新
+
+    Example:
+        # 订阅群组消息
+        {
+            "type": "subscribe_group",
+            "group_id": "123456"
+        }
+
+    Raises:
+        WebSocketDisconnect: 客户端断开连接
+
+    Note:
+        连接断开时会自动清理客户端订阅状态
+    """
     await websocket_manager.connect(websocket, client_id)
     
     # 存储客户端订阅的群组

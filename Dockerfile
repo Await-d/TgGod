@@ -84,7 +84,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 RUN mkdir -p /app/data /app/media /app/logs
 
 # 复制启动脚本
-COPY start.sh /start.sh
+COPY scripts/deployment/start.sh /start.sh
 RUN chmod +x /start.sh
 
 # 暴露端口

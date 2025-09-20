@@ -208,7 +208,7 @@ jobs:
             ```bash
             git clone https://github.com/Await-d/TgGod.git
             cd TgGod
-            ./quick-start.sh
+            ./scripts/deployment/quick-start.sh
             ```
           draft: false
           prerelease: false

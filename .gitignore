@@ -74,3 +74,38 @@ htmlcov/
 
 # Pytest
 .pytest_cache/
+
+# Tools and development directories
+tools/serena/cache/
+tools/project-notes/*.tmp
+tools/project-notes/debug_*
+tools/spec-workflow/session.json
+tools/spec-workflow/approvals/
+
+# Scripts output and temp files
+scripts/**/*.log
+scripts/**/*.tmp
+scripts/**/*.out
+scripts/**/*.err
+
+# Development and debugging
+debug/
+debug_*
+*.debug
+temp/
+tmp/
+
+# Test files and temporary documents
+tests/
+test/
+*test*.py
+*test*.ts
+*test*.tsx
+*test*.js
+TASK_*_IMPLEMENTATION_SUMMARY.md
+*_validation_report.json
+complete_production_validation.json
+
+# Spec workflow temporary files
+.spec-workflow/
+.serena/memories/suggested_commands.md

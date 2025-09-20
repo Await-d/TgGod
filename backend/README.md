@@ -35,7 +35,8 @@ backend/
 │   └── websocket/        # WebSocket处理
 │       ├── __init__.py
 │       └── manager.py
-├── fix_database_schema.py   # 数据库字段修复工具
+├── scripts/
+│   └── archive/           # 归档的修复脚本（已移动）
 ├── init_database.py         # 数据库初始化脚本
 ├── requirements.txt         # Python依赖
 ├── Dockerfile              # Docker配置
@@ -79,8 +80,8 @@ backend/
 # 激活虚拟环境
 source venv/bin/activate
 
-# 运行数据库字段修复工具
-python fix_database_schema.py
+# 数据库修复脚本已归档，如需使用：
+# python scripts/archive/fix_database_schema.py
 
 # 或运行完整数据库初始化
 python init_database.py

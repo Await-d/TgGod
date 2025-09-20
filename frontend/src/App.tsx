@@ -14,8 +14,10 @@ import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
 import TaskManagement from './pages/TaskManagement';
 import DownloadHistory from './pages/DownloadHistory';
+import { RealTimeStatusMonitor } from './components/StatusMonitor';
 import { webSocketService } from './services/websocket';
-import { useGlobalStore, useAuthStore, useUserSettingsStore } from './store';
+import { realTimeStatusService } from './services/realTimeStatusService';
+import { useGlobalStore, useAuthStore, useUserSettingsStore, useRealTimeStatusStore } from './store';
 import ThemeProvider from './components/UserSettings/ThemeProvider';
 import './styles/themes.css';
 // 导入StagewiseToolbar和ReactPlugin
@@ -34,15 +36,33 @@ const App: React.FC = () => {
   }, [settings.displayDensity]);
   const { setError } = useGlobalStore();
   const { isAuthenticated, initializeAuth } = useAuthStore();
+  const { setConnectionStatus } = useRealTimeStatusStore();
 
   useEffect(() => {
     // 初始化认证状态
     initializeAuth();
 
-    // 初始化WebSocket连接
+    // 初始化WebSocket连接和实时状态服务
     if (isAuthenticated) {
       try {
         webSocketService.connect();
+
+        // 初始化实时状态服务连接状态监控
+        const checkConnectionStatus = () => {
+          setConnectionStatus(realTimeStatusService.isConnected());
+        };
+
+        // 立即检查一次连接状态
+        checkConnectionStatus();
+
+        // 定期检查连接状态
+        const connectionInterval = setInterval(checkConnectionStatus, 1000);
+
+        // 清理函数会在组件卸载或依赖变化时执行
+        return () => {
+          clearInterval(connectionInterval);
+        };
+
       } catch (error) {
         setError('WebSocket连接失败');
         console.error('WebSocket连接失败:', error);
@@ -157,6 +177,15 @@ const App: React.FC = () => {
               <MainLayout>
                 <Content>
                   <Settings />
+                </Content>
+              </MainLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/status" element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Content>
+                  <RealTimeStatusMonitor />
                 </Content>
               </MainLayout>
             </ProtectedRoute>

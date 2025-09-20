@@ -1,3 +1,33 @@
+"""TgGod 过滤规则管理API模块
+
+该模块提供过滤规则管理的RESTful API端点，负责处理:
+
+- 过滤规则的创建、修改、删除和查询
+- 高级过滤条件配置(关键词、媒体类型、文件大小等)
+- 规则匹配测试和预览功能
+- 规则应用统计和效果分析
+- 规则模板管理和导入导出
+
+API端点分类:
+    CRUD操作: POST/GET/PUT/DELETE /rules/* - 基本规则管理
+    测试功能: POST /rules/{id}/test - 规则匹配测试
+    统计分析: GET /rules/{id}/stats - 规则应用统计
+    模板管理: GET/POST /rules/templates - 规则模板
+    批量操作: POST/DELETE /rules/batch - 批量规则操作
+
+Features:
+    - 支持多种媒体类型过滤(图片、视频、音频、文档)
+    - 灵活的关键词包含/排除逻辑
+    - 详细的文件属性过滤(大小、时长、尺寸)
+    - 消息元信息过滤(发送者、时间、转发状态)
+    - 高级文本分析过滤(URL、提及、标签)
+    - 实时规则匹配预览和测试
+    - 完整的规则应用统计分析
+
+Author: TgGod Team
+Version: 1.0.0
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_

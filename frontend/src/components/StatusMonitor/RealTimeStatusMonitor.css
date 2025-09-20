@@ -1,0 +1,330 @@
+/**
+ * Real-Time Status Monitor Styles
+ *
+ * Provides responsive and visually appealing styles for the enterprise-level
+ * status monitoring interface with proper spacing, colors, and animations.
+ */
+
+.real-time-status-monitor {
+  padding: 16px;
+  background-color: #f0f2f5;
+  min-height: 100vh;
+}
+
+/* Card styling enhancements */
+.real-time-status-monitor .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.real-time-status-monitor .ant-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Status indicator styles */
+.real-time-status-monitor .ant-tag {
+  border-radius: 16px;
+  padding: 2px 8px;
+  font-weight: 500;
+  border: none;
+}
+
+/* Health score progress bars */
+.real-time-status-monitor .ant-progress-line {
+  margin-bottom: 0;
+}
+
+.real-time-status-monitor .ant-progress-success-bg,
+.real-time-status-monitor .ant-progress-bg {
+  border-radius: 4px;
+}
+
+/* Service table enhancements */
+.real-time-status-monitor .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+  border-bottom: 2px solid #e8e8e8;
+}
+
+.real-time-status-monitor .ant-table-tbody > tr:hover > td {
+  background-color: #f5f7fa !important;
+}
+
+/* Alert customizations */
+.real-time-status-monitor .ant-alert {
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.real-time-status-monitor .ant-alert-error {
+  background: linear-gradient(135deg, #fff2f0 0%, #ffece8 100%);
+  border-left: 4px solid #ff4d4f;
+}
+
+.real-time-status-monitor .ant-alert-warning {
+  background: linear-gradient(135deg, #fffbf0 0%, #fff7e6 100%);
+  border-left: 4px solid #faad14;
+}
+
+.real-time-status-monitor .ant-alert-info {
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f7ff 100%);
+  border-left: 4px solid #1890ff;
+}
+
+/* Statistics card enhancements */
+.real-time-status-monitor .ant-statistic {
+  text-align: center;
+}
+
+.real-time-status-monitor .ant-statistic-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #8c8c8c;
+}
+
+.real-time-status-monitor .ant-statistic-content {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.real-time-status-monitor .ant-statistic-content-prefix {
+  margin-right: 6px;
+  font-size: 18px;
+}
+
+/* Button group styling */
+.real-time-status-monitor .ant-space-item button {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.real-time-status-monitor .ant-space-item button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Progress bar color customizations */
+.real-time-status-monitor .ant-progress-status-success .ant-progress-bg {
+  background-color: #52c41a;
+}
+
+.real-time-status-monitor .ant-progress-status-exception .ant-progress-bg {
+  background-color: #ff4d4f;
+}
+
+.real-time-status-monitor .ant-progress-status-active .ant-progress-bg {
+  background-color: #1890ff;
+}
+
+/* Service icon styling */
+.real-time-status-monitor .anticon {
+  color: #1890ff;
+  transition: color 0.3s ease;
+}
+
+.real-time-status-monitor .ant-tag .anticon {
+  color: inherit;
+  margin-right: 4px;
+}
+
+/* Connection status indicator */
+.real-time-status-monitor .connection-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.real-time-status-monitor .connection-status.connected {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.real-time-status-monitor .connection-status.disconnected {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffb3b3;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .real-time-status-monitor {
+    padding: 8px;
+  }
+
+  .real-time-status-monitor .ant-table {
+    font-size: 12px;
+  }
+
+  .real-time-status-monitor .ant-statistic-content {
+    font-size: 20px;
+  }
+
+  .real-time-status-monitor .ant-card-head-title {
+    font-size: 16px;
+  }
+
+  .real-time-status-monitor .ant-space {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 576px) {
+  .real-time-status-monitor .ant-col {
+    margin-bottom: 16px;
+  }
+
+  .real-time-status-monitor .ant-table-scroll {
+    overflow-x: auto;
+  }
+
+  .real-time-status-monitor .ant-space-item {
+    display: block;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .real-time-status-monitor .ant-space-item button {
+    width: 100%;
+  }
+}
+
+/* Loading states */
+.real-time-status-monitor .ant-table-placeholder .ant-empty {
+  margin: 32px 0;
+}
+
+.real-time-status-monitor .ant-spin-nested-loading > div > .ant-spin {
+  max-height: none;
+}
+
+/* Animations */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.real-time-status-monitor .status-indicator {
+  animation: pulse 2s infinite;
+}
+
+.real-time-status-monitor .ant-tag.status-error {
+  animation: pulse 1.5s infinite;
+}
+
+/* Priority indicators */
+.real-time-status-monitor .priority-critical {
+  position: relative;
+}
+
+.real-time-status-monitor .priority-critical::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 100%;
+  background-color: #ff4d4f;
+  border-radius: 2px;
+}
+
+/* Tooltip customizations */
+.real-time-status-monitor .ant-tooltip-inner {
+  border-radius: 6px;
+  font-size: 12px;
+  max-width: 300px;
+}
+
+/* Modal customizations */
+.real-time-status-monitor .ant-modal-header {
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(135deg, #f0f2f5 0%, #fafafa 100%);
+}
+
+.real-time-status-monitor .ant-modal-content {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Badge styling */
+.real-time-status-monitor .ant-badge-count {
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 9px;
+}
+
+/* Switch styling */
+.real-time-status-monitor .ant-switch {
+  background-color: #d9d9d9;
+}
+
+.real-time-status-monitor .ant-switch-checked {
+  background-color: #52c41a;
+}
+
+/* Custom scrollbar for tables */
+.real-time-status-monitor .ant-table-body::-webkit-scrollbar {
+  height: 6px;
+}
+
+.real-time-status-monitor .ant-table-body::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.real-time-status-monitor .ant-table-body::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+.real-time-status-monitor .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* Dark mode support (future enhancement) */
+@media (prefers-color-scheme: dark) {
+  .real-time-status-monitor {
+    background-color: #1f1f1f;
+    color: #ffffff;
+  }
+
+  .real-time-status-monitor .ant-card {
+    background-color: #262626;
+    border-color: #434343;
+  }
+
+  .real-time-status-monitor .ant-table-thead > tr > th {
+    background-color: #1f1f1f;
+    color: #ffffff;
+    border-color: #434343;
+  }
+
+  .real-time-status-monitor .ant-table-tbody > tr > td {
+    border-color: #434343;
+  }
+
+  .real-time-status-monitor .ant-table-tbody > tr:hover > td {
+    background-color: #262626 !important;
+  }
+}

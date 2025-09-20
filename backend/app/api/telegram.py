@@ -1,49 +1,78 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from telethon.tl.functions.messages import GetFullChatRequest
-from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
-from telethon.tl.types import Channel, Chat, User
-from ..database import get_db
-from ..models.telegram import TelegramGroup, TelegramMessage
-from ..services.telegram_service import telegram_service
-from ..utils.auth import get_current_active_user
-from pydantic import BaseModel
-from datetime import datetime
+"""Telegram API 路由模块
+
+该模块提供与Telegram相关的所有API端点，负责管理:
+
+- Telegram群组的增删改查操作
+- 群组消息的同步和获取
+- Telegram用户认证和状态管理
+- 媒体文件的下载和预览
+- 群组加入和退出操作
+- 实时消息推送和未读统计
+
+API端点分类:
+    群组管理: /groups/* - 群组CRUD操作
+    消息同步: /groups/{id}/sync* - 消息同步相关
+    认证管理: /auth/* - Telegram登录认证
+    媒体操作: /media-info, /download/* - 媒体信息获取
+    用户信息: /me - 获取当前用户信息
+    群组预览: /groups/preview/* - 群组信息预览
+    实时功能: /sync-*, /unread-* - 实时同步和未读消息
+
+Features:
+    - 支持用户名和邀请链接两种群组加入方式
+    - 智能消息去重和增量同步
+    - 并发控制避免同步冲突
+    - 实时WebSocket消息推送
+    - 媒体文件缓存和预览生成
+    - 详细的错误处理和日志记录
+
+Author: TgGod Team
+Version: 1.0.0
+"""
+
+# 标准库导入
+import asyncio
 import json
 import logging
-import asyncio
 import os
-import time
-import datetime
-import uuid
-import secrets
 import re
-from typing import Dict, Any, Union
+import secrets
+import time
+import uuid
 from datetime import datetime, timedelta
-from sqlalchemy import func, desc, asc, and_, or_, text
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Dict, Any, Union, List, Optional
+
+# 第三方库导入
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Path, Query, Body
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from pydantic import BaseModel, Field
+from sqlalchemy import func, desc, asc, and_, or_, text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
 from telethon import TelegramClient, errors
 from telethon.errors import (
-    SessionPasswordNeededError, 
-    FloodWaitError, 
+    SessionPasswordNeededError,
+    FloodWaitError,
     PhoneCodeInvalidError,
     PhoneCodeExpiredError,
     PasswordHashInvalidError,
     ChatIdInvalidError,
     ChannelPrivateError
 )
-from telethon.tl.functions.messages import GetDialogsRequest, GetHistoryRequest
-from telethon.tl.functions.channels import GetFullChannelRequest
-from telethon.tl.functions.messages import GetFullChatRequest
-from telethon.tl.functions.channels import GetParticipantRequest
-from telethon.tl.types import InputPeerChannel, InputPeerChat, InputPeerUser, Channel, Chat
-from telethon.tl.types import ChannelParticipantsSearch, PeerChannel
-from pydantic import BaseModel, Field
-from starlette.background import BackgroundTask
+from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
+from telethon.tl.functions.messages import GetDialogsRequest, GetHistoryRequest, GetFullChatRequest
+from telethon.tl.types import (
+    InputPeerChannel, InputPeerChat, InputPeerUser,
+    Channel, Chat, User,
+    ChannelParticipantsSearch, PeerChannel
+)
+
+# 本地模块导入
+from ..database import get_db
+from ..models.telegram import TelegramGroup, TelegramMessage
+from ..services.telegram_service import telegram_service
+from ..utils.auth import get_current_active_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -53,7 +82,26 @@ sync_queue = asyncio.Queue()
 sync_worker_started = False
 
 def process_message_json_fields(message):
-    """处理消息对象的JSON字段，确保类型正确"""
+    """处理消息对象的JSON字段类型转换
+
+    确保从数据库加载的消息对象的JSON字段具有正确的Python类型，
+    并为已下载的媒体文件设置访问URL。
+
+    Args:
+        message: TelegramMessage数据库模型实例
+
+    Processing:
+        - mentions: 字符串转列表，处理提及用户
+        - hashtags: 字符串转列表，处理话题标签
+        - urls: 字符串转列表，处理消息中的链接
+        - reactions: 字符串转字典，处理消息反应
+        - media_download_url: 为已下载文件设置访问URL
+        - 文件存在性检查和状态重置
+
+    Note:
+        该函数直接修改传入的message对象，不返回新对象
+        媒体缩略图URL在序列化时动态生成，此处不设置
+    """
     try:
         # 处理mentions字段
         if message.mentions:
@@ -345,7 +393,57 @@ async def get_group_messages(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
-    """获取群组消息（支持搜索和过滤）"""
+    """获取群组消息列表（支持搜索和过滤）
+
+    分页获取指定群组的消息，支持多种过滤条件和搜索功能。
+
+    Args:
+        group_id (int): 群组数据库ID
+        skip (int): 跳过的消息数，用于分页，默认0
+        limit (int): 每页返回的消息数，范围1-1000，默认100
+        search (str, optional): 消息内容搜索关键词
+        sender_username (str, optional): 按发送者用户名过滤
+        media_type (str, optional): 按媒体类型过滤(photo/video/audio/document)
+        has_media (bool, optional): 是否过滤媒体消息
+        is_forwarded (bool, optional): 是否为转发消息
+        is_pinned (bool, optional): 是否为置顶消息
+        start_date (datetime, optional): 开始日期过滤
+        end_date (datetime, optional): 结束日期过滤
+        db (Session): 数据库会话依赖注入
+        current_user: 当前登录用户（依赖注入）
+
+    Returns:
+        List[MessageResponse]: 消息列表，包含:
+            - message_id: 消息ID
+            - text: 消息文本
+            - date: 发送时间
+            - sender_name: 发送者名称
+            - sender_username: 发送者用户名
+            - media_type: 媒体类型
+            - media_downloaded: 媒体是否已下载
+            - file_size: 文件大小
+            - mentions: 提及的用户
+            - hashtags: 话题标签
+            - urls: 消息中的链接
+            - is_forwarded: 是否为转发消息
+            - is_pinned: 是否为置顶消息
+            - reactions: 消息反应
+
+    Raises:
+        HTTPException:
+            - 404: 群组不存在
+            - 400: 过滤参数错误
+            - 500: 查询过程中发生错误
+
+    Example:
+        GET /api/telegram/groups/123/messages?limit=20&has_media=true&media_type=photo&search=hello
+
+    Note:
+        - 消息按时间倒序排列，最新的消息在前
+        - JSON字段会被自动反序列化
+        - 支持组合过滤条件
+        - 返回的消息包含媒体文件访问链接
+    """
     
     try:
         # 检查群组是否存在
@@ -606,7 +704,48 @@ async def sync_group_messages(
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db)
 ):
-    """同步群组消息"""
+    """同步群组消息到数据库
+
+    从Telegram同步指定群组的最新消息到本地数据库。
+
+    Args:
+        group_id (int): 群组数据库ID
+        limit (int): 同步消息的数量限制，范围1-1000，默认100
+        db (Session): 数据库会话依赖注入
+
+    Returns:
+        Dict[str, Any]: 同步结果，包含:
+            - success: 同步是否成功
+            - synced_count: 已同步消息数量
+            - skipped_count: 跳过的消息数量(已存在)
+            - total_messages: 获取的总消息数
+            - group_info: 群组信息
+            - last_sync_time: 上次同步时间
+
+    Raises:
+        HTTPException:
+            - 404: 群组不存在
+            - 400: Telegram认证失败或群组信息不完整
+            - 403: 无权访问群组
+            - 429: Telegram API频率限制
+            - 500: 同步过程中发生错误
+
+    Example:
+        POST /api/telegram/groups/123/sync?limit=500
+
+    Process:
+        1. 检查群组存在性和状态
+        2. 获取Telegram客户端连接
+        3. 从群组获取最新消息
+        4. 过滤已存在的消息
+        5. 将新消息保存到数据库
+        6. 通过WebSocket推送更新通知
+
+    Note:
+        - 同步过程中会自动处理消息去重
+        - 大批量同步可能触发Telegram限率
+        - 支持增量同步，只获取新消息
+    """
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:

@@ -49,10 +49,20 @@ class FileOrganizerService:
             
             hash_sha256 = hashlib.sha256()
             with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(chunk_size), b""):
+                while True:
+                    chunk = f.read(chunk_size)
+                    if not chunk:
+                        break
                     hash_sha256.update(chunk)
-            
+
             file_hash = hash_sha256.hexdigest()
+
+            # 限制缓存大小，防止内存泄漏
+            if len(self.hash_cache) > 1000:
+                # 移除最旧的缓存项
+                oldest_key = next(iter(self.hash_cache))
+                del self.hash_cache[oldest_key]
+
             self.hash_cache[cache_key] = file_hash
             return file_hash
             

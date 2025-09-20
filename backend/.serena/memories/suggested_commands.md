@@ -57,11 +57,9 @@ python test_media_downloader.py
 # Check Telegram configuration
 python check_telegram_config.py
 
-# Force fix forwarded columns
-python force_fix_forwarded_columns.py
-
-# Fix production issues
-python fix_production.py
+# 修复脚本已归档，如需使用：
+# python scripts/archive/force_fix_forwarded_columns.py
+# python scripts/archive/fix_production.py
 ```
 
 ## System Commands (Linux)

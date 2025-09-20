@@ -1,3 +1,26 @@
+"""TgGod Telegram服务模块
+
+该模块封装了与Telegram API交互的核心功能，包括:
+
+- Telegram客户端的初始化和连接管理
+- 群组信息的获取和管理
+- 消息同步和数据存储
+- 媒体文件的下载和处理
+- 用户认证和会话管理
+- 错误处理和重试机制
+
+Key Features:
+    - 异步操作支持，提高性能
+    - 智能错误处理和API限率管理
+    - 数据库优化和事务管理
+    - 多群组并发同步支持
+    - 媒体文件的高效下载和管理
+    - 安全的会话存储和管理
+
+Author: TgGod Team
+Version: 1.0.0
+"""
+
 from telethon import TelegramClient, errors
 from telethon.errors import FloodWaitError, AuthKeyUnregisteredError
 from telethon.tl.types import Channel, Chat, User, Message, MessageMediaPhoto, MessageMediaDocument
@@ -18,12 +41,78 @@ from ..utils.db_optimization import optimized_db_session
 logger = logging.getLogger(__name__)
 
 class TelegramService:
-    def __init__(self):
+    """加固的Telegram服务类
+
+    Features:
+    - 完整的连接管理和自动重连
+    - 限率处理和智能等待
+    - 熔断器模式防止级联故障
+    - 会话管理和自动刷新
+    - 内存优化和数据流传输
+    - 实时健康监控和故障恢复
+    - 批量操作和错误处理
+    """
+
+    def __init__(self, config: Optional[TelegramConfig] = None):
+        self.config = config or TelegramConfig()
+        self.health_metrics = TelegramHealthMetrics()
+
+        # 客户端管理
         self.client: Optional[TelegramClient] = None
         self.session_name = os.path.join("./telegram_sessions", "tggod_session")
+
+        # 状态管理
+        self._initialized = False
+        self._connected = False
+        self._authenticated = False
+        self._shutdown_requested = False
+        self._startup_time = time.time()
+        self._last_health_check = time.time()
+        self._last_session_refresh = time.time()
+
+        # 错误处理和熔断器
+        self._failure_count = 0
+        self._circuit_breaker_open = False
+        self._circuit_breaker_open_time = 0
+        self._last_flood_wait = 0
+
+        # 监控和恢复
+        self._health_check_task = None
+        self._auto_reconnect_task = None
+        self._session_refresh_task = None
+
+        # 限率管理
+        self._rate_limiter = {}
+        self._last_api_call = 0
+        self._api_call_count = 0
+
+        # 注册清理回调
+        memory_manager.add_cleanup_callback(self._memory_cleanup)
         
     async def initialize(self):
-        """初始化Telegram客户端"""
+        """初始化Telegram客户端
+
+        创建和配置Telegram客户端连接，包括验证API配置、
+        建立连接和进行必要的初始化检查。
+
+        Raises:
+            ValueError: API配置不完整或无效
+            ConnectionError: Telegram服务器连接失败
+            TimeoutError: 连接超时
+            AuthKeyUnregisteredError: 会话已过期或无效
+
+        Process:
+            1. 验证API ID和API Hash配置
+            2. 创建TelegramClient实例
+            3. 建立与服务器的连接
+            4. 检查认证状态
+            5. 记录初始化结果
+
+        Note:
+            - 连接超时设置为15秒
+            - 支持重复初始化，已存在的客户端会被重用
+            - 会话文件存储在telegram_sessions目录
+        """
         if self.client is None:
             try:
                 # 确保API配置不为空 - 使用缓存避免重复数据库访问
@@ -91,19 +180,21 @@ class TelegramService:
                 raise
     
     async def get_group_info(self, group_identifier) -> Optional[Dict[str, Any]]:
-        """获取群组信息 - 支持用户名、ID或实体对象"""
+        """获取群组信息 - 支持用户名、ID或实体对象（带完整保护）"""
         try:
             await self.initialize()
-            
+
             # 如果传入的已经是实体对象，直接使用
             if hasattr(group_identifier, 'id'):
                 entity = group_identifier
             else:
-                # 尝试获取群组实体
+                # 尝试获取群组实体（带保护机制）
                 try:
-                    entity = await self.client.get_entity(group_identifier)
+                    entity = await self._handle_api_call_with_protection(
+                        self.client.get_entity, group_identifier
+                    )
                 except Exception as e:
-                    logger.warning(f"无法通过标识符 {group_identifier} 获取实体: {e}")
+                    high_perf_logger.warning(f"无法通过标识符 {group_identifier} 获取实体: {e}")
                     return None
             
             if isinstance(entity, (Channel, Chat)):
@@ -113,15 +204,15 @@ class TelegramService:
                 
                 try:
                     if isinstance(entity, Channel):
-                        # 对于频道，尝试获取完整信息
+                        # 对于频道，尝试获取完整信息（带保护机制）
                         try:
-                            full_info = await self._handle_flood_wait(
+                            full_info = await self._handle_api_call_with_protection(
                                 self.client, GetFullChannelRequest(entity)
                             )
                             member_count = full_info.full_chat.participants_count or 0
                             description = full_info.full_chat.about
                         except Exception as e:
-                            logger.warning(f"无法获取频道 {entity.title} 的完整信息: {e}")
+                            high_perf_logger.warning(f"无法获取频道 {entity.title} 的完整信息: {e}")
                             member_count = getattr(entity, 'participants_count', 0)
                     else:
                         # 对于普通群组
@@ -143,7 +234,7 @@ class TelegramService:
                 return None
                 
         except Exception as e:
-            logger.error(f"获取群组信息失败: {e}")
+            high_perf_logger.error(f"获取群组信息失败: {e}")
             return None
     
     async def add_group_to_db(self, group_username: str, db: Session) -> Optional[TelegramGroup]:

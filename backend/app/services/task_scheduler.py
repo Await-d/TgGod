@@ -13,9 +13,11 @@ from sqlalchemy import and_, or_
 from ..models.rule import DownloadTask
 from ..database import get_db
 from ..utils.db_optimization import optimized_db_session
+from ..core.logging_config import get_logger
 # TaskExecutionService将在需要时延迟导入，避免循环导入
 
-logger = logging.getLogger(__name__)
+# 使用高性能批处理日志记录器
+logger = get_logger(__name__, use_batch=True)
 
 class TaskScheduler:
     """任务调度器"""
@@ -29,10 +31,10 @@ class TaskScheduler:
     async def start(self):
         """启动调度器"""
         if self.running:
-            logger.warning("调度器已在运行中")
+            logger.warning("调度器已在运行中", scheduler_state="running")
             return
             
-        logger.info("启动任务调度器")
+        logger.info("启动任务调度器", check_interval=self.check_interval)
         self.running = True
         
         try:
@@ -43,14 +45,14 @@ class TaskScheduler:
             
             # 确保task_execution_service已初始化
             await self.task_execution_service.initialize()
-            logger.info("任务执行服务初始化成功")
+            logger.info("任务执行服务初始化成功", service_type="TaskExecutionService")
         except ImportError as e:
-            logger.error(f"无法导入任务执行服务: {e}")
-            logger.warning("调度器将以有限功能模式运行")
+            logger.error("无法导入任务执行服务", error=str(e), error_type="ImportError")
+            logger.warning("调度器将以有限功能模式运行", mode="limited")
             self.task_execution_service = None
         except Exception as e:
-            logger.error(f"任务执行服务初始化失败: {e}")
-            logger.warning("调度器将以有限功能模式运行")
+            logger.error("任务执行服务初始化失败", error=str(e), error_type=type(e).__name__)
+            logger.warning("调度器将以有限功能模式运行", mode="limited")
             # 不阻止调度器启动，但标记服务不可用
             self.task_execution_service = None
         
@@ -62,7 +64,7 @@ class TaskScheduler:
         if not self.running:
             return
             
-        logger.info("停止任务调度器")
+        logger.info("停止任务调度器", final_state="stopping")
         self.running = False
         
         if self.scheduler_task:

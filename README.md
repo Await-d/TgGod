@@ -76,7 +76,7 @@ docker-compose up -d --build
 ```bash
 git clone https://github.com/Await-d/TgGod.git
 cd TgGod
-./quick-start.sh
+./scripts/deployment/quick-start.sh
 ```
 
 ## 服务架构

@@ -1,0 +1,275 @@
+================================================================================
+TgGod 项目文档覆盖率分析报告
+================================================================================
+分析时间: 2025-09-19T21:32:57.184342
+分析文件数: 58
+
+📊 总体统计
+----------------------------------------
+整体文档覆盖率: 73.0%
+平均文件覆盖率: 63.0%
+总计项目数: 434
+已文档化项目: 317
+未文档化项目: 117
+
+📁 文件覆盖率排行 (低于90%的文件)
+------------------------------------------------------------
+  0.0% - /home/await/project/TgGod/backend/app/__init__.py
+  0.0% - /home/await/project/TgGod/backend/app/tasks/__init__.py
+  0.0% - /home/await/project/TgGod/backend/app/services/__init__.py
+  0.0% - /home/await/project/TgGod/backend/app/websocket/__init__.py
+  0.0% - /home/await/project/TgGod/backend/app/models/log.py
+  0.0% - /home/await/project/TgGod/backend/app/models/config.py
+  0.0% - /home/await/project/TgGod/backend/app/utils/__init__.py
+  0.0% - /home/await/project/TgGod/backend/app/api/log.py
+  0.0% - /home/await/project/TgGod/backend/app/api/user_settings.py
+  0.0% - /home/await/project/TgGod/backend/app/api/config.py
+  0.0% - /home/await/project/TgGod/backend/app/api/__init__.py
+ 14.3% - /home/await/project/TgGod/backend/app/api/rule.py
+ 16.7% - /home/await/project/TgGod/backend/app/api/telegram.py
+ 23.1% - /home/await/project/TgGod/backend/app/api/media.py
+ 33.3% - /home/await/project/TgGod/backend/app/services/rule_sync_service.py
+ 50.0% - /home/await/project/TgGod/backend/app/models/user.py
+ 50.0% - /home/await/project/TgGod/backend/app/models/rule.py
+ 55.6% - /home/await/project/TgGod/backend/app/api/auth.py
+ 60.0% - /home/await/project/TgGod/backend/app/services/task_execution_service.py
+ 66.7% - /home/await/project/TgGod/backend/app/core/exceptions.py
+ 66.7% - /home/await/project/TgGod/backend/app/tasks/message_sync.py
+ 66.7% - /home/await/project/TgGod/backend/app/services/config_service.py
+ 66.7% - /home/await/project/TgGod/backend/app/services/telegram_service.py
+ 66.7% - /home/await/project/TgGod/backend/app/services/task_scheduler.py
+ 66.7% - /home/await/project/TgGod/backend/app/services/jellyfin_media_service.py
+ 66.7% - /home/await/project/TgGod/backend/app/services/task_db_manager.py
+ 66.7% - /home/await/project/TgGod/backend/app/services/service_installer.py
+ 66.7% - /home/await/project/TgGod/backend/app/api/dashboard.py
+ 75.0% - /home/await/project/TgGod/backend/app/schemas/user_settings.py
+ 75.0% - /home/await/project/TgGod/backend/app/services/media_downloader.py
+ 77.8% - /home/await/project/TgGod/backend/app/services/service_monitor.py
+ 80.0% - /home/await/project/TgGod/backend/app/services/mock_task_execution_service.py
+ 80.0% - /home/await/project/TgGod/backend/app/services/service_monitor_backup.py
+ 83.3% - /home/await/project/TgGod/backend/app/services/user_service.py
+ 83.3% - /home/await/project/TgGod/backend/app/utils/jellyfin_nfo_generator.py
+ 85.7% - /home/await/project/TgGod/backend/app/core/logging_config.py
+ 87.5% - /home/await/project/TgGod/backend/app/utils/auth.py
+ 87.5% - /home/await/project/TgGod/backend/app/utils/database_checker.py
+ 87.5% - /home/await/project/TgGod/backend/app/api/task.py
+ 88.9% - /home/await/project/TgGod/backend/app/core/error_handler.py
+
+💡 改进建议
+----------------------------------------
+🔴 项目整体文档覆盖率为 73.0%，建议提升至90%以上
+🟡 有 20 个模块缺少模块级文档
+🔴 有 44 个类缺少文档字符串
+🟡 有 6 个函数缺少文档字符串
+
+❌ 缺失文档清单
+----------------------------------------
+
+📄 app/__init__.py
+  • 缺少模块级文档字符串
+
+📄 app/schemas/download_history.py
+  • 类 'Config' 缺少文档字符串 (line 41)
+
+📄 app/schemas/user_settings.py
+  • 类 'Config' 缺少文档字符串 (line 27)
+  • 类 'Config' 缺少文档字符串 (line 46)
+
+📄 app/core/logging_config.py
+  • 方法 'JSONFormatter.__init__' 缺少文档字符串 (line 17)
+  • 方法 'StructuredLogger.__init__' 缺少文档字符串 (line 54)
+  • 方法 'LogContext.__init__' 缺少文档字符串 (line 153)
+  • 方法 'ServiceLoggerMixin.__init__' 缺少文档字符串 (line 223)
+  • 方法 'PerformanceLogger.__init__' 缺少文档字符串 (line 277)
+  • 方法 'AuditLogger.__init__' 缺少文档字符串 (line 313)
+
+📄 app/core/decorators.py
+  • 方法 'CircuitBreakerState.__init__' 缺少文档字符串 (line 73)
+
+📄 app/core/error_handler.py
+  • 方法 'ErrorLogger.__init__' 缺少文档字符串 (line 18)
+  • 方法 'ErrorMetrics.__init__' 缺少文档字符串 (line 113)
+  • 方法 'ErrorHandler.__init__' 缺少文档字符串 (line 173)
+
+📄 app/core/exceptions.py
+  • 方法 'ServiceError.__init__' 缺少文档字符串 (line 63)
+  • 方法 'BusinessError.__init__' 缺少文档字符串 (line 122)
+  • 方法 'ValidationError.__init__' 缺少文档字符串 (line 135)
+  • 方法 'AuthenticationError.__init__' 缺少文档字符串 (line 146)
+  • 方法 'SystemError.__init__' 缺少文档字符串 (line 159)
+  • 方法 'ExternalServiceError.__init__' 缺少文档字符串 (line 168)
+  • 方法 'ConfigurationError.__init__' 缺少文档字符串 (line 180)
+  • 方法 'NetworkError.__init__' 缺少文档字符串 (line 196)
+  • 方法 'DatabaseError.__init__' 缺少文档字符串 (line 205)
+  • 方法 'FileSystemError.__init__' 缺少文档字符串 (line 214)
+  • 方法 'TelegramServiceError.__init__' 缺少文档字符串 (line 227)
+  • 方法 'MediaDownloadError.__init__' 缺少文档字符串 (line 234)
+  • 方法 'TaskExecutionError.__init__' 缺少文档字符串 (line 245)
+  • 方法 'FileOrganizationError.__init__' 缺少文档字符串 (line 255)
+
+📄 app/tasks/message_sync.py
+  • 缺少模块级文档字符串
+  • 类 'MessageSyncTask' 缺少文档字符串 (line 14)
+  • 方法 'MessageSyncTask.__init__' 缺少文档字符串 (line 15)
+
+📄 app/tasks/__init__.py
+  • 缺少模块级文档字符串
+
+📄 app/services/config_service.py
+  • 缺少模块级文档字符串
+  • 类 'ConfigService' 缺少文档字符串 (line 9)
+  • 方法 'ConfigService.__init__' 缺少文档字符串 (line 10)
+
+📄 app/services/telegram_service.py
+  • 方法 'TelegramService.__init__' 缺少文档字符串 (line 64)
+
+📄 app/services/file_organizer_service.py
+  • 方法 'FileOrganizerService.__init__' 缺少文档字符串 (line 25)
+
+📄 app/services/task_scheduler.py
+  • 方法 'TaskScheduler.__init__' 缺少文档字符串 (line 23)
+
+📄 app/services/jellyfin_media_service.py
+  • 方法 'JellyfinMediaService.__init__' 缺少文档字符串 (line 22)
+
+📄 app/services/media_downloader.py
+  • 方法 'TelegramMediaDownloader.progress_wrapper' 缺少文档字符串 (line 438)
+
+📄 app/services/mock_task_execution_service.py
+  • 方法 'MockTaskExecutionService.__init__' 缺少文档字符串 (line 21)
+
+📄 app/services/history_organizer_service.py
+  • 方法 'HistoryOrganizerService.__init__' 缺少文档字符串 (line 23)
+
+📄 app/services/user_service.py
+  • 缺少模块级文档字符串
+
+📄 app/services/task_db_manager.py
+  • 方法 'TaskDatabaseManager.__init__' 缺少文档字符串 (line 21)
+
+📄 app/services/service_monitor_backup.py
+  • 方法 'ServiceMonitor.__init__' 缺少文档字符串 (line 19)
+
+📄 app/services/service_monitor.py
+  • 方法 'ServiceMonitor.__init__' 缺少文档字符串 (line 23)
+  • 方法 'ServiceMonitorAdapter.__init__' 缺少文档字符串 (line 622)
+
+📄 app/services/user_settings_service.py
+  • 类 'UserSettingsService' 缺少文档字符串 (line 16)
+
+📄 app/services/service_installer.py
+  • 方法 'ServiceInstaller.__init__' 缺少文档字符串 (line 21)
+
+📄 app/services/rule_sync_service.py
+  • 类 'RuleSyncService' 缺少文档字符串 (line 26)
+  • 方法 'RuleSyncService.__init__' 缺少文档字符串 (line 28)
+
+📄 app/services/__init__.py
+  • 缺少模块级文档字符串
+
+📄 app/services/task_execution_service.py
+  • 缺少模块级文档字符串
+  • 方法 'TaskExecutionService.__init__' 缺少文档字符串 (line 30)
+
+📄 app/websocket/__init__.py
+  • 缺少模块级文档字符串
+
+📄 app/models/log.py
+  • 缺少模块级文档字符串
+  • 类 'TaskLog' 缺少文档字符串 (line 6)
+  • 类 'SystemLog' 缺少文档字符串 (line 19)
+  • 类 'NotificationSetting' 缺少文档字符串 (line 30)
+
+📄 app/models/user.py
+  • 缺少模块级文档字符串
+
+📄 app/models/config.py
+  • 缺少模块级文档字符串
+  • 类 'SystemConfig' 缺少文档字符串 (line 5)
+
+📄 app/models/rule.py
+  • 方法 'FilterRule.tasks' 缺少文档字符串 (line 207)
+  • 类 'DownloadTask' 缺少文档字符串 (line 210)
+  • 方法 'DownloadTask.rules' 缺少文档字符串 (line 272)
+
+📄 app/utils/auth.py
+  • 缺少模块级文档字符串
+
+📄 app/utils/database_checker.py
+  • 方法 'DatabaseChecker.__init__' 缺少文档字符串 (line 24)
+
+📄 app/utils/jellyfin_nfo_generator.py
+  • 方法 'JellyfinNFOGenerator.__init__' 缺少文档字符串 (line 20)
+  • 方法 'JellyfinPathManager.__init__' 缺少文档字符串 (line 388)
+
+📄 app/utils/__init__.py
+  • 缺少模块级文档字符串
+
+📄 app/api/media.py
+  • 缺少模块级文档字符串
+  • 类 'BatchDownloadRequest' 缺少文档字符串 (line 22)
+  • 类 'BatchDownloadResponse' 缺少文档字符串 (line 27)
+  • 类 'BatchStatusResponse' 缺少文档字符串 (line 36)
+  • 函数 'update_cancel_status' 缺少文档字符串 (line 386)
+  • 函数 'reset_download_status' 缺少文档字符串 (line 957)
+  • 函数 'get_message_info' 缺少文档字符串 (line 1403)
+  • 函数 'clear_previous_error' 缺少文档字符串 (line 1449)
+  • 函数 'progress_callback' 缺少文档字符串 (line 1515)
+  • 函数 'update_database_status' 缺少文档字符串 (line 1647)
+
+📄 app/api/telegram.py
+  • 类 'GroupCreate' 缺少文档字符串 (line 214)
+  • 类 'GroupResponse' 缺少文档字符串 (line 217)
+  • 类 'MonthInfo' 缺少文档字符串 (line 228)
+  • 类 'MonthlySyncRequest' 缺少文档字符串 (line 232)
+  • 类 'MonthlySyncResponse' 缺少文档字符串 (line 235)
+  • 类 'Config' 缺少文档字符串 (line 278)
+  • 类 'MessageResponse' 缺少文档字符串 (line 243)
+  • 类 'MessageSendRequest' 缺少文档字符串 (line 282)
+  • 类 'TelegramUserResponse' 缺少文档字符串 (line 286)
+  • 类 'MessageSearchRequest' 缺少文档字符串 (line 295)
+  • 类 'AuthStatusResponse' 缺少文档字符串 (line 1470)
+  • 类 'AuthCodeRequest' 缺少文档字符串 (line 1475)
+  • 类 'AuthLoginRequest' 缺少文档字符串 (line 1478)
+  • 类 'AuthState' 缺少文档字符串 (line 1483)
+  • 类 'GroupPreviewResponse' 缺少文档字符串 (line 1899)
+
+📄 app/api/log.py
+  • 缺少模块级文档字符串
+  • 类 'Config' 缺少文档字符串 (line 22)
+  • 类 'LogResponse' 缺少文档字符串 (line 13)
+  • 类 'SystemLogResponse' 缺少文档字符串 (line 25)
+  • 类 'BatchDeleteRequest' 缺少文档字符串 (line 34)
+
+📄 app/api/task.py
+  • 类 'Config' 缺少文档字符串 (line 272)
+
+📄 app/api/user_settings.py
+  • 缺少模块级文档字符串
+
+📄 app/api/config.py
+  • 缺少模块级文档字符串
+  • 类 'ConfigUpdateRequest' 缺少文档字符串 (line 13)
+  • 类 'ConfigResponse' 缺少文档字符串 (line 16)
+
+📄 app/api/auth.py
+  • 缺少模块级文档字符串
+  • 方法 'UserCreate.validate_username' 缺少文档字符串 (line 31)
+  • 方法 'UserCreate.validate_password' 缺少文档字符串 (line 41)
+  • 类 'Config' 缺少文档字符串 (line 62)
+
+📄 app/api/dashboard.py
+  • 缺少模块级文档字符串
+
+📄 app/api/__init__.py
+  • 缺少模块级文档字符串
+
+📄 app/api/rule.py
+  • 类 'RuleCreate' 缺少文档字符串 (line 48)
+  • 类 'RuleUpdate' 缺少文档字符串 (line 92)
+  • 类 'Config' 缺少文档字符串 (line 189)
+  • 类 'RuleResponse' 缺少文档字符串 (line 136)
+  • 类 'RuleTestResponse' 缺少文档字符串 (line 192)
+  • 类 'RuleValidationResponse' 缺少文档字符串 (line 198)
+
+================================================================================

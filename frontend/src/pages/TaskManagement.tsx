@@ -18,7 +18,6 @@ import {
   Progress,
   Tooltip,
   Typography,
-  Alert,
   Drawer,
   List,
   Badge,
@@ -54,6 +53,8 @@ import {
 } from '@ant-design/icons';
 import { taskApi, telegramApi, ruleApi, logApi } from '../services/apiService';
 import { DownloadTask, TelegramGroup, FilterRule, LogEntry, TaskScheduleForm, ScheduleConfig } from '../types';
+import { ProductionStatusDisplay } from '../components/ServiceStatus';
+import { useGlobalStore } from '../store';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -132,10 +133,9 @@ const TaskManagement: React.FC = () => {
   // 日志相关
   const [taskLogs, setTaskLogs] = useState<LogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
-  const [systemStatus, setSystemStatus] = useState<{
-    isTaskServiceAvailable: boolean;
-    message?: string;
-  }>({ isTaskServiceAvailable: true });
+
+  // 全局状态管理
+  const { error: globalError, setError } = useGlobalStore();
 
   // 加载数据
   const loadTasks = useCallback(async () => {
@@ -195,23 +195,13 @@ const TaskManagement: React.FC = () => {
   const handleStartTask = async (taskId: number) => {
     try {
       setOperatingTasks(prev => new Set(prev).add(taskId));
-      setSystemStatus({ isTaskServiceAvailable: true });
       await taskApi.startTask(taskId);
       message.success('任务启动成功');
       loadTasks();
     } catch (error: any) {
       console.error('启动任务失败:', error);
-
-      // 检查是否是服务不可用的错误
-      if (error.message.includes('服务不可用') || error.message.includes('连接')) {
-        setSystemStatus({
-          isTaskServiceAvailable: false,
-          message: '任务执行服务暂时不可用，可能正在使用模拟模式'
-        });
-        message.warning(`任务启动: ${error.message}，已切换到模拟模式`);
-      } else {
-        message.error(`启动任务失败: ${error.message}`);
-      }
+      setError(`启动任务失败: ${error.message}`);
+      message.error(`启动任务失败: ${error.message}`);
     } finally {
       setOperatingTasks(prev => {
         const newSet = new Set(prev);
@@ -229,11 +219,8 @@ const TaskManagement: React.FC = () => {
       loadTasks();
     } catch (error: any) {
       console.error('暂停任务失败:', error);
-      if (error.message.includes('服务不可用') || error.message.includes('连接')) {
-        message.warning(`任务暂停: ${error.message}，使用模拟模式`);
-      } else {
-        message.error(`暂停任务失败: ${error.message}`);
-      }
+      setError(`暂停任务失败: ${error.message}`);
+      message.error(`暂停任务失败: ${error.message}`);
     } finally {
       setOperatingTasks(prev => {
         const newSet = new Set(prev);
@@ -251,11 +238,8 @@ const TaskManagement: React.FC = () => {
       loadTasks();
     } catch (error: any) {
       console.error('停止任务失败:', error);
-      if (error.message.includes('服务不可用') || error.message.includes('连接')) {
-        message.warning(`任务停止: ${error.message}，使用模拟模式`);
-      } else {
-        message.error(`停止任务失败: ${error.message}`);
-      }
+      setError(`停止任务失败: ${error.message}`);
+      message.error(`停止任务失败: ${error.message}`);
     } finally {
       setOperatingTasks(prev => {
         const newSet = new Set(prev);
@@ -995,21 +979,12 @@ const TaskManagement: React.FC = () => {
         </Space>
       </div>
 
-      {/* 系统状态指示器 */}
-      {!systemStatus.isTaskServiceAvailable && (
-        <Alert
-          message="系统提示"
-          description={systemStatus.message || "任务执行服务暂时不可用，当前使用模拟模式进行测试"}
-          type="warning"
-          showIcon
-          style={{ marginBottom: 16 }}
-          action={
-            <Button size="small" onClick={() => setSystemStatus({ isTaskServiceAvailable: true })}>
-              知道了
-            </Button>
-          }
-        />
-      )}
+      {/* 生产系统状态显示 */}
+      <ProductionStatusDisplay
+        compact={isMobile}
+        showDetails={!isMobile}
+        style={{ marginBottom: 16 }}
+      />
 
       {/* 统计卡片 */}
       {taskStats && (
