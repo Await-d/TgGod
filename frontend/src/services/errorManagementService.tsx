@@ -121,7 +121,7 @@ class ErrorManagementService {
   private suppressionRules: ErrorSuppressionRule[] = [];
   private suppressedErrors: Set<string> = new Set();
   private retryAttempts: Map<string, number> = new Map();
-  private systemHealth: SystemHealth;
+  private systemHealth!: SystemHealth;
   private performanceMetrics: PerformanceMetrics[] = [];
   private recoveryActions: Map<RecoveryStrategy, RecoveryAction> = new Map();
   private monitoringInterval?: NodeJS.Timeout;
@@ -727,7 +727,7 @@ class ErrorManagementService {
           this.recordRecoverySuccess(error, strategy);
 
           // 关闭错误通知
-          notification.close(error.id);
+          notification.destroy(error.id);
 
           return true;
         }
@@ -898,7 +898,7 @@ class ErrorManagementService {
   private analyzeErrorPatterns(): void {
     if (!this.config.enablePredictiveAnalysis) return;
 
-    for (const [key, pattern] of this.errorPatterns) {
+    for (const [key, pattern] of Array.from(this.errorPatterns.entries())) {
       if (pattern.isEscalating) {
         this.handleEscalatingPattern(pattern);
       }
@@ -935,7 +935,7 @@ class ErrorManagementService {
     const cutoffTime = now - (24 * 60 * 60 * 1000); // 24小时前
 
     // 清理旧错误
-    for (const [id, error] of this.errors) {
+    for (const [id, error] of Array.from(this.errors.entries())) {
       const errorTime = new Date(error.context.timestamp).getTime();
       if (errorTime < cutoffTime) {
         this.errors.delete(id);
@@ -943,7 +943,7 @@ class ErrorManagementService {
     }
 
     // 清理旧的错误模式
-    for (const [key, pattern] of this.errorPatterns) {
+    for (const [key, pattern] of Array.from(this.errorPatterns.entries())) {
       if (pattern.lastOccurrence.getTime() < cutoffTime) {
         this.errorPatterns.delete(key);
       }
@@ -1037,7 +1037,7 @@ class ErrorManagementService {
   }
 
   private hideOfflineNotification(): void {
-    notification.close('offline');
+    notification.destroy('offline');
     message.success('网络连接已恢复');
   }
 
