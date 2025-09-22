@@ -266,10 +266,14 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Send Telegram notification
-        if: steps.check_changes.outputs.needs_version_bump == 'true' && secrets.TELEGRAM_BOT_TOKEN && secrets.TELEGRAM_CHAT_ID
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
-            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s -X POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage \
+            -d chat_id=${TELEGRAM_CHAT_ID} \
             -d parse_mode=Markdown \
             -d text="🚀 *TgGod v${{ steps.calc_version.outputs.new_version }} Released!*
 
@@ -279,3 +283,6 @@ jobs:
 
           ⚡ **Changes:**
           ${{ steps.changelog.outputs.changelog }}"
+          else
+            echo "Telegram notification skipped (bot token or chat ID not configured)"
+          fi
