@@ -1,14 +1,65 @@
-# TgGod - Telegram群组规则下载系统
+# TgGod - Telegram智能媒体下载管理系统
 
-基于React前端和Python后端的Telegram群组消息规则下载系统，支持实时日志推送。
+<div align="center">
 
-## 功能特性
+[![GitHub stars](https://img.shields.io/github/stars/Await-d/TgGod?style=flat-square)](https://github.com/Await-d/TgGod/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/Await-d/TgGod?style=flat-square)](https://github.com/Await-d/TgGod/issues)
+[![Docker Pulls](https://img.shields.io/docker/pulls/await2719/tggod?style=flat-square)](https://hub.docker.com/r/await2719/tggod)
+[![License](https://img.shields.io/github/license/Await-d/TgGod?style=flat-square)](LICENSE)
 
-- 🔍 **智能规则过滤**: 关键词、时间范围、发送者等多维度过滤
-- 📥 **批量下载**: 支持文本、图片、视频等多种媒体类型
-- 📊 **实时监控**: 下载进度、统计图表、任务状态
-- 🔔 **日志推送**: WebSocket实时通知 + 多渠道推送
-- 🎨 **现代化UI**: React + TypeScript + Ant Design
+🚀 **基于规则的 Telegram 群组媒体智能下载系统**
+
+[English](README_EN.md) | 简体中文
+
+</div>
+
+---
+
+## ✨ 项目介绍
+
+TgGod 是一个功能强大的 Telegram 群组媒体下载管理系统，通过智能规则过滤和自动化下载，帮助用户高效管理和归档 Telegram 群组中的媒体内容。采用现代化技术栈，提供直观的 Web 界面和完善的 API 支持。
+
+### 🎯 核心特点
+
+- **🤖 智能过滤** - 多维度规则引擎，精准筛选所需内容
+- **⚡ 高性能下载** - 并发下载支持，断点续传，速度优化
+- **📱 响应式界面** - 适配桌面和移动设备，随时随地管理
+- **🔔 实时通知** - WebSocket 推送，及时掌握下载进度
+- **🐳 容器化部署** - 一键部署，开箱即用
+- **🔐 安全可靠** - 数据加密存储，会话安全管理
+
+## 🚀 功能特性
+
+### 核心功能
+- **🔍 智能规则过滤**
+  - 多维度过滤：关键词、正则表达式、媒体类型、文件大小
+  - 时间范围筛选：精确到秒的时间控制
+  - 发送者过滤：支持用户名、用户ID筛选
+  - 组合规则：AND/OR逻辑组合，满足复杂筛选需求
+
+- **📥 高效下载管理**
+  - 批量下载：一键下载符合规则的所有媒体
+  - 断点续传：网络中断自动恢复
+  - 并发控制：智能调度，避免触发限制
+  - 文件去重：自动识别重复文件
+
+- **📊 实时监控仪表板**
+  - 下载进度实时显示
+  - 系统资源监控（CPU、内存、磁盘）
+  - 任务队列可视化
+  - 历史数据统计图表
+
+- **🔔 智能通知系统**
+  - WebSocket 实时推送
+  - 多级别日志分类
+  - 异常自动告警
+  - 下载完成通知
+
+- **🎨 现代化用户界面**
+  - 响应式设计，完美适配各种设备
+  - 深色/浅色主题切换
+  - 拖拽式操作
+  - 国际化支持（中文/英文）
 
 ## 项目结构
 
@@ -98,16 +149,32 @@ cd TgGod
 ./telegram_sessions/ # Telegram会话
 ```
 
-## 🎯 项目状态
+## 📸 界面预览
 
-✅ **项目开发完成！**
+<details>
+<summary>点击查看界面截图</summary>
 
-- 🏗️ 基础架构：完成
-- 🎨 前端界面：完成
-- ⚙️ 后端API：完成
-- 🐳 Docker部署：完成
-- 🚀 CI/CD流水线：完成
-- 📱 移动端适配：完成
+### 仪表板
+![Dashboard](docs/images/dashboard.png)
+
+### 规则管理
+![Rules](docs/images/rules.png)
+
+### 下载任务
+![Tasks](docs/images/tasks.png)
+
+### 实时日志
+![Logs](docs/images/logs.png)
+
+</details>
+
+## 🎯 适用场景
+
+- **📚 内容归档** - 保存重要群组的历史消息和媒体
+- **🎬 媒体收集** - 自动收集特定类型的图片、视频
+- **📰 信息监控** - 监控特定关键词的消息
+- **💾 数据备份** - 定期备份群组内容
+- **🔍 内容筛选** - 从海量消息中筛选有价值的信息
 
 ## 功能特性
 
@@ -404,6 +471,25 @@ docker-compose pull && docker-compose up -d
 
 本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
 
+## 🙏 致谢
+
+- 感谢 [Telethon](https://github.com/LonamiWebs/Telethon) 提供强大的 Telegram API
+- 感谢 [FastAPI](https://github.com/tiangolo/fastapi) 提供高性能的 Web 框架
+- 感谢所有贡献者的支持
+
+## 📞 联系方式
+
+- **Issues**: [GitHub Issues](https://github.com/Await-d/TgGod/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Await-d/TgGod/discussions)
+
 ## ⭐ Star History
 
-如果这个项目对您有帮助，请给我们一个 ⭐ Star！
+[![Star History Chart](https://api.star-history.com/svg?repos=Await-d/TgGod&type=Date)](https://star-history.com/#Await-d/TgGod&Date)
+
+<div align="center">
+
+**如果这个项目对您有帮助，请给我们一个 ⭐ Star！**
+
+[![GitHub Star](https://img.shields.io/github/stars/Await-d/TgGod?style=social)](https://github.com/Await-d/TgGod)
+
+</div>
