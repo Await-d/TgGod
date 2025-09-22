@@ -34,7 +34,7 @@ from ..database import get_db, SessionLocal
 from ..models.telegram import TelegramGroup, TelegramMessage
 from .telegram_service import TelegramService
 from ..core.error_handler import ErrorHandler
-from ..core.batch_logging import BatchLogger
+from ..core.batch_logging import HighPerformanceLogger
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class CompleteRealDataProvider:
     def __init__(self):
         """初始化完整真实数据提供者"""
         self.error_handler = ErrorHandler()
-        self.batch_logger = BatchLogger("real_data_provider")
+        self.batch_logger = HighPerformanceLogger("real_data_provider")
         self.telegram_service = None
         
         # 多层缓存系统

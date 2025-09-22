@@ -40,7 +40,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Callable, Any, Union, Set, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
-from .exceptions import SystemError, ServiceError, create_error_context
+from .exceptions import SystemError, ServiceError
+from .error_handler import create_error_context
 from .result_types import ServiceResult, HealthCheckResult
 from .decorators import handle_service_errors, timeout, performance_monitor
 from .logging_config import ServiceLoggerMixin

@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone, timedelta
 import os
 import aiofiles
@@ -37,8 +38,26 @@ from ..config import settings
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..database import get_db
 from ..utils.db_optimization import optimized_db_session
+from ..core.memory_manager import memory_manager
 
 logger = logging.getLogger(__name__)
+
+class TelegramConfig:
+    """Telegram配置类"""
+    def __init__(self):
+        self.api_id = settings.telegram_api_id
+        self.api_hash = settings.telegram_api_hash
+        self.session_name = 'tggod_session'
+        self.timeout = 30
+        self.retry_attempts = 3
+
+class TelegramHealthMetrics:
+    """Telegram健康监控指标类"""
+    def __init__(self):
+        self.is_connected = False
+        self.last_activity = None
+        self.error_count = 0
+        self.success_count = 0
 
 class TelegramService:
     """加固的Telegram服务类
@@ -1164,6 +1183,23 @@ class TelegramService:
         except Exception as e:
             logger.error(f"取消置顶消息失败: {e}")
             return False
+
+    def _memory_cleanup(self):
+        """内存清理回调方法"""
+        try:
+            # 清理客户端连接
+            if hasattr(self, 'client') and self.client:
+                if self.client.is_connected():
+                    asyncio.create_task(self.client.disconnect())
+
+            # 清理健康监控指标
+            if hasattr(self, 'health_metrics'):
+                self.health_metrics.is_connected = False
+                self.health_metrics.error_count = 0
+
+            logger.info("Telegram服务内存清理完成")
+        except Exception as e:
+            logger.error(f"内存清理失败: {e}")
 
 # 创建全局服务实例
 telegram_service = TelegramService()

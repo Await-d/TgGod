@@ -28,7 +28,7 @@ import os
 Base = declarative_base()
 
 # 直接使用环境变量获取数据库URL，避免循环导入
-database_url = os.environ.get("DATABASE_URL", "sqlite:////app/data/tggod.db")
+database_url = os.environ.get("DATABASE_URL", "sqlite:///./data/tggod.db")
 
 # 动态调整连接池参数
 def get_optimal_pool_config():

@@ -191,7 +191,7 @@ class TelegramMessage(Base):
         - JSON字段用于存储结构化数据
         - 媒体文件信息与下载状态分离
         - 支持消息编辑历史跟踪
-    ""\
+    """
     __tablename__ = "telegram_messages"
     
     id = Column(Integer, primary_key=True, index=True)

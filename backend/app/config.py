@@ -443,5 +443,5 @@ def get_default_user_settings():
 
     Note:
         该函数在用户注册或初始化时被调用
-    ""\
+    """
     return settings.default_user_settings

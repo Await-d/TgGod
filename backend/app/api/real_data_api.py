@@ -30,7 +30,7 @@ from ..services.complete_real_data_provider import (
     DataProviderMetrics
 )
 from ..core.error_handler import ErrorHandler
-from ..core.batch_logging import BatchLogger
+from ..core.batch_logging import HighPerformanceLogger
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/real-data", tags=["Real Data"])

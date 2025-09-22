@@ -28,10 +28,10 @@ from sqlalchemy import func, and_, or_
 from ..database import SessionLocal, get_db
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..models.rule import FilterRule
-from ..models.task import DownloadTask
+from ..models.rule import DownloadTask
 from ..services.telegram_service import TelegramService
 from ..core.error_handler import ErrorHandler
-from ..core.batch_logging import BatchLogger
+from ..core.batch_logging import HighPerformanceLogger
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class CompleteDataInitializer:
         self.db = db or SessionLocal()
         self.telegram_service = TelegramService()
         self.error_handler = ErrorHandler()
-        self.batch_logger = BatchLogger("data_initialization")
+        self.batch_logger = HighPerformanceLogger("data_initialization")
         self.initialization_config = self._load_initialization_config()
         
     def _load_initialization_config(self) -> Dict[str, Any]:

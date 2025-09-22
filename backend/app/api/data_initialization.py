@@ -28,11 +28,11 @@ from ..database import get_db
 from ..utils.complete_data_initialization import CompleteDataInitializer, initialize_system_data, quick_setup, get_system_status
 from ..migrations.real_data_migration import RealDataMigrator, MigrationConfig, migrate_telegram_export, migrate_csv_data, get_migration_status
 from ..core.error_handler import ErrorHandler
-from ..core.batch_logging import BatchLogger
+from ..core.batch_logging import HighPerformanceLogger
 
 router = APIRouter(prefix="/api/data-initialization", tags=["data-initialization"])
 error_handler = ErrorHandler()
-batch_logger = BatchLogger("data_initialization_api")
+batch_logger = HighPerformanceLogger("data_initialization_api")
 
 # 请求/响应模型
 class InitializationStatusResponse(BaseModel):
@@ -561,8 +561,4 @@ async def cleanup_initialization_data(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"清理初始化数据失败: {str(e)}")
 
 
-# 错误处理
-@router.exception_handler(Exception)
-async def data_initialization_exception_handler(request, exc):
-    """数据初始化API的统一错误处理"""
-    return await error_handler.handle_api_error(request, exc)
+# 错误处理将在main.py中统一注册

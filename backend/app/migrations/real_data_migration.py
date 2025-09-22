@@ -33,9 +33,9 @@ from sqlalchemy.exc import IntegrityError
 from ..database import SessionLocal, Base, engine
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..models.rule import FilterRule
-from ..models.task import DownloadTask
+from ..models.rule import DownloadTask
 from ..core.error_handler import ErrorHandler
-from ..core.batch_logging import BatchLogger
+from ..core.batch_logging import HighPerformanceLogger
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ class RealDataMigrator:
         self.config = config or MigrationConfig()
         self.db = db or SessionLocal()
         self.error_handler = ErrorHandler()
-        self.batch_logger = BatchLogger("data_migration")
+        self.batch_logger = HighPerformanceLogger("data_migration")
         self.progress = MigrationProgress()
         self.migration_id = self._generate_migration_id()
         self.temp_dir = Path(f"temp/migration_{self.migration_id}")
