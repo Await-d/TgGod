@@ -31,7 +31,9 @@
       "Bash(git pull:*)",
       "Bash(git stash:*)",
       "mcp__serena__replace_symbol_body",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(source:*)",
+      "mcp__serena__find_referencing_symbols"
     ],
     "deny": [],
     "ask": []
