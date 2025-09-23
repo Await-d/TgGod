@@ -97,7 +97,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
+          cache: 'pnpm'
+          cache-dependency-path: 'frontend/pnpm-lock.yaml'
 
       - name: Install pnpm
         if: steps.check_changes.outputs.needs_version_bump == 'true'
