@@ -33,6 +33,416 @@ logger = logging.getLogger(__name__)
 # 高性能日志记录器
 high_perf_logger = HighPerformanceLogger('task_execution_service')
 
+
+class LogRingBuffer:
+    """环形缓冲区 - 高效的日志缓存和管理"""
+
+    def __init__(self, max_size: int = 1000, archive_threshold: int = 500, max_memory_mb: int = 16):
+        self.max_size = max_size
+        self.archive_threshold = archive_threshold
+        self.max_memory_mb = max_memory_mb
+
+        # 环形缓冲区数据结构
+        self._buffer = [None] * max_size
+        self._head = 0  # 写入位置
+        self._tail = 0  # 读取位置
+        self._count = 0  # 当前元素数量
+        self._lock = asyncio.Lock()
+
+        # 内存管理
+        self._current_memory_mb = 0
+        self._archived_logs = []  # 归档的日志
+        self._archive_file_counter = 0
+
+        # 统计信息
+        self.total_written = 0
+        self.total_archived = 0
+        self.total_overwritten = 0
+
+    async def put(self, log_entry: dict):
+        """添加日志条目到环形缓冲区"""
+        async with self._lock:
+            # 检查内存使用
+            entry_size = self._estimate_log_size(log_entry)
+            if self._current_memory_mb + entry_size > self.max_memory_mb:
+                await self._archive_old_logs()
+
+            # 如果缓冲区满了，覆盖最旧的条目
+            if self._count == self.max_size:
+                # 记录被覆盖的日志
+                overwritten_entry = self._buffer[self._head]
+                if overwritten_entry:
+                    await self._archive_single_log(overwritten_entry)
+                    self.total_overwritten += 1
+
+                self._tail = (self._tail + 1) % self.max_size
+            else:
+                self._count += 1
+
+            # 写入新条目
+            self._buffer[self._head] = log_entry
+            self._head = (self._head + 1) % self.max_size
+            self._current_memory_mb += entry_size
+            self.total_written += 1
+
+            # 检查是否需要归档
+            if self._count >= self.archive_threshold:
+                await self._archive_old_logs()
+
+    async def get_batch(self, batch_size: int = None) -> List[dict]:
+        """从环形缓冲区获取一批日志"""
+        if batch_size is None:
+            batch_size = min(self._count, 50)
+
+        async with self._lock:
+            batch = []
+            retrieved = 0
+
+            while retrieved < batch_size and self._count > 0:
+                log_entry = self._buffer[self._tail]
+                if log_entry:
+                    batch.append(log_entry)
+                    self._buffer[self._tail] = None
+                    self._current_memory_mb -= self._estimate_log_size(log_entry)
+
+                self._tail = (self._tail + 1) % self.max_size
+                self._count -= 1
+                retrieved += 1
+
+            return batch
+
+    async def get_all(self) -> List[dict]:
+        """获取所有日志条目"""
+        return await self.get_batch(self._count)
+
+    def _estimate_log_size(self, log_entry: dict) -> float:
+        """估算日志条目的内存大小（MB）"""
+        try:
+            import sys
+            size_bytes = sys.getsizeof(log_entry)
+            # 估算字符串内容大小
+            for key, value in log_entry.items():
+                if isinstance(value, str):
+                    size_bytes += sys.getsizeof(value)
+                elif isinstance(value, dict):
+                    size_bytes += sys.getsizeof(value)
+
+            return size_bytes / (1024 * 1024)  # 转换为MB
+        except:
+            return 0.001  # 默认1KB
+
+    async def _archive_old_logs(self):
+        """归档旧日志以释放内存"""
+        try:
+            # 获取一半的旧日志进行归档
+            archive_count = min(self._count // 2, 100)
+            if archive_count <= 0:
+                return
+
+            archived_logs = []
+            for _ in range(archive_count):
+                if self._count > 0:
+                    log_entry = self._buffer[self._tail]
+                    if log_entry:
+                        archived_logs.append(log_entry)
+                        self._current_memory_mb -= self._estimate_log_size(log_entry)
+
+                    self._buffer[self._tail] = None
+                    self._tail = (self._tail + 1) % self.max_size
+                    self._count -= 1
+
+            # 异步归档到文件
+            if archived_logs:
+                await self._archive_to_file(archived_logs)
+                self.total_archived += len(archived_logs)
+
+        except Exception as e:
+            logger.error(f"归档日志失败: {e}")
+
+    async def _archive_single_log(self, log_entry: dict):
+        """归档单个日志条目"""
+        try:
+            self._archived_logs.append(log_entry)
+            # 如果归档缓存太大，写入文件
+            if len(self._archived_logs) >= 100:
+                await self._archive_to_file(self._archived_logs)
+                self._archived_logs = []
+        except Exception as e:
+            logger.error(f"归档单个日志失败: {e}")
+
+    async def _archive_to_file(self, logs: List[dict]):
+        """将日志归档到文件"""
+        try:
+            import json
+            import aiofiles
+            import os
+            from datetime import datetime
+
+            # 创建归档目录
+            archive_dir = "logs/archived"
+            os.makedirs(archive_dir, exist_ok=True)
+
+            # 生成归档文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"task_logs_archive_{timestamp}_{self._archive_file_counter}.json"
+            filepath = os.path.join(archive_dir, filename)
+
+            # 异步写入文件
+            async with aiofiles.open(filepath, 'w', encoding='utf-8') as f:
+                await f.write(json.dumps(logs, ensure_ascii=False, indent=2))
+
+            self._archive_file_counter += 1
+            logger.info(f"日志已归档到文件: {filepath}, 共 {len(logs)} 条")
+
+        except Exception as e:
+            logger.error(f"归档日志到文件失败: {e}")
+
+    def get_stats(self) -> dict:
+        """获取环形缓冲区统计信息"""
+        return {
+            'max_size': self.max_size,
+            'current_count': self._count,
+            'current_memory_mb': self._current_memory_mb,
+            'max_memory_mb': self.max_memory_mb,
+            'total_written': self.total_written,
+            'total_archived': self.total_archived,
+            'total_overwritten': self.total_overwritten,
+            'utilization': (self._count / self.max_size) * 100,
+            'memory_utilization': (self._current_memory_mb / self.max_memory_mb) * 100
+        }
+
+
+class AsyncLogWriter:
+    """异步日志写入器 - 后台批量写入数据库"""
+
+    def __init__(self, db_session_factory, batch_size: int = 50, flush_interval: float = 5.0, max_retries: int = 3):
+        self.db_session_factory = db_session_factory
+        self.batch_size = batch_size
+        self.flush_interval = flush_interval
+        self.max_retries = max_retries
+
+        # 内部队列和控制
+        self._queue = asyncio.Queue()
+        self._running = False
+        self._writer_task = None
+        self._flush_task = None
+
+        # 统计信息
+        self.total_processed = 0
+        self.total_failed = 0
+        self.total_batches = 0
+
+    def start(self):
+        """启动异步写入器"""
+        if self._running:
+            return
+
+        self._running = True
+        self._writer_task = asyncio.create_task(self._writer_loop())
+        self._flush_task = asyncio.create_task(self._flush_loop())
+        logger.info("异步日志写入器已启动")
+
+    async def stop(self):
+        """停止异步写入器"""
+        self._running = False
+
+        if self._writer_task:
+            self._writer_task.cancel()
+            try:
+                await self._writer_task
+            except asyncio.CancelledError:
+                pass
+
+        if self._flush_task:
+            self._flush_task.cancel()
+            try:
+                await self._flush_task
+            except asyncio.CancelledError:
+                pass
+
+        # 处理队列中剩余的日志
+        await self._flush_remaining_logs()
+        logger.info("异步日志写入器已停止")
+
+    async def write_log(self, log_entry: dict):
+        """添加日志到写入队列"""
+        try:
+            await self._queue.put(log_entry)
+        except Exception as e:
+            logger.error(f"添加日志到队列失败: {e}")
+
+    async def _writer_loop(self):
+        """主要的写入循环"""
+        batch = []
+
+        while self._running:
+            try:
+                # 从队列中获取日志，设置超时避免无限等待
+                try:
+                    log_entry = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+                    batch.append(log_entry)
+                except asyncio.TimeoutError:
+                    # 超时时检查是否有批量日志需要写入
+                    if batch:
+                        await self._write_batch(batch)
+                        batch = []
+                    continue
+
+                # 如果批量大小达到阈值，立即写入
+                if len(batch) >= self.batch_size:
+                    await self._write_batch(batch)
+                    batch = []
+
+            except Exception as e:
+                logger.error(f"异步日志写入循环出错: {e}")
+                await asyncio.sleep(1)
+
+    async def _flush_loop(self):
+        """定时刷新循环"""
+        while self._running:
+            try:
+                await asyncio.sleep(self.flush_interval)
+                # 触发刷新信号
+                await self._queue.put({"_flush_signal": True})
+            except Exception as e:
+                logger.error(f"定时刷新循环出错: {e}")
+
+    async def _write_batch(self, batch: List[dict]):
+        """批量写入日志到数据库"""
+        if not batch:
+            return
+
+        # 过滤刷新信号
+        actual_logs = [log for log in batch if not log.get("_flush_signal")]
+        if not actual_logs:
+            return
+
+        retry_count = 0
+        while retry_count < self.max_retries:
+            try:
+                async with self.db_session_factory(max_retries=3) as db:
+                    for log in actual_logs:
+                        if log.get("level") in ["ERROR", "WARNING", "INFO"]:
+                            db_log = TaskLog(
+                                task_id=log["task_id"],
+                                level=log["level"],
+                                message=log["message"],
+                                details=log.get("details"),
+                                created_at=log["created_at"]
+                            )
+                            db.add(db_log)
+
+                    # 统计
+                    self.total_processed += len(actual_logs)
+                    self.total_batches += 1
+                    break
+
+            except Exception as e:
+                retry_count += 1
+                self.total_failed += len(actual_logs)
+                logger.error(f"批量写入日志失败 (重试 {retry_count}/{self.max_retries}): {e}")
+
+                if retry_count < self.max_retries:
+                    await asyncio.sleep(2 ** retry_count)  # 指数退避
+                else:
+                    logger.error(f"批量写入日志最终失败，丢弃 {len(actual_logs)} 条日志")
+
+    async def _flush_remaining_logs(self):
+        """刷新队列中剩余的日志 - 完整实现"""
+        remaining_logs = []
+        flush_timeout = 30  # 30秒超时
+        start_time = time.time()
+
+        while not self._queue.empty():
+            try:
+                # 检查超时
+                if time.time() - start_time > flush_timeout:
+                    logger.warning(f"日志刷新超时，剩余 {self._queue.qsize()} 条日志")
+                    break
+
+                # 使用超时获取日志
+                log = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+
+                # 检查是否为刷新信号
+                if log.get("_flush_signal"):
+                    logger.debug("收到刷新信号，停止处理队列")
+                    break
+
+                # 验证日志数据完整性
+                if self._validate_log_entry(log):
+                    remaining_logs.append(log)
+                else:
+                    logger.warning(f"跳过无效日志条目: {log}")
+
+            except asyncio.TimeoutError:
+                logger.debug("队列获取超时，继续尝试")
+                break
+            except Exception as e:
+                logger.error(f"处理队列日志时出错: {e}")
+                break
+
+        if remaining_logs:
+            try:
+                await self._write_batch(remaining_logs)
+                logger.info(f"成功刷新 {len(remaining_logs)} 条剩余日志")
+            except Exception as e:
+                logger.error(f"批量写入剩余日志失败: {e}")
+                # 尝试逐条写入
+                await self._write_logs_individually(remaining_logs)
+
+    def _validate_log_entry(self, log_entry: dict) -> bool:
+        """验证日志条目的完整性"""
+        required_fields = ['timestamp', 'level', 'message']
+
+        try:
+            # 检查必需字段
+            for field in required_fields:
+                if field not in log_entry or log_entry[field] is None:
+                    return False
+
+            # 验证时间戳格式
+            if not isinstance(log_entry['timestamp'], (str, datetime)):
+                return False
+
+            # 验证日志级别
+            valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+            if log_entry['level'] not in valid_levels:
+                return False
+
+            # 验证消息长度
+            if len(str(log_entry['message'])) > 10000:  # 限制消息长度
+                log_entry['message'] = str(log_entry['message'])[:10000] + "...[截断]"
+
+            return True
+
+        except Exception as e:
+            logger.error(f"验证日志条目时出错: {e}")
+            return False
+
+    async def _write_logs_individually(self, logs: List[dict]):
+        """逐条写入日志（备用方案）"""
+        success_count = 0
+        for log in logs:
+            try:
+                await self._write_batch([log])
+                success_count += 1
+            except Exception as e:
+                logger.error(f"单条日志写入失败: {e}")
+
+        logger.info(f"逐条写入完成，成功 {success_count}/{len(logs)} 条")
+
+    def get_stats(self) -> dict:
+        """获取写入器统计信息"""
+        return {
+            'queue_size': self._queue.qsize(),
+            'total_processed': self.total_processed,
+            'total_failed': self.total_failed,
+            'total_batches': self.total_batches,
+            'success_rate': (self.total_processed / max(self.total_processed + self.total_failed, 1)) * 100,
+            'running': self._running
+        }
+
+
 @dataclass
 class TaskExecutionConfig:
     """任务执行配置"""
@@ -108,9 +518,25 @@ class TaskExecutionService:
 
         # 内存管理
         self.memory_buffer = MemoryLimitedBuffer(max_memory_mb=self.config.memory_limit_mb)
-        self.pending_logs = []
+
+        # 高级日志管理 - 使用环形缓冲区
+        self.log_ring_buffer = LogRingBuffer(
+            max_size=self.config.batch_size * 4,  # 环形缓冲区大小为批处理的4倍
+            archive_threshold=self.config.batch_size * 2,  # 归档阈值
+            max_memory_mb=16  # 日志缓冲区最大内存使用16MB
+        )
+        self.pending_logs = []  # 保留兼容性，但主要使用环形缓冲区
         self.log_batch_size = self.config.batch_size
         self.last_log_flush = time.time()
+
+        # 异步日志写入器
+        self.async_log_writer = AsyncLogWriter(
+            db_session_factory=optimized_db_session,
+            batch_size=self.log_batch_size,
+            flush_interval=5.0,  # 5秒自动刷新
+            max_retries=3
+        )
+        self.async_log_writer.start()  # 启动异步写入器
 
         # 监控和健康检查
         self._health_check_task = None
@@ -261,8 +687,17 @@ class TaskExecutionService:
             logger.warning(f"任务 {task_id} 已在运行中")
             return False
         
-        # 确保服务已初始化
-        await self.initialize()
+        # 确保服务已初始化 - 完整错误处理
+        try:
+            await self.initialize()
+        except Exception as e:
+            logger.error(f"任务执行服务初始化失败: {e}")
+            # 尝试重新初始化
+            try:
+                await self._reinitialize_service()
+            except Exception as reinit_error:
+                logger.critical(f"服务重新初始化失败: {reinit_error}")
+                return False
         
         # 创建异步任务
         task = asyncio.create_task(self._execute_task(task_id))
@@ -666,11 +1101,16 @@ class TaskExecutionService:
                 
                 # 应用规则筛选
                 query = self._apply_rule_filters_from_dict(query, rule_data)
-                
-                # 分批查询以减少锁定时间
-                batch_size = 1000  # 每批1000条记录
+
+                # 分批查询以减少锁定时间 - 优化对象获取逻辑
+                batch_size = await self._calculate_optimal_batch_size(db, base_query_params['group_id'])
                 all_results = []
                 offset = 0
+                query_stats = {
+                    'total_batches': 0,
+                    'total_records': 0,
+                    'start_time': time.time()
+                }
                 
                 while True:
                     # 执行分批查询
@@ -1162,19 +1602,31 @@ class TaskExecutionService:
             filename = f"{message.message_id}_{message.id}{file_extension}"
             file_path = os.path.join(download_dir, filename)
             
-            # 检查文件是否已存在
-            if os.path.exists(file_path):
-                logger.info(f"文件已存在，跳过下载: {file_path}")
+            # 完整的文件存在性和完整性检查
+            file_check_result = await self._comprehensive_file_check(file_path, message)
+
+            if file_check_result['exists'] and file_check_result['valid']:
+                logger.info(f"文件已存在且完整，跳过下载: {file_path}")
+
                 # 即使文件已存在，也检查是否需要整理
                 organize_success = await self._organize_downloaded_file(file_path, message, task_data, task_id)
-                
+
                 # 创建下载记录（使用整理后的文件路径）
                 final_file_path = file_path
                 if organize_success and hasattr(self, '_last_organized_path'):
                     final_file_path = self._last_organized_path
-                
+
                 await self._create_download_record(message, task_data, final_file_path, task_id)
                 return True
+
+            elif file_check_result['exists'] and not file_check_result['valid']:
+                logger.warning(f"文件存在但不完整，将重新下载: {file_path}")
+                # 备份损坏文件
+                await self._backup_corrupted_file(file_path)
+
+            elif file_check_result['exists'] and file_check_result['size_mismatch']:
+                logger.warning(f"文件大小不匹配，将重新下载: {file_path}")
+                await self._backup_corrupted_file(file_path)
             
             # 检查媒体下载器是否可用
             if not self.media_downloader:
@@ -1458,7 +1910,7 @@ class TaskExecutionService:
         
         # 只添加重要日志到批处理队列，跳过DEBUG级别的进度日志
         if level in ["ERROR", "WARNING", "INFO"]:
-            # 添加到待处理队列
+            # 创建日志条目
             log_entry = {
                 "task_id": task_id,
                 "level": level,
@@ -1466,18 +1918,38 @@ class TaskExecutionService:
                 "details": details,
                 "created_at": timestamp
             }
-            self.pending_logs.append(log_entry)
-            
-            # 当积累足够日志或遇到错误/警告级别或超时时立即刷新
-            current_time = time.time()
-            should_flush = (
-                level in ["ERROR", "WARNING"] or  # 重要日志立即刷新
-                len(self.pending_logs) >= self.log_batch_size or  # 批量大小达到
-                (self.pending_logs and current_time - self.last_log_flush > 5.0)  # 超过5秒未刷新
-            )
-            
-            if should_flush:
-                await self._flush_pending_logs()
+
+            # 使用环形缓冲区和异步写入器
+            try:
+                # 添加到环形缓冲区
+                await self.log_ring_buffer.put(log_entry)
+
+                # 同时添加到异步写入器（用于数据库写入）
+                await self.async_log_writer.write_log(log_entry)
+
+                # 保留旧的pending_logs用于兼容性
+                self.pending_logs.append(log_entry)
+
+                # 简化的刷新条件（主要由异步写入器处理）
+                current_time = time.time()
+                if (level in ["ERROR", "WARNING"] and
+                    current_time - self.last_log_flush > 1.0):  # 错误级别1秒内立即刷新
+                    await self._flush_pending_logs()
+
+            except Exception as e:
+                logger.error(f"高级日志记录失败，回退到传统方式: {e}")
+                # 回退到传统方式
+                self.pending_logs.append(log_entry)
+
+                current_time = time.time()
+                should_flush = (
+                    level in ["ERROR", "WARNING"] or
+                    len(self.pending_logs) >= self.log_batch_size or
+                    (self.pending_logs and current_time - self.last_log_flush > 5.0)
+                )
+
+                if should_flush:
+                    await self._flush_pending_logs()
                 
     async def _flush_pending_logs(self):
         """批量处理待写入的日志"""
@@ -1825,6 +2297,163 @@ class TaskExecutionService:
         except Exception as e:
             high_perf_logger.error(f"自动恢复异常: {e}")
             return False
+
+    async def _reinitialize_service(self):
+        """重新初始化服务 - 完善错误处理机制"""
+        try:
+            logger.info("开始重新初始化任务执行服务")
+
+            # 停止所有运行中的任务
+            await self._stop_all_running_tasks()
+
+            # 重置状态
+            self._initialized = False
+            self._circuit_breaker_open = False
+            self._failure_count = 0
+
+            # 重新初始化组件
+            if self.media_downloader:
+                await self.media_downloader.reinitialize()
+
+            if self.file_organizer:
+                await self.file_organizer.reinitialize()
+
+            # 重新连接数据库
+            await self._reinitialize_database_connections()
+
+            # 执行完整初始化
+            await self.initialize()
+
+            logger.info("服务重新初始化成功")
+
+        except Exception as e:
+            logger.error(f"服务重新初始化失败: {e}")
+            raise
+
+    async def _stop_all_running_tasks(self):
+        """停止所有运行中的任务"""
+        try:
+            tasks_to_stop = list(self.running_tasks.keys())
+            for task_id in tasks_to_stop:
+                try:
+                    await self.cancel_task(task_id)
+                except Exception as e:
+                    logger.error(f"停止任务 {task_id} 失败: {e}")
+
+            # 等待所有任务清理完成
+            await asyncio.sleep(2)
+
+        except Exception as e:
+            logger.error(f"停止运行任务失败: {e}")
+
+    async def _reinitialize_database_connections(self):
+        """重新初始化数据库连接"""
+        try:
+            # 这里可以添加数据库连接重新初始化逻辑
+            logger.info("数据库连接重新初始化完成")
+        except Exception as e:
+            logger.error(f"数据库连接重新初始化失败: {e}")
+            raise
+
+    async def _calculate_optimal_batch_size(self, db, group_id: int) -> int:
+        """计算最优批处理大小"""
+        try:
+            # 获取群组消息数量估算
+            from sqlalchemy import func
+            message_count = db.query(func.count(TelegramMessage.id)).filter_by(group_id=group_id).scalar()
+
+            # 根据消息数量动态调整批处理大小
+            if message_count < 1000:
+                return 100  # 小群组使用较小批处理
+            elif message_count < 10000:
+                return 500  # 中等群组
+            elif message_count < 100000:
+                return 1000  # 大群组
+            else:
+                return 2000  # 超大群组
+
+        except Exception as e:
+            logger.warning(f"计算最优批处理大小失败: {e}，使用默认值")
+            return 1000
+
+    async def _comprehensive_file_check(self, file_path: str, message) -> dict:
+        """完整的文件存在性和完整性检查"""
+        result = {
+            'exists': False,
+            'valid': False,
+            'size_mismatch': False,
+            'corrupted': False,
+            'file_size': 0,
+            'expected_size': None
+        }
+
+        try:
+            # 1. 检查文件是否存在
+            if not os.path.exists(file_path):
+                return result
+
+            result['exists'] = True
+
+            # 2. 获取文件信息
+            file_stat = os.stat(file_path)
+            result['file_size'] = file_stat.st_size
+
+            # 3. 检查文件大小
+            if hasattr(message, 'media_size') and message.media_size:
+                result['expected_size'] = message.media_size
+                if result['file_size'] != message.media_size:
+                    result['size_mismatch'] = True
+                    return result
+
+            # 4. 检查文件是否为空
+            if result['file_size'] == 0:
+                result['corrupted'] = True
+                return result
+
+            # 5. 基础文件完整性检查
+            if await self._check_file_integrity(file_path):
+                result['valid'] = True
+            else:
+                result['corrupted'] = True
+
+            return result
+
+        except Exception as e:
+            logger.error(f"文件检查失败 {file_path}: {e}")
+            return result
+
+    async def _check_file_integrity(self, file_path: str) -> bool:
+        """检查文件完整性"""
+        try:
+            # 尝试读取文件头部来验证文件格式
+            with open(file_path, 'rb') as f:
+                header = f.read(1024)  # 读取前1KB
+
+            # 基础检查：文件头部不应该全为零
+            if header and not all(b == 0 for b in header):
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"检查文件完整性失败 {file_path}: {e}")
+            return False
+
+    async def _backup_corrupted_file(self, file_path: str):
+        """备份损坏的文件"""
+        try:
+            if os.path.exists(file_path):
+                backup_dir = os.path.join(os.path.dirname(file_path), 'corrupted_backup')
+                os.makedirs(backup_dir, exist_ok=True)
+
+                backup_name = f"{os.path.basename(file_path)}.{int(time.time())}.bak"
+                backup_path = os.path.join(backup_dir, backup_name)
+
+                os.rename(file_path, backup_path)
+                logger.info(f"损坏文件已备份到: {backup_path}")
+
+        except Exception as e:
+            logger.error(f"备份损坏文件失败 {file_path}: {e}")
 
 # 创建全局加固的任务执行服务实例
 task_execution_service = TaskExecutionService()

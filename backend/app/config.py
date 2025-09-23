@@ -327,6 +327,24 @@ class Settings:
         return 8001
     
     @property
+    def redis_url(self) -> str:
+        """Redis连接URL"""
+        return self._get_config("redis_url", "redis://localhost:6379/0")
+
+    @property
+    def redis_password(self) -> Optional[str]:
+        """Redis密码"""
+        return self._get_config("redis_password")
+
+    @property
+    def session_encryption_key(self) -> Optional[str]:
+        """会话加密密钥"""
+        env_key = os.environ.get("SESSION_ENCRYPTION_KEY")
+        if env_key:
+            return env_key
+        return self._get_config("session_encryption_key") or self.secret_key
+
+    @property
     def default_user_settings(self) -> dict:
         """默认用户设置配置
 

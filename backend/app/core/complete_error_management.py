@@ -22,6 +22,9 @@ import weakref
 from contextlib import asynccontextmanager
 
 from .error_handler import global_error_handler, ErrorLogger, ErrorMetrics
+
+# 设置logger
+logger = logging.getLogger(__name__)
 from .exceptions import (
     ServiceError, ErrorSeverity, ErrorCategory, ErrorContext,
     SystemError, NetworkError, DatabaseError, TelegramServiceError,
@@ -145,40 +148,200 @@ class PredictiveAnalyzer:
         return predictions
 
     def _detect_memory_leak(self) -> Optional[FailurePrediction]:
-        """检测内存泄漏"""
-        if len(self.metrics_history) < 10:  # 需要足够的历史数据
+        """检测内存泄漏 - 使用滑动窗口算法和线性回归趋势分析"""
+        # 滑动窗口大小设为30个样本点，足够提供历史数据
+        window_size = min(30, len(self.metrics_history))
+
+        if len(self.metrics_history) < 10:  # 至少需要10个样本
             return None
 
-        recent_metrics = list(self.metrics_history)[-10:]
+        # 获取滑动窗口内的最近样本
+        recent_metrics = list(self.metrics_history)[-window_size:]
         memory_usage = [m.memory_usage for m in recent_metrics]
+        timestamps = [i for i in range(len(memory_usage))]
 
-        # 计算内存使用增长率
-        if len(memory_usage) >= 2:
-            growth_rate = (memory_usage[-1] - memory_usage[0]) / len(memory_usage)
+        # 线性回归分析趋势
+        regression_result = self._linear_regression(timestamps, memory_usage)
+        slope = regression_result['slope']
+        r_squared = regression_result['r_squared']
 
-            if growth_rate > self.failure_thresholds[FailurePattern.MEMORY_LEAK]["memory_increase_rate"]:
-                # 预测内存耗尽时间
-                current_usage = memory_usage[-1]
-                remaining_memory = 100.0 - current_usage
-                estimated_time = datetime.now(timezone.utc) + timedelta(
-                    minutes=remaining_memory / growth_rate
-                )
+        # 计算不同时间窗口的趋势
+        short_term_trend = self._calculate_trend(memory_usage[-5:])  # 最近5个点
+        medium_term_trend = self._calculate_trend(memory_usage[-15:])  # 最近15个点
+        long_term_trend = self._calculate_trend(memory_usage)  # 全部样本
 
-                return FailurePrediction(
-                    pattern=FailurePattern.MEMORY_LEAK,
-                    probability=min(growth_rate / 10.0, 0.95),
-                    estimated_time=estimated_time,
-                    affected_services=["all"],
-                    suggested_actions=[
-                        RecoveryStrategy.RESTART_SERVICE,
-                        RecoveryStrategy.CLEAR_CACHE,
-                        RecoveryStrategy.SCALE_RESOURCES
-                    ],
-                    confidence_level=0.8,
-                    risk_level=ErrorSeverity.HIGH
-                )
+        # 对象引用计数追踪
+        import gc
+        gc_counts = gc.get_count()
+        total_objects = sum(gc_counts)
+
+        # 内存泄漏检测条件
+        leak_indicators = {
+            'positive_slope': slope > 0.1,  # 斜率大于0.1
+            'high_correlation': r_squared > 0.7,  # R²大于0.7，说明线性趋势明显
+            'consistent_growth': all(trend > 0 for trend in [short_term_trend, medium_term_trend, long_term_trend]),
+            'growth_acceleration': short_term_trend > medium_term_trend > long_term_trend,
+            'high_usage': memory_usage[-1] > 80.0,  # 当前内存使用率超过80%
+            'high_object_count': total_objects > 100000  # 对象数量过多
+        }
+
+        # 计算泄漏概率
+        leak_score = sum([
+            leak_indicators['positive_slope'] * 0.25,
+            leak_indicators['high_correlation'] * 0.2,
+            leak_indicators['consistent_growth'] * 0.2,
+            leak_indicators['growth_acceleration'] * 0.15,
+            leak_indicators['high_usage'] * 0.15,
+            leak_indicators['high_object_count'] * 0.05
+        ])
+
+        if leak_score > 0.6:  # 阈值设为0.6
+            # 预测内存耗尽时间
+            current_usage = memory_usage[-1]
+            remaining_memory = 100.0 - current_usage
+
+            # 使用线性回归的斜率预测
+            if slope > 0:
+                minutes_to_exhaustion = remaining_memory / slope
+                estimated_time = datetime.now(timezone.utc) + timedelta(minutes=minutes_to_exhaustion)
+            else:
+                estimated_time = datetime.now(timezone.utc) + timedelta(hours=24)  # 默认24小时后
+
+            # 自动触发垃圾回收
+            collected = gc.collect()
+
+            # 生成内存快照对比（如果有之前的快照）
+            current_snapshot = self._generate_memory_snapshot()
+            snapshot_comparison = self._compare_memory_snapshots(current_snapshot)
+
+            return FailurePrediction(
+                pattern=FailurePattern.MEMORY_LEAK,
+                probability=min(leak_score, 0.95),
+                estimated_time=estimated_time,
+                affected_services=["all"],
+                suggested_actions=[
+                    RecoveryStrategy.RESTART_SERVICE,
+                    RecoveryStrategy.CLEAR_CACHE,
+                    RecoveryStrategy.SCALE_RESOURCES
+                ],
+                confidence_level=r_squared,
+                risk_level=ErrorSeverity.HIGH if leak_score > 0.8 else ErrorSeverity.MEDIUM
+            )
 
         return None
+
+    def _linear_regression(self, x_values: list, y_values: list) -> dict:
+        """线性回归分析"""
+        n = len(x_values)
+        if n < 2:
+            return {'slope': 0, 'intercept': 0, 'r_squared': 0}
+
+        # 计算平均值
+        x_mean = sum(x_values) / n
+        y_mean = sum(y_values) / n
+
+        # 计算回归系数
+        numerator = sum((x_values[i] - x_mean) * (y_values[i] - y_mean) for i in range(n))
+        denominator = sum((x_values[i] - x_mean) ** 2 for i in range(n))
+
+        if denominator == 0:
+            return {'slope': 0, 'intercept': y_mean, 'r_squared': 0}
+
+        slope = numerator / denominator
+        intercept = y_mean - slope * x_mean
+
+        # 计算R²
+        y_pred = [slope * x + intercept for x in x_values]
+        ss_res = sum((y_values[i] - y_pred[i]) ** 2 for i in range(n))
+        ss_tot = sum((y_values[i] - y_mean) ** 2 for i in range(n))
+
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+
+        return {
+            'slope': slope,
+            'intercept': intercept,
+            'r_squared': max(0, r_squared)  # 确保R²不为负
+        }
+
+    def _calculate_trend(self, values: list) -> float:
+        """计算趋势（简单的平均增长率）"""
+        if len(values) < 2:
+            return 0
+        return (values[-1] - values[0]) / len(values)
+
+    def _generate_memory_snapshot(self) -> dict:
+        """生成内存快照"""
+        try:
+            import psutil
+            import gc
+
+            # 获取进程内存信息
+            process = psutil.Process()
+            memory_info = process.memory_info()
+
+            # 获取垃圾回收统计
+            gc_stats = gc.get_stats()
+
+            # 获取对象数量统计
+            import sys
+            object_counts = {}
+            for obj_type in [list, dict, str, int, float]:
+                try:
+                    count = len([obj for obj in gc.get_objects() if isinstance(obj, obj_type)])
+                    object_counts[obj_type.__name__] = count
+                except:
+                    object_counts[obj_type.__name__] = 0
+
+            snapshot = {
+                'timestamp': time.time(),
+                'rss': memory_info.rss,
+                'vms': memory_info.vms,
+                'percent': process.memory_percent(),
+                'gc_stats': gc_stats,
+                'object_counts': object_counts,
+                'gc_count': sum(gc.get_count())
+            }
+
+            # 保存最新快照
+            self._last_memory_snapshot = snapshot
+            return snapshot
+
+        except Exception as e:
+            logger.error(f"Failed to generate memory snapshot: {e}")
+            return {}
+
+    def _compare_memory_snapshots(self, current_snapshot: dict) -> dict:
+        """对比内存快照"""
+        if not hasattr(self, '_last_memory_snapshot') or not current_snapshot:
+            return {}
+
+        try:
+            last_snapshot = getattr(self, '_last_memory_snapshot', {})
+            if not last_snapshot:
+                return {}
+
+            comparison = {
+                'time_diff': current_snapshot.get('timestamp', 0) - last_snapshot.get('timestamp', 0),
+                'rss_growth': current_snapshot.get('rss', 0) - last_snapshot.get('rss', 0),
+                'vms_growth': current_snapshot.get('vms', 0) - last_snapshot.get('vms', 0),
+                'percent_growth': current_snapshot.get('percent', 0) - last_snapshot.get('percent', 0),
+                'object_changes': {}
+            }
+
+            # 对比对象数量变化
+            current_objects = current_snapshot.get('object_counts', {})
+            last_objects = last_snapshot.get('object_counts', {})
+
+            for obj_type in current_objects:
+                if obj_type in last_objects:
+                    change = current_objects[obj_type] - last_objects[obj_type]
+                    comparison['object_changes'][obj_type] = change
+
+            return comparison
+
+        except Exception as e:
+            logger.error(f"Failed to compare memory snapshots: {e}")
+            return {}
 
     def _detect_cpu_spike(self) -> Optional[FailurePrediction]:
         """检测CPU峰值"""
@@ -393,16 +556,90 @@ class AutoRecoveryEngine:
     def _activate_circuit_breaker(self, action: RecoveryAction) -> bool:
         """激活熔断器"""
         try:
-            # 实现熔断器逻辑
-            # 暂时禁用有问题的服务调用
             service_name = action.target_service
 
-            # 这里应该设置熔断状态标志
-            # 让其他组件知道该服务处于熔断状态
+            # 获取或创建熔断器
+            circuit_breaker = self._get_circuit_breaker(service_name)
 
+            # 强制开启熔断器
+            circuit_breaker.force_open()
+
+            # 添加监听器以便追踪状态变化
+            if not hasattr(circuit_breaker, '_recovery_listener_added'):
+                circuit_breaker.add_listener(self._on_circuit_breaker_state_change)
+                circuit_breaker._recovery_listener_added = True
+
+            # 发送熔断器激活通知
+            asyncio.create_task(self._send_circuit_breaker_notification(
+                service_name, "activated", circuit_breaker.get_stats()
+            ))
+
+            logger.warning(f"Circuit breaker activated for service: {service_name}")
             return True
-        except Exception:
+
+        except Exception as e:
+            logger.error(f"Failed to activate circuit breaker: {e}")
             return False
+
+    def _get_circuit_breaker(self, service_name: str) -> 'CircuitBreaker':
+        """获取或创建服务熔断器"""
+        if not hasattr(self, '_circuit_breakers'):
+            self._circuit_breakers = {}
+
+        if service_name not in self._circuit_breakers:
+            # 根据服务类型设置不同的熔断器参数
+            if service_name == "telegram_service":
+                # Telegram服务更容易出现网络问题，设置较低阈值
+                self._circuit_breakers[service_name] = CircuitBreaker(
+                    failure_threshold=3, timeout=30, success_threshold=2, service_name=service_name
+                )
+            elif service_name == "database":
+                # 数据库服务稳定性要求更高
+                self._circuit_breakers[service_name] = CircuitBreaker(
+                    failure_threshold=5, timeout=60, success_threshold=3, service_name=service_name
+                )
+            else:
+                # 默认配置
+                self._circuit_breakers[service_name] = CircuitBreaker(
+                    failure_threshold=5, timeout=60, success_threshold=3, service_name=service_name
+                )
+
+        return self._circuit_breakers[service_name]
+
+    def _on_circuit_breaker_state_change(self, old_state: str, new_state: str, stats: dict):
+        """熔断器状态变化回调"""
+        try:
+            # 记录状态变化
+            logger.info(f"Circuit breaker state changed: {old_state} -> {new_state}")
+
+            # 发送状态变化通知
+            asyncio.create_task(self._send_circuit_breaker_notification(
+                stats.get('service_name', 'unknown'),
+                f"state_changed_{new_state.lower()}",
+                stats
+            ))
+
+            # 如果熔断器恢复，可以触发相关的恢复操作
+            if new_state == "CLOSED":
+                logger.info("Circuit breaker recovered, service is available again")
+
+        except Exception as e:
+            logger.error(f"Error handling circuit breaker state change: {e}")
+
+    async def _send_circuit_breaker_notification(self, service_name: str, event_type: str, stats: dict):
+        """发送熔断器事件通知"""
+        try:
+            await websocket_manager.broadcast({
+                "type": "circuit_breaker_event",
+                "data": {
+                    "service": service_name,
+                    "event": event_type,
+                    "stats": stats,
+                    "timestamp": time.time()
+                }
+            })
+        except Exception as e:
+            logger.error(f"Failed to send circuit breaker notification: {e}")
 
     def _enable_fallback_mode(self, action: RecoveryAction) -> bool:
         """启用回退模式"""
@@ -502,25 +739,58 @@ class AutoRecoveryEngine:
 
 
 class CircuitBreaker:
-    """熔断器"""
+    """完整的熔断器实现，支持三种状态：CLOSED、OPEN、HALF_OPEN"""
 
-    def __init__(self, failure_threshold: int = 5, timeout: int = 60):
-        self.failure_threshold = failure_threshold
-        self.timeout = timeout
+    def __init__(self, failure_threshold: int = 5, timeout: int = 60, success_threshold: int = 3, service_name: str = "unknown"):
+        self.failure_threshold = failure_threshold  # 失败阈值
+        self.timeout = timeout  # 超时时间（秒）
+        self.success_threshold = success_threshold  # 半开状态下的成功阈值
+        self.service_name = service_name  # 服务名称
+
+        # 状态管理
         self.failure_count = 0
+        self.success_count = 0  # 半开状态下的成功计数
         self.last_failure_time = None
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
         self._lock = threading.Lock()
 
+        # 事件监听器
+        self._listeners = []
+
+        # 统计信息
+        self.total_calls = 0
+        self.total_failures = 0
+        self.total_successes = 0
+        self.state_changes = []
+
+    def add_listener(self, listener: Callable):
+        """添加状态变化监听器"""
+        self._listeners.append(listener)
+
+    def _notify_listeners(self, old_state: str, new_state: str):
+        """通知状态变化监听器"""
+        for listener in self._listeners:
+            try:
+                listener(old_state, new_state, self.get_stats())
+            except Exception as e:
+                logger.error(f"Circuit breaker listener error: {e}")
+
     def call(self, func: Callable, *args, **kwargs):
         """调用受保护的函数"""
         with self._lock:
+            self.total_calls += 1
+
             if self.state == "OPEN":
                 if self._should_attempt_reset():
-                    self.state = "HALF_OPEN"
+                    self._transition_to("HALF_OPEN")
                 else:
                     raise ExternalServiceError("Circuit breaker is OPEN", "circuit_breaker")
 
+            if self.state == "HALF_OPEN":
+                # 半开状态，限制并发调用
+                return self._call_in_half_open(func, *args, **kwargs)
+
+            # CLOSED状态，正常调用
             try:
                 result = func(*args, **kwargs)
                 self._on_success()
@@ -528,6 +798,25 @@ class CircuitBreaker:
             except Exception as e:
                 self._on_failure()
                 raise
+
+    def _call_in_half_open(self, func: Callable, *args, **kwargs):
+        """在半开状态下调用函数"""
+        try:
+            result = func(*args, **kwargs)
+            self.success_count += 1
+            self.total_successes += 1
+
+            # 检查是否达到成功阈值，可以关闭熔断器
+            if self.success_count >= self.success_threshold:
+                self._transition_to("CLOSED")
+                self._reset_counters()
+
+            return result
+
+        except Exception as e:
+            self._on_failure()
+            self._transition_to("OPEN")  # 半开状态失败，立即转为开启
+            raise
 
     def _should_attempt_reset(self) -> bool:
         """检查是否应该尝试重置"""
@@ -537,16 +826,69 @@ class CircuitBreaker:
 
     def _on_success(self):
         """成功时的处理"""
-        self.failure_count = 0
-        self.state = "CLOSED"
+        self.total_successes += 1
+        if self.state == "CLOSED":
+            self.failure_count = 0
 
     def _on_failure(self):
         """失败时的处理"""
         self.failure_count += 1
+        self.total_failures += 1
         self.last_failure_time = time.time()
 
-        if self.failure_count >= self.failure_threshold:
-            self.state = "OPEN"
+        if self.state == "CLOSED" and self.failure_count >= self.failure_threshold:
+            self._transition_to("OPEN")
+
+    def _transition_to(self, new_state: str):
+        """状态转换"""
+        old_state = self.state
+        if old_state != new_state:
+            self.state = new_state
+            self.state_changes.append({
+                "from": old_state,
+                "to": new_state,
+                "timestamp": time.time(),
+                "failure_count": self.failure_count
+            })
+            self._notify_listeners(old_state, new_state)
+            logger.info(f"Circuit breaker state changed: {old_state} -> {new_state}")
+
+    def _reset_counters(self):
+        """重置计数器"""
+        self.failure_count = 0
+        self.success_count = 0
+
+    def get_stats(self) -> dict:
+        """获取统计信息"""
+        return {
+            "service_name": self.service_name,
+            "state": self.state,
+            "failure_count": self.failure_count,
+            "success_count": self.success_count,
+            "total_calls": self.total_calls,
+            "total_failures": self.total_failures,
+            "total_successes": self.total_successes,
+            "failure_rate": self.total_failures / max(self.total_calls, 1),
+            "last_failure_time": self.last_failure_time,
+            "state_changes": self.state_changes[-10:],  # 最近10次状态变化
+            "uptime": time.time() - (self.state_changes[0]["timestamp"] if self.state_changes else time.time())
+        }
+
+    def reset(self):
+        """手动重置熔断器"""
+        with self._lock:
+            old_state = self.state
+            self._transition_to("CLOSED")
+            self._reset_counters()
+            self.last_failure_time = None
+            logger.info("Circuit breaker manually reset")
+
+    def force_open(self):
+        """手动开启熔断器"""
+        with self._lock:
+            self._transition_to("OPEN")
+            self.last_failure_time = time.time()
+            logger.info("Circuit breaker manually opened")
 
 
 class CompleteErrorManager:

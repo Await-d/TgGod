@@ -44,15 +44,44 @@ class ObjectInfo:
 class ObjectPool:
     """对象池 - 复用对象减少创建开销"""
 
-    def __init__(self, obj_type: Type, max_size: int = 10, max_idle_time: int = 300):
+    def __init__(self, obj_type: Type, max_size: int = 10, max_idle_time: int = 300,
+                 enable_expansion: bool = True, expansion_factor: float = 1.5,
+                 max_expansion_size: int = 50, enable_waiting: bool = True,
+                 max_wait_time: float = 5.0, preload_size: int = 0):
         self.obj_type = obj_type
         self.max_size = max_size
         self.max_idle_time = max_idle_time
+
+        # 动态扩展配置
+        self.enable_expansion = enable_expansion
+        self.expansion_factor = expansion_factor
+        self.max_expansion_size = max_expansion_size
+        self.current_max_size = max_size
+
+        # 等待队列配置
+        self.enable_waiting = enable_waiting
+        self.max_wait_time = max_wait_time
+        self._waiting_queue = []  # 等待对象的线程队列
+
+        # LRU策略实现
         self.available_objects: List[Any] = []
+        self.object_access_times: Dict[Any, float] = {}  # 对象访问时间
+        self.object_usage_count: Dict[Any, int] = {}     # 对象使用次数
+
         self.in_use_objects: Set[Any] = set()
         self._lock = threading.Lock()
+        self._condition = threading.Condition(self._lock)  # 用于等待队列
+
+        # 统计信息
         self.created_count = 0
         self.reused_count = 0
+        self.expansion_count = 0
+        self.wait_count = 0
+        self.eviction_count = 0
+
+        # 池预热
+        if preload_size > 0:
+            self._preload_pool(preload_size)
 
     def get_object(self, *args, **kwargs) -> Any:
         """获取对象实例"""
@@ -82,25 +111,9 @@ class ObjectPool:
                     logger.error(f"创建对象失败 {self.obj_type.__name__}: {e}")
                     raise
 
-            # 池已满，直接创建临时对象
-            obj = self.obj_type(*args, **kwargs)
-            logger.debug(f"池已满，创建临时对象 {self.obj_type.__name__}")
-            return obj
+            # 池已满，实现动态扩展策略
+            return self._handle_pool_full(*args, **kwargs)
 
-    def return_object(self, obj: Any):
-        """归还对象到池中"""
-        with self._lock:
-            if obj in self.in_use_objects:
-                self.in_use_objects.remove(obj)
-
-                # 检查对象是否可以重用
-                if len(self.available_objects) < self.max_size and self._is_reusable(obj):
-                    self.available_objects.append(obj)
-                    logger.debug(f"对象已归还到池 {self.obj_type.__name__}")
-                else:
-                    # 对象不能重用，执行清理
-                    self._cleanup_object(obj)
-                    logger.debug(f"对象已清理 {self.obj_type.__name__}")
 
     def _is_reusable(self, obj: Any) -> bool:
         """检查对象是否可以重用"""
@@ -159,6 +172,214 @@ class ObjectPool:
                 'reuse_ratio': self.reused_count / max(self.created_count, 1)
             }
 
+    def _preload_pool(self, size: int):
+        """池预热 - 预先创建指定数量的对象"""
+        try:
+            for _ in range(min(size, self.max_size)):
+                try:
+                    obj = self.obj_type()
+                    self.available_objects.append(obj)
+                    self.object_access_times[obj] = time.time()
+                    self.object_usage_count[obj] = 0
+                    self.created_count += 1
+                except Exception as e:
+                    logger.warning(f"池预热失败: {e}")
+                    break
+            logger.info(f"池预热完成，创建了 {len(self.available_objects)} 个对象")
+        except Exception as e:
+            logger.error(f"池预热出错: {e}")
+
+    def _handle_pool_full(self, *args, **kwargs) -> Any:
+        """处理池已满的情况"""
+        # 首先尝试动态扩展
+        if self.enable_expansion and self.current_max_size < self.max_expansion_size:
+            return self._try_expand_pool(*args, **kwargs)
+
+        # 如果启用等待队列，尝试等待
+        if self.enable_waiting:
+            return self._wait_for_object(*args, **kwargs)
+
+        # 最后选择：创建临时对象或LRU淘汰
+        return self._create_or_evict(*args, **kwargs)
+
+    def _try_expand_pool(self, *args, **kwargs) -> Any:
+        """尝试动态扩展池"""
+        new_size = min(
+            int(self.current_max_size * self.expansion_factor),
+            self.max_expansion_size
+        )
+
+        if new_size > self.current_max_size:
+            old_size = self.current_max_size
+            self.current_max_size = new_size
+            self.expansion_count += 1
+
+            logger.info(f"池动态扩展: {old_size} -> {new_size}")
+
+            # 创建新对象
+            try:
+                obj = self.obj_type(*args, **kwargs)
+                self.in_use_objects.add(obj)
+                self.created_count += 1
+                self._update_object_stats(obj)
+                return obj
+            except Exception as e:
+                logger.error(f"池扩展时创建对象失败: {e}")
+                # 回滚扩展
+                self.current_max_size = old_size
+                raise
+
+        # 扩展失败，使用其他策略
+        return self._create_or_evict(*args, **kwargs)
+
+    def _wait_for_object(self, *args, **kwargs) -> Any:
+        """等待队列实现"""
+        wait_start = time.time()
+        self.wait_count += 1
+
+        try:
+            while time.time() - wait_start < self.max_wait_time:
+                # 检查是否有对象可用
+                if self.available_objects:
+                    obj = self.available_objects.pop()
+                    self.in_use_objects.add(obj)
+                    self.reused_count += 1
+                    self._update_object_stats(obj)
+
+                    if hasattr(obj, 'reset'):
+                        obj.reset(*args, **kwargs)
+
+                    logger.debug(f"等待后获取到对象 {self.obj_type.__name__}")
+                    return obj
+
+                # 等待通知
+                if not self._condition.wait(timeout=0.1):
+                    continue
+
+            # 等待超时，创建临时对象
+            logger.warning(f"等待对象超时，创建临时对象 {self.obj_type.__name__}")
+            return self._create_temporary_object(*args, **kwargs)
+
+        except Exception as e:
+            logger.error(f"等待对象时出错: {e}")
+            return self._create_temporary_object(*args, **kwargs)
+
+    def _create_or_evict(self, *args, **kwargs) -> Any:
+        """创建临时对象或使用LRU淘汰策略"""
+        # 尝试LRU淘汰
+        if self.available_objects:
+            evicted_obj = self._lru_evict()
+            if evicted_obj:
+                self.in_use_objects.add(evicted_obj)
+                self.reused_count += 1
+                self._update_object_stats(evicted_obj)
+
+                if hasattr(evicted_obj, 'reset'):
+                    evicted_obj.reset(*args, **kwargs)
+
+                logger.debug(f"LRU淘汰后重用对象 {self.obj_type.__name__}")
+                return evicted_obj
+
+        # 创建临时对象
+        return self._create_temporary_object(*args, **kwargs)
+
+    def _lru_evict(self) -> Optional[Any]:
+        """LRU淘汰策略 - 淘汰最近最少使用的对象"""
+        if not self.available_objects:
+            return None
+
+        # 按访问时间排序，选择最旧的对象
+        lru_obj = min(
+            self.available_objects,
+            key=lambda obj: (
+                self.object_access_times.get(obj, 0),
+                self.object_usage_count.get(obj, 0)
+            )
+        )
+
+        self.available_objects.remove(lru_obj)
+        self.eviction_count += 1
+        logger.debug(f"LRU淘汰对象 {self.obj_type.__name__}")
+        return lru_obj
+
+    def _create_temporary_object(self, *args, **kwargs) -> Any:
+        """创建临时对象（不放入池中）"""
+        obj = self.obj_type(*args, **kwargs)
+        logger.debug(f"创建临时对象 {self.obj_type.__name__}")
+        return obj
+
+    def _update_object_stats(self, obj: Any):
+        """更新对象统计信息"""
+        current_time = time.time()
+        self.object_access_times[obj] = current_time
+        self.object_usage_count[obj] = self.object_usage_count.get(obj, 0) + 1
+
+    def return_object(self, obj: Any):
+        """归还对象到池中（增强版）"""
+        with self._condition:
+            if obj in self.in_use_objects:
+                self.in_use_objects.remove(obj)
+
+                # 检查对象是否可以重用
+                if len(self.available_objects) < self.current_max_size and self._is_reusable(obj):
+                    # 使用LRU策略管理可用对象
+                    self._add_to_available_with_lru(obj)
+                    logger.debug(f"对象已归还到池 {self.obj_type.__name__}")
+
+                    # 通知等待的线程
+                    self._condition.notify()
+                else:
+                    # 对象不能重用，执行清理
+                    self._cleanup_object(obj)
+                    self._cleanup_object_stats(obj)
+                    logger.debug(f"对象已清理 {self.obj_type.__name__}")
+            else:
+                # 临时对象，直接清理
+                self._cleanup_object(obj)
+
+    def _add_to_available_with_lru(self, obj: Any):
+        """使用LRU策略添加对象到可用列表"""
+        # 如果可用对象列表已满，先淘汰最老的对象
+        if len(self.available_objects) >= self.current_max_size:
+            if self.available_objects:
+                lru_obj = self._lru_evict()
+                if lru_obj:
+                    self._cleanup_object(lru_obj)
+                    self._cleanup_object_stats(lru_obj)
+
+        # 添加新对象
+        self.available_objects.append(obj)
+        obj._pool_return_time = time.time()
+        self._update_object_stats(obj)
+
+    def _cleanup_object_stats(self, obj: Any):
+        """清理对象统计信息"""
+        self.object_access_times.pop(obj, None)
+        self.object_usage_count.pop(obj, None)
+
+    def get_stats(self) -> Dict[str, Any]:
+        """获取池统计信息（增强版）"""
+        with self._lock:
+            return {
+                'obj_type': self.obj_type.__name__,
+                'max_size': self.max_size,
+                'current_max_size': self.current_max_size,
+                'available_count': len(self.available_objects),
+                'in_use_count': len(self.in_use_objects),
+                'created_count': self.created_count,
+                'reused_count': self.reused_count,
+                'expansion_count': self.expansion_count,
+                'wait_count': self.wait_count,
+                'eviction_count': self.eviction_count,
+                'reuse_ratio': self.reused_count / max(self.created_count, 1),
+                'expansion_enabled': self.enable_expansion,
+                'waiting_enabled': self.enable_waiting,
+                'lru_stats': {
+                    'total_objects_tracked': len(self.object_access_times),
+                    'avg_usage_count': sum(self.object_usage_count.values()) / max(len(self.object_usage_count), 1)
+                }
+            }
+
     def clear(self):
         """清空池"""
         with self._lock:
@@ -169,6 +390,10 @@ class ObjectPool:
             for obj in self.in_use_objects.copy():
                 self._cleanup_object(obj)
             self.in_use_objects.clear()
+
+            # 清理统计信息
+            self.object_access_times.clear()
+            self.object_usage_count.clear()
 
 
 class ObjectLifecycleManager:

@@ -276,21 +276,45 @@ class FailureDetector:
 
     def _detect_trend_anomalies(self, service_name: str, metrics: Dict[str, float],
                                context: Dict[str, Any]) -> List[FailureSignature]:
-        """检测趋势异常"""
+        """检测趋势异常 - 完整趋势分析算法"""
         failures = []
 
-        # 简化的趋势检测
-        if 'error_rate' in metrics and metrics['error_rate'] > 0.05:
-            failure = FailureSignature(
-                category=FailureCategory.PERFORMANCE_DEGRADATION,
-                symptoms=["increasing_error_rate"],
-                metrics=metrics.copy(),
-                context=context.copy(),
-                timestamp=time.time(),
-                severity=min(1.0, metrics['error_rate'] * 10),
-                confidence=0.7
-            )
-            failures.append(failure)
+        # 获取历史指标数据进行趋势分析
+        history_key = f"{service_name}_metrics_history"
+        if not hasattr(self, '_metrics_history'):
+            self._metrics_history = defaultdict(lambda: deque(maxlen=100))
+
+        history = self._metrics_history[history_key]
+        history.append(metrics.copy())
+
+        if len(history) < 5:  # 需要至少5个数据点
+            return failures
+
+        # 多维度指标评估
+        for metric_name in ['error_rate', 'response_time', 'cpu_usage', 'memory_usage']:
+            if metric_name not in metrics:
+                continue
+
+            # 提取时间序列数据
+            metric_values = [h.get(metric_name, 0) for h in history]
+            trend_analysis = self._analyze_metric_trend(metric_name, metric_values)
+
+            # 检测异常趋势
+            if trend_analysis['is_anomalous']:
+                failure = FailureSignature(
+                    category=self._categorize_metric_failure_by_type(metric_name, trend_analysis),
+                    symptoms=trend_analysis['symptoms'],
+                    metrics=metrics.copy(),
+                    context={
+                        **context,
+                        'trend_analysis': trend_analysis,
+                        'metric_name': metric_name
+                    },
+                    timestamp=time.time(),
+                    severity=trend_analysis['severity'],
+                    confidence=trend_analysis['confidence']
+                )
+                failures.append(failure)
 
         return failures
 
@@ -739,16 +763,96 @@ class AutoRecoveryEngine(ServiceLoggerMixin):
 
     async def _check_service_health(self, service_name: str,
                                   metrics: Dict[str, float]) -> bool:
-        """检查服务健康状况"""
-        # 简单的健康检查逻辑
-        if metrics.get('cpu_usage', 0) > 0.95:
-            return False
-        if metrics.get('memory_usage', 0) > 0.9:
-            return False
-        if metrics.get('error_rate', 0) > 0.1:
+        """检查服务健康状况 - 智能多维度健康检测"""
+        try:
+            # 获取服务特定的健康检查策略
+            health_strategy = self._get_health_strategy(service_name)
+
+            # 基础指标检查
+            basic_health = self._check_basic_metrics(metrics, health_strategy)
+            if not basic_health['is_healthy']:
+                return False
+
+            # 综合评分
+            overall_score = basic_health['score']
+            return overall_score >= health_strategy.get('min_health_score', 0.75)
+
+        except Exception as e:
+            logging.error(f"Health check failed for {service_name}: {e}")
             return False
 
-        return True
+    def _get_health_strategy(self, service_name: str) -> Dict[str, Any]:
+        """获取服务健康检查策略"""
+        strategies = {
+            'telegram_service': {
+                'cpu_threshold': 0.8,
+                'memory_threshold': 0.85,
+                'error_rate_threshold': 0.05,
+                'response_time_threshold': 3000,
+                'min_health_score': 0.75,
+                'critical_metrics': ['error_rate', 'response_time']
+            },
+            'database': {
+                'cpu_threshold': 0.9,
+                'memory_threshold': 0.8,
+                'error_rate_threshold': 0.01,
+                'response_time_threshold': 1000,
+                'min_health_score': 0.85,
+                'critical_metrics': ['error_rate', 'connection_pool_usage']
+            },
+            'media_downloader': {
+                'cpu_threshold': 0.95,
+                'memory_threshold': 0.9,
+                'error_rate_threshold': 0.1,
+                'response_time_threshold': 5000,
+                'min_health_score': 0.7,
+                'critical_metrics': ['download_success_rate', 'disk_usage']
+            }
+        }
+
+        return strategies.get(service_name, {
+            'cpu_threshold': 0.9,
+            'memory_threshold': 0.85,
+            'error_rate_threshold': 0.1,
+            'response_time_threshold': 2000,
+            'min_health_score': 0.75,
+            'critical_metrics': ['error_rate']
+        })
+
+    def _check_basic_metrics(self, metrics: Dict[str, float], strategy: Dict[str, Any]) -> Dict[str, Any]:
+        """检查基础指标"""
+        issues = []
+        score = 1.0
+
+        # CPU使用率检查
+        cpu_usage = metrics.get('cpu_usage', 0)
+        if cpu_usage > strategy['cpu_threshold']:
+            issues.append(f"high_cpu_usage_{cpu_usage:.2f}")
+            score -= 0.3
+
+        # 内存使用率检查
+        memory_usage = metrics.get('memory_usage', 0)
+        if memory_usage > strategy['memory_threshold']:
+            issues.append(f"high_memory_usage_{memory_usage:.2f}")
+            score -= 0.3
+
+        # 错误率检查
+        error_rate = metrics.get('error_rate', 0)
+        if error_rate > strategy['error_rate_threshold']:
+            issues.append(f"high_error_rate_{error_rate:.3f}")
+            score -= 0.4
+
+        # 响应时间检查
+        response_time = metrics.get('response_time', 0)
+        if response_time > strategy['response_time_threshold']:
+            issues.append(f"high_response_time_{response_time}")
+            score -= 0.2
+
+        return {
+            'is_healthy': score >= 0.6,
+            'score': max(0, score),
+            'issues': issues
+        }
 
     async def _get_service_specific_metrics(self, service_name: str) -> Dict[str, float]:
         """获取服务特定指标"""
@@ -845,6 +949,152 @@ class AutoRecoveryEngine(ServiceLoggerMixin):
         self.log_operation_info("reload_config", f"Reloading config for {service_name}")
         # 实际的配置重载逻辑
         await asyncio.sleep(1)
+
+    def _categorize_metric_failure_by_type(self, metric_name: str, trend_analysis: Dict[str, Any]) -> FailureCategory:
+        """根据指标类型和趋势分析结果分类故障"""
+        if metric_name in ['error_rate', 'response_time']:
+            return FailureCategory.PERFORMANCE_DEGRADATION
+        elif metric_name in ['cpu_usage', 'memory_usage']:
+            return FailureCategory.RESOURCE_EXHAUSTION
+        elif 'network' in metric_name:
+            return FailureCategory.NETWORK_FAILURE
+        else:
+            return FailureCategory.SERVICE_FAILURE
+
+    def _analyze_metric_trend(self, metric_name: str, values: List[float]) -> Dict[str, Any]:
+        """分析指标趋势"""
+        if len(values) < 3:
+            return {'is_anomalous': False}
+
+        # 计算基本统计量
+        mean_value = sum(values) / len(values)
+        variance = sum((x - mean_value) ** 2 for x in values) / len(values)
+        std_dev = variance ** 0.5
+
+        # 线性回归分析趋势
+        x_values = list(range(len(values)))
+        regression = self._linear_regression_analysis(x_values, values)
+
+        # 检测突变点
+        change_points = self._detect_change_points(values)
+
+        # 异常检测
+        recent_value = values[-1]
+        z_score = (recent_value - mean_value) / max(std_dev, 0.001)
+
+        # 趋势分类
+        trend_type = "stable"
+        if regression['slope'] > 0.1:
+            trend_type = "increasing"
+        elif regression['slope'] < -0.1:
+            trend_type = "decreasing"
+
+        # 异常判断
+        is_anomalous = False
+        symptoms = []
+        severity = 0.0
+        confidence = 0.0
+
+        # 基于Z-score的异常检测
+        if abs(z_score) > 2.5:  # 2.5个标准差
+            is_anomalous = True
+            symptoms.append(f"statistical_outlier_{metric_name}")
+            severity += 0.3
+            confidence += 0.4
+
+        # 基于趋势的异常检测
+        if metric_name in ['error_rate', 'response_time'] and trend_type == "increasing":
+            if regression['slope'] > 0.05 and regression['r_squared'] > 0.6:
+                is_anomalous = True
+                symptoms.append(f"increasing_trend_{metric_name}")
+                severity += 0.4
+                confidence += 0.3
+
+        # 基于阈值的异常检测
+        thresholds = {
+            'error_rate': 0.1,  # 10%错误率
+            'response_time': 5000,  # 5秒响应时间
+            'cpu_usage': 0.9,  # 90% CPU使用率
+            'memory_usage': 0.85  # 85%内存使用率
+        }
+
+        if metric_name in thresholds and recent_value > thresholds[metric_name]:
+            is_anomalous = True
+            symptoms.append(f"threshold_exceeded_{metric_name}")
+            severity += 0.5
+            confidence += 0.5
+
+        # 基于变化点的异常检测
+        if change_points and len(change_points) > 2:  # 多个变化点可能表示不稳定
+            is_anomalous = True
+            symptoms.append(f"high_volatility_{metric_name}")
+            severity += 0.2
+            confidence += 0.2
+
+        return {
+            'is_anomalous': is_anomalous,
+            'symptoms': symptoms,
+            'severity': min(1.0, severity),
+            'confidence': min(1.0, confidence),
+            'trend_type': trend_type,
+            'slope': regression['slope'],
+            'r_squared': regression['r_squared'],
+            'z_score': z_score,
+            'change_points': change_points,
+            'mean': mean_value,
+            'std_dev': std_dev,
+            'recent_value': recent_value
+        }
+
+    def _linear_regression_analysis(self, x_values: List[int], y_values: List[float]) -> Dict[str, float]:
+        """线性回归分析"""
+        n = len(x_values)
+        if n < 2:
+            return {'slope': 0, 'intercept': 0, 'r_squared': 0}
+
+        x_mean = sum(x_values) / n
+        y_mean = sum(y_values) / n
+
+        numerator = sum((x_values[i] - x_mean) * (y_values[i] - y_mean) for i in range(n))
+        denominator = sum((x_values[i] - x_mean) ** 2 for i in range(n))
+
+        if denominator == 0:
+            return {'slope': 0, 'intercept': y_mean, 'r_squared': 0}
+
+        slope = numerator / denominator
+        intercept = y_mean - slope * x_mean
+
+        # 计算R²
+        y_pred = [slope * x + intercept for x in x_values]
+        ss_res = sum((y_values[i] - y_pred[i]) ** 2 for i in range(n))
+        ss_tot = sum((y_values[i] - y_mean) ** 2 for i in range(n))
+
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+
+        return {
+            'slope': slope,
+            'intercept': intercept,
+            'r_squared': max(0, r_squared)
+        }
+
+    def _detect_change_points(self, values: List[float]) -> List[int]:
+        """检测变化点"""
+        if len(values) < 6:
+            return []
+
+        change_points = []
+        window_size = 3
+
+        for i in range(window_size, len(values) - window_size):
+            # 计算前后窗口的均值
+            before_mean = sum(values[i-window_size:i]) / window_size
+            after_mean = sum(values[i:i+window_size]) / window_size
+
+            # 如果均值差异显著，认为是变化点
+            if abs(after_mean - before_mean) > 0.5 * max(before_mean, after_mean):
+                change_points.append(i)
+
+        return change_points
 
     async def _reconnect_network(self, service_name: str):
         """重新连接网络"""

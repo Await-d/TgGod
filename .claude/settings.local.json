@@ -27,7 +27,11 @@
       "mcp__serena__create_text_file",
       "mcp__serena__execute_shell_command",
       "mcp__sequential-thinking__sequentialthinking",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "mcp__serena__replace_symbol_body",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []

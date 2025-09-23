@@ -1,18 +1,34 @@
 """
 Jellyfin NFO 文件生成器
 用于生成符合 Kodi/Jellyfin 标准的元数据文件
+支持完整的媒体元数据解析和NFO生成
 """
 
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 import re
 import os
+import subprocess
 from datetime import datetime
 from typing import Dict, Any, Optional, List
-from ..models.telegram import TelegramMessage, TelegramGroup
-import logging
+from pathlib import Path
 
-logger = logging.getLogger(__name__)
+try:
+    from pymediainfo import MediaInfo
+    PYMEDIAINFO_AVAILABLE = True
+except ImportError:
+    PYMEDIAINFO_AVAILABLE = False
+
+try:
+    import ffmpeg
+    FFMPEG_AVAILABLE = True
+except ImportError:
+    FFMPEG_AVAILABLE = False
+
+from ..models.telegram import TelegramMessage, TelegramGroup
+from ..core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 class JellyfinNFOGenerator:
     """Jellyfin NFO 文件生成器"""
@@ -57,16 +73,277 @@ class JellyfinNFOGenerator:
         
         return cleaned or "untitled"
     
-    def extract_video_duration(self, message: TelegramMessage) -> Optional[int]:
-        """从消息中提取视频时长（分钟）"""
+    def extract_media_info(self, file_path: str) -> Dict[str, Any]:
+        """
+        提取媒体文件的完整元数据信息
+        使用 pymediainfo 和 ffmpeg 进行双重保障
+        """
+        media_info = {
+            'duration_seconds': None,
+            'duration_minutes': None,
+            'width': None,
+            'height': None,
+            'framerate': None,
+            'bitrate': None,
+            'codec': None,
+            'audio_codec': None,
+            'audio_channels': None,
+            'audio_sample_rate': None,
+            'file_size': None,
+            'format': None,
+            'subtitle_tracks': []
+        }
+
+        if not os.path.exists(file_path):
+            logger.warning(f"媒体文件不存在: {file_path}")
+            return media_info
+
         try:
-            # 如果媒体类型是video且有时长信息，可以从这里提取
-            # 这里需要根据实际的媒体信息结构来实现
-            # 暂时返回None，实际实现时需要解析媒体元数据
+            # 获取文件大小
+            media_info['file_size'] = os.path.getsize(file_path)
+
+            # 方法1: 使用 pymediainfo (首选)
+            if PYMEDIAINFO_AVAILABLE:
+                media_info.update(self._extract_with_pymediainfo(file_path))
+
+            # 方法2: 如果 pymediainfo 失败，尝试 ffmpeg
+            if not media_info['duration_seconds'] and FFMPEG_AVAILABLE:
+                media_info.update(self._extract_with_ffmpeg(file_path))
+
+            # 方法3: 如果都失败，尝试 ffprobe 命令行
+            if not media_info['duration_seconds']:
+                media_info.update(self._extract_with_ffprobe(file_path))
+
+            # 计算分钟数
+            if media_info['duration_seconds']:
+                media_info['duration_minutes'] = int(media_info['duration_seconds'] / 60)
+
+            logger.info(f"媒体元数据提取成功: {file_path}",
+                       duration=media_info['duration_seconds'],
+                       resolution=f"{media_info['width']}x{media_info['height']}" if media_info['width'] else None,
+                       codec=media_info['codec'])
+
+        except Exception as e:
+            logger.error(f"提取媒体元数据失败: {file_path}", error=str(e), error_type=type(e).__name__)
+
+        return media_info
+
+    def _extract_with_pymediainfo(self, file_path: str) -> Dict[str, Any]:
+        """使用 pymediainfo 提取媒体信息"""
+        info = {}
+        try:
+            media = MediaInfo.parse(file_path)
+
+            # 通用轨道信息
+            general_track = None
+            video_track = None
+            audio_track = None
+            subtitle_tracks = []
+
+            for track in media.tracks:
+                if track.track_type == 'General':
+                    general_track = track
+                elif track.track_type == 'Video':
+                    video_track = track
+                elif track.track_type == 'Audio' and not audio_track:
+                    audio_track = track
+                elif track.track_type == 'Text':
+                    subtitle_tracks.append(track)
+
+            # 提取时长（优先级：视频轨道 > 音频轨道 > 通用轨道）
+            duration = None
+            if video_track and video_track.duration:
+                duration = video_track.duration / 1000  # 转换为秒
+            elif audio_track and audio_track.duration:
+                duration = audio_track.duration / 1000
+            elif general_track and general_track.duration:
+                duration = general_track.duration / 1000
+
+            if duration:
+                info['duration_seconds'] = duration
+
+            # 视频信息
+            if video_track:
+                info['width'] = video_track.width
+                info['height'] = video_track.height
+                info['framerate'] = video_track.frame_rate
+                info['bitrate'] = video_track.bit_rate
+                info['codec'] = video_track.codec
+
+            # 音频信息
+            if audio_track:
+                info['audio_codec'] = audio_track.codec
+                info['audio_channels'] = audio_track.channel_s
+                info['audio_sample_rate'] = audio_track.sampling_rate
+
+            # 字幕信息
+            info['subtitle_tracks'] = [
+                {
+                    'language': track.language or 'unknown',
+                    'title': track.title or '',
+                    'codec': track.codec or ''
+                }
+                for track in subtitle_tracks
+            ]
+
+            # 格式信息
+            if general_track:
+                info['format'] = general_track.format
+
+            logger.debug(f"pymediainfo 提取成功: {file_path}", extracted_fields=list(info.keys()))
+
+        except Exception as e:
+            logger.warning(f"pymediainfo 提取失败: {file_path}", error=str(e))
+
+        return info
+
+    def _extract_with_ffmpeg(self, file_path: str) -> Dict[str, Any]:
+        """使用 ffmpeg-python 提取媒体信息"""
+        info = {}
+        try:
+            probe = ffmpeg.probe(file_path)
+
+            # 查找视频和音频流
+            video_stream = None
+            audio_stream = None
+
+            for stream in probe['streams']:
+                if stream['codec_type'] == 'video' and not video_stream:
+                    video_stream = stream
+                elif stream['codec_type'] == 'audio' and not audio_stream:
+                    audio_stream = stream
+
+            # 提取时长
+            if 'format' in probe and 'duration' in probe['format']:
+                info['duration_seconds'] = float(probe['format']['duration'])
+            elif video_stream and 'duration' in video_stream:
+                info['duration_seconds'] = float(video_stream['duration'])
+
+            # 视频信息
+            if video_stream:
+                info['width'] = video_stream.get('width')
+                info['height'] = video_stream.get('height')
+                info['codec'] = video_stream.get('codec_name')
+
+                # 提取帧率
+                if 'r_frame_rate' in video_stream:
+                    framerate_str = video_stream['r_frame_rate']
+                    if '/' in framerate_str:
+                        num, den = map(int, framerate_str.split('/'))
+                        if den != 0:
+                            info['framerate'] = num / den
+
+                # 提取比特率
+                if 'bit_rate' in video_stream:
+                    info['bitrate'] = int(video_stream['bit_rate'])
+
+            # 音频信息
+            if audio_stream:
+                info['audio_codec'] = audio_stream.get('codec_name')
+                info['audio_channels'] = audio_stream.get('channels')
+                info['audio_sample_rate'] = audio_stream.get('sample_rate')
+
+            logger.debug(f"ffmpeg-python 提取成功: {file_path}", extracted_fields=list(info.keys()))
+
+        except Exception as e:
+            logger.warning(f"ffmpeg-python 提取失败: {file_path}", error=str(e))
+
+        return info
+
+    def _extract_with_ffprobe(self, file_path: str) -> Dict[str, Any]:
+        """使用 ffprobe 命令行工具提取媒体信息"""
+        info = {}
+        try:
+            # 检查 ffprobe 是否可用
+            result = subprocess.run(['ffprobe', '-version'],
+                                  capture_output=True, text=True, timeout=10)
+            if result.returncode != 0:
+                raise FileNotFoundError("ffprobe not found")
+
+            # 获取媒体信息
+            cmd = [
+                'ffprobe', '-v', 'quiet', '-print_format', 'json',
+                '-show_format', '-show_streams', file_path
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+            if result.returncode == 0:
+                import json
+                data = json.loads(result.stdout)
+
+                # 提取时长
+                if 'format' in data and 'duration' in data['format']:
+                    info['duration_seconds'] = float(data['format']['duration'])
+
+                # 提取流信息
+                if 'streams' in data:
+                    for stream in data['streams']:
+                        if stream['codec_type'] == 'video':
+                            info['width'] = stream.get('width')
+                            info['height'] = stream.get('height')
+                            info['codec'] = stream.get('codec_name')
+
+                            # 帧率
+                            if 'r_frame_rate' in stream:
+                                framerate_str = stream['r_frame_rate']
+                                if '/' in framerate_str:
+                                    num, den = map(int, framerate_str.split('/'))
+                                    if den != 0:
+                                        info['framerate'] = num / den
+
+                        elif stream['codec_type'] == 'audio':
+                            info['audio_codec'] = stream.get('codec_name')
+                            info['audio_channels'] = stream.get('channels')
+                            info['audio_sample_rate'] = stream.get('sample_rate')
+
+                logger.debug(f"ffprobe 命令行提取成功: {file_path}", extracted_fields=list(info.keys()))
+
+        except (subprocess.TimeoutExpired, FileNotFoundError, json.JSONDecodeError) as e:
+            logger.warning(f"ffprobe 命令行提取失败: {file_path}", error=str(e))
+        except Exception as e:
+            logger.warning(f"ffprobe 命令行提取出错: {file_path}", error=str(e))
+
+        return info
+
+    def extract_video_duration(self, message: TelegramMessage) -> Optional[int]:
+        """从消息中提取视频时长（分钟）- 向后兼容方法"""
+        try:
+            # 如果消息有关联的媒体文件路径，尝试提取
+            if hasattr(message, 'media_path') and message.media_path:
+                media_info = self.extract_media_info(message.media_path)
+                return media_info.get('duration_minutes')
+
+            # 如果消息本身包含时长信息
+            if hasattr(message, 'media_duration') and message.media_duration:
+                return int(message.media_duration / 60) if message.media_duration > 60 else 1
+
             return None
         except Exception as e:
             logger.warning(f"提取视频时长失败: {e}")
             return None
+
+    def batch_process_media_files(self, file_paths: List[str],
+                                 progress_callback: Optional[callable] = None) -> Dict[str, Dict[str, Any]]:
+        """批量处理媒体文件，提取元数据"""
+        results = {}
+        total_files = len(file_paths)
+
+        for i, file_path in enumerate(file_paths):
+            try:
+                results[file_path] = self.extract_media_info(file_path)
+
+                if progress_callback:
+                    progress_callback(i + 1, total_files, file_path)
+
+            except Exception as e:
+                logger.error(f"批处理文件 {file_path} 失败", error=str(e))
+                results[file_path] = {}
+
+        logger.info(f"批量处理完成: {len(results)} 个文件",
+                   successful=len([r for r in results.values() if r.get('duration_seconds')]))
+
+        return results
     
     def generate_movie_nfo(self, 
                           message: TelegramMessage, 

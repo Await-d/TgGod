@@ -32,6 +32,7 @@ Version: 1.0.0
 import os
 import logging
 import shutil
+import tempfile
 from typing import Optional, Dict, Any
 from telethon import TelegramClient
 from telethon.errors import AuthKeyUnregisteredError, FloodWaitError
@@ -39,6 +40,7 @@ from ..config import settings
 import asyncio
 from datetime import datetime
 from ..core.logging_config import get_logger
+from ..core.temp_file_manager import temp_file_manager, temp_file
 
 # 使用高性能批处理日志记录器
 logger = get_logger(__name__, use_batch=True)
@@ -226,19 +228,18 @@ class TelegramMediaDownloader:
             logger.info("复制主session到独立文件", target_session=self.session_name, source_session=session_file_path)
             
             # 使用临时文件安全地复制session文件
-            import tempfile
             
             try:
                 # 复制session文件到独立路径，避免并发访问
                 if os.path.exists(f"{main_session_path}.session"):
-                    # 使用临时文件确保原子性复制
-                    with tempfile.NamedTemporaryFile(delete=False, suffix='.session') as temp_file:
+                    # 使用临时文件管理器确保原子性复制
+                    with temp_file(suffix='.session', purpose='session_copy') as temp_path:
                         with open(f"{main_session_path}.session", 'rb') as src:
-                            shutil.copyfileobj(src, temp_file)
-                        temp_path = temp_file.name
-                    
-                    # 原子性移动到目标位置
-                    shutil.move(temp_path, f"{self.session_name}.session")
+                            with open(temp_path, 'wb') as dst:
+                                shutil.copyfileobj(src, dst)
+
+                        # 原子性移动到目标位置
+                        shutil.move(temp_path, f"{self.session_name}.session")
                     
                     # 设置文件权限为可读写，解决只读数据库问题
                     os.chmod(f"{self.session_name}.session", 0o666)
@@ -688,13 +689,8 @@ class TelegramMediaDownloader:
                 return True
                 
             elif media_type == "video":
-                # 视频缩略图（需要ffmpeg或其他工具）
-                # 这里创建一个占位符
-                with open(thumbnail_path, 'wb') as f:
-                    f.write(b'video thumbnail placeholder')
-                
-                logger.info(f"视频缩略图占位符创建: {thumbnail_path}")
-                return True
+                # 视频缩略图生成
+                return await self._generate_video_thumbnail(media_path, thumbnail_path)
             
             else:
                 # 其他类型不生成缩略图
@@ -703,7 +699,180 @@ class TelegramMediaDownloader:
         except Exception as e:
             logger.error(f"生成缩略图失败: {str(e)}")
             return False
-    
+
+    async def _generate_video_thumbnail(self, video_path: str, thumbnail_path: str) -> bool:
+        """
+        生成视频缩略图
+
+        使用ffmpeg-python从视频文件提取关键帧并生成320x180缩略图
+
+        Args:
+            video_path: 视频文件路径
+            thumbnail_path: 缩略图保存路径
+
+        Returns:
+            bool: 生成是否成功
+        """
+        try:
+            import ffmpeg
+            import asyncio
+            from concurrent.futures import ThreadPoolExecutor
+
+            # 确保目标目录存在
+            os.makedirs(os.path.dirname(thumbnail_path), exist_ok=True)
+
+            # 在线程池中执行ffmpeg操作以避免阻塞
+            def _extract_thumbnail():
+                try:
+                    # 获取视频信息
+                    probe = ffmpeg.probe(video_path)
+                    video_stream = next((stream for stream in probe['streams']
+                                       if stream['codec_type'] == 'video'), None)
+
+                    if not video_stream:
+                        logger.error(f"视频文件中未找到视频流: {video_path}")
+                        return False
+
+                    # 获取视频时长
+                    try:
+                        duration = float(video_stream.get('duration', 0))
+                        if duration <= 0:
+                            # 如果流中没有duration，尝试从格式信息获取
+                            format_info = probe.get('format', {})
+                            duration = float(format_info.get('duration', 0))
+                    except (ValueError, TypeError):
+                        duration = 0
+
+                    if duration <= 0:
+                        logger.warning(f"无法获取视频时长，使用10秒作为提取时间点: {video_path}")
+                        seek_time = 10
+                    else:
+                        # 在视频1/3处提取关键帧
+                        seek_time = duration / 3
+                        # 确保不超过视频长度
+                        if seek_time > duration - 1:
+                            seek_time = max(1, duration / 2)
+
+                    logger.debug(f"视频时长: {duration:.2f}秒, 提取时间点: {seek_time:.2f}秒")
+
+                    # 检查视频文件格式支持
+                    supported_formats = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v']
+                    file_ext = os.path.splitext(video_path)[1].lower().lstrip('.')
+
+                    if file_ext not in supported_formats:
+                        logger.warning(f"视频格式可能不支持: {file_ext}")
+
+                    # 构建ffmpeg命令
+                    input_stream = ffmpeg.input(video_path, ss=seek_time)
+
+                    # 输出配置：320x180缩略图，JPEG格式，高质量
+                    output_stream = ffmpeg.output(
+                        input_stream,
+                        thumbnail_path,
+                        vframes=1,  # 只提取一帧
+                        format='image2',
+                        vcodec='mjpeg',
+                        s='320x180',  # 设置输出尺寸
+                        q=2,  # 高质量 (1-31, 1最高质量)
+                        update=1,  # 覆盖已存在的文件
+                        loglevel='error'  # 减少日志输出
+                    )
+
+                    # 执行ffmpeg命令
+                    ffmpeg.run(output_stream, overwrite_output=True, quiet=True)
+
+                    # 验证生成的缩略图文件
+                    if os.path.exists(thumbnail_path) and os.path.getsize(thumbnail_path) > 0:
+                        logger.info(f"视频缩略图生成成功: {thumbnail_path}")
+                        return True
+                    else:
+                        logger.error(f"生成的缩略图文件为空或不存在: {thumbnail_path}")
+                        return False
+
+                except ffmpeg.Error as e:
+                    logger.error(f"FFmpeg错误: {e.stderr.decode() if e.stderr else str(e)}")
+                    return False
+                except Exception as e:
+                    logger.error(f"提取视频缩略图时发生错误: {str(e)}")
+                    return False
+
+            # 使用线程池执行ffmpeg操作
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(executor, _extract_thumbnail)
+                return result
+
+        except ImportError:
+            logger.warning("ffmpeg-python库未安装，尝试使用系统ffmpeg命令")
+            return await self._generate_video_thumbnail_fallback(video_path, thumbnail_path)
+        except FileNotFoundError:
+            logger.error("未找到视频文件，无法生成缩略图")
+            return False
+        except Exception as e:
+            logger.error(f"生成视频缩略图时发生未知错误: {str(e)}")
+            # 尝试备用方案
+            logger.info("尝试使用备用方案生成视频缩略图")
+            return await self._generate_video_thumbnail_fallback(video_path, thumbnail_path)
+
+    async def _generate_video_thumbnail_fallback(self, video_path: str, thumbnail_path: str) -> bool:
+        """
+        备用视频缩略图生成方法（使用系统ffmpeg命令）
+
+        当ffmpeg-python库不可用时使用此方法
+
+        Args:
+            video_path: 视频文件路径
+            thumbnail_path: 缩略图保存路径
+
+        Returns:
+            bool: 生成是否成功
+        """
+        try:
+            import subprocess
+            import shutil
+
+            # 检查系统是否安装了ffmpeg
+            if not shutil.which('ffmpeg'):
+                logger.error("系统未安装ffmpeg，无法生成视频缩略图")
+                return False
+
+            # 确保目标目录存在
+            os.makedirs(os.path.dirname(thumbnail_path), exist_ok=True)
+
+            # 构建ffmpeg命令
+            cmd = [
+                'ffmpeg',
+                '-i', video_path,
+                '-ss', '00:00:10',  # 从10秒处开始
+                '-vframes', '1',  # 只提取一帧
+                '-vf', 'scale=320:180',  # 缩放到320x180
+                '-q:v', '2',  # 高质量
+                '-y',  # 覆盖输出文件
+                thumbnail_path
+            ]
+
+            # 执行命令
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=30  # 30秒超时
+            )
+
+            if result.returncode == 0 and os.path.exists(thumbnail_path):
+                logger.info(f"视频缩略图生成成功（备用方法）: {thumbnail_path}")
+                return True
+            else:
+                logger.error(f"FFmpeg命令执行失败: {result.stderr}")
+                return False
+
+        except subprocess.TimeoutExpired:
+            logger.error("视频缩略图生成超时")
+            return False
+        except Exception as e:
+            logger.error(f"备用方法生成视频缩略图失败: {str(e)}")
+            return False
+
     async def cleanup(self):
         """清理资源，下载完成后调用"""
         try:

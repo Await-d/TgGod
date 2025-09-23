@@ -73,6 +73,8 @@ from ..database import get_db
 from ..models.telegram import TelegramGroup, TelegramMessage
 from ..services.telegram_service import telegram_service
 from ..utils.auth import get_current_active_user
+from ..core.telegram_cache import telegram_cache
+from ..core.session_store import set_auth_session, get_auth_session, delete_auth_session
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -1484,8 +1486,7 @@ class AuthState(BaseModel):
     phone: str
     phone_code_hash: str
     
-# 临时存储认证状态 (生产环境应使用Redis等持久化存储)
-auth_sessions = {}
+# Redis会话存储已集成，使用持久化存储替代内存存储
 
 @router.get("/auth/status", response_model=AuthStatusResponse)
 async def get_auth_status():
@@ -1548,12 +1549,13 @@ async def send_auth_code(request: AuthCodeRequest):
         # 发送验证码并获取phone_code_hash
         result = await telegram_service.client.send_code_request(request.phone)
         
-        # 保存认证状态
+        # 保存认证状态到Redis
         session_key = f"auth_{request.phone}"
-        auth_sessions[session_key] = AuthState(
-            phone=request.phone,
-            phone_code_hash=result.phone_code_hash
-        )
+        auth_data = {
+            "phone": request.phone,
+            "phone_code_hash": result.phone_code_hash
+        }
+        await set_auth_session(session_key, auth_data, ttl=600)  # 10分钟过期
         
         await telegram_service.disconnect()
         
@@ -1573,10 +1575,11 @@ async def login_with_code(request: AuthLoginRequest):
     try:
         # 获取认证状态
         session_key = f"auth_{request.phone}"
-        if session_key not in auth_sessions:
-            raise HTTPException(status_code=400, detail="请先发送验证码")
-        
-        auth_state = auth_sessions[session_key]
+        auth_data = await get_auth_session(session_key)
+        if not auth_data:
+            raise HTTPException(status_code=400, detail="请先发送验证码或验证码已过期")
+
+        phone_code_hash = auth_data.get("phone_code_hash")
         
         # 确保每次都重新初始化客户端
         await telegram_service.disconnect()  # 先断开现有连接
@@ -1587,7 +1590,7 @@ async def login_with_code(request: AuthLoginRequest):
             await telegram_service.client.sign_in(
                 phone=request.phone,
                 code=request.code,
-                phone_code_hash=auth_state.phone_code_hash
+                phone_code_hash=phone_code_hash
             )
         except Exception as auth_error:
             # 检查是否需要两步验证
@@ -1616,8 +1619,7 @@ async def login_with_code(request: AuthLoginRequest):
         await telegram_service.disconnect()
         
         # 清除认证状态
-        if session_key in auth_sessions:
-            del auth_sessions[session_key]
+        await delete_auth_session(session_key)
         
         return {
             "success": True,

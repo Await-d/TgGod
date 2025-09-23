@@ -35,7 +35,7 @@ from typing import List, Optional
 from ..database import get_db
 from ..models.rule import FilterRule, DownloadTask
 from ..models.telegram import TelegramGroup, TelegramMessage
-# from ..services.rule_sync_service import rule_sync_service  # 暂时注释
+from ..services.rule_sync_service import rule_sync_service
 from pydantic import BaseModel
 from datetime import datetime
 import logging
@@ -459,26 +459,25 @@ async def ensure_rule_data_availability(
         raise HTTPException(status_code=500, detail=f"操作失败: {str(e)}")
 
 
-# 暂时注释同步状态相关endpoint
-# @router.get("/rules/{rule_id}/sync-status")
-# async def get_rule_sync_status(
-#     rule_id: int,
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     获取规则的同步状态信息
-#     """
-#     try:
-#         status = await rule_sync_service.get_sync_status(rule_id, db)
-#         return {
-#             "success": True,
-#             "data": status
-#         }
-#     except ValueError as e:
-#         raise HTTPException(status_code=404, detail=str(e))
-#     except Exception as e:
-#         logger.error(f"获取同步状态失败: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"获取同步状态失败: {str(e)}")
+@router.get("/rules/{rule_id}/sync-status")
+async def get_rule_sync_status(
+    rule_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取规则的同步状态信息
+    """
+    try:
+        status = await rule_sync_service.get_sync_status(rule_id, db)
+        return {
+            "success": True,
+            "data": status
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"获取同步状态失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取同步状态失败: {str(e)}")
 
 
 @router.post("/rules/{rule_id}/mark-for-resync")

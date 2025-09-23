@@ -10,6 +10,50 @@
 
 这是一个单服务架构应用，结合了React前端、FastAPI后端和SQLite数据库，用于基于可定制规则从Telegram群组下载媒体文件。
 
+## 平台兼容性改进 🚀
+
+TgGod现已完全支持跨平台自动安装和部署！
+
+### 新增功能
+- **🍺 macOS**: 自动安装Homebrew和所有依赖
+- **🍫 Windows**: 支持Winget和Chocolatey包管理器
+- **🐧 Linux**: 增强的APT包管理和备选安装方法
+- **📦 智能依赖管理**: 自动检测、安装、验证系统依赖
+- **🔄 SQLite迁移**: 支持DROP COLUMN等高级数据库操作
+- **📊 实时进度**: WebSocket实时安装进度通知
+- **🛡️ 错误恢复**: 完整的回滚和错误处理机制
+
+### 平台兼容性测试
+```bash
+# 运行完整的平台兼容性测试
+python test_platform_compatibility.py
+
+# 测试覆盖：
+# ✅ 平台检测和包管理器集成
+# ✅ 服务安装和依赖管理
+# ✅ SQLite迁移和表重建
+# ✅ 错误处理和恢复机制
+```
+
+### 服务管理API
+新增完整的服务管理REST API：
+```bash
+# 获取平台信息
+GET /api/services/platform-info
+
+# 查看安装状态
+GET /api/services/installation-status
+
+# 手动触发安装
+POST /api/services/install
+
+# 运行数据库迁移
+POST /api/services/migrations/run
+
+# 获取详细健康报告
+GET /api/services/health/detailed
+```
+
 ## 开发命令
 
 ### 快速启动

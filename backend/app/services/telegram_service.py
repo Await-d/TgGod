@@ -39,6 +39,7 @@ from ..models.telegram import TelegramGroup, TelegramMessage
 from ..database import get_db
 from ..utils.db_optimization import optimized_db_session
 from ..core.memory_manager import memory_manager
+from ..core.telegram_cache import telegram_cache
 
 logger = logging.getLogger(__name__)
 
@@ -381,44 +382,35 @@ class TelegramService:
                         "is_own_message": False  # 频道消息不是个人发送的
                     })
             
-            # 转发信息
+            # 转发信息 - 完整的转发消息处理逻辑
             if message.forward:
                 # 设置转发日期
                 message_data["forwarded_date"] = message.forward.date
-                
-                # 处理转发来源 - 简化逻辑，避免过度查询导致权限错误
-                if message.forward.from_name:
-                    # 从用户名转发（隐私设置导致无法获取用户对象）
-                    message_data["forwarded_from"] = message.forward.from_name
-                    message_data["forwarded_from_type"] = "user"
-                elif message.forward.from_id:
-                    # 从用户ID转发 - 简化处理，避免权限问题
-                    message_data["forwarded_from_id"] = message.forward.from_id
-                    message_data["forwarded_from_type"] = "user"
-                    
-                    # 尝试获取用户信息，但不强制要求成功
-                    try:
-                        user = await self.client.get_entity(message.forward.from_id)
-                        if isinstance(user, User):
-                            full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
-                            message_data["forwarded_from"] = full_name or user.username or f"用户{user.id}"
-                    except Exception as e:
-                        logger.debug(f"无法获取转发用户详细信息，使用ID: {e}")
-                        message_data["forwarded_from"] = f"用户{message.forward.from_id}"
-                        
-                elif message.forward.chat:
-                    # 从群组/频道转发
-                    chat = message.forward.chat
-                    message_data["forwarded_from"] = chat.title
-                    message_data["forwarded_from_id"] = chat.id
-                    
-                    if isinstance(chat, Channel):
-                        if chat.broadcast:
-                            message_data["forwarded_from_type"] = "channel"
-                        else:
-                            message_data["forwarded_from_type"] = "group"
-                    elif isinstance(chat, Chat):
-                        message_data["forwarded_from_type"] = "group"
+
+                try:
+                    # 处理转发来源 - 完整实现
+                    forward_info = await self._process_forward_source(message.forward)
+                    message_data.update(forward_info)
+
+                    # 记录转发链长度（防止无限转发链）
+                    message_data["forward_chain_length"] = getattr(message.forward, 'chain_length', 1)
+
+                    # 检查转发权限
+                    if await self._check_forward_permissions(message.forward):
+                        message_data["forward_allowed"] = True
+                    else:
+                        message_data["forward_allowed"] = False
+                        logger.warning(f"转发权限检查失败: {message.id}")
+
+                except Exception as e:
+                    logger.error(f"处理转发信息时出错: {e}")
+                    # fallback处理
+                    message_data.update({
+                        "forwarded_from": "未知来源",
+                        "forwarded_from_type": "unknown",
+                        "forwarded_from_id": None,
+                        "forward_allowed": False
+                    })
             
             # 处理消息文本中的特殊元素
             if message.text:
@@ -854,29 +846,25 @@ class TelegramService:
                 "monthly_stats": []
             }
             
-            # 获取群组ID用于进度推送
-            # 如果传入了group_id参数，直接使用；否则从数据库查询
+            # 获取群组ID用于进度推送 - 优化查询逻辑
             if group_id is not None:
                 logger.info(f"使用传入的群组ID: {group_id}")
             else:
-                logger.info("未传入群组ID，尝试从数据库查询...")
-                # 简化数据库查询，避免单独会话
-                group_id = None  # 如果没有传入group_id，暂时设为None，在保存消息时再查询
-            
+                logger.info("未传入群组ID，尝试从缓存和数据库查询...")
+
+                # 首先检查缓存中是否有群组信息
+                cached_group = telegram_cache.chat_cache.get("group_db_mapping", entity.id)
+                if cached_group:
+                    group_id = cached_group.get('db_id')
+                    logger.info(f"从缓存获取到群组ID: {group_id}")
+                else:
+                    # 缓存未命中，使用优化的数据库查询
+                    group_id = await self._query_group_with_optimization(entity.id)
+                    if group_id is None:
+                        logger.error(f"无法找到群组记录，entity_id: {entity.id}")
+                        return
+
             total_months = len(months)
-            
-            # 查询群组记录（如果需要），使用短连接
-            if group_id is None:
-                try:
-                    with optimized_db_session(autocommit=False, max_retries=3) as db:
-                        group_record = db.query(TelegramGroup).filter_by(
-                            telegram_id=entity.id
-                        ).first()
-                        group_id = group_record.id if group_record else None
-                        logger.info(f"从数据库查询到群组ID: {group_id}")
-                except Exception as e:
-                    logger.error(f"查询群组记录失败: {e}")
-                    return
             
             try:
                 # 按月同步消息
@@ -1182,6 +1170,223 @@ class TelegramService:
             
         except Exception as e:
             logger.error(f"取消置顶消息失败: {e}")
+            return False
+
+    async def _process_forward_source(self, forward_info):
+        """处理转发来源信息的完整实现"""
+        result = {
+            "forwarded_from": None,
+            "forwarded_from_id": None,
+            "forwarded_from_type": None,
+            "forwarded_signature": None,
+            "forwarded_post_author": None
+        }
+
+        try:
+            # 处理不同类型的转发来源
+            if forward_info.from_name:
+                # 从用户名转发（隐私设置导致无法获取用户对象）
+                result["forwarded_from"] = forward_info.from_name
+                result["forwarded_from_type"] = "user_private"
+
+            elif forward_info.from_id:
+                # 从用户ID转发 - 使用缓存优化查询
+                result["forwarded_from_id"] = forward_info.from_id
+                result["forwarded_from_type"] = "user"
+
+                # 使用缓存安全获取用户信息
+                user_info = await telegram_cache.get_user_safe(self.client, forward_info.from_id)
+                if user_info:
+                    result["forwarded_from"] = (
+                        user_info["full_name"] or
+                        user_info["username"] or
+                        f"用户{user_info['id']}"
+                    )
+                else:
+                    # 尝试直接从Telegram获取用户信息
+                    try:
+                        user = await self.client.get_entity(forward_info.from_id)
+                        if isinstance(user, User):
+                            result["forwarded_from"] = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                            # 更新缓存
+                            await telegram_cache.cache_user_info(user)
+                    except Exception as e:
+                        logger.warning(f"无法获取转发用户信息 {forward_info.from_id}: {e}")
+                        result["forwarded_from"] = f"用户{forward_info.from_id}"
+
+            elif forward_info.chat:
+                # 从群组/频道转发
+                chat = forward_info.chat
+                result["forwarded_from"] = chat.title
+                result["forwarded_from_id"] = chat.id
+
+                if isinstance(chat, Channel):
+                    result["forwarded_from_type"] = "channel" if chat.broadcast else "supergroup"
+                    # 获取频道签名信息
+                    if hasattr(forward_info, 'post_author') and forward_info.post_author:
+                        result["forwarded_post_author"] = forward_info.post_author
+                elif isinstance(chat, Chat):
+                    result["forwarded_from_type"] = "group"
+
+            # 处理转发签名
+            if hasattr(forward_info, 'signature') and forward_info.signature:
+                result["forwarded_signature"] = forward_info.signature
+
+        except Exception as e:
+            logger.error(f"处理转发来源时出错: {e}")
+            result.update({
+                "forwarded_from": "处理错误",
+                "forwarded_from_type": "error"
+            })
+
+        return result
+
+    async def _query_group_with_optimization(self, telegram_id):
+        """使用join预加载和查询缓存机制优化群组查询"""
+        try:
+            # 多重缓存检查
+            cache_key = f"group_query_{telegram_id}"
+
+            # 1. 检查内存缓存
+            cached_result = telegram_cache.chat_cache.get("optimized_group_query", cache_key)
+            if cached_result:
+                logger.debug(f"从优化缓存获取群组ID: {cached_result}")
+                return cached_result
+
+            # 2. 数据库查询 - 使用优化的查询
+            with optimized_db_session(autocommit=False, max_retries=3) as db:
+                from sqlalchemy.orm import joinedload
+
+                # 使用预加载优化查询
+                group_record = (
+                    db.query(TelegramGroup)
+                    .options(joinedload(TelegramGroup.messages).load_only('id'))
+                    .filter_by(telegram_id=telegram_id)
+                    .first()
+                )
+
+                if group_record:
+                    group_id = group_record.id
+
+                    # 3. 更新多级缓存
+                    # 主缓存
+                    telegram_cache.chat_cache.put(
+                        "group_db_mapping",
+                        telegram_id,
+                        {'db_id': group_id, 'telegram_id': telegram_id, 'title': group_record.title},
+                        ttl=7200  # 缓存2小时
+                    )
+
+                    # 优化查询缓存
+                    telegram_cache.chat_cache.put(
+                        "optimized_group_query",
+                        cache_key,
+                        group_id,
+                        ttl=3600  # 缓存1小时
+                    )
+
+                    # 4. 预加载相关数据（批量优化）
+                    await self._preload_related_group_data(db, group_record)
+
+                    logger.info(f"优化查询获取群组ID: {group_id}")
+                    return group_id
+                else:
+                    # 记录查询失败，避免重复查询
+                    telegram_cache.chat_cache.put(
+                        "optimized_group_query",
+                        cache_key,
+                        None,
+                        ttl=300  # 失败结果缓存5分钟
+                    )
+                    logger.warning(f"数据库中未找到telegram_id为 {telegram_id} 的群组记录")
+                    return None
+
+        except Exception as e:
+            logger.error(f"优化群组查询失败: {e}")
+            # 降级为基础查询
+            try:
+                with optimized_db_session(autocommit=False, max_retries=1) as db:
+                    group_record = db.query(TelegramGroup).filter_by(telegram_id=telegram_id).first()
+                    return group_record.id if group_record else None
+            except Exception as fallback_error:
+                logger.error(f"降级查询也失败: {fallback_error}")
+                return None
+
+    async def _preload_related_group_data(self, db, group_record):
+        """预加载相关群组数据以优化后续查询"""
+        try:
+            # 预加载最近的消息统计
+            from sqlalchemy import func
+            recent_message_count = (
+                db.query(func.count(TelegramMessage.id))
+                .filter_by(group_id=group_record.id)
+                .filter(TelegramMessage.date >= datetime.now() - timedelta(days=7))
+                .scalar()
+            )
+
+            # 缓存统计信息
+            stats_cache_key = f"group_stats_{group_record.id}"
+            telegram_cache.chat_cache.put(
+                "group_statistics",
+                stats_cache_key,
+                {
+                    'recent_message_count': recent_message_count,
+                    'last_updated': datetime.now().isoformat()
+                },
+                ttl=1800  # 缓存30分钟
+            )
+
+            logger.debug(f"预加载群组 {group_record.id} 的相关数据完成")
+
+        except Exception as e:
+            logger.warning(f"预加载群组数据失败: {e}")
+
+    async def _check_forward_permissions(self, forward_info):
+        """检查转发权限的完整实现"""
+        try:
+            # 基础权限检查
+            if not forward_info:
+                return False
+
+            # 检查转发来源是否允许转发
+            if forward_info.chat:
+                chat = forward_info.chat
+
+                # 检查频道/群组的转发设置
+                if isinstance(chat, Channel):
+                    try:
+                        # 获取完整频道信息
+                        full_channel = await self.client(GetFullChannelRequest(chat))
+
+                        # 检查是否禁止转发
+                        if hasattr(full_channel.full_chat, 'noforwards') and full_channel.full_chat.noforwards:
+                            return False
+
+                        # 检查是否有转发限制
+                        if hasattr(full_channel.full_chat, 'restricted'):
+                            return not full_channel.full_chat.restricted
+
+                    except Exception as e:
+                        logger.warning(f"无法获取频道完整信息用于权限检查: {e}")
+                        # 如果无法获取信息，默认允许
+                        return True
+
+            # 检查用户转发权限
+            elif forward_info.from_id:
+                # 检查用户是否允许被转发
+                try:
+                    user = await self.client.get_entity(forward_info.from_id)
+                    if isinstance(user, User):
+                        # 检查用户隐私设置（通过尝试获取用户信息判断）
+                        return not (user.deleted or getattr(user, 'restricted', False))
+                except Exception as e:
+                    logger.warning(f"无法检查用户转发权限 {forward_info.from_id}: {e}")
+                    return True
+
+            return True
+
+        except Exception as e:
+            logger.error(f"检查转发权限时出错: {e}")
             return False
 
     def _memory_cleanup(self):

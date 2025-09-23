@@ -459,3 +459,105 @@ async def force_health_check():
     except Exception as e:
         logger.error(f"强制健康检查失败: {e}")
         raise HTTPException(status_code=500, detail=f"强制健康检查失败: {str(e)}")
+
+
+@router.get("/temp-file-manager/status")
+async def get_temp_file_manager_status():
+    """获取临时文件管理器状态"""
+    try:
+        from ..core.temp_file_manager import temp_file_manager
+
+        stats = temp_file_manager.get_stats()
+        files = temp_file_manager.list_files()
+
+        # 按用途分组文件
+        files_by_purpose = {}
+        for file_info in files:
+            purpose = file_info.purpose or "unknown"
+            if purpose not in files_by_purpose:
+                files_by_purpose[purpose] = []
+            files_by_purpose[purpose].append({
+                "path": file_info.path,
+                "size": file_info.size,
+                "created_at": file_info.created_at.isoformat(),
+                "last_accessed": file_info.last_accessed.isoformat(),
+                "locked": file_info.locked,
+                "ref_count": file_info.ref_count
+            })
+
+        return {
+            "success": True,
+            "data": {
+                "stats": stats,
+                "files_by_purpose": files_by_purpose,
+                "cleanup_status": {
+                    "auto_cleanup_enabled": temp_file_manager.config.auto_cleanup,
+                    "cleanup_thread_active": temp_file_manager._cleanup_thread.is_alive() if temp_file_manager._cleanup_thread else False
+                }
+            },
+            "message": "临时文件管理器状态获取成功"
+        }
+
+    except Exception as e:
+        logger.error(f"获取临时文件管理器状态失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取状态失败: {str(e)}")
+
+
+@router.post("/temp-file-manager/cleanup")
+async def cleanup_temp_files(force: bool = Query(False, description="是否强制清理所有文件")):
+    """手动清理临时文件"""
+    try:
+        from ..core.temp_file_manager import temp_file_manager
+
+        removed_count = temp_file_manager.cleanup_all(force=force)
+
+        return {
+            "success": True,
+            "data": {
+                "removed_files": removed_count,
+                "force_cleanup": force,
+                "timestamp": datetime.now().isoformat()
+            },
+            "message": f"临时文件清理完成，删除了 {removed_count} 个文件"
+        }
+
+    except Exception as e:
+        logger.error(f"临时文件清理失败: {e}")
+        raise HTTPException(status_code=500, detail=f"清理失败: {str(e)}")
+
+
+@router.get("/temp-file-manager/files")
+async def list_temp_files(purpose: Optional[str] = Query(None, description="按用途过滤文件")):
+    """列出临时文件"""
+    try:
+        from ..core.temp_file_manager import temp_file_manager
+
+        files = temp_file_manager.list_files(purpose=purpose)
+
+        file_list = []
+        for file_info in files:
+            file_list.append({
+                "path": file_info.path,
+                "size": file_info.size,
+                "size_formatted": temp_file_manager._format_size(file_info.size),
+                "created_at": file_info.created_at.isoformat(),
+                "last_accessed": file_info.last_accessed.isoformat(),
+                "purpose": file_info.purpose,
+                "locked": file_info.locked,
+                "ref_count": file_info.ref_count,
+                "metadata": file_info.metadata
+            })
+
+        return {
+            "success": True,
+            "data": {
+                "files": file_list,
+                "total_count": len(file_list),
+                "filter_purpose": purpose
+            },
+            "message": f"找到 {len(file_list)} 个临时文件"
+        }
+
+    except Exception as e:
+        logger.error(f"列出临时文件失败: {e}")
+        raise HTTPException(status_code=500, detail=f"列出文件失败: {str(e)}")

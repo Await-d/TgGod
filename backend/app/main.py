@@ -23,7 +23,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from .database import engine, Base
 from .config import settings, init_settings
-from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check, download_history, real_data_api, data_initialization, complete_health_monitoring
+from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check, download_history, real_data_api, data_initialization, complete_health_monitoring, services
 from .tasks.message_sync import message_sync_task
 import logging
 import os
@@ -104,10 +104,12 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("🔍 开始检查和安装必要服务...")
         
-        from .services.service_installer import run_service_installation
+        from .services.service_installer import service_installer
         
-        # 运行服务安装检查
-        installation_result = await run_service_installation()
+        # 运行服务安装检查 - 使用增强版服务安装器，支持WebSocket进度通知
+        # 为service_installer添加WebSocket管理器支持
+        service_installer.progress_reporter.websocket_manager = websocket_manager
+        installation_result = await service_installer.check_and_install_all()
         
         if installation_result["success"]:
             logger.info("✅ 服务依赖检查完成")
@@ -150,6 +152,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"服务监控器启动失败: {e}")
         logger.warning("服务监控功能不可用，但系统将继续运行")
+
+    # 🚀 初始化Redis会话存储
+    try:
+        from .core.session_store import get_session_store
+        session_store = await get_session_store()
+        logger.info("✅ Redis会话存储初始化成功")
+    except Exception as e:
+        logger.error(f"Redis会话存储初始化失败: {e}")
+        logger.warning("会话存储功能可能不可用，建议检查Redis连接")
 
     # 🚀 启动完整健康监控和自动恢复系统
     try:
@@ -435,6 +446,35 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to initialize real data provider: {e}")
             logger.warning("Real data provider disabled, some features may not work")
 
+        # 注册服务到服务定位器
+        try:
+            from .core.service_locator import service_locator, ServiceConfig
+            from .services.task_execution_service import TaskExecutionService
+            from .core.temp_file_manager import temp_file_manager
+
+            # 注册临时文件管理器
+            service_locator.register(
+                'temp_file_manager',
+                instance=temp_file_manager,
+                config=ServiceConfig(singleton=True)
+            )
+
+            # 注册任务执行服务
+            task_execution_service = TaskExecutionService()
+            service_locator.register(
+                'task_execution_service',
+                instance=task_execution_service,
+                config=ServiceConfig(singleton=True)
+            )
+
+            # 初始化任务执行服务
+            await task_execution_service.initialize()
+            logger.info("Services registered and initialized successfully")
+
+        except Exception as e:
+            logger.error(f"Failed to register services: {e}")
+            logger.warning("Service registration failed, some features may not work")
+
         # 启动任务调度器
         try:
             from .services.task_scheduler import task_scheduler
@@ -506,6 +546,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("停止消息同步任务失败", error=str(e), component="message_sync")
 
+    # 关闭Redis会话存储
+    try:
+        from .core.session_store import close_session_store
+        await close_session_store()
+        logger.info("Redis会话存储关闭成功", component="session_store")
+    except Exception as e:
+        logger.error("关闭Redis会话存储失败", error=str(e), component="session_store")
+
     # 停止完整健康监控和自动恢复系统
     try:
         from .services.complete_health_monitoring import stop_complete_health_monitoring
@@ -537,6 +585,14 @@ async def lifespan(app: FastAPI):
         logger.info("真实数据提供者清理成功", component="real_data_provider")
     except Exception as e:
         logger.error("清理真实数据提供者失败", error=str(e), component="real_data_provider")
+
+    # 关闭临时文件管理器
+    try:
+        from .core.temp_file_manager import temp_file_manager
+        temp_file_manager.shutdown()
+        logger.info("临时文件管理器关闭成功", component="temp_file_manager")
+    except Exception as e:
+        logger.error("关闭临时文件管理器失败", error=str(e), component="temp_file_manager")
 
     # 关闭批处理日志系统（确保所有日志被写入）
     try:
@@ -794,6 +850,9 @@ app.include_router(data_initialization.router, tags=["data_initialization"])
 
 # 完整健康监控和自动恢复API
 app.include_router(complete_health_monitoring.router, prefix="/api", tags=["complete_health_monitoring"])
+
+# 服务管理和迁移API
+app.include_router(services.router, prefix="/api/services", tags=["services"])
 
 # 根路径
 @app.get("/")
