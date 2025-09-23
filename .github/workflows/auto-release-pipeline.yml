@@ -92,6 +92,12 @@ jobs:
           git add VERSION
           git commit -m "chore: bump version to ${{ steps.calc_version.outputs.new_version }} [skip ci]"
 
+      - name: Install pnpm
+        if: steps.check_changes.outputs.needs_version_bump == 'true'
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
       - name: Set up Node.js
         if: steps.check_changes.outputs.needs_version_bump == 'true'
         uses: actions/setup-node@v4
@@ -99,10 +105,6 @@ jobs:
           node-version: '18'
           cache: 'pnpm'
           cache-dependency-path: 'frontend/pnpm-lock.yaml'
-
-      - name: Install pnpm
-        if: steps.check_changes.outputs.needs_version_bump == 'true'
-        run: npm install -g pnpm
 
       - name: Build frontend
         if: steps.check_changes.outputs.needs_version_bump == 'true'
