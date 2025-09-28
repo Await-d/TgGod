@@ -44,11 +44,10 @@ import { message } from 'antd';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
-const { TabPane } = Tabs;
 
 const Logs: React.FC = () => {
   const [messageApi, contextHolder] = message.useMessage();
-  const { logs, addLog, clearLogs } = useLogStore();
+  const { addLog, clearLogs } = useLogStore();
   const { setLoading, setError } = useGlobalStore();
   const [filteredLogs, setFilteredLogs] = React.useState<LogEntry[]>([]);
   const [levelFilter, setLevelFilter] = React.useState<'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | ''>('');
@@ -132,7 +131,7 @@ const Logs: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [setLoading, setError, levelFilter, searchText, timeRange, activeTab, messageApi]);
+  }, [setLoading, setError, levelFilter, searchText, timeRange, activeTab, messageApi, retryCount]);
 
   // 初始加载
   React.useEffect(() => {
@@ -183,7 +182,7 @@ const Logs: React.FC = () => {
     });
     
     return unsubscribe;
-  }, [setLoading, setError, messageApi, addLog]); // 移除 loadLogs 依赖
+  }, [setLoading, setError, messageApi, addLog, activeTab, levelFilter, searchText, timeRange, pagination]); // 移除 loadLogs 依赖
 
   // 自动刷新
   React.useEffect(() => {
@@ -200,7 +199,7 @@ const Logs: React.FC = () => {
       clearInterval(refreshInterval);
       setRefreshInterval(null);
     }
-  }, [autoRefresh, activeTab, levelFilter, searchText, timeRange, loadLogs, pagination.current, pagination.pageSize]);
+  }, [autoRefresh, activeTab, levelFilter, searchText, timeRange, loadLogs, pagination, refreshInterval]);
 
   // 筛选参数变化时重新加载
   React.useEffect(() => {

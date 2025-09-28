@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   List,
@@ -9,7 +9,6 @@ import {
   Button,
   Select,
   Input,
-  DatePicker,
   Row,
   Col,
   Empty,
@@ -21,9 +20,6 @@ import {
 } from 'antd';
 import {
   ReloadOutlined,
-  SearchOutlined,
-  FilterOutlined,
-  DownloadOutlined,
   ExclamationCircleOutlined,
   InfoCircleOutlined,
   WarningOutlined,
@@ -34,8 +30,7 @@ import {
 import { logApi, taskApi } from '../../services/apiService';
 import { LogEntry, DownloadTask } from '../../types';
 
-const { Text, Title } = Typography;
-const { RangePicker } = DatePicker;
+const { Text } = Typography;
 const { Option } = Select;
 const { Search } = Input;
 
@@ -61,7 +56,7 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
   const [logDetailVisible, setLogDetailVisible] = useState(false);
 
   // 获取任务日志
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
       const params = {
@@ -69,7 +64,7 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
         task_id: selectedTaskId,
         limit: 100
       };
-      
+
       const logsData = await logApi.getTaskLogs(params);
       setLogs(logsData);
     } catch (error: any) {
@@ -77,7 +72,7 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, selectedTaskId]);
 
   // 获取任务列表
   const loadTasks = async () => {
@@ -155,7 +150,7 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefresh, selectedTaskId, filters]);
+  }, [autoRefresh, loadLogs]);
 
   // 初始化加载
   useEffect(() => {
@@ -166,7 +161,7 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
     if (selectedTaskId) {
       loadLogs();
     }
-  }, [selectedTaskId, filters]);
+  }, [selectedTaskId, loadLogs]);
 
   return (
     <div>

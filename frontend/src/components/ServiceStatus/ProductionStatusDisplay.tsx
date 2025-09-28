@@ -6,16 +6,16 @@ import {
   Badge,
   Space,
   Typography,
-  Tooltip,
   Progress,
   Row,
   Col,
   Spin,
-  Divider,
   Tag,
   Modal,
   List,
   Statistic,
+  // Tooltip,  // 未使用，已注释
+  // Divider   // 未使用，已注释
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -24,17 +24,14 @@ import {
   WarningOutlined,
   InfoCircleOutlined,
   ReloadOutlined,
-  SettingOutlined,
   MonitorOutlined,
-  DatabaseOutlined,
-  CloudServerOutlined,
   GlobalOutlined,
   ApiOutlined,
 } from '@ant-design/icons';
 import { useGlobalStore } from '../../store';
 import { webSocketService } from '../../services/websocket';
 
-const { Text, Title } = Typography;
+const { Text /* Title */ } = Typography; // Title 暂时未使用
 
 interface ServiceHealth {
   name: string;
@@ -72,7 +69,7 @@ const ProductionStatusDisplay: React.FC<ProductionStatusDisplayProps> = ({
   compact = false,
   showDetails = true,
 }) => {
-  const { connectionStatus, setConnectionStatus, setError } = useGlobalStore();
+  const { setConnectionStatus, setError } = useGlobalStore();
 
   // Service health states
   const [services, setServices] = useState<ServiceHealth[]>([]);

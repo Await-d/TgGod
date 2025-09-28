@@ -22,7 +22,6 @@ import {
   BellOutlined,
   DownloadOutlined,
   ClockCircleOutlined,
-  EyeOutlined,
   CodeOutlined
 } from '@ant-design/icons';
 import { useUserSettingsStore } from '../../store/userSettingsStore';

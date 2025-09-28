@@ -12,7 +12,6 @@ import {
   Statistic,
   Spin,
   Modal,
-  Progress,
   message,
   Descriptions,
   Collapse
@@ -29,7 +28,7 @@ import {
 } from '@ant-design/icons';
 import api from '../services/apiService';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Panel } = Collapse;
 
 interface DatabaseHealth {
@@ -169,18 +168,6 @@ const DatabaseStatus: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'healthy':
-        return 'success';
-      case 'needs_repair':
-        return 'warning';
-      case 'error':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
 
   // 构建表格数据
   const getTableColumns = () => [

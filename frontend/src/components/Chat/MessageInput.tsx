@@ -16,9 +16,7 @@ import {
   CloseOutlined,
   MessageOutlined 
 } from '@ant-design/icons';
-import { TelegramGroup, TelegramMessage } from '../../types';
 import { MessageInputProps } from '../../types/chat';
-import { messageApi } from '../../services/apiService';
 import './MessageInput.css';
 
 const { TextArea } = Input;

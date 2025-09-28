@@ -73,7 +73,7 @@ const App: React.FC = () => {
     return () => {
       webSocketService.disconnect();
     };
-  }, [setError, isAuthenticated, initializeAuth]);
+  }, [setError, isAuthenticated, initializeAuth, setConnectionStatus]);
 
   return (
     <ThemeProvider>

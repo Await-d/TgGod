@@ -1,13 +1,9 @@
 import React, { useState } from 'react';
 import { Button, Tooltip, message as antMessage } from 'antd';
-import { 
-  DownloadOutlined, 
-  EyeOutlined, 
-  PlayCircleOutlined,
-  FileImageOutlined,
-  VideoCameraOutlined,
-  FileTextOutlined,
-  AudioOutlined
+import {
+  DownloadOutlined,
+  EyeOutlined,
+  PlayCircleOutlined
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
 import { mediaApi } from '../../services/apiService';
@@ -29,21 +25,6 @@ const MediaButton: React.FC<MediaButtonProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
 
-  // 获取媒体类型图标
-  const getMediaIcon = (mediaType: string) => {
-    switch (mediaType) {
-      case 'photo': 
-        return action === 'preview' ? <EyeOutlined /> : <FileImageOutlined />;
-      case 'video': 
-        return action === 'preview' ? <PlayCircleOutlined /> : <VideoCameraOutlined />;
-      case 'document': 
-        return <FileTextOutlined />;
-      case 'audio': 
-        return <AudioOutlined />;
-      default: 
-        return action === 'preview' ? <EyeOutlined /> : <DownloadOutlined />;
-    }
-  };
 
   // 下载媒体文件
   const handleDownload = async () => {
@@ -94,13 +75,12 @@ const MediaButton: React.FC<MediaButtonProps> = ({
     return null;
   }
 
-  const tooltipTitle = action === 'preview' ? '预览' : '下载';
-  const icon = action === 'preview' ? 
+  const icon = action === 'preview' ?
     (message.media_type === 'video' ? <PlayCircleOutlined /> : <EyeOutlined />) :
     <DownloadOutlined />;
 
   return (
-    <Tooltip title={tooltipTitle}>
+    <Tooltip title={action === 'preview' ? '预览' : '下载'}>
       <Button
         type={type}
         size={size}

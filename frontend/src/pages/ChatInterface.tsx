@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Layout, Typography, Drawer, Button, message as antMessage, Modal } from 'antd';
-import { MenuOutlined, CloseOutlined } from '@ant-design/icons';
+import { Layout, Button, message as antMessage, Modal, Empty, Drawer } from 'antd';
+import { MenuOutlined } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../types';
 import { ChatState, MessageFilter } from '../types/chat';
 import { clearFilter } from '../utils/filterUtils';
-import { useTelegramStore, useAuthStore } from '../store';
-import { webSocketService } from '../services/websocket';
+import { useAuthStore } from '../store';
 import { messageApi, telegramApi, mediaApi } from '../services/apiService';
 import { useMobileGestures, useIsMobile, useKeyboardHeight } from '../hooks/useMobileGestures';
-// import { useChatPageScrollControl } from '../hooks/usePageScrollControl';
 import { useChatGroupNavigation } from '../hooks/useGroupNavigation';
 import { useRealTimeMessages } from '../hooks/useRealTimeMessages';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-import { useLocation, useSearchParams } from 'react-router-dom';  // 新增导入
+import { useSearchParams } from 'react-router-dom';
 import GroupList from '../components/Chat/GroupList';
 import MessageArea from '../components/Chat/MessageArea';
 import MessageInput from '../components/Chat/MessageInput';
@@ -22,20 +20,13 @@ import MessageSearchDrawer from '../components/Chat/MessageSearchDrawer';
 import MessageDownloadModal from '../components/Chat/MessageDownloadModal';
 import GroupSettingsModal from '../components/Chat/GroupSettingsModal';
 import QuickRuleModal from '../components/Chat/QuickRuleModal';
-import MessageHighlight from '../components/Chat/MessageHighlight';
-import MediaPreview from '../components/Chat/MediaPreview';
-import VoiceMessage from '../components/Chat/VoiceMessage';
-import MessageQuoteForward, { QuotedMessage } from '../components/Chat/MessageQuoteForward';
+import { QuotedMessage } from '../components/Chat/MessageQuoteForward';
 import ConcurrentDownloadManager from '../components/Download/ConcurrentDownloadManager';
 import './ChatInterface.css';
 import { useNavigationHistory } from '../hooks/useNavigationHistory';
-import { Empty } from 'antd';
-
-const { Title } = Typography;
 
 const ChatInterface: React.FC = () => {
   // 添加URL相关hooks
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // 页面滚动控制 - 移除，允许正常滚动
@@ -55,22 +46,16 @@ const ChatInterface: React.FC = () => {
     groups,
     messages,
     selectGroup,
-    clearGroupSelection,
     navigateToGroup,
-    setMessages,
-    mergeMessages,
-    prependMessages
+    mergeMessages
   } = useChatGroupNavigation();
 
-  // 从 store 获取 addGroup 方法
-  const { addGroup } = useTelegramStore();
+
 
   // 实时消息管理 - 新增
   const {
     connectionStatus,
-    isConnected,
-    fetchLatestMessages,
-    reconnect
+    fetchLatestMessages
   } = useRealTimeMessages(selectedGroup);
 
   // 状态管理
@@ -87,12 +72,8 @@ const ChatInterface: React.FC = () => {
   const {
     isLoadingMore,
     hasMore,
-    currentPage,
-    totalLoaded,
     loadMore,
     reset: resetInfiniteScroll,
-    scrollToTop,
-    scrollToBottom,
     autoScrollToBottom
   } = useInfiniteScroll(
     chatContainerRef,
@@ -105,7 +86,6 @@ const ChatInterface: React.FC = () => {
     },
     {
       threshold: 100,
-      debounceDelay: 300,
       pageSize: 50,
       preloadThreshold: 3,
       maxPages: 50
@@ -150,9 +130,9 @@ const ChatInterface: React.FC = () => {
 
   const [replyTo, setReplyTo] = useState<TelegramMessage | null>(null);
   const [quotedMessage, setQuotedMessage] = useState<TelegramMessage | null>(null);
-  const [contacts, setContacts] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(false);
-  const [showQuickActions, setShowQuickActions] = useState(false);
+
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [showSearchDrawer, setShowSearchDrawer] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
@@ -160,7 +140,7 @@ const ChatInterface: React.FC = () => {
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [showConcurrentDownloadManager, setShowConcurrentDownloadManager] = useState(false);
   const [ruleBaseMessage, setRuleBaseMessage] = useState<TelegramMessage | null>(null);
-  const [globalError, setGlobalError] = useState<string | null>(null);
+
   
   // 🔥 新增：多选下载功能
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
@@ -321,7 +301,7 @@ const ChatInterface: React.FC = () => {
         }
       }
     }
-  }, [groups.length, searchParams, setSearchParams, selectGroup, selectedGroup]);
+  }, [groups, searchParams, setSearchParams, selectGroup, selectedGroup]);
 
   // 确保用户手动点击群组时会保存记录
   useEffect(() => {
@@ -420,23 +400,23 @@ const ChatInterface: React.FC = () => {
     }
   }, [isMobile, selectGroup]);
 
-  // 增强群组选择函数，添加历史记录
-  const enhancedSelectGroup = useCallback((group: TelegramGroup | null) => {
-    if (group) {
-      // 添加到导航历史
-      addHistory({
-        type: 'group',
-        groupId: group.id,
-        title: group.title
-      });
+  // 这个函数暂时保留备用
+  // const enhancedSelectGroup = useCallback((group: TelegramGroup | null) => {
+  //   if (group) {
+  //     // 添加到导航历史
+  //     addHistory({
+  //       type: 'group',
+  //       groupId: group.id,
+  //       title: group.title
+  //     });
 
-      // 调用原有的选择群组函数
-      selectGroup(group);
-    } else {
-      // 清除选择
-      selectGroup(null);
-    }
-  }, [selectGroup, addHistory]);
+  //     // 调用原有的选择群组函数
+  //     selectGroup(group);
+  //   } else {
+  //     // 清除选择
+  //     selectGroup(null);
+  //   }
+  // }, [selectGroup, addHistory]);
 
   // 处理返回导航
   const handleNavigateBack = useCallback(() => {
@@ -476,20 +456,20 @@ const ChatInterface: React.FC = () => {
     // 移除置顶消息相关逻辑
   }, []);
 
-  // 处理跳转完成
-  const handleJumpComplete = useCallback(() => {
-    setJumpToMessageId(null);
-  }, []);
+  // 处理跳转完成 - 暂时注释，备用
+  // const handleJumpComplete = useCallback(() => {
+  //   setJumpToMessageId(null);
+  // }, []);
 
-  // 处理消息回复
-  const handleReply = useCallback((message: TelegramMessage) => {
-    setReplyTo(message);
-  }, []);
+  // 处理消息回复 - 暂时注释，备用
+  // const handleReply = useCallback((message: TelegramMessage) => {
+  //   setReplyTo(message);
+  // }, []);
 
-  // 处理消息引用
-  const handleQuote = useCallback((message: TelegramMessage) => {
-    setQuotedMessage(message);
-  }, []);
+  // 处理消息引用 - 暂时注释，备用
+  // const handleQuote = useCallback((message: TelegramMessage) => {
+  //   setQuotedMessage(message);
+  // }, []);
 
   // 处理消息转发
   const handleForward = useCallback(async (message: TelegramMessage, targets: string[], comment?: string) => {
@@ -567,11 +547,11 @@ const ChatInterface: React.FC = () => {
     setQuotedMessage(null);
   }, []);
 
-  // 处理快捷创建规则
-  const handleCreateQuickRule = useCallback((message: TelegramMessage) => {
-    setRuleBaseMessage(message);
-    setShowRuleModal(true);
-  }, []);
+  // 处理快捷创建规则 - 暂时注释，备用
+  // const handleCreateQuickRule = useCallback((message: TelegramMessage) => {
+  //   setRuleBaseMessage(message);
+  //   setShowRuleModal(true);
+  // }, []);
 
   // 处理筛选应用
   const handleApplyFilter = useCallback((filter: MessageFilter) => {

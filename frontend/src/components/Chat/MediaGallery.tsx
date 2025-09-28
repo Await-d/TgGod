@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Modal, Button, Space, Carousel, Image, Typography, message as notification } from 'antd';
+import { Modal, Button, Space, Typography, message as notification } from 'antd';
 import {
   CloseOutlined,
   DownloadOutlined,
@@ -42,7 +42,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
 }) => {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(currentIndex);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  // const [isFullscreen, setIsFullscreen] = useState(false);
   const [imageScale, setImageScale] = useState(1);
   const [imageRotation, setImageRotation] = useState(0);
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -246,75 +246,43 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
     setActiveIndex(currentIndex);
   }, [currentIndex]);
 
-  // 键盘导航
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (!visible) return;
-
-      switch (e.key) {
-        case 'Escape':
-          onClose();
-          break;
-        case 'ArrowLeft':
-          goToPrevious();
-          break;
-        case 'ArrowRight':
-          goToNext();
-          break;
-        case 'f':
-        case 'F':
-          toggleFullscreen();
-          break;
-        case ' ':
-          e.preventDefault();
-          if (getCurrentItem()?.type === 'video') {
-            toggleVideoPlayback();
-          }
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [visible, activeIndex, mediaItems]);
+  // 重置视图状态
+  const resetViewState = useCallback(() => {
+    setImageScale(1);
+    setImageRotation(0);
+    setVideoPlaying(false);
+  }, []);
 
   // 获取当前媒体项
-  const getCurrentItem = (): MediaItem | null => {
+  const getCurrentItem = useCallback((): MediaItem | null => {
     return mediaItems[activeIndex] || null;
-  };
+  }, [mediaItems, activeIndex]);
 
   // 导航功能
-  const goToPrevious = () => {
+  const goToPrevious = useCallback(() => {
     const newIndex = activeIndex > 0 ? activeIndex - 1 : mediaItems.length - 1;
     setActiveIndex(newIndex);
     onIndexChange?.(newIndex);
     resetViewState();
-  };
+  }, [activeIndex, mediaItems.length, onIndexChange, resetViewState]);
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     const newIndex = activeIndex < mediaItems.length - 1 ? activeIndex + 1 : 0;
     setActiveIndex(newIndex);
     onIndexChange?.(newIndex);
     resetViewState();
-  };
-
-  // 重置视图状态
-  const resetViewState = () => {
-    setImageScale(1);
-    setImageRotation(0);
-    setVideoPlaying(false);
-  };
+  }, [activeIndex, mediaItems.length, onIndexChange, resetViewState]);
 
   // 全屏切换
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
+      // setIsFullscreen(true);
     } else {
       document.exitFullscreen();
-      setIsFullscreen(false);
+      // setIsFullscreen(false);
     }
-  };
+  }, []);
 
   // 图片控制
   const zoomIn = () => setImageScale(prev => Math.min(prev + 0.25, 3));
@@ -322,7 +290,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
   const rotateImage = () => setImageRotation(prev => prev + 90);
 
   // 视频控制
-  const toggleVideoPlayback = () => {
+  const toggleVideoPlayback = useCallback(() => {
     const video = document.querySelector('.gallery-video') as HTMLVideoElement;
     if (video) {
       if (video.paused) {
@@ -333,7 +301,7 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
         setVideoPlaying(false);
       }
     }
-  };
+  }, []);
 
   // 下载当前媒体
   const downloadCurrentMedia = () => {
@@ -519,6 +487,38 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
       </div>
     );
   };
+
+  // 键盘导航
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!visible) return;
+
+      switch (e.key) {
+        case 'Escape':
+          onClose();
+          break;
+        case 'ArrowLeft':
+          goToPrevious();
+          break;
+        case 'ArrowRight':
+          goToNext();
+          break;
+        case 'f':
+        case 'F':
+          toggleFullscreen();
+          break;
+        case ' ':
+          e.preventDefault();
+          if (getCurrentItem()?.type === 'video') {
+            toggleVideoPlayback();
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [visible, onClose, goToPrevious, goToNext, toggleFullscreen, getCurrentItem, toggleVideoPlayback]);
 
   if (!visible || mediaItems.length === 0) {
     return null;

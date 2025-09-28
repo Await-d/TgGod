@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   List,
@@ -56,12 +56,12 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
   const [currentLogType, setCurrentLogType] = useState<'all' | 'system' | 'task'>(logType);
 
   // 获取日志
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       let logsData: LogEntry[] = [];
-      
+
       if (currentLogType === 'all') {
         // 获取最近的混合日志
         logsData = await logApi.getRecentLogs(100, 'all');
@@ -78,15 +78,15 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
           limit: 100
         });
       }
-      
+
       setLogs(logsData);
     } catch (error: any) {
-      console.error('加载日志失败:', error);  
+      console.error('加载日志失败:', error);
       message.error(`加载日志失败: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentLogType, filters]);
 
   // 获取日志级别图标
   const getLogLevelIcon = (level: string) => {
@@ -159,12 +159,12 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [autoRefresh, currentLogType, filters]);
+  }, [autoRefresh, loadLogs]);
 
   // 初始化加载
   useEffect(() => {
     loadLogs();
-  }, [currentLogType, filters]);
+  }, [loadLogs]);
 
   return (
     <div>

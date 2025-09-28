@@ -27,8 +27,7 @@ const AutoDownloadImagePreview: React.FC<AutoDownloadImagePreviewProps> = ({
     downloadProgress,
     downloadUrl,
     error,
-    isEligibleForAutoDownload,
-    fileSizeMB
+    isEligibleForAutoDownload
   } = useImageAutoDownload(message, {
     maxSize: maxAutoDownloadSize,
     enabled: true

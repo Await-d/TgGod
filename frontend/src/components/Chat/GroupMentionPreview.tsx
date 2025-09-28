@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, Typography, Avatar, Space, Button, message as notification } from 'antd';
 import { TeamOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
 import { telegramApi } from '../../services/apiService';

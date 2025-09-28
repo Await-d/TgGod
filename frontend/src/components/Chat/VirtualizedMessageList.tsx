@@ -255,7 +255,7 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
         }
       });
     }
-  }, [messages.length, hasInitialized, onScrollPositionChange]);
+  }, [messages, hasInitialized, onScrollPositionChange]);
 
   // 检测滚动位置是否在底部
   const checkIfNearBottom = useCallback(() => {
@@ -386,7 +386,7 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
       previousMessageCount.current = currentCount;
       lastMessageId.current = currentLastMessageId;
     }
-  }, [messages.length, hasInitialized, checkIfNearBottom, onScrollPositionChange]);
+  }, [messages, hasInitialized, checkIfNearBottom, onScrollPositionChange]);
 
   return (
     <div

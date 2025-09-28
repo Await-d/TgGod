@@ -1,4 +1,4 @@
-import api from './apiService';
+// 暂时移除API依赖，使用本地存储
 
 export interface UserSettings {
   language: string;
@@ -36,36 +36,23 @@ export const userSettingsService = {
   // 获取用户设置
   getUserSettings: async (): Promise<UserSettings> => {
     try {
-      // 尝试从后端获取设置
-      const response = await api.get('/user/settings');
-      return { ...defaultSettings, ...response.data };
-    } catch (error) {
-      // 如果后端接口不存在，则从本地存储获取
-      console.warn('无法从后端获取用户设置，将使用本地存储', error);
+      // 从本地存储获取设置
       const localSettings = localStorage.getItem('user-settings');
-      return localSettings ? 
+      const settings = localSettings ? 
         { ...defaultSettings, ...JSON.parse(localSettings) } : 
         defaultSettings;
+      
+      console.log('Loaded user settings:', settings);
+      return settings;
+    } catch (error) {
+      console.warn('Failed to load user settings, using defaults:', error);
+      return defaultSettings;
     }
   },
 
   // 保存用户设置
   saveUserSettings: async (settings: Partial<UserSettings>): Promise<UserSettings> => {
     try {
-      // 尝试保存到后端（需要包装为API期望的格式）
-      const response = await api.post('/user/settings', { 
-        settings_data: settings 
-      });
-      const savedSettings = { ...defaultSettings, ...response.data };
-      
-      // 同时保存到本地存储作为备份
-      localStorage.setItem('user-settings', JSON.stringify(savedSettings));
-      
-      return savedSettings;
-    } catch (error) {
-      // 如果后端接口不存在，则仅保存到本地存储
-      console.warn('无法保存用户设置到后端，将仅使用本地存储', error);
-      
       // 获取当前存储的设置
       const currentSettings = await userSettingsService.getUserSettings();
       const newSettings = { ...currentSettings, ...settings };
@@ -73,22 +60,24 @@ export const userSettingsService = {
       // 保存到本地存储
       localStorage.setItem('user-settings', JSON.stringify(newSettings));
       
+      console.log('Saved user settings:', newSettings);
       return newSettings;
+    } catch (error) {
+      console.error('Failed to save user settings:', error);
+      throw error;
     }
   },
 
   // 重置用户设置
   resetUserSettings: async (): Promise<UserSettings> => {
     try {
-      // 尝试在后端重置设置
-      await api.delete('/user/settings');
+      // 清除本地存储的设置
+      localStorage.removeItem('user-settings');
+      console.log('Reset user settings to defaults');
+      return defaultSettings;
     } catch (error) {
-      // 接口可能不存在，忽略错误
+      console.error('Failed to reset user settings:', error);
+      throw error;
     }
-    
-    // 清除本地存储的设置
-    localStorage.removeItem('user-settings');
-    
-    return defaultSettings;
   }
 };

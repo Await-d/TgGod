@@ -3,7 +3,6 @@
  * 企业级错误处理，具备预测性故障检测、自动恢复和全面错误预防
  */
 
-import React from 'react';
 import { notification, message, Modal } from 'antd';
 
 // 错误严重程度
@@ -588,7 +587,6 @@ class ErrorManagementService {
         notification.error({
           ...config,
           key: error.id,
-          btn: this.createRecoveryButton(error)
         });
         break;
 
@@ -596,7 +594,6 @@ class ErrorManagementService {
         notification.warning({
           ...config,
           key: error.id,
-          btn: this.createRecoveryButton(error)
         });
         break;
 
@@ -655,38 +652,6 @@ class ErrorManagementService {
         return 3;
       default:
         return 4.5;
-    }
-  }
-
-  private createRecoveryButton(error: AppError): React.ReactNode {
-    const primaryStrategy = error.recoveryStrategies[0];
-    if (!primaryStrategy) return null;
-
-    const action = this.recoveryActions.get(primaryStrategy);
-    if (!action) return null;
-
-    return (
-      <button
-        onClick={() => this.executeRecovery(error)}
-        className="ant-btn ant-btn-primary ant-btn-sm"
-      >
-        {this.getRecoveryButtonText(primaryStrategy)}
-      </button>
-    );
-  }
-
-  private getRecoveryButtonText(strategy: RecoveryStrategy): string {
-    switch (strategy) {
-      case RecoveryStrategy.RETRY:
-        return '重试';
-      case RecoveryStrategy.REFRESH_PAGE:
-        return '刷新页面';
-      case RecoveryStrategy.CLEAR_CACHE:
-        return '清理缓存';
-      case RecoveryStrategy.REDIRECT_LOGIN:
-        return '重新登录';
-      default:
-        return '恢复';
     }
   }
 
@@ -775,7 +740,7 @@ class ErrorManagementService {
     try {
       const response = await fetch(endpoint, {
         method: 'GET',
-        timeout: 5000
+        // timeout: 5000
       } as any);
 
       const responseTime = Date.now() - startTime;
@@ -1025,14 +990,6 @@ class ErrorManagementService {
       message: '网络连接已断开',
       description: '应用将在离线模式下运行，部分功能可能受限',
       duration: 0,
-      btn: (
-        <button
-          onClick={() => window.location.reload()}
-          className="ant-btn ant-btn-primary ant-btn-sm"
-        >
-          重新连接
-        </button>
-      )
     });
   }
 

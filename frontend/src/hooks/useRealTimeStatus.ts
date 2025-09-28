@@ -162,6 +162,7 @@ export function useRealTimeStatus(
 
   // Refs for stable callbacks
   const onErrorRef = useRef(onError);
+  const isConnectedRef = useRef(isConnected);
   const onConnectionChangeRef = useRef(onConnectionChange);
   const onCriticalAlertRef = useRef(onCriticalAlert);
 
@@ -171,6 +172,11 @@ export function useRealTimeStatus(
     onConnectionChangeRef.current = onConnectionChange;
     onCriticalAlertRef.current = onCriticalAlert;
   }, [onError, onConnectionChange, onCriticalAlert]);
+
+  // Keep isConnectedRef in sync with isConnected state
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
 
   /**
    * Handle status updates from the service
@@ -238,7 +244,7 @@ export function useRealTimeStatus(
         // Monitor connection status
         connectionCheckInterval = setInterval(() => {
           const connected = realTimeStatusService.isConnected();
-          if (connected !== isConnected) {
+          if (connected !== isConnectedRef.current) {
             handleConnectionChange(connected);
           }
         }, 1000);
@@ -269,7 +275,7 @@ export function useRealTimeStatus(
         clearInterval(connectionCheckInterval);
       }
     };
-  }, [autoConnect, autoReconnect, handleStatusUpdate, handleConnectionChange, isConnected]);
+  }, [autoConnect, autoReconnect, handleStatusUpdate, handleConnectionChange]);
 
   /**
    * Get specific service status

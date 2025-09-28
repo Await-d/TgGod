@@ -1,13 +1,13 @@
 import React from 'react';
-import { 
-  Table, 
-  Button, 
-  Space, 
-  Modal, 
-  Form, 
-  Input, 
-  Select, 
-  DatePicker, 
+import {
+  Table,
+  Button,
+  Space,
+  Modal,
+  Form,
+  Input,
+  Select,
+  DatePicker,
   InputNumber,
   Switch,
   Tag,
@@ -18,8 +18,7 @@ import {
   Row,
   Col,
   Statistic,
-  Dropdown,
-  Menu
+  Dropdown
 } from 'antd';
 import { useIsMobile } from '../hooks/useMobileGestures';
 import { 
@@ -67,25 +66,27 @@ const Rules: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: Record<string, any>) => {
     try {
       // 处理关键词和文件大小数据
+      const {
+        date_range,
+        min_file_size_mb,
+        max_file_size_mb,
+        ...otherValues
+      } = values;
+
       const processedValues = {
-        ...values,
+        ...otherValues,
         keywords: values.keywords ? values.keywords.split('\n').filter((k: string) => k.trim()) : [],
         exclude_keywords: values.exclude_keywords ? values.exclude_keywords.split('\n').filter((k: string) => k.trim()) : [],
         sender_filter: values.sender_filter ? values.sender_filter.split('\n').filter((s: string) => s.trim()) : [],
-        date_from: values.date_range?.[0]?.toISOString() || null,
-        date_to: values.date_range?.[1]?.toISOString() || null,
+        date_from: date_range?.[0]?.toISOString() || undefined,
+        date_to: date_range?.[1]?.toISOString() || undefined,
         // 将MB转换为字节
-        min_file_size: values.min_file_size_mb ? Math.round(values.min_file_size_mb * 1024 * 1024) : null,
-        max_file_size: values.max_file_size_mb ? Math.round(values.max_file_size_mb * 1024 * 1024) : null,
+        min_file_size: min_file_size_mb ? Math.round(min_file_size_mb * 1024 * 1024) : undefined,
+        max_file_size: max_file_size_mb ? Math.round(max_file_size_mb * 1024 * 1024) : undefined,
       };
-
-      // 删除临时字段
-      delete processedValues.date_range;
-      delete processedValues.min_file_size_mb;
-      delete processedValues.max_file_size_mb;
 
       if (editingRule) {
         const updatedRule = await ruleApi.updateRule(editingRule.id, processedValues);
@@ -170,7 +171,7 @@ const Rules: React.FC = () => {
 
   const handleToggleStatus = async (ruleId: number, currentStatus: boolean) => {
     try {
-      const updatedRule = await ruleApi.updateRule(ruleId, {
+      await ruleApi.updateRule(ruleId, {
         is_active: !currentStatus
       });
       updateRule(ruleId, { is_active: !currentStatus });
@@ -284,37 +285,47 @@ const Rules: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: isMobile ? 80 : undefined,
-      render: (_: any, record: FilterRule) => (
+      render: (_: unknown, record: FilterRule) => (
         <Space size="small">
           {isMobile ? (
             <Dropdown
-              overlay={
-                <Menu>
-                  <Menu.Item key="edit" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-                    编辑
-                  </Menu.Item>
-                  <Menu.Item key="test" icon={<ExperimentOutlined />} onClick={() => handleTestRule(record.id)}>
-                    测试
-                  </Menu.Item>
-                  <Menu.Item 
-                    key="toggle" 
-                    icon={record.is_active ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                    onClick={() => handleToggleStatus(record.id, record.is_active)}
-                  >
-                    {record.is_active ? '禁用' : '启用'}
-                  </Menu.Item>
-                  <Menu.Item key="delete" danger icon={<DeleteOutlined />}>
-                    <Popconfirm
-                      title="确定要删除这个规则吗？"
-                      onConfirm={() => handleDelete(record.id)}
-                      okText="确定"
-                      cancelText="取消"
-                    >
-                      删除
-                    </Popconfirm>
-                  </Menu.Item>
-                </Menu>
-              }
+              menu={{
+                items: [
+                  {
+                    key: 'edit',
+                    icon: <EditOutlined />,
+                    label: '编辑',
+                    onClick: () => handleEdit(record)
+                  },
+                  {
+                    key: 'test',
+                    icon: <ExperimentOutlined />,
+                    label: '测试',
+                    onClick: () => handleTestRule(record.id)
+                  },
+                  {
+                    key: 'toggle',
+                    icon: record.is_active ? <PauseCircleOutlined /> : <PlayCircleOutlined />,
+                    label: record.is_active ? '禁用' : '启用',
+                    onClick: () => handleToggleStatus(record.id, record.is_active)
+                  },
+                  {
+                    key: 'delete',
+                    icon: <DeleteOutlined />,
+                    label: '删除',
+                    danger: true,
+                    onClick: () => {
+                      Modal.confirm({
+                        title: '确定要删除这个规则吗？',
+                        content: '删除后无法恢复',
+                        okText: '确定',
+                        cancelText: '取消',
+                        onOk: () => handleDelete(record.id),
+                      });
+                    }
+                  }
+                ]
+              }}
               trigger={['click']}
             >
               <Button size="small" type="text">

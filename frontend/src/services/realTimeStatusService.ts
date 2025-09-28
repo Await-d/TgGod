@@ -17,17 +17,8 @@
  * @version 1.0.0
  */
 
-import React from 'react';
 import { webSocketService } from './websocket';
-import { notification, message, Modal } from 'antd';
-import {
-  ExclamationCircleOutlined,
-  CheckCircleOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
-  ToolOutlined,
-  ReloadOutlined
-} from '@ant-design/icons';
+import { notification, Modal } from 'antd';
 
 // Status enums matching backend
 export enum ServiceStatus {
@@ -133,11 +124,9 @@ class RealTimeStatusService {
   private currentStatus: ProductionStatusData | null = null;
   private connected = false;
   private autoRetryEnabled = true;
-  private notificationApi: any;
 
   constructor() {
     this.initializeWebSocketListeners();
-    this.setupNotificationAPI();
   }
 
   /**
@@ -164,18 +153,6 @@ class RealTimeStatusService {
   }
 
   /**
-   * Setup Ant Design notification API
-   */
-  private setupNotificationAPI(): void {
-    this.notificationApi = notification;
-    this.notificationApi.config({
-      placement: 'topRight',
-      duration: 4.5,
-      maxCount: 3,
-    });
-  }
-
-  /**
    * Monitor WebSocket connection status
    */
   private monitorConnectionStatus(): void {
@@ -194,16 +171,14 @@ class RealTimeStatusService {
    */
   private handleConnectionStatusChange(connected: boolean): void {
     if (connected) {
-      this.notificationApi.success({
+      notification.success({
         message: 'Real-time Connection Established',
         description: 'Status monitoring is now active',
-        icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
       });
     } else {
-      this.notificationApi.warning({
+      notification.warning({
         message: 'Real-time Connection Lost',
         description: 'Attempting to reconnect...',
-        icon: <WarningOutlined style={{ color: '#faad14' }} />,
         duration: 0, // Persistent until reconnected
         key: 'connection-lost',
       });
@@ -277,13 +252,7 @@ class RealTimeStatusService {
 
     Modal.error({
       title: 'Critical System Services Offline',
-      icon: <ExclamationCircleOutlined />,
-      content: (
-        <div>
-          <p><strong>Affected Services:</strong> {serviceNames}</p>
-          <p>System functionality may be severely impacted. Please check the service status page for details and recovery options.</p>
-        </div>
-      ),
+      content: `Affected Services: ${serviceNames}\n\nSystem functionality may be severely impacted. Please check the service status page for details and recovery options.`,
       okText: 'View Service Status',
       onOk: () => {
         // Navigate to service status page
@@ -296,15 +265,13 @@ class RealTimeStatusService {
    * Show maintenance mode notification
    */
   private showMaintenanceNotification(maintenance: { message: string; eta?: string }): void {
-    this.notificationApi.info({
+    const description = maintenance.eta 
+      ? `${maintenance.message}\n\nEstimated completion: ${maintenance.eta}`
+      : maintenance.message;
+
+    notification.info({
       message: 'System Maintenance Active',
-      description: (
-        <div>
-          <p>{maintenance.message}</p>
-          {maintenance.eta && <p><strong>Estimated completion:</strong> {maintenance.eta}</p>}
-        </div>
-      ),
-      icon: <ToolOutlined style={{ color: '#1890ff' }} />,
+      description,
       duration: 0, // Persistent during maintenance
       key: 'maintenance-mode',
     });
@@ -316,28 +283,25 @@ class RealTimeStatusService {
   private checkResourceWarnings(metrics: SystemMetrics): void {
     // CPU warning
     if (metrics.cpu_percent > 80) {
-      this.notificationApi.warning({
+      notification.warning({
         message: 'High CPU Usage',
         description: `CPU usage is at ${metrics.cpu_percent.toFixed(1)}%`,
-        icon: <WarningOutlined />,
       });
     }
 
     // Memory warning
     if (metrics.memory_percent > 85) {
-      this.notificationApi.warning({
+      notification.warning({
         message: 'High Memory Usage',
         description: `Memory usage is at ${metrics.memory_percent.toFixed(1)}%`,
-        icon: <WarningOutlined />,
       });
     }
 
     // Disk space warning
     if (metrics.disk_percent > 90) {
-      this.notificationApi.error({
+      notification.error({
         message: 'Critical Disk Space',
         description: `Disk usage is at ${metrics.disk_percent.toFixed(1)}%`,
-        icon: <ExclamationCircleOutlined />,
       });
     }
   }
@@ -346,89 +310,24 @@ class RealTimeStatusService {
    * Handle incoming notifications
    */
   private handleNotification(data: any): void {
-    const { title, message, type, duration, action } = data;
-
-    let icon;
-    switch (type) {
-      case 'success':
-        icon = <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-        break;
-      case 'warning':
-        icon = <WarningOutlined style={{ color: '#faad14' }} />;
-        break;
-      case 'error':
-        icon = <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />;
-        break;
-      default:
-        icon = <InfoCircleOutlined style={{ color: '#1890ff' }} />;
-    }
+    const { title, type, duration, action } = data;
+    const message = data.message;
 
     const notificationConfig: any = {
       message: title,
       description: message,
-      icon,
       duration: duration || 4.5,
     };
 
-    if (action) {
-      notificationConfig.btn = (
-        <button
-          className="ant-btn ant-btn-sm"
-          onClick={() => {
-            if (action.url) {
-              window.location.hash = action.url;
-            } else if (action.data) {
-              this.showErrorDetails(action.data);
-            }
-          }}
-        >
-          {action.label}
-        </button>
-      );
+    if (action && action.label) {
+      notificationConfig.btn = action.label;
     }
 
-    this.notificationApi[type || 'info'](notificationConfig);
-  }
-
-  /**
-   * Show detailed error information
-   */
-  private showErrorDetails(errorData: any): void {
-    const error = errorData.error as ErrorReport;
-
-    Modal.error({
-      title: `Service Error: ${error.service}`,
-      width: 600,
-      content: (
-        <div>
-          <p><strong>Error Type:</strong> {error.error_type}</p>
-          <p><strong>Severity:</strong> {error.severity.toUpperCase()}</p>
-          <p><strong>Message:</strong> {error.message}</p>
-          <p><strong>Impact:</strong> {error.impact_assessment}</p>
-          {error.resolution_eta && (
-            <p><strong>Estimated Resolution:</strong> {error.resolution_eta}</p>
-          )}
-
-          {error.suggested_actions.length > 0 && (
-            <div>
-              <p><strong>Suggested Actions:</strong></p>
-              <ul>
-                {error.suggested_actions.map((action, index) => (
-                  <li key={index}>{action}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {error.auto_recovery_possible && (
-            <p style={{ color: '#1890ff' }}>
-              <InfoCircleOutlined /> Automatic recovery is being attempted
-            </p>
-          )}
-        </div>
-      ),
-      okText: 'Understood',
-    });
+    if (type && type in notification && typeof notification[type as keyof typeof notification] === 'function') {
+      (notification[type as keyof typeof notification] as Function)(notificationConfig);
+    } else {
+      notification.info(notificationConfig);
+    }
   }
 
   /**
@@ -446,18 +345,16 @@ class RealTimeStatusService {
     // Handle specific system events
     switch (data.event) {
       case 'monitoring_started':
-        this.notificationApi.success({
+        notification.success({
           message: 'Production Monitoring Active',
           description: 'Real-time system monitoring has been initialized',
-          icon: <CheckCircleOutlined />,
         });
         break;
 
       case 'monitoring_stopped':
-        this.notificationApi.warning({
+        notification.warning({
           message: 'Production Monitoring Stopped',
           description: 'Real-time system monitoring has been disabled',
-          icon: <WarningOutlined />,
         });
         break;
 
@@ -465,11 +362,10 @@ class RealTimeStatusService {
         if (data.data.enabled) {
           this.showMaintenanceNotification(data.data);
         } else {
-          this.notificationApi.destroy('maintenance-mode');
-          this.notificationApi.success({
+          notification.destroy('maintenance-mode');
+          notification.success({
             message: 'Maintenance Complete',
             description: 'System maintenance has been completed',
-            icon: <CheckCircleOutlined />,
           });
         }
         break;
@@ -605,25 +501,14 @@ class RealTimeStatusService {
     const service = this.getServiceStatus(serviceName);
     if (!service) return;
 
+    const content = `Current Status: ${service.status}\nError Count: ${service.error_count}\nLast Message: ${service.message}`;
+    const recoveryContent = service.recovery_suggestion 
+      ? `${content}\n\nRecovery Suggestion:\n${service.recovery_suggestion}\n\nWould you like to attempt service recovery?`
+      : `${content}\n\nWould you like to attempt service recovery?`;
+
     Modal.confirm({
       title: `Recover Service: ${serviceName}`,
-      icon: <ReloadOutlined />,
-      content: (
-        <div>
-          <p><strong>Current Status:</strong> {service.status}</p>
-          <p><strong>Error Count:</strong> {service.error_count}</p>
-          <p><strong>Last Message:</strong> {service.message}</p>
-
-          {service.recovery_suggestion && (
-            <div>
-              <p><strong>Recovery Suggestion:</strong></p>
-              <p>{service.recovery_suggestion}</p>
-            </div>
-          )}
-
-          <p>Would you like to attempt service recovery?</p>
-        </div>
-      ),
+      content: recoveryContent,
       okText: 'Attempt Recovery',
       cancelText: 'Cancel',
       onOk: () => {
@@ -637,22 +522,18 @@ class RealTimeStatusService {
    */
   private async attemptServiceRecovery(serviceName: string): Promise<void> {
     try {
-      // This would call a backend API to attempt service recovery
-      // For now, show a placeholder notification
-      this.notificationApi.info({
+      notification.info({
         message: 'Recovery Initiated',
         description: `Attempting to recover ${serviceName}...`,
-        icon: <ReloadOutlined />,
       });
 
       // TODO: Implement actual API call to backend recovery endpoint
       // await apiService.recoverService(serviceName);
 
     } catch (error) {
-      this.notificationApi.error({
+      notification.error({
         message: 'Recovery Failed',
         description: `Failed to initiate recovery for ${serviceName}`,
-        icon: <ExclamationCircleOutlined />,
       });
     }
   }

@@ -19,14 +19,11 @@ import {
   Divider
 } from 'antd';
 import { useIsMobile } from '../hooks/useMobileGestures';
-import { 
-  TeamOutlined, 
-  MessageOutlined, 
-  DownloadOutlined, 
-  PlayCircleOutlined,
-  PauseCircleOutlined,
+import {
+  TeamOutlined,
+  MessageOutlined,
+  DownloadOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined,
   ReloadOutlined,
   DatabaseOutlined,
   HddOutlined,

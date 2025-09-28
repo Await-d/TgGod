@@ -16,11 +16,11 @@ import {
 } from 'antd';
 import {
   DownloadOutlined,
-  PauseOutlined,
   CloseOutlined,
   ReloadOutlined,
   InfoCircleOutlined,
   RocketOutlined
+  // PauseOutlined // 已移除未使用的导入
 } from '@ant-design/icons';
 import { mediaApi } from '../../services/apiService';
 
@@ -69,12 +69,12 @@ const ConcurrentDownloadManager: React.FC<ConcurrentDownloadManagerProps> = ({
   // 取消单个下载
   const handleCancelDownload = async (messageId: number) => {
     try {
-      const response = await mediaApi.cancelConcurrentDownload(messageId);
+      await mediaApi.cancelConcurrentDownload(messageId);
       notification.success({
         message: '下载已取消',
         description: `消息 ${messageId} 的下载已取消`
       });
-      
+
       // 刷新统计
       await fetchDownloadStats();
     } catch (error: any) {

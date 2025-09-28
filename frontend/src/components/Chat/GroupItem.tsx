@@ -15,8 +15,7 @@ const GroupItem: React.FC<GroupListItemProps> = ({
   onClick,
   unreadCount = 0,
   lastMessageTime,
-  isMiniMode = false,
-  isTablet = false
+
 }) => {
   const [groupStats, setGroupStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
@@ -43,6 +42,8 @@ const GroupItem: React.FC<GroupListItemProps> = ({
 
   // 使用Intersection Observer实现懒加载
   useEffect(() => {
+    const currentElement = elementRef.current;
+    
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -61,14 +62,15 @@ const GroupItem: React.FC<GroupListItemProps> = ({
       }
     );
 
-    if (elementRef.current) {
-      observer.observe(elementRef.current);
+    if (currentElement) {
+      observer.observe(currentElement);
     }
 
     return () => {
-      if (elementRef.current) {
-        observer.unobserve(elementRef.current);
+      if (currentElement) {
+        observer.unobserve(currentElement);
       }
+      observer.disconnect();
     };
   }, [fetchGroupStats, statsLoaded, loadingStats]);
 

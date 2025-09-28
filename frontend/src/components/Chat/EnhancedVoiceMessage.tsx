@@ -11,7 +11,7 @@ import {
   MutedOutlined
 } from '@ant-design/icons';
 import { useMediaDownload } from '../../hooks/useMediaDownload';
-import MediaDownloadOverlay from './MediaDownloadOverlay';
+
 import './EnhancedVoiceMessage.css';
 
 // 获取完整的媒体URL
@@ -78,20 +78,12 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
   const [error, setError] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
   
-  // 下载状态管理
-  const {
-    downloadStatus,
-    isLoading: isDownloadLoading,
-    startDownload,
-    retryDownload
-  } = useMediaDownload({
+  // 下载状态管理 - 暂时不使用返回值
+  useMediaDownload({
     messageId: messageId || 0,
     autoRefresh: messageId ? !downloaded : false,
     onDownloadComplete: (filePath) => {
@@ -105,10 +97,7 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
   const mediaUrl = getMediaUrl(url);
   const formattedSize = size ? formatFileSize(size) : undefined;
   
-  // 判断是否应该显示音频控件
-  const shouldShowAudio = downloaded || downloadStatus.status === 'downloaded';
-  
-  // 初始化音频上下文和分析器
+    // 初始化音频上下文和分析器
   useEffect(() => {
     if (typeof window !== 'undefined' && window.AudioContext) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -117,9 +106,6 @@ const EnhancedVoiceMessage: React.FC<EnhancedVoiceMessageProps> = ({
     return () => {
       if (audioContextRef.current) {
         audioContextRef.current.close();
-      }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, []);

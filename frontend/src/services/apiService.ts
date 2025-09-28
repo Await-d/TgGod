@@ -133,7 +133,8 @@ export const telegramApi = {
     let skip = 0;
     const limit = 1000; // 使用最大限制
 
-    while (true) {
+    let maxIterations = 100; // 最大迭代次数，防止死循环
+    while (maxIterations > 0) {
       const response = await api.get('/telegram/groups', { params: { skip, limit } });
       const groups = response.data || response; // 处理可能的响应格式差异
 
@@ -149,6 +150,7 @@ export const telegramApi = {
       }
 
       skip += limit;
+      maxIterations--;
     }
 
     return allGroups;
@@ -563,14 +565,20 @@ export const messageApi = {
         const deletePromises = batch.map(async (message) => {
           try {
             await messageApi.deleteMessage(groupId, message.message_id);
-            deletedCount++;
+            return { success: true };
           } catch (error) {
-            failedCount++;
             console.error(`删除消息 ${message.message_id} 失败:`, error);
+            return { success: false };
           }
         });
 
-        await Promise.all(deletePromises);
+        const results = await Promise.all(deletePromises);
+        const batchDeleted = results.filter(r => r.success).length;
+        const batchFailed = results.filter(r => !r.success).length;
+
+        deletedCount += batchDeleted;
+        failedCount += batchFailed;
+
 
         // 报告进度
         if (onProgress) {

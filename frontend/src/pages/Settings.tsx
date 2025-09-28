@@ -27,7 +27,7 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import UserSettingsForm from '../components/UserSettings/UserSettingsForm';
-import { apiService } from '../services/api';
+import apiService from '../services/apiService';
 import { useGlobalStore } from '../store';
 import TelegramAuth from '../components/TelegramAuth';
 import { useIsMobile } from '../hooks/useMobileGestures';
@@ -85,13 +85,13 @@ const Settings: React.FC = () => {
     setLoading(true);
     try {
       const response = await apiService.get('/config/configs');
-      if (response.success && response.data) {
-        setConfigs(response.data as Record<string, ConfigItem> || {});
+      if (response.data?.success && response.data?.data) {
+        setConfigs(response.data.data as Record<string, ConfigItem> || {});
 
         // 设置表单初始值
         const formValues: Record<string, string> = {};
-        Object.entries(response.data).forEach(([key, config]) => {
-          formValues[key] = config.value;
+        Object.entries(response.data.data as Record<string, ConfigItem>).forEach(([key, config]) => {
+          formValues[key] = (config as ConfigItem).value;
         });
         form.setFieldsValue(formValues);
       }
@@ -108,32 +108,31 @@ const Settings: React.FC = () => {
       console.log('Settings页面 - 检查Telegram认证状态...');
       const response = await apiService.get('/telegram/auth/status');
       console.log('Settings页面 - Telegram API响应:', response);
-      
-      // 由于API拦截器直接返回response.data，所以response就是实际的数据
-      // 检查是否是成功的响应格式
+
+      // 修复API响应访问方式，使用response.data
       let statusData: TelegramStatus;
-      
-      if (response && typeof response === 'object') {
-        // 如果response直接包含is_authorized字段，说明是直接的状态数据（最常见情况）
-        if ('is_authorized' in response) {
-          statusData = response as TelegramStatus;
+
+      if (response?.data && typeof response.data === 'object') {
+        // 如果response.data直接包含is_authorized字段，说明是直接的状态数据
+        if ('is_authorized' in response.data) {
+          statusData = response.data as TelegramStatus;
           console.log('Settings页面 - 使用直接状态数据格式');
         }
-        // 如果response包含success字段，说明是标准API响应格式
-        else if ('success' in response && response.success && response.data) {
-          statusData = response.data as TelegramStatus;
+        // 如果response.data包含success字段，说明是标准API响应格式
+        else if ('success' in response.data && response.data.success && response.data.data) {
+          statusData = response.data.data as TelegramStatus;
           console.log('Settings页面 - 使用标准API响应格式');
-        } 
+        }
         // 其他情况作为错误处理
         else {
-          console.warn('Telegram状态API返回格式不符合预期:', response);
+          console.warn('Telegram状态API返回格式不符合预期:', response.data);
           setTelegramStatus({
             is_authorized: false,
             message: '获取认证状态失败'
           });
           return;
         }
-        
+
         console.log('Settings页面 - 解析的状态数据:', statusData);
         
         // 验证数据格式
@@ -156,7 +155,7 @@ const Settings: React.FC = () => {
           });
         }
       } else {
-        console.warn('Telegram状态API返回空响应或格式错误:', response);
+        console.warn('Telegram状态API返回空响应或格式错误:', response?.data);
         setTelegramStatus({
           is_authorized: false,
           message: '获取认证状态失败'
@@ -186,8 +185,8 @@ const Settings: React.FC = () => {
         configs: values
       });
 
-      if (response.success) {
-        message.success(response.message || '保存成功');
+      if (response.data?.success) {
+        message.success(response.data.message || '保存成功');
         await loadConfigs(); // 重新加载配置
         // 如果修改了Telegram配置，重新检查状态
         if (values.telegram_api_id || values.telegram_api_hash) {
@@ -196,7 +195,7 @@ const Settings: React.FC = () => {
           }, 1000);
         }
       } else {
-        message.error(response.message || '保存失败');
+        message.error(response.data?.message || '保存失败');
       }
     } catch (error) {
       message.error('保存配置失败');
@@ -217,7 +216,7 @@ const Settings: React.FC = () => {
         configs: values
       });
 
-      if (!saveResponse.success) {
+      if (!saveResponse.data?.success) {
         message.error('保存配置失败');
         return;
       }
@@ -225,8 +224,8 @@ const Settings: React.FC = () => {
       // 测试连接
       const response = await apiService.post('/telegram/test-connection');
 
-      if (response.success && response.data) {
-        const data = response.data as TelegramTestConnectionResponse;
+      if (response.data?.success && response.data?.data) {
+        const data = response.data.data as TelegramTestConnectionResponse;
         message.success(`连接测试成功！找到 ${data.stats.total_groups} 个群组`);
         setTelegramStatus({
           is_authorized: true,
@@ -240,7 +239,7 @@ const Settings: React.FC = () => {
           message.info(`群组预览: ${groupNames}`, 5);
         }
       } else {
-        const connectionStatus = (response.data as Partial<TelegramTestConnectionResponse>)?.connection_status;
+        const connectionStatus = (response.data?.data as Partial<TelegramTestConnectionResponse>)?.connection_status;
         if (connectionStatus === 'unauthorized') {
           message.warning('API配置正确，但需要完成Telegram认证');
           setTelegramStatus({
@@ -248,10 +247,10 @@ const Settings: React.FC = () => {
             message: '未授权'
           });
         } else {
-          message.error(response.message || '连接测试失败');
+          message.error(response.data?.message || '连接测试失败');
           setTelegramStatus({
             is_authorized: false,
-            message: response.message || '连接失败'
+            message: response.data?.message || '连接失败'
           });
         }
       }
@@ -276,7 +275,7 @@ const Settings: React.FC = () => {
   const handleClearCache = async () => {
     try {
       const response = await apiService.post('/config/configs/clear-cache');
-      if (response.success) {
+      if (response.data?.success) {
         message.success('清除缓存成功');
       }
     } catch (error) {
@@ -287,7 +286,7 @@ const Settings: React.FC = () => {
   const handleInitDefaults = async () => {
     try {
       const response = await apiService.post('/config/configs/init');
-      if (response.success) {
+      if (response.data?.success) {
         message.success('初始化配置成功');
         await loadConfigs();
       }

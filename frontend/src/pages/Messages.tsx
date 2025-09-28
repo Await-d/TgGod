@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -32,10 +32,6 @@ import {
   EyeOutlined,
   MessageOutlined,
   UserOutlined,
-  FileImageOutlined,
-  FileTextOutlined,
-  VideoCameraOutlined,
-  AudioOutlined,
   PushpinOutlined,
   ShareAltOutlined,
   FilterOutlined,
@@ -45,7 +41,6 @@ import {
   ExclamationCircleOutlined,
   CloudSyncOutlined,
 } from '@ant-design/icons';
-import { useAuthStore } from '../store';
 import MediaPreview from '../components/Media/MediaPreview';
 import InlineMediaPreview from '../components/Media/InlineMediaPreview';
 import MediaButton from '../components/Media/MediaButton';
@@ -54,7 +49,7 @@ import { TelegramMessage, TelegramGroup, MessageSendRequest } from '../types';
 import { useNormalPageScrollControl } from '../hooks/usePageScrollControl';
 import { webSocketService } from '../services/websocket';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -84,7 +79,6 @@ const MessagesPage: React.FC = () => {
 
   // 批量选择相关状态
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [selectedRows, setSelectedRows] = useState<TelegramMessage[]>([]);
   const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
 
   // 清空群组消息相关状态
@@ -108,7 +102,6 @@ const MessagesPage: React.FC = () => {
   } | null>(null);
   const [batchSyncStatus, setBatchSyncStatus] = useState<'idle' | 'running' | 'completed' | 'failed'>('idle');
 
-  const { user } = useAuthStore();
 
   // 检查是否为移动设备
   useEffect(() => {
@@ -123,7 +116,7 @@ const MessagesPage: React.FC = () => {
   }, []);
 
   // 获取群组列表
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
       // 使用getAllGroups获取所有群组，避免分页限制
       const response = await telegramApi.getAllGroups();
@@ -135,10 +128,10 @@ const MessagesPage: React.FC = () => {
     } catch (error: any) {
       message.error('获取群组列表失败: ' + error.message);
     }
-  };
+  }, [selectedGroup]);
 
   // 获取群组消息
-  const fetchMessages = async (groupId: number, page: number = 1, searchParams: any = {}) => {
+  const fetchMessages = useCallback(async (groupId: number, page: number = 1, searchParams: any = {}) => {
     if (!groupId) return;
 
     setLoading(true);
@@ -164,17 +157,17 @@ const MessagesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.pageSize]);
 
   // 获取群组统计
-  const fetchGroupStats = async (groupId: number) => {
+  const fetchGroupStats = useCallback(async (groupId: number) => {
     try {
       const response = await telegramApi.getGroupStats(groupId);
       setStats(response);
     } catch (error: any) {
       console.error('获取群组统计失败:', error);
     }
-  };
+  }, []);
 
   // 发送消息
   const handleSendMessage = async (values: { text: string }) => {
@@ -215,7 +208,6 @@ const MessagesPage: React.FC = () => {
 
       // 移除已删除的消息从选中列表
       setSelectedRowKeys(prevKeys => prevKeys.filter(key => key !== messageId));
-      setSelectedRows(prevRows => prevRows.filter(row => row.message_id !== messageId));
 
     } catch (error: any) {
       message.error('删除消息失败: ' + error.message);
@@ -256,7 +248,6 @@ const MessagesPage: React.FC = () => {
 
       // 清空选择
       setSelectedRowKeys([]);
-      setSelectedRows([]);
 
       // 刷新消息列表
       await fetchMessages(selectedGroup.id, pagination.current, filters);
@@ -270,11 +261,9 @@ const MessagesPage: React.FC = () => {
 
   // 选择变化处理
   const handleRowSelectionChange = (
-    selectedKeys: React.Key[],
-    selectedRows: TelegramMessage[]
+    selectedKeys: React.Key[]
   ) => {
     setSelectedRowKeys(selectedKeys);
-    setSelectedRows(selectedRows);
   };
 
   // 全选/取消全选
@@ -282,19 +271,16 @@ const MessagesPage: React.FC = () => {
     if (selectedRowKeys.length === messages.length) {
       // 当前全选状态，执行取消全选
       setSelectedRowKeys([]);
-      setSelectedRows([]);
     } else {
       // 执行全选
       const allKeys = messages.map(msg => msg.message_id as React.Key);
       setSelectedRowKeys(allKeys);
-      setSelectedRows(messages);
     }
   };
 
   // 清空选择
   const handleClearSelection = () => {
     setSelectedRowKeys([]);
-    setSelectedRows([]);
   };
 
   // 清空群组所有消息
@@ -323,7 +309,6 @@ const MessagesPage: React.FC = () => {
 
       // 清空选择状态
       setSelectedRowKeys([]);
-      setSelectedRows([]);
 
       // 刷新消息列表
       await fetchMessages(selectedGroup.id, 1, filters);
@@ -437,16 +422,6 @@ const MessagesPage: React.FC = () => {
     }
   };
 
-  // 获取媒体类型图标
-  const getMediaIcon = (mediaType: string) => {
-    switch (mediaType) {
-      case 'photo': return <FileImageOutlined style={{ color: '#52c41a' }} />;
-      case 'video': return <VideoCameraOutlined style={{ color: '#1890ff' }} />;
-      case 'document': return <FileTextOutlined style={{ color: '#faad14' }} />;
-      case 'audio': return <AudioOutlined style={{ color: '#722ed1' }} />;
-      default: return <FileTextOutlined />;
-    }
-  };
 
   // 表格列定义
   const columns = [
@@ -490,7 +465,7 @@ const MessagesPage: React.FC = () => {
             )}
 
             {record.text && (
-              <Paragraph
+              <Typography.Paragraph
                 ellipsis={{
                   rows: isMobile ? 1 : 2,
                   expandable: !isMobile,
@@ -502,7 +477,7 @@ const MessagesPage: React.FC = () => {
                 }}
               >
                 {record.text}
-              </Paragraph>
+              </Typography.Paragraph>
             )}
 
             {record.media_type && (
@@ -676,7 +651,7 @@ const MessagesPage: React.FC = () => {
   // 组件挂载时获取数据
   useEffect(() => {
     fetchGroups();
-  }, []);
+  }, [fetchGroups]);
 
   // 当选择群组时获取消息
   useEffect(() => {
@@ -684,10 +659,10 @@ const MessagesPage: React.FC = () => {
       fetchMessages(selectedGroup.id, 1, filters);
       fetchGroupStats(selectedGroup.id);
     }
-  }, [selectedGroup]);
+  }, [selectedGroup, filters, fetchMessages, fetchGroupStats]);
 
   // 获取默认同步月份
-  const fetchDefaultSyncMonths = async (count: number = 3) => {
+  const fetchDefaultSyncMonths = useCallback(async (count: number = 3) => {
     if (!selectedGroup) return;
 
     try {
@@ -704,7 +679,7 @@ const MessagesPage: React.FC = () => {
     } finally {
       setSyncMonthsLoading(false);
     }
-  };
+  }, [selectedGroup, syncForm]);
 
   // 批量同步所有群组
   const handleBatchSyncAllGroups = async (values: any) => {
@@ -767,7 +742,7 @@ const MessagesPage: React.FC = () => {
       setBatchSyncStatus('idle');
       setBatchSyncProgress(null);
     }
-  }, [batchSyncModalVisible]);
+  }, [batchSyncModalVisible, fetchDefaultSyncMonths]);
 
   // WebSocket 消息处理
   useEffect(() => {
@@ -806,7 +781,7 @@ const MessagesPage: React.FC = () => {
       batchSyncUnsubscribe();
       monthlySyncUnsubscribe();
     };
-  }, [selectedGroup, filters]);
+  }, [selectedGroup, filters, fetchMessages, fetchGroupStats]);
 
   return (
     <div style={{ padding: isMobile ? 16 : 24 }}>
@@ -1046,12 +1021,10 @@ const MessagesPage: React.FC = () => {
                       }
                     });
                     setSelectedRowKeys(newSelectedKeys);
-                    setSelectedRows([...selectedRows, ...messages.filter(msg => !selectedRowKeys.includes(msg.message_id as React.Key))]);
                   } else {
                     // 取消选中当前页所有行
                     const currentPageKeys = messages.map(msg => msg.message_id as React.Key);
                     setSelectedRowKeys(selectedRowKeys.filter(key => !currentPageKeys.includes(key)));
-                    setSelectedRows(selectedRows.filter(row => !currentPageKeys.includes(row.message_id as React.Key)));
                   }
                 },
                 getCheckboxProps: (record: TelegramMessage) => ({
@@ -1105,9 +1078,9 @@ const MessagesPage: React.FC = () => {
         {replyTo && (
           <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f5f5f5' }}>
             <Text strong>回复消息:</Text>
-            <Paragraph style={{ margin: '8px 0 0 0' }}>
+            <Typography.Paragraph style={{ margin: '8px 0 0 0' }}>
               {replyTo.text || '(媒体消息)'}
-            </Paragraph>
+            </Typography.Paragraph>
           </Card>
         )}
 
@@ -1258,7 +1231,7 @@ const MessagesPage: React.FC = () => {
 
             <Card size="small" title="消息内容">
               {selectedMessage.text && (
-                <Paragraph>{selectedMessage.text}</Paragraph>
+                <Typography.Paragraph>{selectedMessage.text}</Typography.Paragraph>
               )}
 
               {selectedMessage.media_type && (
@@ -1376,9 +1349,9 @@ const MessagesPage: React.FC = () => {
                   {selectedMessageForRule.text && (
                     <div>
                       <Text strong>内容:</Text>
-                      <Paragraph style={{ margin: '4px 0' }}>
+                      <Typography.Paragraph style={{ margin: '4px 0' }}>
                         {selectedMessageForRule.text}
-                      </Paragraph>
+                      </Typography.Paragraph>
                     </div>
                   )}
                   {selectedMessageForRule.media_type && (

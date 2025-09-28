@@ -1,12 +1,12 @@
 import React from 'react';
-import { 
-  Table, 
-  Button, 
-  Space, 
-  Modal, 
-  Form, 
-  Input, 
-  message, 
+import {
+  Table,
+  Button,
+  Space,
+  Modal,
+  Form,
+  Input,
+  message,
   Popconfirm,
   Tag,
   Typography,
@@ -14,7 +14,6 @@ import {
   Statistic,
   Row,
   Col,
-  Checkbox,
   Progress,
   Divider,
   Alert
@@ -81,8 +80,8 @@ const Groups: React.FC = () => {
 
   const handleAddGroup = async (values: { username: string }) => {
     try {
-      const response = await telegramApi.addGroup(values.username);
-      addGroup(response);
+      const newGroup = await telegramApi.addGroup(values.username);
+      addGroup(newGroup);
       setIsModalVisible(false);
       form.resetFields();
       message.success('群组添加成功');
@@ -94,7 +93,7 @@ const Groups: React.FC = () => {
 
   const handleSyncMessages = async (groupId: number) => {
     try {
-      const response = await telegramApi.syncGroupMessages(groupId);
+      await telegramApi.syncGroupMessages(groupId);
       message.success('消息同步成功');
     } catch (error) {
       message.error('消息同步失败');
@@ -104,7 +103,7 @@ const Groups: React.FC = () => {
 
   const handleToggleStatus = async (groupId: number, currentStatus: boolean) => {
     try {
-      const response = await telegramApi.updateGroup(groupId, {
+      await telegramApi.updateGroup(groupId, {
         is_active: !currentStatus
       });
       updateGroup(groupId, { is_active: !currentStatus });
@@ -117,7 +116,7 @@ const Groups: React.FC = () => {
 
   const handleDeleteGroup = async (groupId: number) => {
     try {
-      const response = await telegramApi.deleteGroup(groupId);
+      await telegramApi.deleteGroup(groupId);
       removeGroup(groupId);
       message.success('群组删除成功');
     } catch (error) {
@@ -207,10 +206,10 @@ const Groups: React.FC = () => {
           try {
             await telegramApi.syncGroupMessages(group.id, values.limit);
             successCount++;
-            setSyncProgress(prev => ({ ...prev, success: successCount }));
+            setSyncProgress(prev => ({ ...prev, success: prev.success + 1 }));
           } catch (error) {
             failedCount++;
-            setSyncProgress(prev => ({ ...prev, failed: failedCount }));
+            setSyncProgress(prev => ({ ...prev, failed: prev.failed + 1 }));
             console.error(`同步群组 ${group.title} 失败:`, error);
           }
         }

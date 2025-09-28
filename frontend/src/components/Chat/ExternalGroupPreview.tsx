@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Modal, Card, Avatar, Button, Typography, Space, Divider, Badge, message as notification } from 'antd';
-import { 
-  TeamOutlined, 
-  UserOutlined, 
+import {
+  TeamOutlined,
+  UserOutlined,
   EyeOutlined,
   PlusOutlined,
   RightOutlined,
   InfoCircleOutlined,
-  CloseOutlined,
   GlobalOutlined,
   LockOutlined
 } from '@ant-design/icons';
@@ -102,7 +101,7 @@ const ExternalGroupPreview: React.FC<ExternalGroupPreviewProps> = ({
   };
 
   // 获取群组详细信息
-  const fetchGroupDetails = async () => {
+  const fetchGroupDetails = useCallback(async () => {
     const linkInfo = parseTelegramUrl(url);
     if (!linkInfo) return;
 
@@ -133,7 +132,7 @@ const ExternalGroupPreview: React.FC<ExternalGroupPreviewProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [url]);
 
   // 加入群组
   const handleJoinGroup = async () => {
@@ -174,7 +173,7 @@ const ExternalGroupPreview: React.FC<ExternalGroupPreviewProps> = ({
     if (visible && url) {
       fetchGroupDetails();
     }
-  }, [visible, url]);
+  }, [visible, url, fetchGroupDetails]);
 
   // 获取验证状态显示
   const getVerificationBadge = () => {

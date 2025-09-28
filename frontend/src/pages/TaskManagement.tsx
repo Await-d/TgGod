@@ -41,25 +41,42 @@ import {
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
-  FilterOutlined,
   EyeOutlined,
   SettingOutlined,
   FileTextOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  WarningOutlined,
   DownOutlined,
   EditOutlined
 } from '@ant-design/icons';
 import { taskApi, telegramApi, ruleApi, logApi } from '../services/apiService';
-import { DownloadTask, TelegramGroup, FilterRule, LogEntry, TaskScheduleForm, ScheduleConfig } from '../types';
+import { DownloadTask, TelegramGroup, FilterRule, LogEntry } from '../types';
 import { ProductionStatusDisplay } from '../components/ServiceStatus';
 import { useGlobalStore } from '../store';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+
+// 定义接口类型
+interface TaskStats {
+  total: number;
+  running: number;
+  completed: number;
+  failed: number;
+  pending?: number;
+  paused?: number;
+}
+
+interface TaskFilters {
+  group_id?: number;
+  status?: string;
+  name?: string;
+  rule_id?: number;
+  date_from?: string;
+  date_to?: string;
+}
 
 // 任务状态颜色映射
 const getStatusColor = (status: string) => {
@@ -92,7 +109,7 @@ const TaskManagement: React.FC = () => {
   const [tasks, setTasks] = useState<DownloadTask[]>([]);
   const [groups, setGroups] = useState<TelegramGroup[]>([]);
   const [rules, setRules] = useState<FilterRule[]>([]);
-  const [taskStats, setTaskStats] = useState<any>(null);
+  const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedTask, setSelectedTask] = useState<DownloadTask | null>(null);
 
@@ -123,7 +140,7 @@ const TaskManagement: React.FC = () => {
     setEditTaskType('once');
     setEditScheduleType('');
   };
-  const [filters, setFilters] = useState<any>({});
+  const [filters, setFilters] = useState<TaskFilters>({});
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [operatingTasks, setOperatingTasks] = useState<Set<number>>(new Set());
 
@@ -136,7 +153,7 @@ const TaskManagement: React.FC = () => {
   const [logsLoading, setLogsLoading] = useState(false);
 
   // 全局状态管理
-  const { error: globalError, setError } = useGlobalStore();
+  const { setError } = useGlobalStore();
 
   // 加载数据
   const loadTasks = useCallback(async () => {
@@ -341,7 +358,7 @@ const TaskManagement: React.FC = () => {
     onChange: (newSelectedRowKeys: React.Key[]) => {
       setSelectedRowKeys(newSelectedRowKeys);
     },
-    onSelectAll: (selected: boolean, selectedRows: DownloadTask[], changeRows: DownloadTask[]) => {
+    onSelectAll: (selected: boolean, _selectedRows: DownloadTask[], _changeRows: DownloadTask[]) => {
       if (selected) {
         // 选中所有可操作的任务
         const allSelectableKeys = tasks.map(task => task.id);
@@ -362,7 +379,7 @@ const TaskManagement: React.FC = () => {
     }),
   };
 
-  const handleCreateTask = async (values: any) => {
+  const handleCreateTask = async (values: Record<string, any>) => {
     try {
       console.log('开始创建任务，原始表单数据:', values);
       // 处理时间范围数据
@@ -398,7 +415,14 @@ const TaskManagement: React.FC = () => {
 
       console.log('处理后的任务数据:', taskData);
 
-      const result = await taskApi.createTask(taskData);
+      const result = await taskApi.createTask(taskData as {
+        name: string;
+        group_id: number;
+        rule_ids: number[];
+        download_path: string;
+        date_from?: string;
+        date_to?: string;
+      });
       console.log('任务创建成功，返回数据:', result);
       message.success('任务创建成功');
       setCreateModalVisible(false);
@@ -453,7 +477,7 @@ const TaskManagement: React.FC = () => {
     setEditModalVisible(true);
   };
 
-  const handleUpdateTask = async (values: any) => {
+  const handleUpdateTask = async (values: Record<string, any>) => {
     if (!selectedTask) return;
     
     try {
@@ -516,7 +540,7 @@ const TaskManagement: React.FC = () => {
     setTaskLogsVisible(true);
   };
 
-  const handleFilter = (values: any) => {
+  const handleFilter = (values: TaskFilters) => {
     setFilters(values);
   };
 
@@ -543,7 +567,7 @@ const TaskManagement: React.FC = () => {
     loadTasks();
     loadGroups();
     loadRules();
-  }, []); // 移除函数依赖，只在组件首次加载时执行
+  }, [loadTasks, loadGroups, loadRules]); // 添加函数依赖
 
   // 表格列定义
   const columns = [

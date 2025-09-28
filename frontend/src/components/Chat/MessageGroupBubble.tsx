@@ -7,8 +7,6 @@ import {
   Button,
   Tooltip,
   Popconfirm,
-  Card,
-  Image,
   Row,
   Col
 } from 'antd';
@@ -17,13 +15,7 @@ import {
   MessageOutlined,
   DeleteOutlined,
   PlusOutlined,
-  ShareAltOutlined,
-  PushpinOutlined,
-  FileImageOutlined,
-  FileTextOutlined,
-  VideoCameraOutlined,
-  AudioOutlined,
-  EyeOutlined
+  PushpinOutlined
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
 import { MessageBubbleProps } from '../../types/chat';
@@ -36,7 +28,7 @@ import ForwardedMessagePreview from './ForwardedMessagePreview';
 import ReplyMessagePreview from './ReplyMessagePreview';
 import './MessageBubble.css';
 
-const { Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 interface MessageGroupBubbleProps extends Omit<MessageBubbleProps, 'message'> {
   messages: TelegramMessage[]; // 消息组中的所有消息
@@ -133,9 +125,6 @@ const MessageGroupBubble: React.FC<MessageGroupBubbleProps> = ({
         {primaryMessage.is_forwarded && (
           <ForwardedMessagePreview
             message={primaryMessage}
-            onJumpToOriginal={(messageId) => {
-              console.log('Jump to original message:', messageId);
-            }}
             onJumpToGroup={onJumpToGroup}
             onJumpToMessage={onJumpToMessage}
             compact={isMobile}

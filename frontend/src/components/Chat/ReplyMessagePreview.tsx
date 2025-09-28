@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Typography, Avatar, Space, Spin, message as notification } from 'antd';
+import { Typography, Avatar, Space, Spin } from 'antd';
 import { MessageOutlined, UserOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
 import { messageApi } from '../../services/apiService';
@@ -91,7 +91,7 @@ const ReplyMessagePreview: React.FC<ReplyMessagePreviewProps> = ({
         hasReplyToMessageId: !!replyToMessageId
       });
     }
-  }, [onJumpToMessage, replyToMessageId]);
+  }, [onJumpToMessage, replyToMessageId, replyMessage]);
 
   // 格式化时间
   const formatMessageTime = (dateString: string) => {

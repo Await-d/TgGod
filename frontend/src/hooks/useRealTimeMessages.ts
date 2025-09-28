@@ -169,31 +169,33 @@ export const useRealTimeMessages = (
 
   // 当选中群组变化时的处理 - 使用ref避免重复订阅
   const lastSubscribedGroupId = useRef<string | number | null>(null);
-  
+  const fetchLatestMessagesRef = useRef(fetchLatestMessages);
+  fetchLatestMessagesRef.current = fetchLatestMessages;
+
   useEffect(() => {
     const currentGroupId = selectedGroup?.id;
-    
+
     // 如果群组ID没有变化，跳过处理
     if (currentGroupId === lastSubscribedGroupId.current) {
       return;
     }
-    
+
     // 取消之前群组的订阅
     if (lastSubscribedGroupId.current) {
       unsubscribeFromGroupMessages(lastSubscribedGroupId.current);
     }
-    
+
     // 订阅新群组的消息并加载初始消息
     if (currentGroupId) {
       subscribeToGroupMessages(currentGroupId);
       console.log('useRealTimeMessages: 已订阅群组消息，开始加载初始消息');
-      
+
       // 延迟加载初始消息，确保其他状态已经重置
       setTimeout(() => {
-        fetchLatestMessages(currentGroupId, 50, true);
+        fetchLatestMessagesRef.current(currentGroupId, 50, true);
       }, 100);
     }
-    
+
     // 更新订阅记录
     lastSubscribedGroupId.current = currentGroupId || null;
 
@@ -204,7 +206,7 @@ export const useRealTimeMessages = (
         lastSubscribedGroupId.current = null;
       }
     };
-  }, [selectedGroup?.id, fetchLatestMessages]); // 添加fetchLatestMessages依赖
+  }, [selectedGroup?.id, subscribeToGroupMessages, unsubscribeFromGroupMessages]);
 
   // WebSocket 消息订阅 - 只在组件挂载时订阅一次
   useEffect(() => {
@@ -215,7 +217,7 @@ export const useRealTimeMessages = (
       unsubscribeMessages();
       unsubscribeGroupStatus();
     };
-  }, []); // 移除依赖，只在挂载时执行一次
+  }, [handleNewMessage, handleGroupStatusUpdate]);
 
   // 组件挂载时连接WebSocket
   useEffect(() => {

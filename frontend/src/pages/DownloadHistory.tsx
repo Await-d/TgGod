@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { downloadHistoryApi } from '../services/apiService';
 import {
   Table,
@@ -113,7 +113,7 @@ const DownloadHistory: React.FC = () => {
   });
 
   // 加载下载记录
-  const loadDownloadRecords = async (page = 1, pageSize = 20) => {
+  const loadDownloadRecords = useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true);
     try {
       const params = {
@@ -141,7 +141,7 @@ const DownloadHistory: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, searchText, dateRange]);
 
   // 加载统计信息
   const loadStats = async (days = 30) => {
@@ -382,7 +382,7 @@ const DownloadHistory: React.FC = () => {
   useEffect(() => {
     loadDownloadRecords();
     loadStats();
-  }, []);
+  }, [loadDownloadRecords]);
 
   return (
     <div style={{ padding: '24px' }}>

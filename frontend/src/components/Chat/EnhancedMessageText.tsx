@@ -36,7 +36,6 @@ const EnhancedMessageText: React.FC<EnhancedMessageTextProps> = ({
   // 渲染带群组信息的文本
   const renderTextWithMentions = () => {
     const elements: React.ReactNode[] = [];
-    let processedText = text;
     let elementIndex = 0;
     
     // 按文本位置排序所有群组信息

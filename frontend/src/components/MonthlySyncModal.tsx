@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   Button,
@@ -15,7 +15,6 @@ import {
   Tag,
   Divider,
   message,
-  Spin,
   List,
   Timeline,
   Statistic
@@ -25,7 +24,6 @@ import {
   SyncOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  ClockCircleOutlined,
   DownloadOutlined,
   WarningOutlined
 } from '@ant-design/icons';
@@ -72,6 +70,18 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
   const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
 
   // 获取默认同步月份
+  const loadDefaultMonths = useCallback(async () => {
+    if (!selectedGroup) return;
+
+    try {
+      const response = await telegramApi.getDefaultSyncMonths(selectedGroup.id, 3);
+      setDefaultMonths(response.months);
+      setSelectedMonths(response.months);
+    } catch (error) {
+      console.error('获取默认同步月份失败:', error);
+    }
+  }, [selectedGroup]);
+
   useEffect(() => {
     const initializeWebSocketAndData = async () => {
       if (visible && selectedGroup) {
@@ -128,19 +138,7 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
     };
 
     initializeWebSocketAndData();
-  }, [visible, selectedGroup]);
-
-  const loadDefaultMonths = async () => {
-    if (!selectedGroup) return;
-    
-    try {
-      const response = await telegramApi.getDefaultSyncMonths(selectedGroup.id, 3);
-      setDefaultMonths(response.months);
-      setSelectedMonths(response.months);
-    } catch (error) {
-      console.error('获取默认同步月份失败:', error);
-    }
-  };
+  }, [visible, selectedGroup, loadDefaultMonths]);
 
   // 生成月份选项
   const generateMonthOptions = (months: number = 12) => {
@@ -158,7 +156,7 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
     return options;
   };
 
-  const monthOptions = generateMonthOptions(12);
+  // const monthOptions = generateMonthOptions(12); // 未使用，已注释
 
   // 处理快速选择
   const handleQuickSelect = (type: 'recent3' | 'recent6' | 'recent12') => {
@@ -197,7 +195,7 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
   // 执行同步
   const handleSync = async () => {
     try {
-      const values = await form.validateFields();
+      await form.validateFields();
       setLoading(true);
       setSyncResult(null);
       setSyncProgress({

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Spin, Progress, message as notification, Modal, Card } from 'antd';
+import { Button, Progress, message as notification, Modal, Card } from 'antd';
 import {
   DownloadOutlined,
   PlayCircleOutlined,
@@ -105,7 +105,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
         setThumbnailError(false);
       }
     }
-  }, [message.media_downloaded, message.media_path, message.message_id]);
+  }, [message.media_downloaded, message.media_path, message.message_id, downloadState.status, downloadState.downloadUrl]);
 
   // 组件卸载时清理
   useEffect(() => {

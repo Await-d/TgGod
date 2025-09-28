@@ -1,39 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Modal, 
-  Form, 
-  Input, 
-  Select, 
-  Button, 
-  Space, 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Modal,
+  Form,
+  Input,
+  Button,
+  Space,
   Card,
   Typography,
   Row,
   Col,
   message,
   Divider,
-  InputNumber,
-  DatePicker,
   Switch,
   Steps,
-  Progress,
   List,
   Tag
 } from 'antd';
-import { 
-  DownloadOutlined, 
-  FolderOutlined, 
+import {
+  DownloadOutlined,
+  FolderOutlined,
   FileTextOutlined,
-  CheckCircleOutlined,
-  LoadingOutlined,
-  WarningOutlined
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import { TelegramGroup, FilterRule, DownloadTask } from '../../types';
 import { ruleApi, downloadApi } from '../../services/apiService';
 
-const { Option } = Select;
-const { Text, Paragraph } = Typography;
-const { RangePicker } = DatePicker;
+const { Text } = Typography;
 const { Step } = Steps;
 
 interface MessageDownloadModalProps {
@@ -61,9 +53,9 @@ const MessageDownloadModal: React.FC<MessageDownloadModalProps> = ({
   const [createdTask, setCreatedTask] = useState<DownloadTask | null>(null);
 
   // 获取可用规则
-  const fetchAvailableRules = async () => {
+  const fetchAvailableRules = useCallback(async () => {
     if (!selectedGroup) return;
-    
+
     try {
       // 获取所有规则，不再按群组过滤
       const rules = await ruleApi.getRules();
@@ -71,7 +63,7 @@ const MessageDownloadModal: React.FC<MessageDownloadModalProps> = ({
     } catch (error: any) {
       message.error('获取规则失败: ' + error.message);
     }
-  };
+  }, [selectedGroup]);
 
   // 预估下载数量
   const estimateDownloadCount = async (ruleId: number) => {
@@ -154,14 +146,14 @@ const MessageDownloadModal: React.FC<MessageDownloadModalProps> = ({
   };
 
   // 生成默认下载路径
-  const generateDownloadPath = () => {
+  const generateDownloadPath = useCallback(() => {
     if (selectedGroup && selectedRule) {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const path = `/downloads/${selectedGroup.title}/${selectedRule.name}_${timestamp}`;
       setDownloadPath(path);
       form.setFieldsValue({ download_path: path });
     }
-  };
+  }, [selectedGroup, selectedRule, form]);
 
   // 当模态框打开时初始化
   useEffect(() => {
@@ -169,7 +161,7 @@ const MessageDownloadModal: React.FC<MessageDownloadModalProps> = ({
       fetchAvailableRules();
       generateDownloadPath();
     }
-  }, [visible, selectedGroup]);
+  }, [visible, selectedGroup, fetchAvailableRules, generateDownloadPath]);
 
   // 渲染步骤内容
   const renderStepContent = () => {

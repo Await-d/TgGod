@@ -1,28 +1,20 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Space, Button, Empty, Spin, Typography, Badge, message as antMessage, notification } from 'antd';
+import { Button, Empty, Spin, Typography, Badge, message as antMessage, notification } from 'antd';
 import {
-  ReloadOutlined,
   SyncOutlined,
-  SettingOutlined,
-  ArrowDownOutlined,
   DownOutlined
 } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage } from '../../types';
-import MessageBubble from './MessageBubble';
 import VirtualizedMessageList, { VirtualizedMessageListRef } from './VirtualizedMessageList';
 import MessageHeader from './MessageHeader';
-// PinnedMessages component moved to MessageHeader
 import MediaGallery from './MediaGallery';
 import { messageApi, telegramApi } from '../../services/apiService';
 import { useTelegramStore, useAuthStore, useTelegramUserStore } from '../../store';
 import './MessageArea.css';
-import { useNavigationHistory, NavigationHistoryEntry } from '../../hooks/useNavigationHistory';
-import { convertFilterToAPIParams, isEmptyFilter } from '../../utils/filterUtils';
+import { convertFilterToAPIParams } from '../../utils/filterUtils';
 import { MessageFilter } from '../../types/chat';
-// 移除MessageSearchBar导入
 
 const { Text } = Typography;
-const PAGE_SIZE = 100; // 每次加载消息的数量
 
 interface MessageAreaProps {
   selectedGroup: TelegramGroup | null;
@@ -89,10 +81,8 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const [page, setPage] = useState(1);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [buttonVisible, setButtonVisible] = useState(true);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [jumpToMessageId, setJumpToMessageId] = useState<number | null>(null);
-  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
 
 
   const scrollTimeoutRef = useRef<NodeJS.Timeout>();
@@ -106,13 +96,12 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const internalContainerRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = propContainerRef || internalContainerRef;
-  const virtualListRef = useRef<VirtualizedMessageListRef>(null); // 添加虚拟列表引用
+  const virtualListRef = useRef<VirtualizedMessageListRef>(null);
 
-  // 消息引用映射 - 用于跳转到特定消息
   const messageRefs = useRef<Record<number, HTMLDivElement>>({});
 
   // 使用传入的消息或store中的消息
-  const { messages: storeMessages, setMessages, addMessage, removeMessage, mergeMessages } = useTelegramStore();
+  const { messages: storeMessages, setMessages, removeMessage, mergeMessages } = useTelegramStore();
   const displayMessages = propMessages || storeMessages;
 
   // 使用传入的加载状态或内部状态
@@ -232,7 +221,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
 
       // 后备方法：使用messagesContainerRef滚动
       if (messagesContainerRef.current) {
-        const container = messagesContainerRef.current;
+        // const container = messagesContainerRef.current; // 暂时未使用
 
         // 确保DOM已完全渲染
         setTimeout(() => {
@@ -279,7 +268,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     } catch (error) {
       console.error('滚动到底部失败:', error);
     }
-  }, []);
+  }, [messagesContainerRef]);
 
   // 更新滚动位置处理函数
   const handleScrollPositionChange = useCallback((isNearBottom: boolean, containerInfo?: {
@@ -392,7 +381,7 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     const targetMessageIndex = displayMessages.findIndex(msg => msg.id === messageId);
 
     if (targetMessageIndex >= 0) {
-      const targetMessage = displayMessages[targetMessageIndex];
+      // const targetMessage = displayMessages[targetMessageIndex];
 
       // 滚动到目标消息
       const messageElement = messageRefs.current[messageId];
@@ -640,7 +629,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
           setUnreadCount(prev => prev + newCount);
           // 确保显示滚动按钮
           setShowScrollToBottom(true);
-          setButtonVisible(true);
         }
       } else if (displayMessages.length > previousMessageCount.current) {
         console.log('[MessageArea] 检测到历史消息加载，不进行滚动操作');
@@ -650,13 +638,15 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       previousMessageCount.current = displayMessages.length;
       lastMessageIdInArea.current = currentLastMessageId;
     }
-  }, [displayMessages.length, scrollToBottom]);
+  }, [displayMessages, scrollToBottom, messagesContainerRef]);
 
   // 组件卸载时清理定时器
   useEffect(() => {
     return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const currentTimeout = scrollTimeoutRef.current;
+      if (currentTimeout) {
+        clearTimeout(currentTimeout);
       }
     };
   }, []);

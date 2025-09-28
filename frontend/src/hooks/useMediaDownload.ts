@@ -261,7 +261,7 @@ export const useMediaDownload = (options: UseMediaDownloadOptions) => {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json(); // 读取响应但不需要使用
 
         // 更新状态为已取消
         setDownloadStatus(prev => ({

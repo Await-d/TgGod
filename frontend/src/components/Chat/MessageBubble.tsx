@@ -6,21 +6,14 @@ import {
   Tag,
   Button,
   Tooltip,
-  Popconfirm,
-  Card,
-  Image
+  Popconfirm
 } from 'antd';
 import {
   UserOutlined,
   MessageOutlined,
   DeleteOutlined,
   PlusOutlined,
-  ShareAltOutlined,
   PushpinOutlined,
-  FileImageOutlined,
-  FileTextOutlined,
-  VideoCameraOutlined,
-  AudioOutlined,
   EyeOutlined
 } from '@ant-design/icons';
 import { TelegramMessage } from '../../types';
@@ -30,7 +23,7 @@ import AutoDownloadImagePreview from './AutoDownloadImagePreview';
 import EnhancedVoiceMessage from './EnhancedVoiceMessage';
 import MessageReactions from './MessageReactions';
 import EnhancedMessageText from './EnhancedMessageText';
-import LinkPreview, { parseLinks, renderTextWithLinks } from './LinkPreview';
+import LinkPreview, { parseLinks } from './LinkPreview';
 import MarkdownRenderer, { isMarkdownContent } from './MarkdownRenderer';
 import ForwardedMessagePreview from './ForwardedMessagePreview';
 import ReplyMessagePreview from './ReplyMessagePreview';
@@ -43,7 +36,7 @@ import './MessageBubble.css';
 // 引入 highlight.js 样式
 import 'highlight.js/styles/github.css';
 
-const { Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 interface ExtendedMessageBubbleProps extends MessageBubbleProps {
   isMobile?: boolean;
@@ -70,18 +63,6 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
     setIsActive(prev => !prev);
   }, []);
 
-  // 获取媒体类型图标
-  const getMediaIcon = (mediaType: string) => {
-    switch (mediaType) {
-      case 'photo': return <FileImageOutlined style={{ color: '#52c41a' }} />;
-      case 'video': return <VideoCameraOutlined style={{ color: '#1890ff' }} />;
-      case 'document': return <FileTextOutlined style={{ color: '#faad14' }} />;
-      case 'audio': return <AudioOutlined style={{ color: '#722ed1' }} />;
-      case 'voice': return <AudioOutlined style={{ color: '#eb2f96' }} />;
-      case 'sticker': return <FileImageOutlined style={{ color: '#13c2c2' }} />;
-      default: return <FileTextOutlined />;
-    }
-  };
 
   // 获取发送者头像 - 简化逻辑，总是显示头像
   const getSenderAvatar = () => {
@@ -157,14 +138,6 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {message.is_forwarded && (
           <ForwardedMessagePreview
             message={message}
-            onJumpToOriginal={(messageId) => {
-              // 跳转到原始消息，使用现有的消息跳转逻辑
-              if (onJumpToMessage) {
-                onJumpToMessage(messageId);
-              } else {
-                console.warn('onJumpToMessage callback not available');
-              }
-            }}
             onJumpToGroup={onJumpToGroup}
             onJumpToMessage={onJumpToMessage}
             compact={isMobile}

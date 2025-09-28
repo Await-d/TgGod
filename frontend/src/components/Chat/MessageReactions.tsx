@@ -48,7 +48,7 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
 
         // 匹配 ReactionEmoji(emoticon='❤') 格式（不带数字）
         const loosePattern = /ReactionEmoji\s*\(\s*emoticon\s*=\s*['"]([^'"]+)['"]\s*\)/g;
-        const numberPattern = /(\d+)/g;
+        // const numberPattern = /(\d+)/g; // 暂时未使用
 
         // 先提取所有表情
         const emojis: string[] = [];

@@ -53,7 +53,6 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
 
   // 置顶消息状态
   const [pinnedMessages, setPinnedMessages] = useState<TelegramMessage[]>([]);
-  const [loadingPinned, setLoadingPinned] = useState(false);
   const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
 
   // 使用媒体时长Hook
@@ -89,7 +88,6 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
   const fetchPinnedMessages = useCallback(async () => {
     if (!group) return;
     
-    setLoadingPinned(true);
     try {
       const messages = await messageApi.getPinnedMessages(group.id);
       setPinnedMessages(messages);
@@ -98,7 +96,6 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
       console.error('获取置顶消息失败:', error);
       setPinnedMessages([]);
     } finally {
-      setLoadingPinned(false);
     }
   }, [group]);
 

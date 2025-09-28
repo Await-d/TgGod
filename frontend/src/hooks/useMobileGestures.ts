@@ -99,18 +99,10 @@ export const useMobileGestures = (options: TouchGestureOptions) => {
       target.removeEventListener('touchend', handleTouchEnd);
     };
 
-    if (element) {
-      addEventListeners(element);
-    } else {
-      addEventListeners(document);
-    }
+    addEventListeners(targetElement);
 
     return () => {
-      if (element) {
-        removeEventListeners(element);
-      } else {
-        removeEventListeners(document);
-      }
+      removeEventListeners(targetElement);
     };
   }, [element, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, threshold]);
 

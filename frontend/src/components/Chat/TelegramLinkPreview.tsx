@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Avatar, Typography, Space, message as notification, Spin } from 'antd';
-import { 
-  TeamOutlined, 
-  UserOutlined, 
-  LinkOutlined, 
+import {
+  TeamOutlined,
+  // UserOutlined,
+  LinkOutlined,
   RightOutlined,
   PlusOutlined,
   CheckOutlined,
   EyeOutlined
 } from '@ant-design/icons';
-import { TelegramGroup } from '../../types';
+// import { TelegramGroup } from '../../types';
 import { telegramApi } from '../../services/apiService';
 import ExternalGroupPreview from './ExternalGroupPreview';
 import './TelegramLinkPreview.css';
@@ -63,7 +63,7 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
       // 处理 t.me 域名
       if (urlObj.hostname === 't.me') {
         const path = urlObj.pathname;
-        const searchParams = urlObj.searchParams;
+        // const searchParams = urlObj.searchParams; // 暂时未使用
         
         // 语言设置链接：https://t.me/setlanguage/zhlangcn
         if (path.startsWith('/setlanguage/')) {

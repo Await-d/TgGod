@@ -1,10 +1,9 @@
 import { useEffect, useCallback } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { TelegramGroup } from '../types';
 import { useTelegramStore } from '../store';
 
 export interface GroupNavigationOptions {
-  autoLoadMessages?: boolean;
   persistSelectedGroup?: boolean;
   syncOnGroupChange?: boolean;
 }
@@ -15,13 +14,10 @@ export interface GroupNavigationOptions {
  */
 export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
   const {
-    autoLoadMessages = true,
     persistSelectedGroup = true,
     syncOnGroupChange = true
   } = options;
 
-  const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const { 
@@ -95,7 +91,7 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     // if (autoLoadMessages && group) {
     //   console.log('useGroupNavigation: 群组切换完成，等待其他hook处理消息加载');
     // }
-  }, [setSelectedGroup, syncGroupToUrl, setMessages, autoLoadMessages]);
+  }, [setSelectedGroup, syncGroupToUrl, setMessages]);
 
   // 初始化时恢复URL状态 - 优先级最高
   useEffect(() => {
@@ -119,7 +115,7 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
         }
       }
     }
-  }, [groups.length, searchParams, setSelectedGroup, selectedGroup, selectGroup]); // 添加searchParams依赖
+  }, [groups, searchParams, setSelectedGroup, selectedGroup, selectGroup]);
 
   // 监听URL参数变化和群组数据变化 - 简化此逻辑以避免冲突
   useEffect(() => {
@@ -231,7 +227,6 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
  */
 export const useChatGroupNavigation = () => {
   return useGroupNavigation({
-    autoLoadMessages: true,
     persistSelectedGroup: true,
     syncOnGroupChange: true
   });

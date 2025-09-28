@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Space, Tag, Button, Tooltip, message as antMessage, Spin, Badge, Modal } from 'antd';
+import React, { useState, useCallback } from 'react';
+import { Space, Tag, Button, Tooltip, message as antMessage, Badge, Modal } from 'antd';
 import {
   ShareAltOutlined,
   MessageOutlined,
@@ -9,8 +9,6 @@ import {
   TeamOutlined,
   SoundOutlined,
   SearchOutlined,
-  LinkOutlined,
-  ArrowLeftOutlined,
   HistoryOutlined,
   EyeOutlined
 } from '@ant-design/icons';
@@ -20,7 +18,7 @@ import styles from './ForwardedMessagePreview.module.css';
 
 interface ForwardedMessagePreviewProps {
   message: TelegramMessage;
-  onJumpToOriginal?: (messageId: number) => void;
+
   onJumpToGroup?: (groupId: number) => void;
   onJumpToMessage?: (messageId: number) => void;
   className?: string;
@@ -31,7 +29,6 @@ interface ForwardedMessagePreviewProps {
 
 const ForwardedMessagePreview: React.FC<ForwardedMessagePreviewProps> = ({
   message,
-  onJumpToOriginal,
   onJumpToGroup,
   onJumpToMessage,
   className = '',
@@ -42,9 +39,9 @@ const ForwardedMessagePreview: React.FC<ForwardedMessagePreviewProps> = ({
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [foundGroupId, setFoundGroupId] = useState<number | null>(null);
-  const [foundMessageId, setFoundMessageId] = useState<number | null>(null);
+  // const [foundMessageId, setFoundMessageId] = useState<number | null>(null);
   const [searching, setSearching] = useState(false);
-  const [originalMessage, setOriginalMessage] = useState<TelegramMessage | null>(null);
+
   const [jumpHistoryVisible, setJumpHistoryVisible] = useState(false);
   const [jumpHistory, setJumpHistory] = useState<Array<{ type: string, id: number, title?: string }>>([]);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
@@ -139,8 +136,8 @@ const ForwardedMessagePreview: React.FC<ForwardedMessagePreviewProps> = ({
         }
 
         // 保存找到的消息ID
-        setFoundMessageId(bestMatch.message_id);
-        setOriginalMessage(bestMatch);
+        // setFoundMessageId(bestMatch.message_id);
+
 
         // 将当前跳转添加到历史记录
         setJumpHistory(prev => [...prev, {

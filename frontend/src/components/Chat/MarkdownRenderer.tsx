@@ -2,10 +2,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import { Typography } from 'antd';
 import './MarkdownRenderer.css';
-
-const { Text } = Typography;
 
 interface MarkdownRendererProps {
   content: string;
@@ -109,7 +106,7 @@ export const isMarkdownContent = (text: string): boolean => {
     /~~.*?~~/, // 删除线
     /`.*?`/, // 行内代码
     /```[\s\S]*?```/, // 代码块
-    /^\s*[\-\*\+]\s+/m, // 无序列表
+    /^\s*[-*+]\s+/m, // 无序列表
     /^\s*\d+\.\s+/m, // 有序列表
     /^\s*>\s+/m, // 引用
     /\[.*?\]\(.*?\)/, // 链接

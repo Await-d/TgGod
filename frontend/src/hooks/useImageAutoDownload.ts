@@ -116,7 +116,7 @@ export const useImageAutoDownload = (
     };
 
     startAutoDownload();
-  }, [message.id, message.media_type, message.media_size, message.media_downloaded, maxSize, enabled]);
+  }, [message.message_id, message.group_id, message.media_type, message.media_size, message.media_downloaded, message.media_filename, maxSize, enabled]);
 
   return {
     ...state,

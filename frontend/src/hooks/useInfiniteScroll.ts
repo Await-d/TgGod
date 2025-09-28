@@ -6,7 +6,6 @@ import { messageApi } from '../services/apiService';
 
 export interface InfiniteScrollOptions {
   threshold?: number;
-  debounceDelay?: number;
   pageSize?: number;
   preloadThreshold?: number;
   maxPages?: number;
@@ -38,7 +37,6 @@ export const useInfiniteScroll = (
 ): InfiniteScrollResult => {
   const {
     threshold = 50, // 减少触发距离，提升响应
-    debounceDelay = 500, // 增加防抖延迟，减少频繁触发
     pageSize = 30, // 减少每页数量，加快加载速度
     maxPages = 20 // 减少最大页数，避免过多内存占用
   } = options;
@@ -97,7 +95,7 @@ export const useInfiniteScroll = (
     lastGroupId.current = currentGroupId || null;
     
     console.log('[InfiniteScroll] 滚动状态重置完成，等待消息数据加载');
-  }, [selectedGroup?.id, reset]);
+  }, [selectedGroup?.id, reset, containerRef]);
   
   // 移除初始检查函数，简化逻辑，让正常的滚动事件处理即可
 
@@ -265,36 +263,41 @@ export const useInfiniteScroll = (
     messages, 
     onMessagesUpdate, 
     containerRef,
-    maintainScrollPosition
+    maintainScrollPosition,
+    currentFilter
   ]);
+
+  // 存储 loadMore 的 ref，避免在 useEffect 中直接依赖
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
 
   // 初始滚动检查 - 修复版本，避免循环触发
   useEffect(() => {
     if (!selectedGroup?.id || messages.length === 0 || isLoadingRef.current) return;
-    
+
     const timer = setTimeout(() => {
       if (containerRef.current && selectedGroup?.id && !isLoadingRef.current) {
         const scrollTop = containerRef.current.scrollTop;
         const timeSinceLastLoad = Date.now() - ((window as any)._lastLoadTrigger || 0);
-        
-        console.log('[InfiniteScroll] 初始滚动位置检查', { 
-          scrollTop, 
-          timeSinceLastLoad, 
+
+        console.log('[InfiniteScroll] 初始滚动位置检查', {
+          scrollTop,
+          timeSinceLastLoad,
           hasMore,
-          messagesLength: messages.length 
+          messagesLength: messages.length
         });
-        
+
         // 严格条件：只在用户明确滚动到顶部且距离上次加载超过2秒时触发
         if (scrollTop < 50 && hasMore && timeSinceLastLoad > 2000 && messages.length > 10) {
           console.log('[InfiniteScroll] 初始检查触发历史消息加载');
           (window as any)._lastLoadTrigger = Date.now();
-          loadMore();
+          loadMoreRef.current();
         }
       }
     }, 1000); // 增加延迟避免初始化冲突
-    
+
     return () => clearTimeout(timer);
-  }, [selectedGroup?.id, hasMore]); // 移除messages.length和loadMore依赖避免循环
+  }, [selectedGroup?.id, hasMore, messages.length, containerRef]); // 添加必要的依赖
 
   // 使用ref存储当前状态避免频繁回调重建
   const scrollStateRef = useRef({
@@ -349,9 +352,9 @@ export const useInfiniteScroll = (
       (window as any)._lastLoadTrigger = Date.now();
       
       // 执行加载
-      loadMore();
+      loadMoreRef.current();
     }
-  }, [threshold, maxPages, loadMore]);
+  }, [threshold, maxPages, containerRef]);
 
   // 绑定滚动事件 - 修复无限循环问题
   useEffect(() => {
@@ -398,7 +401,7 @@ export const useInfiniteScroll = (
         debounceTimer.current = null;
       }
     };
-  }, [selectedGroup?.id]); // 移除handleScroll依赖避免循环
+  }, [selectedGroup?.id, handleScroll, containerRef]);
 
   // 当消息数组变化时更新统计
   useEffect(() => {

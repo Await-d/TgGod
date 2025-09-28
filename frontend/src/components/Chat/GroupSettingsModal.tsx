@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Modal, 
-  Form, 
-  Input, 
-  Switch, 
-  Button, 
-  Space, 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Modal,
+  Form,
+  Input,
+  Switch,
+  Button,
+  Space,
   Card,
   Typography,
   Row,
@@ -17,25 +17,22 @@ import {
   Tag,
   Statistic,
   Tabs,
-  List,
   Badge
 } from 'antd';
-import { 
-  SettingOutlined, 
-  UserOutlined, 
-  MessageOutlined, 
+import {
+  SettingOutlined,
+  MessageOutlined,
   FileImageOutlined,
   ClockCircleOutlined,
   TeamOutlined,
-  SafetyOutlined,
   InfoCircleOutlined,
   EditOutlined,
   SyncOutlined
 } from '@ant-design/icons';
 import { TelegramGroup, GroupStats } from '../../types';
-import { telegramApi, messageApi } from '../../services/apiService';
+import { telegramApi } from '../../services/apiService';
 
-const { Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { TabPane } = Tabs;
 
 interface GroupSettingsModalProps {
@@ -60,16 +57,16 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState('info');
 
   // 获取群组统计信息
-  const fetchGroupStats = async () => {
+  const fetchGroupStats = useCallback(async () => {
     if (!selectedGroup) return;
-    
+
     try {
       const stats = await telegramApi.getGroupStats(selectedGroup.id);
       setGroupStats(stats);
     } catch (error: any) {
       console.error('获取群组统计失败:', error);
     }
-  };
+  }, [selectedGroup]);
 
   // 同步群组信息
   const handleSyncGroup = async () => {
@@ -151,7 +148,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
         description: selectedGroup.description || '',
       });
     }
-  }, [visible, selectedGroup]);
+  }, [visible, selectedGroup, form, fetchGroupStats]);
 
   if (!selectedGroup) return null;
 

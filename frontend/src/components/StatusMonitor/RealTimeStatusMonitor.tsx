@@ -32,10 +32,10 @@ import {
   Space,
   Typography,
   Modal,
-  List,
-  Divider,
   Switch,
-  notification
+  notification,
+  // List,    // 未使用，已注释
+  // Divider  // 未使用，已注释
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -47,12 +47,12 @@ import {
   InfoCircleOutlined,
   DisconnectOutlined,
   WifiOutlined,
-  ClockCircleOutlined,
   ThunderboltOutlined,
   DatabaseOutlined,
   CloudOutlined,
   MonitorOutlined,
-  ToolOutlined
+  ToolOutlined,
+  // ClockCircleOutlined  // 未使用，已注释
 } from '@ant-design/icons';
 import { useRealTimeStatus, useSystemHealth } from '../../hooks/useRealTimeStatus';
 import { ServiceStatus, ServicePriority } from '../../services/realTimeStatusService';
@@ -131,11 +131,11 @@ const RealTimeStatusMonitor: React.FC<RealTimeStatusMonitorProps> = ({
     healthSummary,
     systemMetrics,
     criticalServices,
-    warningServices,
     healthyServices,
     healthPercentage,
     isSystemHealthy,
-    hasCriticalIssues
+    hasCriticalIssues,
+    // warningServices  // 暂时未使用，已注释
   } = useSystemHealth();
 
   /**

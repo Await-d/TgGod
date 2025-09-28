@@ -17,13 +17,13 @@ import {
   Spin,
   message
 } from 'antd';
-import { 
-  SearchOutlined, 
-  CloseOutlined, 
-  UserOutlined, 
-  FileImageOutlined, 
-  MessageOutlined,
-  CalendarOutlined,
+import {
+  SearchOutlined,
+  CloseOutlined,
+  UserOutlined,
+  FileImageOutlined,
+  // MessageOutlined,
+  // CalendarOutlined,
   FilterOutlined
 } from '@ant-design/icons';
 import { TelegramGroup, TelegramMessage, MessageSearchRequest } from '../../types';
@@ -54,13 +54,12 @@ const MessageSearchDrawer: React.FC<MessageSearchDrawerProps> = ({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  // const [currentPage] = useState(1); // 暂时未使用分页功能
   const [total, setTotal] = useState(0);
 
   // 重置搜索结果
   const resetResults = () => {
     setSearchResults([]);
-    setCurrentPage(1);
     setTotal(0);
   };
 
@@ -83,7 +82,7 @@ const MessageSearchDrawer: React.FC<MessageSearchDrawerProps> = ({
       const response = await messageApi.searchMessages(selectedGroup.id, searchParams);
       setSearchResults(response.items || []);
       setTotal(response.total || 0);
-      setCurrentPage(1);
+      // 分页功能暂时不需要
     } catch (error: any) {
       message.error('搜索失败: ' + error.message);
       console.error('搜索失败:', error);

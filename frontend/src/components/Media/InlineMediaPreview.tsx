@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Modal, 
-  Button, 
-  Image, 
-  Spin, 
-  Space, 
-  Typography, 
-  Tooltip,
-  Progress 
+import {
+  Button,
+  Image,
+  Spin,
+  Space,
+  Typography,
+  Progress
 } from 'antd';
-import { 
-  DownloadOutlined, 
-  ExpandOutlined, 
+import {
+  DownloadOutlined,
+  ExpandOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
   FileImageOutlined,

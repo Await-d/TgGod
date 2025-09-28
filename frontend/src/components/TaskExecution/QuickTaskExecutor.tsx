@@ -16,21 +16,20 @@ import {
   Progress,
   Badge,
   List,
-  Spin
+  // Spin  // 未使用，已注释
 } from 'antd';
 import {
   PlayCircleOutlined,
   PlusOutlined,
-  SettingOutlined,
   RocketOutlined,
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-  ClockCircleOutlined
+  // CheckCircleOutlined,     // 暂时未使用
+  // ExclamationCircleOutlined, // 暂时未使用
+  // ClockCircleOutlined      // 暂时未使用
 } from '@ant-design/icons';
 import { taskApi, telegramApi, ruleApi } from '../../services/apiService';
 import { DownloadTask, TelegramGroup, FilterRule } from '../../types';
 
-const { Title, Text } = Typography;
+const { Text /* Title */ } = Typography; // Title 暂时未使用
 const { Option } = Select;
 
 interface QuickTaskExecutorProps {
@@ -133,17 +132,17 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
     return colorMap[status] || 'default';
   };
 
-  // 获取任务状态图标
-  const getStatusIcon = (status: string) => {
-    const iconMap: Record<string, React.ReactNode> = {
-      pending: <ClockCircleOutlined />,
-      running: <PlayCircleOutlined spin />,
-      completed: <CheckCircleOutlined />,
-      failed: <ExclamationCircleOutlined />,
-      paused: <PlayCircleOutlined />
-    };
-    return iconMap[status] || <ClockCircleOutlined />;
-  };
+  // 获取任务状态图标（当前未使用，保留以备后用）
+  // const getStatusIcon = (status: string) => {
+  //   const iconMap: Record<string, React.ReactNode> = {
+  //     pending: <ClockCircleOutlined />,
+  //     running: <PlayCircleOutlined spin />,
+  //     completed: <CheckCircleOutlined />,
+  //     failed: <ExclamationCircleOutlined />,
+  //     paused: <PlayCircleOutlined />
+  //   };
+  //   return iconMap[status] || <ClockCircleOutlined />;
+  // };
 
   return (
     <div>
