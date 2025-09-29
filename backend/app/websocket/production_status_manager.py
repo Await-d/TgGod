@@ -387,16 +387,26 @@ class ProductionStatusManager:
     async def _check_telegram_health(self) -> Dict[str, Any]:
         """Check Telegram service health"""
         try:
-            from app.services.telegram_service import TelegramService
+            # 使用全局telegram_service实例，而不是创建新实例
+            from app.services.telegram_service import telegram_service
 
             # Check if client is connected
-            telegram_service = TelegramService()
             is_connected = telegram_service.is_connected() if hasattr(telegram_service, 'is_connected') else False
 
+            # 获取健康指标
             metrics = {
                 "client_connected": is_connected,
                 "last_activity": datetime.now().isoformat()
             }
+
+            # 如果有健康指标对象，添加更多信息
+            if hasattr(telegram_service, 'health_metrics'):
+                health_metrics = telegram_service.health_metrics
+                metrics.update({
+                    "error_count": getattr(health_metrics, 'error_count', 0),
+                    "success_count": getattr(health_metrics, 'success_count', 0),
+                    "last_check_time": getattr(health_metrics, 'last_check_time', datetime.now()).isoformat() if hasattr(health_metrics, 'last_check_time') else datetime.now().isoformat()
+                })
 
             if not is_connected:
                 return {
@@ -768,11 +778,14 @@ class ProductionStatusManager:
 
         try:
             if service_name == "telegram_service":
-                # Attempt to reconnect Telegram service
-                from app.services.telegram_service import TelegramService
-                telegram_service = TelegramService()
+                # Attempt to reconnect Telegram service - 使用全局实例
+                from app.services.telegram_service import telegram_service
                 if hasattr(telegram_service, 'reconnect'):
                     await telegram_service.reconnect()
+                    recovery_success = True
+                elif hasattr(telegram_service, 'initialize'):
+                    # 如果没有reconnect方法，尝试重新初始化
+                    await telegram_service.initialize()
                     recovery_success = True
 
             elif service_name == "websocket_manager":
