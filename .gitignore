@@ -109,3 +109,7 @@ complete_production_validation.json
 # Spec workflow temporary files
 .spec-workflow/
 .serena/memories/suggested_commands.md
+
+# Claude Code AI assistant files
+.claude/
+.serena/cache/
