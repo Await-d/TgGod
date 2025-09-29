@@ -1,0 +1,214 @@
+.system-status-container {
+  padding: 24px;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.system-status-header {
+  margin-bottom: 24px;
+}
+
+.system-status-title {
+  margin: 0 !important;
+  color: #262626;
+  font-weight: 600;
+}
+
+.system-status-card {
+  margin-bottom: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.system-status-metric-card {
+  text-align: center;
+  border-radius: 8px;
+}
+
+.system-status-metric-card .ant-statistic-title {
+  font-weight: 500;
+  color: #666;
+}
+
+.system-status-metric-card .ant-statistic-content {
+  color: #262626;
+}
+
+.system-status-service-table {
+  margin-top: 16px;
+}
+
+.system-status-service-table .ant-table {
+  border-radius: 8px;
+}
+
+.system-status-service-table .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  color: #262626;
+  font-weight: 600;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.system-status-service-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.system-status-service-table .ant-table-tbody > tr:hover > td {
+  background-color: #fafafa;
+}
+
+.system-status-loading {
+  text-align: center;
+  padding: 50px;
+}
+
+.system-status-loading .ant-spin {
+  margin-bottom: 16px;
+}
+
+.system-status-alert {
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
+
+.system-status-progress-card {
+  border-radius: 8px;
+}
+
+.system-status-progress-card .ant-card-head {
+  background-color: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.system-status-progress-card .ant-card-body {
+  padding: 16px;
+}
+
+.system-status-info-card {
+  margin-top: 16px;
+  border-radius: 8px;
+}
+
+.system-status-refresh-btn {
+  border-radius: 6px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .system-status-container {
+    padding: 16px;
+  }
+
+  .system-status-header {
+    margin-bottom: 16px;
+  }
+
+  .system-status-title {
+    font-size: 20px !important;
+  }
+
+  .system-status-card {
+    margin-bottom: 12px;
+  }
+
+  .system-status-metric-card {
+    margin-bottom: 12px;
+  }
+
+  .system-status-service-table .ant-table {
+    font-size: 12px;
+  }
+}
+
+/* 暗色主题支持 */
+.dark .system-status-container {
+  background-color: #141414;
+}
+
+.dark .system-status-title {
+  color: #fff;
+}
+
+.dark .system-status-card {
+  background-color: #1f1f1f;
+  border-color: #303030;
+}
+
+.dark .system-status-metric-card {
+  background-color: #1f1f1f;
+  border-color: #303030;
+}
+
+.dark .system-status-metric-card .ant-statistic-title {
+  color: #a6a6a6;
+}
+
+.dark .system-status-metric-card .ant-statistic-content {
+  color: #fff;
+}
+
+.dark .system-status-service-table .ant-table-thead > tr > th {
+  background-color: #262626;
+  color: #fff;
+  border-bottom-color: #303030;
+}
+
+.dark .system-status-service-table .ant-table-tbody > tr > td {
+  background-color: #1f1f1f;
+  border-bottom-color: #303030;
+  color: #fff;
+}
+
+.dark .system-status-service-table .ant-table-tbody > tr:hover > td {
+  background-color: #262626;
+}
+
+.dark .system-status-progress-card .ant-card-head {
+  background-color: #262626;
+  border-bottom-color: #303030;
+}
+
+.dark .system-status-info-card {
+  background-color: #1f1f1f;
+  border-color: #303030;
+}
+
+/* 状态相关的颜色 */
+.status-healthy {
+  color: #52c41a;
+}
+
+.status-warning {
+  color: #faad14;
+}
+
+.status-error {
+  color: #ff4d4f;
+}
+
+.status-maintenance {
+  color: #1890ff;
+}
+
+.status-unknown {
+  color: #d9d9d9;
+}
+
+/* 优先级相关的颜色 */
+.priority-critical {
+  color: #ff4d4f;
+  font-weight: 600;
+}
+
+.priority-high {
+  color: #faad14;
+  font-weight: 500;
+}
+
+.priority-medium {
+  color: #1890ff;
+}
+
+.priority-low {
+  color: #52c41a;
+}

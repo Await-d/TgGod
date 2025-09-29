@@ -10,6 +10,7 @@ import Rules from './pages/Rules';
 import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 import DatabaseStatus from './pages/DatabaseStatus';
+import SystemStatus from './pages/SystemStatus';
 import LoginPage from './pages/Login';
 import ChatInterface from './pages/ChatInterface';
 import TaskManagement from './pages/TaskManagement';
@@ -182,6 +183,15 @@ const App: React.FC = () => {
             </ProtectedRoute>
           } />
           <Route path="/status" element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Content>
+                  <SystemStatus />
+                </Content>
+              </MainLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/realtime-status" element={
             <ProtectedRoute>
               <MainLayout>
                 <Content>

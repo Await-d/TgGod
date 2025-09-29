@@ -116,7 +116,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     {
       key: '/status',
       icon: <MonitorOutlined />,
-      label: '实时状态',
+      label: '系统状态',
     },
     {
       key: '/settings',
