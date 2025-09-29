@@ -237,10 +237,17 @@ class AsyncLogWriter:
         if self._running:
             return
 
-        self._running = True
-        self._writer_task = asyncio.create_task(self._writer_loop())
-        self._flush_task = asyncio.create_task(self._flush_loop())
-        logger.info("异步日志写入器已启动")
+        try:
+            # 检查是否有运行的事件循环
+            loop = asyncio.get_running_loop()
+            self._running = True
+            self._writer_task = asyncio.create_task(self._writer_loop())
+            self._flush_task = asyncio.create_task(self._flush_loop())
+            logger.info("异步日志写入器已启动")
+        except RuntimeError:
+            # 没有运行的事件循环，延迟启动
+            logger.warning("无运行的事件循环，异步日志写入器将延迟启动")
+            self._running = False
 
     async def stop(self):
         """停止异步写入器"""
@@ -536,7 +543,7 @@ class TaskExecutionService:
             flush_interval=5.0,  # 5秒自动刷新
             max_retries=3
         )
-        self.async_log_writer.start()  # 启动异步写入器
+        # 注意：不在初始化时启动异步写入器，而是在事件循环运行时启动
 
         # 监控和健康检查
         self._health_check_task = None
@@ -555,6 +562,10 @@ class TaskExecutionService:
 
         try:
             high_perf_logger.info("开始初始化加固的任务执行服务")
+
+            # 启动异步日志写入器（在有事件循环时）
+            if not self.async_log_writer._running:
+                self.async_log_writer.start()
 
             # 启动内存管理
             memory_manager.start()

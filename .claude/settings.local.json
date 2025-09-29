@@ -37,7 +37,11 @@
       "Bash(git tag:*)",
       "Bash(git show-ref:*)",
       "WebFetch(domain:github.com)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(cat:*)",
+      "Bash(netstat:*)",
+      "Bash(pnpm build)",
+      "Bash(docker:*)"
     ],
     "deny": [],
     "ask": []
