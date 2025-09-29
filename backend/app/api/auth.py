@@ -13,7 +13,9 @@ from ..utils.auth import (
     get_user,
     get_user_by_email,
     get_current_active_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    MAX_PASSWORD_BYTES,
+    PasswordTooLongError,
 )
 
 router = APIRouter()
@@ -41,6 +43,8 @@ class UserCreate(BaseModel):
     def validate_password(cls, v):
         if len(v) < 6:
             raise ValueError('密码长度不能少于6个字符')
+        if len(v.encode('utf-8')) > MAX_PASSWORD_BYTES:
+            raise ValueError(f'密码编码后长度不能超过{MAX_PASSWORD_BYTES}字节')
         return v
 
 
@@ -99,7 +103,10 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
         )
     
     # 创建新用户
-    hashed_password = get_password_hash(user.password)
+    try:
+        hashed_password = get_password_hash(user.password)
+    except PasswordTooLongError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     db_user = User(
         username=user.username,
         email=user.email,

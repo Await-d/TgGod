@@ -3,16 +3,12 @@
 提供数据库结构检查和状态查询的API接口
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import Dict, Any
-
-from ..database import get_db
+from fastapi import APIRouter, HTTPException
 from ..utils.database_checker import database_checker
 
 router = APIRouter()
 
-@router.get("/database/check")
+@router.get("/check")
 async def check_database_structure():
     """检查数据库结构完整性"""
     try:
@@ -25,7 +21,7 @@ async def check_database_structure():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"数据库检查失败: {str(e)}")
 
-@router.post("/database/repair")
+@router.post("/repair")
 async def repair_database_structure():
     """修复数据库结构问题"""
     try:
@@ -59,7 +55,7 @@ async def repair_database_structure():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"数据库修复失败: {str(e)}")
 
-@router.get("/database/info")
+@router.get("/info")
 async def get_database_info():
     """获取数据库基本信息"""
     try:
@@ -72,7 +68,7 @@ async def get_database_info():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取数据库信息失败: {str(e)}")
 
-@router.get("/database/health")
+@router.get("/health")
 async def database_health_check():
     """数据库健康检查"""
     try:
@@ -95,7 +91,7 @@ async def database_health_check():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"数据库健康检查失败: {str(e)}")
 
-@router.post("/database/startup-check")
+@router.post("/startup-check")
 async def run_startup_check():
     """手动运行启动时数据库检查"""
     try:

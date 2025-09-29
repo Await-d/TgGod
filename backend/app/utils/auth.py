@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Optional, Union
+from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
@@ -12,6 +12,23 @@ from ..models.user import User
 # 密码加密上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+MAX_PASSWORD_BYTES = 72
+PASSWORD_TOO_LONG_MESSAGE = f"密码长度不能超过{MAX_PASSWORD_BYTES}字节（按UTF-8计算），请缩短后重试"
+
+
+class PasswordTooLongError(ValueError):
+    """密码长度超出 bcrypt 支持范围"""
+
+    def __init__(self, message: str = PASSWORD_TOO_LONG_MESSAGE) -> None:
+        super().__init__(message)
+
+
+def ensure_password_length(password: str) -> None:
+    """校验密码字节长度，确保符合 bcrypt 限制"""
+    if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
+        raise PasswordTooLongError()
+
+
 # JWT Bearer token认证
 security = HTTPBearer()
 
@@ -23,12 +40,24 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24 * 60  # 30天
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        ensure_password_length(plain_password)
+        return pwd_context.verify(plain_password, hashed_password)
+    except PasswordTooLongError:
+        raise
+    except ValueError as exc:
+        raise PasswordTooLongError() from exc
 
 
 def get_password_hash(password: str) -> str:
     """生成密码哈希"""
-    return pwd_context.hash(password)
+    try:
+        ensure_password_length(password)
+        return pwd_context.hash(password)
+    except PasswordTooLongError:
+        raise
+    except ValueError as exc:
+        raise PasswordTooLongError() from exc
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -67,8 +96,14 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
     user = get_user(db, username)
     if not user:
         return None
-    if not verify_password(password, user.hashed_password):
-        return None
+    try:
+        if not verify_password(password, user.hashed_password):
+            return None
+    except PasswordTooLongError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc)
+        ) from exc
     return user
 
 

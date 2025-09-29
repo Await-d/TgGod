@@ -28,6 +28,37 @@ interface TelegramAuthProps {
 
 const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError }) => {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+  const updateAuthStatus = useCallback((status: AuthStatus | null) => {
+    setAuthStatus(prev => {
+      if (prev === null && status === null) {
+        return prev;
+      }
+
+      if (status === null || prev === null) {
+        return status;
+      }
+
+      const sameUser =
+        (!!prev.user_info === !!status.user_info) &&
+        (!prev.user_info || (
+          prev.user_info.id === status.user_info?.id &&
+          prev.user_info.username === status.user_info?.username &&
+          prev.user_info.first_name === status.user_info?.first_name &&
+          prev.user_info.last_name === status.user_info?.last_name &&
+          prev.user_info.phone === status.user_info?.phone
+        ));
+
+      if (
+        prev.is_authorized === status.is_authorized &&
+        prev.message === status.message &&
+        sameUser
+      ) {
+        return prev;
+      }
+
+      return status;
+    });
+  }, [setAuthStatus]);
   const [loading, setLoading] = useState(false);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -41,56 +72,75 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
     try {
       console.log('正在检查Telegram认证状态...');
       const response = await apiService.get('/telegram/auth/status');
-      
-      // 详细日志记录API响应
       console.log('Telegram auth status response:', response);
-      
-      // 处理API响应 - 拦截器可能直接返回数据或包装的响应
-      let data: AuthStatus;
-      
-      if (response && typeof response === 'object') {
-        // 如果response直接包含is_authorized字段，说明是直接的状态数据
-        if ('is_authorized' in response) {
-          data = response as unknown as AuthStatus;
-          console.log('TelegramAuth - 使用直接状态数据格式');
-        }
-        // 如果response包含data字段且data中有success字段，说明是标准API响应格式
-        else if (response.data && 'success' in response.data && response.data.success) {
-          data = response.data.data as AuthStatus;
-          console.log('TelegramAuth - 使用标准API响应格式');
-        }
-        // 其他情况作为错误处理
-        else {
-          console.warn('Telegram认证状态检查失败:', response);
-          const errorMsg = response.data?.message || (response as any).message || '检查认证状态失败';
-          setError(errorMsg);
-          setStep('phone');
-          return;
-        }
-        
-        console.log('Telegram auth status data:', data);
-        setAuthStatus(data);
 
-        if (data.is_authorized) {
-          setStep('success');
-          onAuthSuccess?.(data.user_info);
-        } else {
-          setStep('phone');
+      const normalizeStatus = (payload: any): AuthStatus | null => {
+        if (!payload || typeof payload !== 'object') {
+          return null;
+        }
+
+        if ('is_authorized' in payload) {
+          return payload as AuthStatus;
+        }
+
+        if ('data' in payload) {
+          return normalizeStatus((payload as any).data);
+        }
+
+        if ('success' in payload && (payload as any).success && 'data' in payload) {
+          return normalizeStatus((payload as any).data);
+        }
+
+        return null;
+      };
+
+      const parsedStatus = normalizeStatus(response);
+
+      if (!parsedStatus) {
+        console.warn('Telegram认证状态检查失败: 响应结构异常', response);
+        const fallbackMessage = (response as any)?.message || '检查认证状态失败';
+        setError(fallbackMessage);
+        updateAuthStatus({
+          is_authorized: false,
+          message: fallbackMessage,
+        });
+        setStep('phone');
+        return;
+      }
+
+      const normalizedStatus: AuthStatus = {
+        is_authorized: parsedStatus.is_authorized,
+        user_info: parsedStatus.user_info,
+        message: parsedStatus.message || (parsedStatus.is_authorized ? '认证成功' : '未认证'),
+      };
+
+      console.log('Telegram auth status data:', normalizedStatus);
+      updateAuthStatus(normalizedStatus);
+
+      if (normalizedStatus.is_authorized) {
+        setError('');
+        setNeedsPassword(false);
+        setStep('success');
+        if (normalizedStatus.user_info) {
+          onAuthSuccess?.(normalizedStatus.user_info);
         }
       } else {
-        // 记录错误信息以便调试
-        console.warn('Telegram认证状态检查失败 - 响应格式错误:', response);
-        setError('检查认证状态失败');
+        setError(normalizedStatus.message);
+        setStep('phone');
       }
     } catch (err: any) {
       console.error('Telegram认证状态检查异常:', err);
       const errorMsg = err.message || '检查认证状态失败';
       setError(errorMsg);
+      updateAuthStatus({
+        is_authorized: false,
+        message: errorMsg,
+      });
       onAuthError?.(errorMsg);
     } finally {
       setLoading(false);
     }
-  }, [onAuthSuccess, onAuthError]);
+  }, [onAuthSuccess, onAuthError, updateAuthStatus]);
 
   useEffect(() => {
     checkAuthStatus();
@@ -148,7 +198,7 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
       if (response.data?.success && response.data?.data) {
         const userData = response.data.data as LoginResponse;
         setStep('success');
-        setAuthStatus({
+        updateAuthStatus({
           is_authorized: true,
           user_info: userData.user_info,
           message: userData.message || '认证成功',
@@ -177,7 +227,7 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
       const response = await apiService.post('/telegram/auth/logout');
 
       if (response.data?.success) {
-        setAuthStatus(null);
+        updateAuthStatus(null);
         setStep('phone');
         setPhone('');
         setCode('');

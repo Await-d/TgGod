@@ -124,6 +124,7 @@ class RealTimeStatusService {
   private currentStatus: ProductionStatusData | null = null;
   private connected = false;
   private autoRetryEnabled = true;
+  private lastCriticalAlertKey: string | null = null;
 
   constructor() {
     this.initializeWebSocketListeners();
@@ -172,13 +173,13 @@ class RealTimeStatusService {
   private handleConnectionStatusChange(connected: boolean): void {
     if (connected) {
       notification.success({
-        message: 'Real-time Connection Established',
-        description: 'Status monitoring is now active',
+        message: '实时连接已建立',
+        description: '状态监控已启动',
       });
     } else {
       notification.warning({
-        message: 'Real-time Connection Lost',
-        description: 'Attempting to reconnect...',
+        message: '实时连接已断开',
+        description: '正在尝试重新连接…',
         duration: 0, // Persistent until reconnected
         key: 'connection-lost',
       });
@@ -230,7 +231,17 @@ class RealTimeStatusService {
     );
 
     if (criticalServices.length > 0) {
-      this.showCriticalServiceAlert(criticalServices);
+      const alertKey = criticalServices
+        .map(service => `${service.name}:${service.status}:${service.health_score}`)
+        .sort()
+        .join('|');
+
+      if (this.lastCriticalAlertKey !== alertKey) {
+        this.showCriticalServiceAlert(criticalServices);
+        this.lastCriticalAlertKey = alertKey;
+      }
+    } else if (this.lastCriticalAlertKey) {
+      this.lastCriticalAlertKey = null;
     }
 
     // Check for maintenance mode changes
@@ -251,9 +262,9 @@ class RealTimeStatusService {
     const serviceNames = services.map(s => s.name).join(', ');
 
     Modal.error({
-      title: 'Critical System Services Offline',
-      content: `Affected Services: ${serviceNames}\n\nSystem functionality may be severely impacted. Please check the service status page for details and recovery options.`,
-      okText: 'View Service Status',
+      title: '关键系统服务已离线',
+      content: `受影响的服务：${serviceNames}\n\n系统功能可能受到严重影响，请前往服务状态页面查看详情并执行恢复操作。`,
+      okText: '查看服务状态',
       onOk: () => {
         // Navigate to service status page
         window.location.hash = '#/services';
@@ -270,7 +281,7 @@ class RealTimeStatusService {
       : maintenance.message;
 
     notification.info({
-      message: 'System Maintenance Active',
+      message: '系统维护中',
       description,
       duration: 0, // Persistent during maintenance
       key: 'maintenance-mode',
@@ -284,24 +295,24 @@ class RealTimeStatusService {
     // CPU warning
     if (metrics.cpu_percent > 80) {
       notification.warning({
-        message: 'High CPU Usage',
-        description: `CPU usage is at ${metrics.cpu_percent.toFixed(1)}%`,
+        message: 'CPU 使用率过高',
+        description: `CPU 使用率已达 ${metrics.cpu_percent.toFixed(1)}%`,
       });
     }
 
     // Memory warning
     if (metrics.memory_percent > 85) {
       notification.warning({
-        message: 'High Memory Usage',
-        description: `Memory usage is at ${metrics.memory_percent.toFixed(1)}%`,
+        message: '内存使用率过高',
+        description: `内存使用率已达 ${metrics.memory_percent.toFixed(1)}%`,
       });
     }
 
     // Disk space warning
     if (metrics.disk_percent > 90) {
       notification.error({
-        message: 'Critical Disk Space',
-        description: `Disk usage is at ${metrics.disk_percent.toFixed(1)}%`,
+        message: '磁盘空间告急',
+        description: `磁盘使用率已达 ${metrics.disk_percent.toFixed(1)}%`,
       });
     }
   }

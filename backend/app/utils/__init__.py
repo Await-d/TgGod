@@ -15,5 +15,8 @@ __all__ = [
     "security",
     "SECRET_KEY",
     "ALGORITHM",
-    "ACCESS_TOKEN_EXPIRE_MINUTES"
+    "ACCESS_TOKEN_EXPIRE_MINUTES",
+    "MAX_PASSWORD_BYTES",
+    "PASSWORD_TOO_LONG_MESSAGE",
+    "PasswordTooLongError"
 ]

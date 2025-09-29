@@ -21,9 +21,6 @@ import { realTimeStatusService } from './services/realTimeStatusService';
 import { useGlobalStore, useAuthStore, useUserSettingsStore, useRealTimeStatusStore } from './store';
 import ThemeProvider from './components/UserSettings/ThemeProvider';
 import './styles/themes.css';
-// 导入StagewiseToolbar和ReactPlugin
-import { StagewiseToolbar } from '@stagewise/toolbar-react';
-import reactPlugin from '@stagewise-plugins/react';
 
 const { Content } = Layout;
 
@@ -79,8 +76,6 @@ const App: React.FC = () => {
   return (
     <ThemeProvider>
       <div className="app-container">
-        {/* 集成StagewiseToolbar组件 - 只在开发环境下显示 */}
-        <StagewiseToolbar config={{ plugins: [reactPlugin] }} />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={

@@ -26,57 +26,70 @@ class WebSocketService {
     }
 
     // 获取WebSocket URL - 直接连接到后端以避免代理问题
-    const wsUrl = process.env.REACT_APP_WS_URL 
-      ? (() => {
-          const wsBaseUrl = process.env.REACT_APP_WS_URL;
-          let finalUrl: string;
-          
-          // 如果是完整URL（包含协议），直接使用
-          if (wsBaseUrl.startsWith('ws://') || wsBaseUrl.startsWith('wss://')) {
-            finalUrl = `${wsBaseUrl}/ws/${this.clientId}`;
-          } else {
-            // 如果是相对路径，构建完整URL
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host;
-            finalUrl = `${protocol}//${host}${wsBaseUrl}/${this.clientId}`;
-          }
-          
+    const appendClientId = (base: string) => `${base.replace(/\/+$/, '')}/${this.clientId}`;
+    const ensureWsBase = (origin: string) => {
+      const sanitized = origin.replace(/\/+$/, '');
+      return sanitized.endsWith('/ws') ? sanitized : `${sanitized}/ws`;
+    };
+
+    const resolveWsUrl = (): string => {
+      const wsBase = process.env.REACT_APP_WS_URL;
+
+      if (wsBase) {
+        if (wsBase.startsWith('ws://') || wsBase.startsWith('wss://')) {
+          const finalUrl = appendClientId(wsBase);
           console.log('WebSocket连接配置 (环境变量):', {
-            baseUrl: wsBaseUrl,
+            baseUrl: wsBase,
             clientId: this.clientId,
-            finalUrl: finalUrl
+            finalUrl,
           });
-          
           return finalUrl;
-        })()
-      : (() => {
-          // 开发环境下直接连接到后端，避免代理问题
-          const isDevelopment = process.env.NODE_ENV === 'development';
-          
-          if (isDevelopment) {
-            const finalUrl = `ws://localhost:8000/ws/${this.clientId}`;
-            console.log('WebSocket连接配置 (开发环境直连):', {
-              clientId: this.clientId,
-              finalUrl: finalUrl,
-              environment: 'development'
-            });
-            return finalUrl;
-          } else {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host;
-            const finalUrl = `${protocol}//${host}/ws/${this.clientId}`;
-            
-            console.log('WebSocket连接配置 (生产环境):', {
-              clientId: this.clientId,
-              finalUrl: finalUrl,
-              protocol: protocol,
-              host: host
-            });
-            
-            return finalUrl;
-          }
-        })();
-    
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const normalizedBase = wsBase.startsWith('/') ? wsBase : `/${wsBase}`;
+        const absoluteBase = `${protocol}//${host}${normalizedBase}`;
+        const finalUrl = appendClientId(absoluteBase);
+        console.log('WebSocket连接配置 (相对环境变量):', {
+          baseUrl: wsBase,
+          clientId: this.clientId,
+          finalUrl,
+        });
+        return finalUrl;
+      }
+
+      const apiBase = process.env.REACT_APP_API_URL;
+      if (apiBase) {
+        try {
+          const apiUrl = apiBase.startsWith('http://') || apiBase.startsWith('https://')
+            ? new URL(apiBase)
+            : new URL(apiBase, window.location.origin);
+
+          const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+          const finalUrl = appendClientId(ensureWsBase(`${protocol}//${apiUrl.host}`));
+          console.log('WebSocket连接配置 (派生自API_URL):', {
+            apiUrl: apiBase,
+            clientId: this.clientId,
+            finalUrl,
+          });
+          return finalUrl;
+        } catch (error) {
+          console.error('解析 REACT_APP_API_URL 失败，使用默认配置:', error);
+        }
+      }
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const finalUrl = appendClientId(ensureWsBase(`${protocol}//${window.location.host}`));
+      console.log('WebSocket连接配置 (默认 fallback):', {
+        clientId: this.clientId,
+        finalUrl,
+      });
+      return finalUrl;
+    };
+
+    const wsUrl = resolveWsUrl();
+
     console.log('尝试连接WebSocket:', wsUrl);
     
     try {

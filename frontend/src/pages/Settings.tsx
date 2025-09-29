@@ -79,18 +79,63 @@ const Settings: React.FC = () => {
   const [testingConnection, setTestingConnection] = React.useState(false);
   const [configs, setConfigs] = React.useState<Record<string, ConfigItem>>({});
   const [telegramStatus, setTelegramStatus] = React.useState<TelegramStatus | null>(null);
+
+  const extractApiPayload = React.useCallback(<T extends { success: boolean }>(response: any): T | null => {
+    if (response && typeof response === 'object') {
+      if ('success' in response) {
+        return response as T;
+      }
+
+      if ('data' in response && typeof response.data === 'object' && 'success' in response.data) {
+        return response.data as T;
+      }
+    }
+
+    return null;
+  }, []);
+  const updateTelegramStatus = React.useCallback((status: TelegramStatus | null) => {
+    setTelegramStatus(prev => {
+      if (prev === null && status === null) {
+        return prev;
+      }
+
+      if (status === null || prev === null) {
+        return status;
+      }
+
+      const sameUser =
+        (!!prev.user_info === !!status.user_info) &&
+        (!prev.user_info || (
+          prev.user_info.id === status.user_info?.id &&
+          prev.user_info.username === status.user_info?.username &&
+          prev.user_info.first_name === status.user_info?.first_name &&
+          prev.user_info.last_name === status.user_info?.last_name
+        ));
+
+      if (
+        prev.is_authorized === status.is_authorized &&
+        prev.message === status.message &&
+        sameUser
+      ) {
+        return prev;
+      }
+
+      return status;
+    });
+  }, [setTelegramStatus]);
   const [activeTab, setActiveTab] = React.useState('system');
 
   const loadConfigs = React.useCallback(async () => {
     setLoading(true);
     try {
       const response = await apiService.get('/config/configs');
-      if (response.data?.success && response.data?.data) {
-        setConfigs(response.data.data as Record<string, ConfigItem> || {});
+      const payload = extractApiPayload<{ success: boolean; data?: Record<string, ConfigItem> }>(response);
+      if (payload?.success && payload.data) {
+        setConfigs(payload.data || {});
 
         // 设置表单初始值
         const formValues: Record<string, string> = {};
-        Object.entries(response.data.data as Record<string, ConfigItem>).forEach(([key, config]) => {
+        Object.entries(payload.data as Record<string, ConfigItem>).forEach(([key, config]) => {
           formValues[key] = (config as ConfigItem).value;
         });
         form.setFieldsValue(formValues);
@@ -101,7 +146,7 @@ const Settings: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [form]);
+  }, [form, extractApiPayload]);
 
   const checkTelegramStatus = React.useCallback(async () => {
     try {
@@ -109,74 +154,61 @@ const Settings: React.FC = () => {
       const response = await apiService.get('/telegram/auth/status');
       console.log('Settings页面 - Telegram API响应:', response);
 
-      // 修复API响应访问方式，使用response.data
-      let statusData: TelegramStatus;
-
-      if (response?.data && typeof response.data === 'object') {
-        // 如果response.data直接包含is_authorized字段，说明是直接的状态数据
-        if ('is_authorized' in response.data) {
-          statusData = response.data as TelegramStatus;
-          console.log('Settings页面 - 使用直接状态数据格式');
-        }
-        // 如果response.data包含success字段，说明是标准API响应格式
-        else if ('success' in response.data && response.data.success && response.data.data) {
-          statusData = response.data.data as TelegramStatus;
-          console.log('Settings页面 - 使用标准API响应格式');
-        }
-        // 其他情况作为错误处理
-        else {
-          console.warn('Telegram状态API返回格式不符合预期:', response.data);
-          setTelegramStatus({
-            is_authorized: false,
-            message: '获取认证状态失败'
-          });
-          return;
+      const normalizeStatus = (payload: any): TelegramStatus | null => {
+        if (!payload || typeof payload !== 'object') {
+          return null;
         }
 
-        console.log('Settings页面 - 解析的状态数据:', statusData);
-        
-        // 验证数据格式
-        if (typeof statusData.is_authorized === 'boolean') {
-          // 构造新的状态对象，确保触发重新渲染
-          const newStatus: TelegramStatus = {
-            is_authorized: statusData.is_authorized,
-            user_info: statusData.user_info,
-            message: statusData.message || (statusData.is_authorized ? '已授权' : '未授权')
-          };
-          
-          console.log('Settings页面 - 即将设置新状态:', newStatus);
-          setTelegramStatus(newStatus);
-          
-        } else {
-          console.warn('Telegram状态数据is_authorized字段格式不正确:', statusData);
-          setTelegramStatus({
-            is_authorized: false,
-            message: '返回的认证数据格式不正确'
-          });
+        if ('is_authorized' in payload) {
+          return payload as TelegramStatus;
         }
-      } else {
-        console.warn('Telegram状态API返回空响应或格式错误:', response?.data);
-        setTelegramStatus({
+
+        if ('data' in payload) {
+          return normalizeStatus((payload as any).data);
+        }
+
+        if ('success' in payload && (payload as any).success && 'data' in payload) {
+          return normalizeStatus((payload as any).data);
+        }
+
+        return null;
+      };
+
+      const parsedStatus = normalizeStatus(response);
+
+      if (!parsedStatus) {
+        console.warn('Telegram状态API返回格式不符合预期:', response);
+        updateTelegramStatus({
           is_authorized: false,
-          message: '获取认证状态失败'
+          message: '获取认证状态失败',
         });
+        return;
       }
+
+      const newStatus: TelegramStatus = {
+        is_authorized: parsedStatus.is_authorized,
+        user_info: parsedStatus.user_info,
+        message: parsedStatus.message || (parsedStatus.is_authorized ? '已授权' : '未授权'),
+      };
+
+      console.log('Settings页面 - 即将设置新状态:', newStatus);
+      updateTelegramStatus(newStatus);
     } catch (error: any) {
       console.error('检查Telegram状态时出错:', error);
       const errorMessage = error.message || '无法检查Telegram认证状态';
-      setTelegramStatus({
+      updateTelegramStatus({
         is_authorized: false,
-        message: errorMessage
+        message: errorMessage,
       });
     }
-  }, []);
+  }, [updateTelegramStatus]);
 
   React.useEffect(() => {
     loadConfigs();
     checkTelegramStatus();
   }, [loadConfigs, checkTelegramStatus]);
 
-  const handleSave = async () => {
+  const handleSave = React.useCallback(async () => {
     try {
       setSaving(true);
       const values = await form.validateFields();
@@ -185,8 +217,10 @@ const Settings: React.FC = () => {
         configs: values
       });
 
-      if (response.data?.success) {
-        message.success(response.data.message || '保存成功');
+      const payload = extractApiPayload<{ success: boolean; message?: string }>(response);
+
+      if (payload?.success) {
+        message.success(payload.message || '保存成功');
         await loadConfigs(); // 重新加载配置
         // 如果修改了Telegram配置，重新检查状态
         if (values.telegram_api_id || values.telegram_api_hash) {
@@ -195,7 +229,7 @@ const Settings: React.FC = () => {
           }, 1000);
         }
       } else {
-        message.error(response.data?.message || '保存失败');
+        message.error(payload?.message || '保存失败');
       }
     } catch (error) {
       message.error('保存配置失败');
@@ -203,9 +237,9 @@ const Settings: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [form, extractApiPayload, loadConfigs, checkTelegramStatus]);
 
-  const handleTestConnection = async () => {
+  const handleTestConnection = React.useCallback(async () => {
     try {
       setTestingConnection(true);
 
@@ -216,7 +250,8 @@ const Settings: React.FC = () => {
         configs: values
       });
 
-      if (!saveResponse.data?.success) {
+      const savePayload = extractApiPayload<{ success: boolean; message?: string }>(saveResponse);
+      if (!savePayload?.success) {
         message.error('保存配置失败');
         return;
       }
@@ -224,10 +259,12 @@ const Settings: React.FC = () => {
       // 测试连接
       const response = await apiService.post('/telegram/test-connection');
 
-      if (response.data?.success && response.data?.data) {
-        const data = response.data.data as TelegramTestConnectionResponse;
+      const payload = extractApiPayload<{ success: boolean; data?: TelegramTestConnectionResponse; message?: string }>(response);
+
+      if (payload?.success && payload.data) {
+        const data = payload.data;
         message.success(`连接测试成功！找到 ${data.stats.total_groups} 个群组`);
-        setTelegramStatus({
+        updateTelegramStatus({
           is_authorized: true,
           user_info: data.user_info,
           message: '连接成功'
@@ -239,18 +276,18 @@ const Settings: React.FC = () => {
           message.info(`群组预览: ${groupNames}`, 5);
         }
       } else {
-        const connectionStatus = (response.data?.data as Partial<TelegramTestConnectionResponse>)?.connection_status;
+        const connectionStatus = payload?.data ? (payload.data as Partial<TelegramTestConnectionResponse>).connection_status : undefined;
         if (connectionStatus === 'unauthorized') {
           message.warning('API配置正确，但需要完成Telegram认证');
-          setTelegramStatus({
+          updateTelegramStatus({
             is_authorized: false,
             message: '未授权'
           });
         } else {
-          message.error(response.data?.message || '连接测试失败');
-          setTelegramStatus({
+          message.error(payload?.message || '连接测试失败');
+          updateTelegramStatus({
             is_authorized: false,
-            message: response.data?.message || '连接失败'
+            message: payload?.message || '连接失败'
           });
         }
       }
@@ -258,45 +295,47 @@ const Settings: React.FC = () => {
     } catch (error) {
       message.error('连接测试失败');
       console.error('Test connection error:', error);
-      setTelegramStatus({
+      updateTelegramStatus({
         is_authorized: false,
         message: '连接测试失败'
       });
     } finally {
       setTestingConnection(false);
     }
-  };
+  }, [form, extractApiPayload, updateTelegramStatus]);
 
   const handleReset = () => {
     form.resetFields();
     loadConfigs();
   };
 
-  const handleClearCache = async () => {
+  const handleClearCache = React.useCallback(async () => {
     try {
       const response = await apiService.post('/config/configs/clear-cache');
-      if (response.data?.success) {
-        message.success('清除缓存成功');
+      const payload = extractApiPayload<{ success: boolean; message?: string }>(response);
+      if (payload?.success) {
+        message.success(payload.message || '清除缓存成功');
       }
     } catch (error) {
       message.error('清除缓存失败');
     }
-  };
+  }, [extractApiPayload]);
 
-  const handleInitDefaults = async () => {
+  const handleInitDefaults = React.useCallback(async () => {
     try {
       const response = await apiService.post('/config/configs/init');
-      if (response.data?.success) {
-        message.success('初始化配置成功');
+      const payload = extractApiPayload<{ success: boolean; message?: string }>(response);
+      if (payload?.success) {
+        message.success(payload.message || '初始化配置成功');
         await loadConfigs();
       }
     } catch (error) {
       message.error('初始化配置失败');
     }
-  };
+  }, [extractApiPayload, loadConfigs]);
 
-  const handleTelegramAuthSuccess = (userInfo: any) => {
-    setTelegramStatus({
+  const handleTelegramAuthSuccess = React.useCallback((userInfo: any) => {
+    updateTelegramStatus({
       is_authorized: true,
       user_info: userInfo,
       message: '认证成功'
@@ -304,11 +343,11 @@ const Settings: React.FC = () => {
     message.success('Telegram认证成功');
     // 刷新连接状态
     checkTelegramStatus();
-  };
+  }, [updateTelegramStatus, checkTelegramStatus]);
 
-  const handleTelegramAuthError = (error: string) => {
+  const handleTelegramAuthError = React.useCallback((error: string) => {
     message.error(`Telegram认证失败: ${error}`);
-  };
+  }, []);
 
   const renderTelegramStatus = () => {
     console.log('renderTelegramStatus - 当前状态:', telegramStatus);
@@ -335,6 +374,29 @@ const Settings: React.FC = () => {
     }
   };
 
+  const telegramConfigWarning = React.useMemo(() => {
+    if (!telegramStatus || telegramStatus.is_authorized) {
+      return null;
+    }
+
+    const warningKeywords = ['API 配置缺失', 'API配置不完整'];
+    const hasConfigIssue = warningKeywords.some(keyword => telegramStatus.message?.includes(keyword));
+
+    if (!hasConfigIssue) {
+      return null;
+    }
+
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message="Telegram 配置缺失"
+        description="请填写有效的 Telegram API ID 与 API Hash，保存后再进行认证或连接测试。"
+        style={{ marginBottom: 16 }}
+      />
+    );
+  }, [telegramStatus]);
+
   const renderConfigSection = (title: string, configKeys: string[]) => (
     <Card
       title={title}
@@ -355,6 +417,7 @@ const Settings: React.FC = () => {
         </Space>
       )}
     >
+      {title === 'Telegram 配置' && telegramConfigWarning}
       <Row gutter={isMobile ? [8, 8] : 16}>
         {configKeys.map(key => {
           const config = configs[key];

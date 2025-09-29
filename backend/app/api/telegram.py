@@ -44,6 +44,7 @@ from typing import Dict, Any, Union, List, Optional
 
 # 第三方库导入
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Path, Query, Body
+from ..config import settings
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, desc, asc, and_, or_, text
@@ -1541,6 +1542,10 @@ async def get_auth_status():
 async def send_auth_code(request: AuthCodeRequest):
     """发送验证码"""
     try:
+        api_id = settings.telegram_api_id
+        api_hash = settings.telegram_api_hash
+        if not api_id or not api_hash:
+            raise HTTPException(status_code=400, detail="Telegram API 配置缺失，请在设置页填写 API ID 与 API Hash")
         # 确保每次都重新初始化客户端
         await telegram_service.disconnect()  # 先断开现有连接
         await telegram_service.initialize()
@@ -1564,6 +1569,13 @@ async def send_auth_code(request: AuthCodeRequest):
             "message": "验证码已发送",
             "session_key": session_key  # 返回session key给前端
         }
+    except HTTPException as http_exc:
+        await telegram_service.disconnect()
+        raise http_exc
+    except ValueError as value_error:
+        logger.error(f"发送验证码失败: {value_error}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=400, detail=str(value_error))
     except Exception as e:
         logger.error(f"发送验证码失败: {e}")
         await telegram_service.disconnect()
@@ -1573,6 +1585,10 @@ async def send_auth_code(request: AuthCodeRequest):
 async def login_with_code(request: AuthLoginRequest):
     """使用验证码登录"""
     try:
+        api_id = settings.telegram_api_id
+        api_hash = settings.telegram_api_hash
+        if not api_id or not api_hash:
+            raise HTTPException(status_code=400, detail="Telegram API 配置缺失，请在设置页填写 API ID 与 API Hash")
         # 获取认证状态
         session_key = f"auth_{request.phone}"
         auth_data = await get_auth_session(session_key)
@@ -1627,6 +1643,13 @@ async def login_with_code(request: AuthLoginRequest):
             "user_info": user_info
         }
         
+    except HTTPException as http_exc:
+        await telegram_service.disconnect()
+        raise http_exc
+    except ValueError as value_error:
+        logger.error(f"登录失败: {value_error}")
+        await telegram_service.disconnect()
+        raise HTTPException(status_code=400, detail=str(value_error))
     except Exception as e:
         logger.error(f"登录失败: {e}")
         await telegram_service.disconnect()
