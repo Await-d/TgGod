@@ -418,14 +418,25 @@ async def get_system_info(
             # 磁盘使用情况
             media_root = getattr(settings, 'media_root', './media')
             disk_usage = None
-            if os.path.exists(media_root):
-                total, used, free = psutil.disk_usage(media_root)
-                disk_usage = {
-                    "total": total,
-                    "used": used,
-                    "free": free,
-                    "usage_percent": round((used / total) * 100, 2)
-                }
+            try:
+                if os.path.exists(media_root):
+                    disk_info = psutil.disk_usage(media_root)
+                    # 确保返回的是3个值
+                    if len(disk_info) == 3:
+                        total, used, free = disk_info
+                        disk_usage = {
+                            "total": total,
+                            "used": used,
+                            "free": free,
+                            "usage_percent": round((used / total) * 100, 2) if total > 0 else 0
+                        }
+                    else:
+                        logger.warning(f"psutil.disk_usage返回了{len(disk_info)}个值，期望3个")
+                else:
+                    logger.warning(f"媒体目录不存在: {media_root}")
+            except Exception as disk_error:
+                logger.error(f"获取磁盘使用情况失败: {disk_error}")
+                disk_usage = None
             
             # 内存使用情况
             memory = psutil.virtual_memory()

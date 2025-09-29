@@ -180,6 +180,43 @@ class TelegramService:
             await self.client.disconnect()
             self.client = None
             logger.info("Telegram客户端已断开")
+
+    def is_connected(self) -> bool:
+        """检查Telegram客户端是否已连接"""
+        try:
+            if not self.client:
+                self._connected = False
+                return False
+            
+            # 检查客户端连接状态
+            is_client_connected = self.client.is_connected()
+            self._connected = is_client_connected
+            
+            # 更新健康指标
+            if hasattr(self, 'health_metrics'):
+                self.health_metrics.is_connected = is_client_connected
+                self.health_metrics.last_check_time = datetime.now()
+            
+            return is_client_connected
+        except Exception as e:
+            logger.error(f"检查Telegram连接状态失败: {e}")
+            self._connected = False
+            return False
+
+    @property
+    def is_authenticated(self) -> bool:
+        """检查是否已认证"""
+        return self._authenticated
+
+    async def is_user_authorized(self) -> bool:
+        """异步检查用户是否已授权"""
+        try:
+            if not self.client or not self.is_connected():
+                return False
+            return await self.client.is_user_authorized()
+        except Exception as e:
+            logger.error(f"检查用户授权状态失败: {e}")
+            return False
     
     async def _handle_flood_wait(self, func, *args, **kwargs):
         """处理Flood Wait错误的重试机制"""

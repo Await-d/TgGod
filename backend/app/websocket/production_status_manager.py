@@ -342,7 +342,8 @@ class ProductionStatusManager:
             start_time = time.time()
 
             # Simple query to test connectivity
-            result = db.execute("SELECT 1").scalar()
+            from sqlalchemy import text
+            result = db.execute(text("SELECT 1")).scalar()
             query_time = (time.time() - start_time) * 1000
 
             # Check for lock waits and active connections
