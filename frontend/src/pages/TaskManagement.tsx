@@ -102,6 +102,18 @@ const getStatusIcon = (status: string) => {
   return iconMap[status] || <ClockCircleOutlined />;
 };
 
+// 任务状态中文文本映射
+const getStatusText = (status: string) => {
+  const textMap: Record<string, string> = {
+    pending: '待执行',
+    running: '运行中',
+    completed: '已完成',
+    failed: '失败',
+    paused: '已暂停'
+  };
+  return textMap[status] || status;
+};
+
 const TaskManagement: React.FC = () => {
   const isMobile = useIsMobile();
 
@@ -643,7 +655,7 @@ const TaskManagement: React.FC = () => {
         <div>
           <div style={{ marginBottom: isMobile ? 8 : 0 }}>
             <Tag color={getStatusColor(status)} icon={getStatusIcon(status)}>
-              {isMobile ? status : status.toUpperCase()}
+              {getStatusText(status)}
             </Tag>
           </div>
           {isMobile && (
@@ -1810,7 +1822,7 @@ const TaskManagement: React.FC = () => {
                 <Col span={12}>
                   <Text strong>状态: </Text>
                   <Tag color={getStatusColor(selectedTask.status)} icon={getStatusIcon(selectedTask.status)}>
-                    {selectedTask.status.toUpperCase()}
+                    {getStatusText(selectedTask.status)}
                   </Tag>
                 </Col>
                 <Col span={12}>

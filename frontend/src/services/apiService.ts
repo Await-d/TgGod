@@ -1012,7 +1012,7 @@ export const logApi = {
     page: number;
     size: number;
   }> => {
-    const response = await api.get('/log/logs/recent', { 
+    const response = await api.get('/logs/recent', { 
       params: {
         limit: params?.limit || 100,
         log_type: 'all',
@@ -1048,7 +1048,7 @@ export const logApi = {
     skip?: number;
     limit?: number;
   }): Promise<LogEntry[]> => {
-    return api.get('/log/logs/task', { params });
+    return api.get('/logs/task', { params });
   },
 
   // 获取系统日志
@@ -1060,7 +1060,7 @@ export const logApi = {
     skip?: number;
     limit?: number;
   }): Promise<LogEntry[]> => {
-    return api.get('/log/logs/system', { params });
+    return api.get('/logs/system', { params });
   },
 
   // 清除日志
@@ -1070,7 +1070,7 @@ export const logApi = {
     cleared_count?: number;
   }> => {
     const params = task_id ? { task_id } : {};
-    return api.delete(`/log/logs/${type}`, { params });
+    return api.delete(`/logs/${type}`, { params });
   },
 
   // 导出日志
@@ -1086,7 +1086,7 @@ export const logApi = {
     filename: string;
     size: number;
   }> => {
-    return api.post('/log/logs/export', params);
+    return api.post('/logs/export', params);
   },
 
   // 获取日志统计
@@ -1103,7 +1103,7 @@ export const logApi = {
     system_log_count: number;
   }> => {
     try {
-      const response = await api.get('/log/logs/stats', { params });
+      const response = await api.get('/logs/stats', { params });
       const data = response.data;
       
       // 安全的数据提取，提供默认值
@@ -1133,7 +1133,7 @@ export const logApi = {
 
   // 获取最新日志
   getRecentLogs: (limit: number = 100, log_type: string = 'all'): Promise<LogEntry[]> => {
-    return api.get('/log/logs/recent', { params: { limit, log_type } });
+    return api.get('/logs/recent', { params: { limit, log_type } });
   },
 
   // 添加系统日志
@@ -1148,7 +1148,7 @@ export const logApi = {
     message: string;
     log_id: number;
   }> => {
-    return api.post('/log/logs/system', data);
+    return api.post('/logs/system', data);
   },
 
   // 批量删除日志
@@ -1157,7 +1157,7 @@ export const logApi = {
     message: string;
     deleted_count: number;
   }> => {
-    return api.delete('/log/logs/batch', { data: { log_ids: logIds } });
+    return api.delete('/logs/batch', { data: { log_ids: logIds } });
   },
 };
 
