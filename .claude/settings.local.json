@@ -33,7 +33,11 @@
       "mcp__serena__replace_symbol_body",
       "Bash(xargs:*)",
       "Bash(source:*)",
-      "mcp__serena__find_referencing_symbols"
+      "mcp__serena__find_referencing_symbols",
+      "Bash(git tag:*)",
+      "Bash(git show-ref:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": []

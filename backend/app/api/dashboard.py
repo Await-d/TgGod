@@ -481,6 +481,108 @@ async def get_system_info(
         logger.error(f"获取系统信息失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取系统信息失败: {str(e)}")
 
+@router.get("/storage-analysis")
+async def get_storage_analysis(
+    db: Session = Depends(get_db),
+    force_refresh: bool = Query(False),
+    current_user: User = Depends(get_current_active_user)
+):
+    """获取存储空间详细分析"""
+
+    cache_key = "storage_analysis"
+    cached_data = get_cached_data(cache_key, force_refresh)
+    if cached_data:
+        return cached_data
+
+    try:
+        # 按媒体类型统计存储使用情况
+        storage_by_type = db.query(
+            TelegramMessage.media_type,
+            func.count(TelegramMessage.id).label('file_count'),
+            func.sum(TelegramMessage.media_size).label('total_size'),
+            func.avg(TelegramMessage.media_size).label('avg_size'),
+            func.max(TelegramMessage.media_size).label('max_size'),
+            func.min(TelegramMessage.media_size).label('min_size')
+        ).filter(
+            and_(
+                TelegramMessage.media_downloaded == True,
+                TelegramMessage.media_size > 0
+            )
+        ).group_by(TelegramMessage.media_type).all()
+
+        # 按群组统计存储使用情况
+        storage_by_group = db.query(
+            TelegramGroup.id,
+            TelegramGroup.title,
+            func.count(TelegramMessage.id).label('file_count'),
+            func.sum(TelegramMessage.media_size).label('total_size')
+        ).join(
+            TelegramMessage, TelegramGroup.id == TelegramMessage.group_id
+        ).filter(
+            and_(
+                TelegramMessage.media_downloaded == True,
+                TelegramMessage.media_size > 0
+            )
+        ).group_by(
+            TelegramGroup.id, TelegramGroup.title
+        ).order_by(
+            desc(func.sum(TelegramMessage.media_size))
+        ).limit(10).all()
+
+        # 计算总存储统计
+        total_stats = db.query(
+            func.count(TelegramMessage.id).label('total_files'),
+            func.sum(TelegramMessage.media_size).label('total_size'),
+            func.avg(TelegramMessage.media_size).label('avg_file_size')
+        ).filter(
+            and_(
+                TelegramMessage.media_downloaded == True,
+                TelegramMessage.media_size > 0
+            )
+        ).first()
+
+        # 格式化数据
+        type_analysis = []
+        for type_stat in storage_by_type:
+            if type_stat.media_type:
+                type_analysis.append({
+                    "media_type": type_stat.media_type,
+                    "file_count": type_stat.file_count,
+                    "total_size": type_stat.total_size or 0,
+                    "avg_size": round(type_stat.avg_size or 0, 2),
+                    "max_size": type_stat.max_size or 0,
+                    "min_size": type_stat.min_size or 0,
+                    "size_percentage": round((type_stat.total_size / total_stats.total_size * 100) if total_stats.total_size > 0 else 0, 2)
+                })
+
+        group_analysis = []
+        for group_stat in storage_by_group:
+            group_analysis.append({
+                "group_id": group_stat.id,
+                "group_title": group_stat.title,
+                "file_count": group_stat.file_count,
+                "total_size": group_stat.total_size or 0,
+                "size_percentage": round((group_stat.total_size / total_stats.total_size * 100) if total_stats.total_size > 0 else 0, 2)
+            })
+
+        analysis_data = {
+            "total_statistics": {
+                "total_files": total_stats.total_files or 0,
+                "total_size": total_stats.total_size or 0,
+                "average_file_size": round(total_stats.avg_file_size or 0, 2)
+            },
+            "storage_by_type": type_analysis,
+            "top_groups_by_storage": group_analysis,
+            "analysis_timestamp": datetime.now().isoformat()
+        }
+
+        set_cached_data(cache_key, analysis_data)
+        return analysis_data
+
+    except Exception as e:
+        logger.error(f"获取存储分析失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取存储分析失败: {str(e)}")
+
 @router.delete("/cache")
 async def clear_dashboard_cache(
     current_user: User = Depends(get_current_active_user)
