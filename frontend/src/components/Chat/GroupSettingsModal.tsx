@@ -168,7 +168,7 @@ const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
       footer={null}
       width={isMobile ? '100%' : 800}
       style={isMobile ? { top: 20 } : {}}
-      destroyOnClose
+      destroyOnHidden
     >
       <Tabs 
         activeKey={activeTab} 

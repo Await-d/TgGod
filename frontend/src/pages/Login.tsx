@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Card, message, Typography, Space, Alert } from 'antd';
+import { Form, Input, Button, Card, message, Typography } from 'antd';
 import { UserOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store';
@@ -11,21 +11,8 @@ const { Title, Text } = Typography;
 const LoginPage: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [showAdminInfo, setShowAdminInfo] = useState(false);
-  const [adminInfo, setAdminInfo] = useState<any>(null);
   const navigate = useNavigate();
   const { setUser, setToken, setIsLoading } = useAuthStore();
-
-  // 获取管理员信息
-  const fetchAdminInfo = async () => {
-    try {
-      const response = await authApi.getAdminInfo();
-      setAdminInfo(response.data);
-      setShowAdminInfo(true);
-    } catch (error) {
-      console.error('获取管理员信息失败:', error);
-    }
-  };
 
   // 处理登录
   const handleLogin = async (values: LoginRequest) => {
@@ -53,15 +40,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // 使用默认管理员账户登录
-  const loginWithAdmin = () => {
-    if (adminInfo) {
-      form.setFieldsValue({
-        username: adminInfo.username,
-        password: adminInfo.password,
-      });
-    }
-  };
+
 
   return (
     <div style={{ 
@@ -135,42 +114,6 @@ const LoginPage: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
-
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Space direction="vertical" size="small">
-            <Button 
-              type="link" 
-              onClick={fetchAdminInfo}
-              style={{ padding: 0 }}
-            >
-              查看默认管理员账户
-            </Button>
-            
-            {showAdminInfo && adminInfo && (
-              <Alert
-                message="默认管理员账户信息"
-                description={
-                  <div>
-                    <p><strong>用户名:</strong> {adminInfo.username}</p>
-                    <p><strong>密码:</strong> {adminInfo.password}</p>
-                    <p><strong>邮箱:</strong> {adminInfo.email}</p>
-                    <Button 
-                      type="link" 
-                      size="small" 
-                      onClick={loginWithAdmin}
-                      style={{ padding: 0 }}
-                    >
-                      使用此账户登录
-                    </Button>
-                  </div>
-                }
-                type="info"
-                showIcon
-                style={{ textAlign: 'left', marginTop: 8 }}
-              />
-            )}
-          </Space>
-        </div>
 
         <div style={{ textAlign: 'center', marginTop: 24, color: '#8c8c8c' }}>
           <Text type="secondary" style={{ fontSize: 12 }}>

@@ -270,6 +270,53 @@ const SystemStatus: React.FC = () => {
     return `${ms.toFixed(0)}ms`;
   };
 
+  // 服务名称映射
+  const getServiceDisplayName = (name: string): string => {
+    const nameMap: Record<string, string> = {
+      'telegram_service': 'Telegram服务',
+      'database': '数据库服务',
+      'task_execution': '任务执行服务',
+      'media_downloader': '媒体下载器',
+      'websocket_manager': 'WebSocket管理器',
+      'file_organizer': '文件组织器',
+      'network': '网络服务',
+      'filesystem': '文件系统',
+      'api_server': 'API服务器',
+    };
+    return nameMap[name] || name;
+  };
+
+  // 翻译服务状态消息为中文
+  const translateServiceMessage = (message: string): string => {
+    const translations: Record<string, string> = {
+      // Task Execution Service
+      'All task execution processes running normally': '所有任务执行进程正常运行',
+      'Task execution service operational': '任务执行服务运行正常',
+      
+      // Telegram Service
+      'Connected to Telegram API successfully': '已成功连接到Telegram API',
+      'Telegram service connected': 'Telegram服务已连接',
+      'Telegram API connection active': 'Telegram API连接活跃',
+      
+      // Database Service
+      'Database operations running smoothly': '数据库操作运行顺畅',
+      'Database connection healthy': '数据库连接健康',
+      'Database service operational': '数据库服务运行正常',
+      
+      // File System Service
+      'File operations and storage accessible': '文件操作和存储可访问',
+      'File system accessible': '文件系统可访问',
+      'Storage operations normal': '存储操作正常',
+      
+      // WebSocket Service
+      'Real-time communication active': '实时通信活跃',
+      'WebSocket connections stable': 'WebSocket连接稳定',
+      'WebSocket service running': 'WebSocket服务运行中',
+    };
+    
+    return translations[message] || message;
+  };
+
   // 服务表格列定义
   const serviceColumns = [
     {
@@ -279,7 +326,7 @@ const SystemStatus: React.FC = () => {
       render: (name: string) => (
         <Space>
           {getServiceIcon(name)}
-          <Text strong>{name.replace('_', ' ').toUpperCase()}</Text>
+          <Text strong>{getServiceDisplayName(name)}</Text>
         </Space>
       ),
     },
@@ -347,11 +394,14 @@ const SystemStatus: React.FC = () => {
       dataIndex: 'message',
       key: 'message',
       ellipsis: true,
-      render: (message: string) => (
-        <Tooltip title={message}>
-          <Text>{message}</Text>
-        </Tooltip>
-      ),
+      render: (message: string) => {
+        const translatedMessage = translateServiceMessage(message);
+        return (
+          <Tooltip title={translatedMessage}>
+            <Text>{translatedMessage}</Text>
+          </Tooltip>
+        );
+      },
     }
   ];
 

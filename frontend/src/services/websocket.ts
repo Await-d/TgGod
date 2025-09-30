@@ -21,7 +21,7 @@ class WebSocketService {
   // 连接WebSocket
   connect(): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
-      console.log('WebSocket already connected');
+
       return;
     }
 
@@ -38,24 +38,17 @@ class WebSocketService {
       if (wsBase) {
         if (wsBase.startsWith('ws://') || wsBase.startsWith('wss://')) {
           const finalUrl = appendClientId(wsBase);
-          console.log('WebSocket连接配置 (环境变量):', {
-            baseUrl: wsBase,
-            clientId: this.clientId,
-            finalUrl,
-          });
           return finalUrl;
         }
 
+        // 开发环境：直接连接到后端端口8000
+        // 生产环境：使用相对路径（通过Nginx代理）
+        const isDevelopment = process.env.NODE_ENV === 'development';
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host;
+        const host = isDevelopment ? 'localhost:8000' : window.location.host;
         const normalizedBase = wsBase.startsWith('/') ? wsBase : `/${wsBase}`;
         const absoluteBase = `${protocol}//${host}${normalizedBase}`;
         const finalUrl = appendClientId(absoluteBase);
-        console.log('WebSocket连接配置 (相对环境变量):', {
-          baseUrl: wsBase,
-          clientId: this.clientId,
-          finalUrl,
-        });
         return finalUrl;
       }
 
@@ -68,11 +61,6 @@ class WebSocketService {
 
           const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
           const finalUrl = appendClientId(ensureWsBase(`${protocol}//${apiUrl.host}`));
-          console.log('WebSocket连接配置 (派生自API_URL):', {
-            apiUrl: apiBase,
-            clientId: this.clientId,
-            finalUrl,
-          });
           return finalUrl;
         } catch (error) {
           console.error('解析 REACT_APP_API_URL 失败，使用默认配置:', error);
@@ -81,16 +69,11 @@ class WebSocketService {
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const finalUrl = appendClientId(ensureWsBase(`${protocol}//${window.location.host}`));
-      console.log('WebSocket连接配置 (默认 fallback):', {
-        clientId: this.clientId,
-        finalUrl,
-      });
       return finalUrl;
     };
 
     const wsUrl = resolveWsUrl();
 
-    console.log('尝试连接WebSocket:', wsUrl);
     
     try {
       this.socket = new WebSocket(wsUrl);
@@ -106,7 +89,6 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.onopen = () => {
-      console.log('WebSocket连接成功');
       this.reconnectAttempts = 0;
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);
@@ -149,7 +131,6 @@ class WebSocketService {
 
   // 处理消息
   private handleMessage(message: WebSocketMessage): void {
-    console.log('收到WebSocket消息:', message);
     
     const event = new CustomEvent('websocket-message', {
       detail: message,
@@ -160,7 +141,6 @@ class WebSocketService {
   // 发送消息
   send(message: any): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
-      console.log('发送WebSocket消息:', message);
       this.socket.send(JSON.stringify(message));
     } else {
       console.warn('WebSocket未连接，消息发送失败:', message);
@@ -187,14 +167,11 @@ class WebSocketService {
 
   // 订阅特定类型的消息
   subscribe(type: string, callback: (data: any) => void): () => void {
-    console.log(`订阅WebSocket消息类型: ${type}`);
     
     const handleMessage = (event: CustomEvent<WebSocketMessage>) => {
       const message = event.detail;
-      console.log(`处理消息事件，类型: ${message.type}, 目标类型: ${type}`);
       
       if (message.type === type) {
-        console.log(`消息类型匹配，执行回调:`, message.data);
         callback(message.data);
       }
     };
@@ -203,7 +180,6 @@ class WebSocketService {
 
     // 返回取消订阅函数
     return () => {
-      console.log(`取消订阅WebSocket消息类型: ${type}`);
       window.removeEventListener('websocket-message', handleMessage as EventListener);
     };
   }

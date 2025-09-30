@@ -11,7 +11,11 @@ import {
   FilterRule,
   DownloadTask,
   PaginatedResponse,
-  LogEntry
+  LogEntry,
+  ServiceHealthResponse,
+  ServiceHealthSummaryResponse,
+  ServiceStatusSnapshotResponse,
+  ServiceHealthCheckResponse
 } from '../types';
 
 // 创建axios实例
@@ -806,6 +810,29 @@ export const downloadApi = {
   estimateDownloadCount: (groupId: number, ruleId: number): Promise<number> => {
     return api.post('/download/estimate', { group_id: groupId, rule_id: ruleId });
   },
+};
+
+// 服务健康检查相关API
+export const serviceHealthApi = {
+  // 获取所有服务的健康状态
+  getServicesHealth: (): Promise<ServiceHealthResponse> => {
+    return api.get('/health/services');
+  },
+
+  // 获取健康摘要
+  getHealthSummary: (): Promise<ServiceHealthSummaryResponse> => {
+    return api.get('/health/summary');
+  },
+
+  // 获取当前缓存状态
+  getCurrentStatus: (): Promise<ServiceStatusSnapshotResponse> => {
+    return api.get('/health/status');
+  },
+
+  // 强制执行一次检查
+  forceHealthCheck: (): Promise<ServiceHealthCheckResponse> => {
+    return api.post('/health/check');
+  }
 };
 
 // 媒体下载相关API

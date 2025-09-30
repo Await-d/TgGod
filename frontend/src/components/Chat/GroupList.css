@@ -3,8 +3,10 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #fafafa;
-  min-height: 0; /* 防止flex子项溢出 */
+  background: transparent;
+  /* 继承父级的灰色背景 */
+  min-height: 0;
+  /* 防止flex子项溢出 */
   transition: all 0.3s ease;
 }
 
@@ -31,10 +33,13 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fff;
-  flex-shrink: 0; /* 防止头部被压缩 */
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid #E8EAED;
+  /* 使用一致的灰色分隔线 */
+  background: transparent;
+  /* 继承父级的灰色背景 */
+  flex-shrink: 0;
+  /* 防止头部被压缩 */
 }
 
 .group-list.tablet-mode .group-list-header {
@@ -56,9 +61,10 @@
 
 .header-title h4 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: #262626;
+  color: #202124;
+  /* 使用与ChatInterface.css一致的深灰色 */
 }
 
 .header-actions {
@@ -67,27 +73,33 @@
 }
 
 .header-actions .ant-btn {
-  border-radius: 20px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 6px;
+  /* 使用更小的圆角 */
+  border: 1px solid #E8EAED;
+  background: transparent;
+  color: #5F6368;
+  transition: all 0.2s ease;
 }
 
 .header-actions .ant-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  background: #F8F9FA;
+  border-color: #BDC1C6;
+  color: #202124;
 }
 
 .header-actions .ant-btn.ant-btn-primary {
-  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  background: #1890FF;
   border: none;
   color: white;
 }
 
 .header-actions .ant-btn.ant-btn-primary:hover {
-  background: linear-gradient(135deg, #40a9ff 0%, #69c0ff 100%);
+  background: #40A9FF;
+}
+
+/* 确保图标大小适中 */
+.header-actions .ant-btn .anticon {
+  font-size: 14px;
 }
 
 /* 搜索框 */
@@ -96,32 +108,30 @@
 }
 
 .group-search .ant-input-search {
-  border-radius: 20px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
 .group-search .ant-input-search .ant-input {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #FFFFFF;
+  border: 1px solid #E8EAED;
+  transition: all 0.2s ease;
 }
 
 .group-search .ant-input-search .ant-input:focus {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+  background: #FFFFFF;
+  border-color: #1890FF;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
 }
 
 .group-search .ant-input-search .ant-input-search-button {
-  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  background: #1890FF;
   border: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
 }
 
 .group-search .ant-input-search .ant-input-search-button:hover {
-  background: linear-gradient(135deg, #40a9ff 0%, #69c0ff 100%);
-  transform: scale(1.05);
+  background: #40A9FF;
 }
 
 /* 群组统计 */
@@ -129,12 +139,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  margin: 8px 16px 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 16px;
+  margin: 0;
+  background: #FFFFFF;
+  border-radius: 6px;
+  border: 1px solid #E8EAED;
 }
 
 .stat-item {
@@ -147,7 +156,7 @@
 
 .stat-label {
   font-size: 11px;
-  color: #8c8c8c;
+  color: #5F6368;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -155,8 +164,8 @@
 
 .stat-value {
   font-size: 18px;
-  font-weight: 700;
-  color: #262626;
+  font-weight: 600;
+  color: #202124;
 }
 
 .stat-value.active {
@@ -209,8 +218,17 @@
 }
 
 .empty-groups .ant-btn {
-  border-radius: 20px;
+  border-radius: 6px;
+  /* 使用更小的圆角 */
   margin: 4px;
+}
+
+/* 确保空状态按钮中的图标大小适中 */
+.empty-groups .ant-btn .anticon {
+  font-size: 14px;
+  /* 覆盖上面的48px设置 */
+  margin-bottom: 0;
+  opacity: 1;
 }
 
 /* 群组项目 */

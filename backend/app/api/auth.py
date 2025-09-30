@@ -10,6 +10,7 @@ from ..utils.auth import (
     authenticate_user,
     create_access_token,
     get_password_hash,
+    verify_password,
     get_user,
     get_user_by_email,
     get_current_active_user,
@@ -72,6 +73,20 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
+
+
+class PasswordChange(BaseModel):
+    """密码修改模型"""
+    old_password: str
+    new_password: str
+    
+    @validator('new_password')
+    def validate_password(cls, v):
+        if len(v) < 6:
+            raise ValueError('密码长度不能少于6个字符')
+        if len(v.encode('utf-8')) > MAX_PASSWORD_BYTES:
+            raise ValueError(f'密码编码后长度不能超过{MAX_PASSWORD_BYTES}字节')
+        return v
 
 
 class Token(BaseModel):
@@ -184,6 +199,47 @@ async def update_current_user(
     db.refresh(current_user)
     
     return current_user
+
+
+@router.put("/change-password")
+async def change_password(
+    password_data: PasswordChange,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """修改当前用户密码"""
+    # 验证旧密码
+    try:
+        if not verify_password(password_data.old_password, current_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="当前密码错误"
+            )
+    except PasswordTooLongError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc)
+        ) from exc
+    
+    # 检查新密码是否与旧密码相同
+    if password_data.old_password == password_data.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="新密码不能与当前密码相同"
+        )
+    
+    # 更新密码
+    try:
+        current_user.hashed_password = get_password_hash(password_data.new_password)
+        current_user.updated_at = datetime.utcnow()
+        db.commit()
+    except PasswordTooLongError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc)
+        ) from exc
+    
+    return {"message": "密码修改成功", "success": True}
 
 
 @router.post("/logout")

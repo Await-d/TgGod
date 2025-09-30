@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Modal, Image, Button, Space, message } from 'antd';
 import { EyeOutlined, DownloadOutlined, PlayCircleOutlined, FileImageOutlined, VideoCameraOutlined } from '@ant-design/icons';
 import { useMediaDownload } from '../../hooks/useMediaDownload';
@@ -230,28 +230,6 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
 
   // 将媒体类型转换为下载组件需要的格式
   const mediaType = type === 'image' ? 'photo' : type;
-
-  const handleDownload = async () => {
-    try {
-      const response = await fetch(getMediaUrl(url));
-      if (!response.ok) {
-        throw new Error('下载失败');
-      }
-
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename || 'download';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      message.error('下载失败，请检查网络连接');
-      console.error('Download failed:', error);
-    }
-  };
 
   if (type === 'image') {
     return (

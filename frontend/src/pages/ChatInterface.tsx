@@ -81,7 +81,6 @@ const ChatInterface: React.FC = () => {
     messages,
     (updatedMessages) => {
       // 使用智能合并，避免重复消息
-      console.log('无限滚动合并消息:', updatedMessages.length);
       mergeMessages(updatedMessages);
     },
     {
@@ -157,7 +156,6 @@ const ChatInterface: React.FC = () => {
     setBatchDownloading(true);
     try {
       const messageIds = Array.from(selectedMessages);
-      console.log('开始批量下载:', messageIds);
 
       const response = await mediaApi.batchConcurrentDownload(messageIds, force);
       
@@ -248,11 +246,9 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     // 当页面加载时，检查当前URL中是否有group参数
     const groupParam = searchParams.get('group');
-    console.log('当前URL中的群组参数:', groupParam);
 
     // 如果有group参数，确保它在selectedGroup变化后依然保留
     if (groupParam && selectedGroup && groupParam !== selectedGroup.id.toString()) {
-      console.log('同步选中群组到URL:', selectedGroup.id);
       const newParams = new URLSearchParams(searchParams);
       newParams.set('group', selectedGroup.id.toString());
       setSearchParams(newParams, { replace: true });
@@ -270,7 +266,6 @@ const ChatInterface: React.FC = () => {
       if (urlGroupId) {
         const groupFromUrl = groups.find(g => g.id.toString() === urlGroupId);
         if (groupFromUrl) {
-          console.log('页面加载：从URL恢复群组:', groupFromUrl.title);
           selectGroup(groupFromUrl);
           return; // 如果从URL恢复了群组，就不再尝试其他方式
         }
@@ -281,7 +276,6 @@ const ChatInterface: React.FC = () => {
       if (storedGroupId) {
         const storedGroup = groups.find(g => g.id.toString() === storedGroupId);
         if (storedGroup) {
-          console.log('页面加载：从sessionStorage恢复群组:', storedGroup.title);
           selectGroup(storedGroup);
 
           // 确保URL也被更新
@@ -296,7 +290,6 @@ const ChatInterface: React.FC = () => {
       if (!selectedGroup) {
         const defaultGroup = groups.find(g => g.is_active) || groups[0];
         if (defaultGroup) {
-          console.log('页面加载：选择默认群组:', defaultGroup.title);
           selectGroup(defaultGroup);
         }
       }
@@ -306,7 +299,6 @@ const ChatInterface: React.FC = () => {
   // 确保用户手动点击群组时会保存记录
   useEffect(() => {
     if (selectedGroup) {
-      console.log('保存当前群组到sessionStorage:', selectedGroup.title);
       sessionStorage.setItem('last_selected_group_id', selectedGroup.id.toString());
 
       // 确保URL也被更新
@@ -323,7 +315,6 @@ const ChatInterface: React.FC = () => {
       const groupId = params.get('group');
 
       if (groupId && (!selectedGroup || selectedGroup.id.toString() !== groupId)) {
-        console.log('检测到浏览器导航操作，恢复群组:', groupId);
         navigateToGroup(groupId);
       }
     };
@@ -337,7 +328,6 @@ const ChatInterface: React.FC = () => {
   // 监听消息加载完成，自动滚动到底部
   useEffect(() => {
     if ((window as any)._shouldScrollToBottom && messages.length > 0) {
-      console.log('自动滚动到底部');
       // 延迟执行，确保DOM已更新
       setTimeout(() => {
         autoScrollToBottom();
@@ -377,7 +367,6 @@ const ChatInterface: React.FC = () => {
 
   // 初始化 - 移除旧的WebSocket逻辑，现在由useRealTimeMessages处理
   useEffect(() => {
-    console.log('聊天界面已加载，认证状态:', isAuthenticated);
   }, [isAuthenticated]);
 
   // 初始化导航历史hook
@@ -433,7 +422,6 @@ const ChatInterface: React.FC = () => {
 
   // 处理跳转到群组
   const handleJumpToGroup = useCallback((groupId: number) => {
-    console.log('ChatInterface - jumping to group:', groupId);
 
     // 查找群组
     const group = groups.find(g => g.id === groupId);
@@ -555,12 +543,10 @@ const ChatInterface: React.FC = () => {
 
   // 处理筛选应用
   const handleApplyFilter = useCallback((filter: MessageFilter) => {
-    console.log('ChatInterface - 应用筛选条件:', filter);
     setChatState(prev => ({ ...prev, messageFilter: filter }));
     
     // 重置无限滚动状态并重新加载消息
     if (selectedGroup) {
-      console.log('ChatInterface - 重置无限滚动状态并重新加载消息');
       resetInfiniteScroll();
       // 使用新的筛选条件重新加载消息
       setTimeout(() => {
@@ -571,13 +557,11 @@ const ChatInterface: React.FC = () => {
 
   // 处理清除筛选条件
   const handleClearFilter = useCallback(() => {
-    console.log('ChatInterface - 清除筛选条件');
     const emptyFilter = clearFilter();
     setChatState(prev => ({ ...prev, messageFilter: emptyFilter }));
     
     // 重置无限滚动状态并重新加载消息（不带筛选条件）
     if (selectedGroup) {
-      console.log('ChatInterface - 清除筛选后重新加载消息');
       resetInfiniteScroll();
       setTimeout(() => {
         fetchLatestMessages(selectedGroup.id, 50, true, emptyFilter);
@@ -601,9 +585,8 @@ const ChatInterface: React.FC = () => {
       };
 
       // 调用API发送消息
-      const response = await messageApi.sendMessage(chatState.selectedGroup.id, messageData);
+      await messageApi.sendMessage(chatState.selectedGroup.id, messageData);
 
-      console.log('消息发送成功:', response);
 
       // 清除回复状态
       setReplyTo(null);
@@ -979,7 +962,6 @@ const ChatInterface: React.FC = () => {
         selectedGroup={chatState.selectedGroup}
         onMessageSelect={(message) => {
           // 可以在这里添加跳转到消息的逻辑
-          console.log('选择消息:', message);
         }}
         isMobile={isMobile}
       />
@@ -990,7 +972,6 @@ const ChatInterface: React.FC = () => {
         onClose={() => setShowDownloadModal(false)}
         selectedGroup={chatState.selectedGroup}
         onSuccess={(task) => {
-          console.log('下载任务创建成功:', task);
         }}
         isMobile={isMobile}
       />
@@ -1002,7 +983,6 @@ const ChatInterface: React.FC = () => {
         selectedGroup={chatState.selectedGroup}
         onGroupUpdate={(group) => {
           // 更新群组信息
-          console.log('群组信息更新:', group);
           // 可以在这里更新 store 中的群组信息
         }}
         isMobile={isMobile}
@@ -1018,7 +998,6 @@ const ChatInterface: React.FC = () => {
         selectedGroup={chatState.selectedGroup}
         baseMessage={ruleBaseMessage}
         onSuccess={(rule) => {
-          console.log('规则创建成功:', rule);
         }}
         isMobile={isMobile}
       />

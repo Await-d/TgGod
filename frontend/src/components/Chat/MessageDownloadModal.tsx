@@ -408,7 +408,7 @@ const MessageDownloadModal: React.FC<MessageDownloadModalProps> = ({
       footer={null}
       width={isMobile ? '100%' : 700}
       style={isMobile ? { top: 20 } : {}}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ marginBottom: 24 }}>
         <Steps current={currentStep} size="small">

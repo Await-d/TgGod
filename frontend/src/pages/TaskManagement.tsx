@@ -25,7 +25,6 @@ import {
   Empty,
   Switch,
   Dropdown,
-  Menu,
   InputNumber,
   Collapse,
   TimePicker,
@@ -574,12 +573,21 @@ const TaskManagement: React.FC = () => {
     };
   }, [autoRefresh, loadTasks]);
 
-  // 初始化加载
+  // 初始化加载（仅首次）
   useEffect(() => {
     loadTasks();
     loadGroups();
     loadRules();
-  }, [loadTasks, loadGroups, loadRules]); // 添加函数依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在组件挂载时执行一次
+  
+  // 当筛选条件变化时重新加载任务
+  useEffect(() => {
+    if (Object.keys(filters).length > 0) {
+      loadTasks();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]); // 监听filters变化
 
   // 表格列定义
   const columns = [
@@ -798,61 +806,60 @@ const TaskManagement: React.FC = () => {
         <Space size="small" direction={isMobile ? "vertical" : "horizontal"}>
           {isMobile ? (
             <Dropdown
-              overlay={
-                <Menu>
-                  <Menu.Item key="detail" icon={<EyeOutlined />} onClick={() => handleViewTaskDetail(record)}>
-                    查看详情
-                  </Menu.Item>
-                  <Menu.Item key="logs" icon={<FileTextOutlined />} onClick={() => handleViewTaskLogs(record)}>
-                    查看日志
-                  </Menu.Item>
-                  {!['running'].includes(record.status) && (
-                    <Menu.Item key="edit" icon={<EditOutlined />} onClick={() => handleEditTask(record)}>
-                      编辑任务
-                    </Menu.Item>
-                  )}
-                  {record.status === 'pending' && (
-                    <Menu.Item
-                      key="start"
-                      icon={<PlayCircleOutlined />}
-                      onClick={() => handleStartTask(record.id)}
-                      disabled={operatingTasks.has(record.id)}
-                    >
-                      {operatingTasks.has(record.id) ? '启动中...' : '立即执行'}
-                    </Menu.Item>
-                  )}
-                  {record.status === 'running' && (
-                    <>
-                      <Menu.Item
-                        key="pause"
-                        icon={<PauseCircleOutlined />}
-                        onClick={() => handlePauseTask(record.id)}
-                        disabled={operatingTasks.has(record.id)}
-                      >
-                        {operatingTasks.has(record.id) ? '暂停中...' : '暂停任务'}
-                      </Menu.Item>
-                      <Menu.Item
-                        key="stop"
-                        icon={<StopOutlined />}
-                        onClick={() => handleStopTask(record.id)}
-                        disabled={operatingTasks.has(record.id)}
-                      >
-                        {operatingTasks.has(record.id) ? '停止中...' : '停止任务'}
-                      </Menu.Item>
-                    </>
-                  )}
-                  {record.status === 'paused' && (
-                    <Menu.Item
-                      key="resume"
-                      icon={<PlayCircleOutlined />}
-                      onClick={() => handleStartTask(record.id)}
-                      disabled={operatingTasks.has(record.id)}
-                    >
-                      {operatingTasks.has(record.id) ? '恢复中...' : '继续任务'}
-                    </Menu.Item>
-                  )}
-                  {!['running'].includes(record.status) && (
-                    <Menu.Item key="delete" danger icon={<DeleteOutlined />}>
+              menu={{
+                items: [
+                  {
+                    key: 'detail',
+                    icon: <EyeOutlined />,
+                    label: '查看详情',
+                    onClick: () => handleViewTaskDetail(record),
+                  },
+                  {
+                    key: 'logs',
+                    icon: <FileTextOutlined />,
+                    label: '查看日志',
+                    onClick: () => handleViewTaskLogs(record),
+                  },
+                  ...(!['running'].includes(record.status) ? [{
+                    key: 'edit',
+                    icon: <EditOutlined />,
+                    label: '编辑任务',
+                    onClick: () => handleEditTask(record),
+                  }] : []),
+                  ...(record.status === 'pending' ? [{
+                    key: 'start',
+                    icon: <PlayCircleOutlined />,
+                    label: operatingTasks.has(record.id) ? '启动中...' : '立即执行',
+                    disabled: operatingTasks.has(record.id),
+                    onClick: () => handleStartTask(record.id),
+                  }] : []),
+                  ...(record.status === 'running' ? [
+                    {
+                      key: 'pause',
+                      icon: <PauseCircleOutlined />,
+                      label: operatingTasks.has(record.id) ? '暂停中...' : '暂停任务',
+                      disabled: operatingTasks.has(record.id),
+                      onClick: () => handlePauseTask(record.id),
+                    },
+                    {
+                      key: 'stop',
+                      icon: <StopOutlined />,
+                      label: operatingTasks.has(record.id) ? '停止中...' : '停止任务',
+                      disabled: operatingTasks.has(record.id),
+                      onClick: () => handleStopTask(record.id),
+                    }
+                  ] : []),
+                  ...(record.status === 'paused' ? [{
+                    key: 'resume',
+                    icon: <PlayCircleOutlined />,
+                    label: operatingTasks.has(record.id) ? '恢复中...' : '继续任务',
+                    disabled: operatingTasks.has(record.id),
+                    onClick: () => handleStartTask(record.id),
+                  }] : []),
+                  ...(!['running'].includes(record.status) ? [{
+                    key: 'delete',
+                    icon: <DeleteOutlined />,
+                    label: (
                       <Popconfirm
                         title="确定删除这个任务吗？"
                         onConfirm={() => handleDeleteTask(record.id)}
@@ -861,10 +868,11 @@ const TaskManagement: React.FC = () => {
                       >
                         删除任务
                       </Popconfirm>
-                    </Menu.Item>
-                  )}
-                </Menu>
-              }
+                    ),
+                    danger: true,
+                  }] : []),
+                ],
+              }}
               trigger={['click']}
             >
               <Button size="small" icon={<SettingOutlined />}>
@@ -971,36 +979,51 @@ const TaskManagement: React.FC = () => {
   ];
 
   // 批量操作菜单
-  const batchActionMenu = (
-    <Menu onClick={({ key }) => {
-      if (key === 'delete') {
-        Modal.confirm({
-          title: '确认批量删除',
-          content: `确定要删除选中的 ${selectedRowKeys.length} 个任务吗？此操作不可撤销。`,
-          okText: '删除',
-          okType: 'danger',
-          cancelText: '取消',
-          onOk: () => handleBatchOperation('delete'),
-        });
-      } else {
-        handleBatchOperation(key);
-      }
-    }}>
-      <Menu.Item key="start" icon={<PlayCircleOutlined />} disabled={batchOperating}>
-        批量启动 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
-      </Menu.Item>
-      <Menu.Item key="pause" icon={<PauseCircleOutlined />} disabled={batchOperating}>
-        批量暂停 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
-      </Menu.Item>
-      <Menu.Item key="stop" icon={<StopOutlined />} disabled={batchOperating}>
-        批量停止 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item key="delete" danger icon={<DeleteOutlined />} disabled={batchOperating}>
-        批量删除 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
-      </Menu.Item>
-    </Menu>
-  );
+  const batchActionMenuItems = [
+    {
+      key: 'start',
+      icon: <PlayCircleOutlined />,
+      label: `批量启动 ${selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : ''}`,
+      disabled: batchOperating,
+    },
+    {
+      key: 'pause',
+      icon: <PauseCircleOutlined />,
+      label: `批量暂停 ${selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : ''}`,
+      disabled: batchOperating,
+    },
+    {
+      key: 'stop',
+      icon: <StopOutlined />,
+      label: `批量停止 ${selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : ''}`,
+      disabled: batchOperating,
+    },
+    {
+      type: 'divider' as const,
+    },
+    {
+      key: 'delete',
+      icon: <DeleteOutlined />,
+      label: `批量删除 ${selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : ''}`,
+      danger: true,
+      disabled: batchOperating,
+    },
+  ];
+
+  const handleBatchMenuClick = ({ key }: { key: string }) => {
+    if (key === 'delete') {
+      Modal.confirm({
+        title: '确认批量删除',
+        content: `确定要删除选中的 ${selectedRowKeys.length} 个任务吗？此操作不可撤销。`,
+        okText: '删除',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk: () => handleBatchOperation('delete'),
+      });
+    } else {
+      handleBatchOperation(key);
+    }
+  };
 
   return (
     <div>
@@ -1121,7 +1144,7 @@ const TaskManagement: React.FC = () => {
             暂停所有运行中任务
           </Button>
 
-          <Dropdown overlay={batchActionMenu}>
+          <Dropdown menu={{ items: batchActionMenuItems, onClick: handleBatchMenuClick }}>
             <Button
               disabled={selectedRowKeys.length === 0}
               loading={batchOperating}

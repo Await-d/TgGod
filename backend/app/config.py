@@ -324,7 +324,7 @@ class Settings:
     
     @property
     def ws_port(self) -> int:
-        return 8001
+        return 8000
     
     @property
     def redis_url(self) -> str:

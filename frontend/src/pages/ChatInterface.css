@@ -46,7 +46,8 @@
   /* 关键：允许flex子元素收缩 */
   height: 100%;
   /* 确保有确定的高度 */
-  background: #f5f7fa;
+  background: #F5F5F5;
+  /* 使用浅灰色背景作为整体背景 */
   position: relative;
   padding: 0;
   /* 移除padding，铺满整个区域 */
@@ -90,12 +91,13 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-/* 群组列表面板 - 现代化渐变设计，支持动态宽度 */
+/* 群组列表面板 - 现代专业设计，支持动态宽度 */
 .group-list-panel {
-  width: 380px;
-  min-width: 320px;
-  max-width: 420px;
-  background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
+  width: 300px;
+  min-width: 260px;
+  max-width: 380px;
+  background: #F8F9FA;
+  /* 浅灰色背景，更专业 */
   display: flex;
   flex-direction: column;
   position: relative;
@@ -104,6 +106,10 @@
   resize: horizontal;
   /* 允许水平拖拽调整宽度 */
   overflow: hidden;
+  border-right: 1px solid #E8EAED;
+  /* 添加右侧分隔线 */
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+  /* 添加微妙的阴影增加深度 */
 }
 
 .group-list-panel.collapsed {
@@ -186,24 +192,25 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
+  background: transparent;
+  /* 使用透明背景，继承父级的灰色背景 */
 }
 
 /* 群组列表头部 */
 .group-list-header {
-  padding: 24px 20px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.05);
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid #E8EAED;
+  /* 使用更轻的灰色分隔线 */
+  background: transparent;
 }
 
 .group-list-header h3 {
-  color: #ffffff !important;
+  color: #202124 !important;
+  /* 使用深灰色文字，更专业 */
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 /* 群组列表内容 */
@@ -214,82 +221,70 @@
 }
 
 .group-list-content::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 
 .group-list-content::-webkit-scrollbar-track {
-  background: transparent;
+  background: #E8EAED;
+  border-radius: 3px;
+  margin: 8px 0;
 }
 
 .group-list-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
+  background: #BDC1C6;
+  /* 使用灰色滚动条 */
+  border-radius: 3px;
 }
 
 .group-list-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: #9AA0A6;
+  /* 悬浮时更深的灰色 */
 }
 
 /* 群组项样式 - 现代化设计 */
 .group-item {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
-  margin: 3px 12px;
-  border-radius: 10px;
+  padding: 12px 12px;
+  margin: 2px 8px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-  background: rgba(255, 255, 255, 0.05);
+  transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  background: transparent;
   border: 1px solid transparent;
   position: relative;
-  overflow: hidden;
-}
-
-.group-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.6s;
-}
-
-.group-item:hover::before {
-  left: 100%;
 }
 
 .group-item:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateX(4px) scale(1.02);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #E8EAED;
+  /* 悬浮时显示浅灰色背景 */
+  transform: translateX(2px);
 }
 
 .group-item.selected {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  transform: translateX(6px);
+  background: #FFFFFF;
+  /* 选中时使用白色背景 */
+  border-color: #E8EAED;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* 添加轻微阴影突出选中状态 */
 }
 
 .group-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #1890FF;
+  /* 使用品牌蓝色作为头像背景 */
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 14px;
+  margin-right: 12px;
   flex-shrink: 0;
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 16px;
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 14px;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  letter-spacing: 0.5px;
 }
 
 .group-info {
@@ -298,34 +293,34 @@
 }
 
 .group-name {
-  color: #ffffff !important;
-  margin: 0 0 4px 0;
-  font-size: 15px;
-  font-weight: 600;
+  color: #202124 !important;
+  /* 深灰色文字 */
+  margin: 0 0 2px 0;
+  font-size: 14px;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .member-count {
-  color: rgba(255, 255, 255, 0.85);
+  color: #5F6368;
+  /* 中灰色次要文字 */
   font-size: 12px;
   margin: 0;
   font-weight: 400;
 }
 
 .status {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 10px;
-  padding: 3px 10px;
-  border-radius: 12px;
+  background: #E8F4FD;
+  /* 浅蓝色背景 */
+  color: #1890FF;
+  /* 蓝色文字 */
+  border: 1px solid #BAE0FF;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  backdrop-filter: blur(10px);
 }
 
 /* 消息面板 - 修复高度溢出 */
@@ -407,19 +402,20 @@
 }
 
 .message-area-container .message-area::-webkit-scrollbar-track {
-  background: #f1f3f4;
+  background: #F1F3F4;
   border-radius: 3px;
   margin: 8px 0;
 }
 
 .message-area-container .message-area::-webkit-scrollbar-thumb {
-  background: linear-gradient(145deg, #667eea, #764ba2);
+  background: #BDC1C6;
+  /* 灰色滚动条与左侧一致 */
   border-radius: 3px;
-  border: 1px solid #e1e8ed;
 }
 
 .message-area-container .message-area::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(145deg, #5a67d8, #6b46c1);
+  background: #9AA0A6;
+  /* 悬浮时更深的灰色 */
 }
 
 /* 消息头部样式 */
@@ -427,10 +423,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: #ffffff;
-  border-bottom: 1px solid #f0f0f0;
-  min-height: 72px;
+  padding: 16px 20px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #E8EAED;
+  /* 使用一致的灰色分隔线 */
+  min-height: 64px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  /* 添加轻微阴影增加层次感 */
 }
 
 .header-group-info {
@@ -563,22 +562,25 @@
   }
 }
 
-/* 响应式设计 - 移除所有断点限制 */
+/* 响应式设计 - 优化各断点宽度 */
 @media (max-width: 1399px) {
   .group-list-panel {
-    width: 340px;
+    width: 280px;
+    min-width: 240px;
   }
 }
 
 @media (max-width: 1199px) {
   .group-list-panel {
-    width: 300px;
+    width: 260px;
+    min-width: 220px;
   }
 }
 
 @media (max-width: 899px) {
   .group-list-panel {
-    width: 280px;
+    width: 240px;
+    min-width: 200px;
   }
 }
 
@@ -608,7 +610,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1890FF;
+  /* 使用品牌蓝色，更专业 */
   color: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }

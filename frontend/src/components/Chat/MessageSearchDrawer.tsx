@@ -230,7 +230,7 @@ const MessageSearchDrawer: React.FC<MessageSearchDrawerProps> = ({
       onClose={onClose}
       open={visible}
       width={isMobile ? '100%' : 600}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         {/* 搜索输入区 */}

@@ -37,6 +37,7 @@ import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import MediaPreview from '../components/Chat/MediaPreview';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -237,6 +238,54 @@ const DownloadHistory: React.FC = () => {
 
   // 表格列定义
   const columns: ColumnsType<DownloadRecord> = [
+    {
+      title: '预览',
+      dataIndex: 'preview',
+      key: 'preview',
+      width: 80,
+      render: (_: any, record: DownloadRecord) => {
+        // 只为图片和视频显示缩略图
+        if ((record.file_type === 'photo' || record.file_type === 'video') && record.local_file_path && record.download_status === 'completed') {
+          return (
+            <div style={{
+              width: 60,
+              height: 60,
+              cursor: 'pointer',
+              borderRadius: 4,
+              overflow: 'hidden'
+            }} onClick={() => handleViewDetail(record)}>
+              {record.file_type === 'photo' ? (
+                <img
+                  src={record.local_file_path.startsWith('/') ? record.local_file_path : `/${record.local_file_path}`}
+                  alt={record.file_name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                  onError={(e) => {
+                    // 图片加载失败时显示占位符
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <video
+                  src={record.local_file_path.startsWith('/') ? record.local_file_path : `/${record.local_file_path}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                  muted
+                  preload="metadata"
+                />
+              )}
+            </div>
+          );
+        }
+        return <FileOutlined style={{ fontSize: 24, color: '#d9d9d9' }} />;
+      },
+    },
     {
       title: '文件名',
       dataIndex: 'file_name',
@@ -570,6 +619,29 @@ const DownloadHistory: React.FC = () => {
       >
         {selectedRecord && (
           <div>
+            {/* 媒体预览区域 */}
+            {(selectedRecord.file_type === 'photo' || selectedRecord.file_type === 'video') && selectedRecord.local_file_path && (
+              <>
+                <div style={{
+                  marginBottom: 24,
+                  padding: 20,
+                  background: '#fafafa',
+                  borderRadius: 8,
+                  textAlign: 'center'
+                }}>
+                  <MediaPreview
+                    messageId={selectedRecord.message_id}
+                    url={selectedRecord.local_file_path}
+                    type={selectedRecord.file_type === 'photo' ? 'image' : 'video'}
+                    filename={selectedRecord.file_name}
+                    size={selectedRecord.file_size}
+                    downloaded={selectedRecord.download_status === 'completed'}
+                  />
+                </div>
+                <Divider>详细信息</Divider>
+              </>
+            )}
+
             <Descriptions bordered column={2}>
               <Descriptions.Item label="文件名" span={2}>
                 {selectedRecord.file_name}

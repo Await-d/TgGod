@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Progress, Space, Typography, Tooltip } from 'antd';
+import { Button, Progress, Space, Typography } from 'antd';
 import {
   DownloadOutlined,
   ReloadOutlined,

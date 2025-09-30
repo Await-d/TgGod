@@ -41,7 +41,13 @@
       "Bash(cat:*)",
       "Bash(netstat:*)",
       "Bash(pnpm build)",
-      "Bash(docker:*)"
+      "Bash(docker:*)",
+      "Bash(ss:*)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

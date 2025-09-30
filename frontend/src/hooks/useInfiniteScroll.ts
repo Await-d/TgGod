@@ -69,11 +69,6 @@ export const useInfiniteScroll = (
       return;
     }
     
-    console.log('[InfiniteScroll] 群组变更，重置滚动状态', {
-      newGroupId: currentGroupId,
-      oldGroupId: lastGroupId.current
-    });
-    
     // 调用重置函数
     reset();
     
@@ -94,7 +89,6 @@ export const useInfiniteScroll = (
     // 更新群组ID记录
     lastGroupId.current = currentGroupId || null;
     
-    console.log('[InfiniteScroll] 滚动状态重置完成，等待消息数据加载');
   }, [selectedGroup?.id, reset, containerRef]);
   
   // 移除初始检查函数，简化逻辑，让正常的滚动事件处理即可
@@ -155,33 +149,22 @@ export const useInfiniteScroll = (
     
     // 根本条件检查
     if (!selectedGroup || isLoadingRef.current || !hasMore || currentPage >= maxPages) {
-      console.log('[InfiniteScroll] 跳过加载', { 
-        selectedGroup: !!selectedGroup, 
-        isLoading: isLoadingRef.current, 
-        hasMore, 
-        currentPage, 
-        maxPages,
-        messagesCount: messages.length 
-      });
       return;
     }
 
     // 确保有现有消息才允许加载更多（防止与初始加载冲突）
     if (messages.length === 0) {
-      console.log('[InfiniteScroll] 等待初始消息加载完成');
       return;
     }
 
     // 防止在短时间内重复触发加载
     if (loadingStartTimeRef.current > 0 && now - loadingStartTimeRef.current < 3000) {
-      console.log('[InfiniteScroll] 防止频繁加载，距离上次加载', now - loadingStartTimeRef.current, 'ms');
       return;
     }
 
     // 生成请求标识符，防止重复请求
     const requestKey = `${selectedGroup.id}_${currentPage}_${pageSize}_${messages.length}`;
     if (lastRequestRef.current === requestKey) {
-      console.log('[InfiniteScroll] 防止重复请求:', requestKey);
       return;
     }
     
@@ -193,14 +176,12 @@ export const useInfiniteScroll = (
     try {
       // 使用消息数量作为skip，确保不会重复获取已有消息
       const skipCount = messages.length;
-      console.log(`[InfiniteScroll] 加载更多历史消息 (skip=${skipCount}, limit=${pageSize})`);
       
       // 保存当前滚动位置和高度
       const container = containerRef.current;
       const previousScrollHeight = container?.scrollHeight || 0;
       const previousScrollTop = container?.scrollTop || 0;
       
-      console.log(`[InfiniteScroll] 加载前状态: scrollTop=${previousScrollTop}, scrollHeight=${previousScrollHeight}`);
 
       // 使用筛选条件构建API参数
       const apiParams = convertFilterToAPIParams(currentFilter, {
@@ -209,13 +190,11 @@ export const useInfiniteScroll = (
       });
 
       // 调用API获取历史消息 - 使用实际消息数量作为skip
-      console.log(`[InfiniteScroll] API参数:`, apiParams);
       const response = await messageApi.getGroupMessages(selectedGroup.id, apiParams);
 
       if (response && Array.isArray(response)) {
         const newMessages = response;
         
-        console.log(`[InfiniteScroll] 成功加载 ${newMessages.length} 条历史消息`);
 
         if (newMessages.length > 0) {
           // 使用新的prependMessages方法，自动去重和排序
@@ -233,7 +212,6 @@ export const useInfiniteScroll = (
           setHasMore(newMessages.length === pageSize);
         } else {
           // 没有更多消息了
-          console.log('[InfiniteScroll] 没有更多历史消息');
           setHasMore(false);
         }
       } else {
@@ -280,16 +258,8 @@ export const useInfiniteScroll = (
         const scrollTop = containerRef.current.scrollTop;
         const timeSinceLastLoad = Date.now() - ((window as any)._lastLoadTrigger || 0);
 
-        console.log('[InfiniteScroll] 初始滚动位置检查', {
-          scrollTop,
-          timeSinceLastLoad,
-          hasMore,
-          messagesLength: messages.length
-        });
-
         // 严格条件：只在用户明确滚动到顶部且距离上次加载超过2秒时触发
         if (scrollTop < 50 && hasMore && timeSinceLastLoad > 2000 && messages.length > 10) {
-          console.log('[InfiniteScroll] 初始检查触发历史消息加载');
           (window as any)._lastLoadTrigger = Date.now();
           loadMoreRef.current();
         }
@@ -338,15 +308,6 @@ export const useInfiniteScroll = (
     
     // 更严格的触发条件：必须真正滚动到顶部
     if (scrollTop <= topThreshold && scrollTop >= 0 && currentPage < maxPages) {
-      console.log(`[InfiniteScroll] 触发向上加载`, {
-        scrollTop,
-        topThreshold,
-        currentPage,
-        maxPages,
-        timeSinceLastLoad,
-        scrollHeight,
-        clientHeight
-      });
       
       // 记录触发时间
       (window as any)._lastLoadTrigger = Date.now();
@@ -387,11 +348,9 @@ export const useInfiniteScroll = (
       }
     };
 
-    console.log(`[InfiniteScroll] 绑定滚动事件到容器:`, container);
     container.addEventListener('scroll', scrollHandler, { passive: true });
 
     return () => {
-      console.log('[InfiniteScroll] 移除滚动事件监听器');
       container.removeEventListener('scroll', scrollHandler);
       // 移除绑定标记
       delete (container as any)[containerKey];

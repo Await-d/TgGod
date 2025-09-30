@@ -125,6 +125,8 @@ class RealTimeStatusService {
   private connected = false;
   private autoRetryEnabled = true;
   private lastCriticalAlertKey: string | null = null;
+  private lastCriticalAlertTime: number = 0;
+  private criticalAlertCooldown: number = 300000; // 5分钟冷却时间
 
   constructor() {
     this.initializeWebSocketListeners();
@@ -236,12 +238,25 @@ class RealTimeStatusService {
         .sort()
         .join('|');
 
-      if (this.lastCriticalAlertKey !== alertKey) {
+      const now = Date.now();
+      const timeSinceLastAlert = now - this.lastCriticalAlertTime;
+
+      // 只有在以下情况下才显示警告：
+      // 1. 警告内容发生变化（不同的服务或状态）
+      // 2. 距离上次警告已超过冷却时间（5分钟）
+      if (this.lastCriticalAlertKey !== alertKey && timeSinceLastAlert > this.criticalAlertCooldown) {
         this.showCriticalServiceAlert(criticalServices);
         this.lastCriticalAlertKey = alertKey;
+        this.lastCriticalAlertTime = now;
       }
     } else if (this.lastCriticalAlertKey) {
+      // 所有关键服务已恢复，重置警告状态
       this.lastCriticalAlertKey = null;
+      notification.success({
+        message: '服务已恢复',
+        description: '所有关键系统服务已恢复正常运行',
+        duration: 4.5,
+      });
     }
 
     // Check for maintenance mode changes
@@ -260,14 +275,16 @@ class RealTimeStatusService {
    */
   private showCriticalServiceAlert(services: ServiceInfo[]): void {
     const serviceNames = services.map(s => s.name).join(', ');
+    const serviceDetails = services.map(s => `• ${s.name}: ${s.message}`).join('\n');
 
-    Modal.error({
-      title: '关键系统服务已离线',
-      content: `受影响的服务：${serviceNames}\n\n系统功能可能受到严重影响，请前往服务状态页面查看详情并执行恢复操作。`,
+    Modal.warning({
+      title: '关键系统服务状态异常',
+      content: `受影响的服务：${serviceNames}\n\n详细信息：\n${serviceDetails}\n\n系统功能可能受到影响，建议前往服务状态页面查看详情。`,
       okText: '查看服务状态',
+      cancelText: '忽略',
       onOk: () => {
         // Navigate to service status page
-        window.location.hash = '#/services';
+        window.location.hash = '#/system-status';
       },
     });
   }

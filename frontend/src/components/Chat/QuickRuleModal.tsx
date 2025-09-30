@@ -124,7 +124,7 @@ const QuickRuleModal: React.FC<QuickRuleModalProps> = ({
       footer={null}
       width={isMobile ? '100%' : 800}
       style={isMobile ? { top: 20 } : {}}
-      destroyOnClose
+      destroyOnHidden
     >
       {/* 基础消息预览 */}
       {baseMessage && (

@@ -287,7 +287,7 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
       onCancel={onClose}
       footer={null}
       width={800}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}
