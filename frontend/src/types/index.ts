@@ -302,8 +302,10 @@ export interface LogEntry {
   level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
   message: string;
   task_id?: number;
+  module?: string;      // 系统日志：模块名称
+  function?: string;    // 系统日志：函数名称
   created_at: string;
-  timestamp: string; // Add timestamp field
+  timestamp: string;
   details?: Record<string, any>;
 }
 
@@ -320,6 +322,65 @@ export interface ApiResponse<T> {
   data?: T;
   message?: string;
   error?: string;
+}
+
+export type ServiceHealthStatus = 'healthy' | 'warning' | 'error' | 'degraded' | 'unhealthy' | 'unknown';
+
+export interface ServiceHealthEntry {
+  service_name?: string;
+  status?: ServiceHealthStatus;
+  status_message?: string;
+  message?: string;
+  is_healthy?: boolean;
+  available?: boolean;
+  response_time_ms?: number;
+  last_checked?: string;
+  details?: Record<string, any>;
+}
+
+export interface ServicesHealthData {
+  check_time?: string;
+  overall_status?: ServiceHealthStatus;
+  warnings?: string[];
+  errors?: string[];
+  services: Record<string, ServiceHealthEntry>;
+}
+
+export interface ServiceHealthResponse {
+  success: boolean;
+  data?: ServicesHealthData;
+  message?: string;
+}
+
+export interface ServiceHealthSummaryData {
+  total_services: number;
+  healthy_services: number;
+  warning_services: number;
+  error_services: number;
+  overall_status: ServiceHealthStatus;
+  last_check?: string | null;
+}
+
+export interface ServiceHealthSummaryResponse {
+  success: boolean;
+  data?: ServiceHealthSummaryData;
+  message?: string;
+}
+
+export interface ServiceStatusSnapshotResponse {
+  success: boolean;
+  data?: {
+    status: ServiceHealthStatus;
+    last_check?: string | null;
+    details?: ServicesHealthData;
+  };
+  message?: string;
+}
+
+export interface ServiceHealthCheckResponse {
+  success: boolean;
+  message?: string;
+  data?: ServicesHealthData;
 }
 
 // 分页响应类型

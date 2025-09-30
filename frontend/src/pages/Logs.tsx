@@ -67,6 +67,7 @@ const Logs: React.FC = () => {
   const [retryCount, setRetryCount] = React.useState(0);
 
   const loadLogs = React.useCallback(async (page = 1, pageSize = 20) => {
+    console.log(`🔄 加载日志 - Tab: ${activeTab}, Page: ${page}, PageSize: ${pageSize}`);
     setLoading(true);
     try {
       const params = {
@@ -77,20 +78,30 @@ const Logs: React.FC = () => {
         skip: (page - 1) * pageSize,
         limit: pageSize
       };
+      console.log('📋 请求参数:', params);
 
       // 根据当前标签加载不同类型的日志
       switch (activeTab) {
         case 'task':
+          console.log('📦 请求任务日志...');
           const taskLogsResponse = await logApi.getTaskLogs(params);
+          console.log('✅ 任务日志响应:', taskLogsResponse);
+          console.log('📊 任务日志数量:', Array.isArray(taskLogsResponse) ? taskLogsResponse.length : '非数组类型');
           setTaskLogs(taskLogsResponse);
           break;
         case 'system':
+          console.log('🖥️ 请求系统日志...');
           const systemLogsResponse = await logApi.getSystemLogs(params);
+          console.log('✅ 系统日志响应:', systemLogsResponse);
+          console.log('📊 系统日志数量:', Array.isArray(systemLogsResponse) ? systemLogsResponse.length : '非数组类型');
           setSystemLogs(systemLogsResponse);
           break;
         default:
           // 实时日志
+          console.log('⚡ 请求实时日志...');
           const logsResponse = await logApi.getLogs(params);
+          console.log('✅ 实时日志响应:', logsResponse);
+          console.log('📊 实时日志数量:', logsResponse?.logs?.length || 0);
           setFilteredLogs(logsResponse.logs);
           setPagination(prev => ({
             ...prev,
@@ -135,7 +146,6 @@ const Logs: React.FC = () => {
 
   // 初始加载
   React.useEffect(() => {
-    // 首次加载时强制加载日志，不依赖其他状态
     const initialLoad = async () => {
       setLoading(true);
       try {
@@ -150,7 +160,6 @@ const Logs: React.FC = () => {
           total: logsResponse.total
         }));
 
-        // 加载日志统计
         const stats = await logApi.getLogStats();
         setLogStats(stats);
         
@@ -164,25 +173,52 @@ const Logs: React.FC = () => {
     };
     
     initialLoad();
-    
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Only run once on mount
+
+  // WebSocket 订阅 - 独立的 effect
+  React.useEffect(() => {
+    console.log('📡 初始化WebSocket日志订阅...');
+
     // 确保WebSocket连接已建立
     if (!webSocketService.isConnected()) {
-      console.log('启动WebSocket连接...');
+      console.log('🔌 WebSocket未连接，正在连接...');
       webSocketService.connect();
+
+      // 等待连接建立
+      setTimeout(() => {
+        if (webSocketService.isConnected()) {
+          console.log('✅ WebSocket连接成功');
+        } else {
+          console.warn('⚠️ WebSocket连接失败，实时日志可能无法工作');
+          messageApi.warning('实时日志连接失败，请刷新页面重试');
+        }
+      }, 1000);
+    } else {
+      console.log('✅ WebSocket已连接');
     }
-    
+
     // 订阅实时日志
     const unsubscribe = subscribeToLogs((logData) => {
-      console.log('收到实时日志:', logData);
+      console.log('📝 收到实时日志:', logData);
       addLog(logData);
-      // 实时日志到达时，如果在实时日志标签页且没有筛选条件，更新列表
-      if (activeTab === 'realtime' && !levelFilter && !searchText && !timeRange) {
-        setFilteredLogs(prev => [logData, ...prev].slice(0, pagination.pageSize));
+
+      // 只在实时日志tab才更新显示
+      if (activeTab === 'realtime') {
+        setFilteredLogs(prev => {
+          const newLogs = [logData, ...prev];
+          // 只保留最新的100条，避免内存占用过大
+          return newLogs.slice(0, 100);
+        });
       }
     });
-    
-    return unsubscribe;
-  }, [setLoading, setError, messageApi, addLog, activeTab, levelFilter, searchText, timeRange, pagination]); // 移除 loadLogs 依赖
+
+    console.log('✅ WebSocket日志订阅已建立');
+
+    return () => {
+      console.log('🔌 取消WebSocket日志订阅');
+      unsubscribe();
+    };
+  }, [addLog, activeTab, messageApi]); // 依赖 addLog, activeTab, messageApi
 
   // 自动刷新
   React.useEffect(() => {
@@ -199,18 +235,21 @@ const Logs: React.FC = () => {
       clearInterval(refreshInterval);
       setRefreshInterval(null);
     }
-  }, [autoRefresh, activeTab, levelFilter, searchText, timeRange, loadLogs, pagination, refreshInterval]);
+  }, [autoRefresh, activeTab, levelFilter, searchText, timeRange, loadLogs]); // eslint-disable-line react-hooks/exhaustive-deps -- Intentional dependencies
+
+  // Tab切换时加载数据
+  React.useEffect(() => {
+    // 切换tab时立即加载对应tab的数据
+    loadLogs(1, 20);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps -- Only trigger on tab change
 
   // 筛选参数变化时重新加载
   React.useEffect(() => {
-    if (activeTab === 'realtime' && (levelFilter || searchText || timeRange)) {
-      // 只有在实时日志标签页且有筛选条件时才重新加载
-      loadLogs(1, pagination.pageSize); // 重置到第一页
-    } else if (activeTab !== 'realtime') {
-      // 非实时日志标签页总是重新加载
-      loadLogs(1, pagination.pageSize);
+    // 任何筛选参数变化时都重新加载当前tab的数据
+    if (levelFilter || searchText || timeRange) {
+      loadLogs(1, 20); // 重置到第一页
     }
-  }, [levelFilter, searchText, timeRange, activeTab, loadLogs, pagination.pageSize]);
+  }, [levelFilter, searchText, timeRange]); // eslint-disable-line react-hooks/exhaustive-deps -- Only trigger on filter change
 
 
   const handleClearLogs = async (type: 'task' | 'system' | 'all') => {
@@ -330,6 +369,12 @@ const Logs: React.FC = () => {
             <Tag color={getLevelColor(log.level)}>{log.level}</Tag>
             {log.task_id && (
               <Tag color="purple">任务ID: {log.task_id}</Tag>
+            )}
+            {log.module && (
+              <Tag color="blue">模块: {log.module}</Tag>
+            )}
+            {log.function && (
+              <Tag color="cyan">函数: {log.function}</Tag>
             )}
           </div>
           <Text type="secondary" style={{ fontSize: '12px' }}>
