@@ -44,9 +44,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         ensure_password_length(plain_password)
         return pwd_context.verify(plain_password, hashed_password)
     except PasswordTooLongError:
+        # 密码长度超限，直接抛出
         raise
-    except ValueError as exc:
-        raise PasswordTooLongError() from exc
+    except Exception:
+        # 其他错误（如哈希格式无效）返回False，而不是误报为密码长度错误
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -55,9 +57,11 @@ def get_password_hash(password: str) -> str:
         ensure_password_length(password)
         return pwd_context.hash(password)
     except PasswordTooLongError:
+        # 密码长度超限，直接抛出
         raise
-    except ValueError as exc:
-        raise PasswordTooLongError() from exc
+    except Exception as exc:
+        # 其他异常直接抛出，不转换为密码长度错误
+        raise RuntimeError(f"密码哈希生成失败: {exc}") from exc
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
