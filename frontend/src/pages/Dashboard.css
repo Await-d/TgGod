@@ -1,0 +1,64 @@
+.dashboard-page {
+  padding: 24px;
+  background: #f5f7fa;
+  min-height: 100%;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.dashboard-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.dashboard-table-wrapper .ant-table {
+  min-width: 360px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-page {
+    padding: 16px 12px 80px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .dashboard-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .dashboard-header-actions .ant-btn {
+    flex: 1;
+  }
+
+  .dashboard-table-wrapper .ant-table {
+    min-width: 320px;
+  }
+
+  .ant-card {
+    border-radius: 12px;
+  }
+}

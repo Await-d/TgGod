@@ -55,7 +55,7 @@ import {
   // ClockCircleOutlined  // 未使用，已注释
 } from '@ant-design/icons';
 import { useRealTimeStatus, useSystemHealth } from '../../hooks/useRealTimeStatus';
-import { ServiceStatus, ServicePriority } from '../../services/realTimeStatusService';
+import { ServiceStatus, ServicePriority } from '../../types/realtime';
 import './RealTimeStatusMonitor.css';
 
 const { Title, Text } = Typography;

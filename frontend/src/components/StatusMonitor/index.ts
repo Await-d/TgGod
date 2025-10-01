@@ -16,7 +16,7 @@ export type {
   ProductionStatusData,
   ServiceStatus,
   ServicePriority
-} from '../../services/realTimeStatusService';
+} from '../../types/realtime';
 export {
   useRealTimeStatus,
   useServiceStatus,

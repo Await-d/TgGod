@@ -16,15 +16,15 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
+import { realTimeStatusService } from '../services/realTimeStatusService';
 import {
-  realTimeStatusService,
   ServiceInfo,
   SystemMetrics,
   ServiceHealthSummary,
-  ProductionStatusData
-} from '../services/realTimeStatusService';
+  ProductionStatusData,
+} from '../types/realtime';
 import { useRealTimeStatusStore } from '../store';
-import { webSocketService } from '../services/websocket';
+import { useRealTimeStatusContext } from '../providers/RealTimeStatusProvider';
 
 export interface UseRealTimeStatusOptions {
   /**
@@ -140,142 +140,72 @@ export function useRealTimeStatus(
   options: UseRealTimeStatusOptions = {}
 ): UseRealTimeStatusReturn {
   const {
-    autoConnect = true,
     autoReconnect = true,
-    onError,
     onConnectionChange,
     onCriticalAlert
   } = options;
 
-  // Store state
+  const context = useRealTimeStatusContext();
+
   const {
     isConnected,
     currentStatus,
     healthSummary,
     systemMetrics,
-    lastUpdateTime,
-    setConnectionStatus,
-    setCurrentStatus,
-    setHealthSummary,
-    setSystemMetrics
-  } = useRealTimeStatusStore();
+    lastUpdateTime
+  } = useRealTimeStatusStore((state) => ({
+    isConnected: state.isConnected,
+    currentStatus: state.currentStatus,
+    healthSummary: state.healthSummary,
+    systemMetrics: state.systemMetrics,
+    lastUpdateTime: state.lastUpdateTime,
+  }));
 
-  // Refs for stable callbacks
-  const onErrorRef = useRef(onError);
-  const isConnectedRef = useRef(isConnected);
-  const onConnectionChangeRef = useRef(onConnectionChange);
-  const onCriticalAlertRef = useRef(onCriticalAlert);
+  const prevConnectionRef = useRef(isConnected);
+  const criticalKeyRef = useRef<string | null>(null);
 
-  // Update refs when callbacks change
   useEffect(() => {
-    onErrorRef.current = onError;
-    onConnectionChangeRef.current = onConnectionChange;
-    onCriticalAlertRef.current = onCriticalAlert;
-  }, [onError, onConnectionChange, onCriticalAlert]);
+    context.setAutoRetry(autoReconnect);
+  }, [autoReconnect, context]);
 
-  // Keep isConnectedRef in sync with isConnected state
   useEffect(() => {
-    isConnectedRef.current = isConnected;
-  }, [isConnected]);
-
-  /**
-   * Handle status updates from the service
-   */
-  const handleStatusUpdate = useCallback((data: ProductionStatusData) => {
-    try {
-      setCurrentStatus(data);
-
-      // Update health summary
-      const summary = realTimeStatusService.getHealthSummary();
-      if (summary) {
-        setHealthSummary(summary);
-      }
-
-      // Update system metrics
-      if (data.system_metrics) {
-        setSystemMetrics(data.system_metrics);
-      }
-
-      // Check for critical services
-      const criticalServices = Object.values(data.services).filter(
-        service => service.priority === 'critical' && service.status === 'error'
-      );
-
-      if (criticalServices.length > 0 && onCriticalAlertRef.current) {
-        onCriticalAlertRef.current(criticalServices);
-      }
-
-    } catch (error) {
-      console.error('Error handling status update:', error);
-      if (onErrorRef.current) {
-        onErrorRef.current(error as Error);
-      }
+    if (!onConnectionChange) {
+      prevConnectionRef.current = isConnected;
+      return;
     }
-  }, [setCurrentStatus, setHealthSummary, setSystemMetrics]);
 
-  /**
-   * Handle connection status changes
-   */
-  const handleConnectionChange = useCallback((connected: boolean) => {
-    setConnectionStatus(connected);
-
-    if (onConnectionChangeRef.current) {
-      onConnectionChangeRef.current(connected);
+    if (prevConnectionRef.current !== isConnected) {
+      onConnectionChange(isConnected);
     }
-  }, [setConnectionStatus]);
 
-  /**
-   * Initialize real-time status monitoring
-   */
+    prevConnectionRef.current = isConnected;
+  }, [isConnected, onConnectionChange]);
+
   useEffect(() => {
-    if (!autoConnect) return;
+    if (!onCriticalAlert || !currentStatus) {
+      criticalKeyRef.current = null;
+      return;
+    }
 
-    let statusUnsubscribe: (() => void) | undefined;
-    let connectionCheckInterval: NodeJS.Timeout;
+    const criticalServices = Object.values<ServiceInfo>(currentStatus.services).filter(
+      (service) => service.priority === 'critical' && service.status === 'error'
+    );
 
-    const initializeMonitoring = async () => {
-      try {
-        // Set up status update subscription
-        statusUnsubscribe = realTimeStatusService.onStatusUpdate(handleStatusUpdate);
+    if (criticalServices.length === 0) {
+      criticalKeyRef.current = null;
+      return;
+    }
 
-        // Set up auto-retry
-        realTimeStatusService.setAutoRetry(autoReconnect);
+    const alertKey = criticalServices
+      .map((service) => service.name)
+      .sort()
+      .join('|');
 
-        // Monitor connection status
-        connectionCheckInterval = setInterval(() => {
-          const connected = realTimeStatusService.isConnected();
-          if (connected !== isConnectedRef.current) {
-            handleConnectionChange(connected);
-          }
-        }, 1000);
-
-        // Initialize WebSocket connection if not already connected
-        if (!webSocketService.isConnected()) {
-          webSocketService.connect();
-        }
-
-        console.log('Real-time status monitoring initialized');
-
-      } catch (error) {
-        console.error('Failed to initialize real-time status monitoring:', error);
-        if (onErrorRef.current) {
-          onErrorRef.current(error as Error);
-        }
-      }
-    };
-
-    initializeMonitoring();
-
-    // Cleanup function
-    return () => {
-      if (statusUnsubscribe) {
-        statusUnsubscribe();
-      }
-      if (connectionCheckInterval) {
-        clearInterval(connectionCheckInterval);
-      }
-    };
-  }, [autoConnect, autoReconnect, handleStatusUpdate, handleConnectionChange]);
+    if (criticalKeyRef.current !== alertKey) {
+      onCriticalAlert(criticalServices);
+      criticalKeyRef.current = alertKey;
+    }
+  }, [currentStatus, onCriticalAlert]);
 
   /**
    * Get specific service status
@@ -288,8 +218,8 @@ export function useRealTimeStatus(
    * Manually trigger reconnection
    */
   const reconnect = useCallback(() => {
-    realTimeStatusService.reconnect();
-  }, []);
+    context.reconnect();
+  }, [context]);
 
   /**
    * Check if a service is healthy
@@ -305,8 +235,8 @@ export function useRealTimeStatus(
   const getServicesByStatus = useCallback((status: string): ServiceInfo[] => {
     if (!currentStatus) return [];
 
-    return (Object.values(currentStatus.services) as ServiceInfo[]).filter(
-      (service: ServiceInfo) => service.status === status
+    return Object.values<ServiceInfo>(currentStatus.services).filter(
+      (service) => service.status === status
     );
   }, [currentStatus]);
 
@@ -342,8 +272,8 @@ export function useRealTimeStatus(
    * Enable/disable auto-retry
    */
   const setAutoRetry = useCallback((enabled: boolean) => {
-    realTimeStatusService.setAutoRetry(enabled);
-  }, []);
+    context.setAutoRetry(enabled);
+  }, [context]);
 
   return {
     isConnected,

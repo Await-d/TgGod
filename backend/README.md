@@ -98,6 +98,14 @@ uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 python -m app.main
 ```
 
+### 启动配置
+
+- `INSTALL_MODE`：控制启动阶段的依赖安装策略，支持三种取值：
+  - `full`（默认）——执行完整的依赖检查与安装流程；
+  - `minimal` ——仅进行关键依赖验证，不触发包安装；
+  - `skip` ——完全跳过依赖阶段，适用于已知环境或离线场景。
+- 实时事件契约定义于 `app/schemas/realtime.py`，包括 `production_status` 推送结构，便于前端共享类型。 
+
 ## 主要功能特性
 
 - ✅ **自动数据库修复** - 启动时自动检查和修复缺失字段

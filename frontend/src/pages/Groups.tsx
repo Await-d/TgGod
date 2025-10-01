@@ -15,7 +15,6 @@ import {
   Row,
   Col,
   Progress,
-  Divider,
   Alert
 } from 'antd';
 import { 
@@ -33,6 +32,7 @@ import { TelegramGroup } from '../types';
 import { useTelegramStore, useGlobalStore } from '../store';
 import { telegramApi } from '../services/apiService';
 import { useNormalPageScrollControl } from '../hooks/usePageScrollControl';
+import './Groups.css';
 
 const { Title } = Typography;
 
@@ -360,47 +360,39 @@ const Groups: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={2}>群组管理</Title>
-        <Space>
+    <div className="groups-page">
+      <div className="groups-header">
+        <Title level={2} style={{ margin: 0 }}>群组管理</Title>
+        <div className="groups-header-actions">
           <Button icon={<SyncOutlined />} onClick={loadGroups}>
             刷新
           </Button>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
             onClick={() => setIsModalVisible(true)}
           >
             添加群组
           </Button>
-        </Space>
+        </div>
       </div>
 
       {/* 批量操作工具栏 */}
-      <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Space>
-              <Button 
-                icon={selectedRowKeys.length === groups.length ? <CheckSquareOutlined /> : <BorderOutlined />}
-                onClick={handleSelectAll}
-              >
-                {selectedRowKeys.length === groups.length ? '取消全选' : '全选'}
-              </Button>
-              <Button onClick={handleSelectActive}>
-                选择活跃群组
-              </Button>
-              <Button onClick={handleClearSelection} disabled={selectedRowKeys.length === 0}>
-                清空选择
-              </Button>
-              <Divider type="vertical" />
-              <span style={{ color: '#666' }}>
-                已选择 {selectedRowKeys.length} / {groups.length} 个群组
-              </span>
-            </Space>
-          </div>
-          <Space>
+      <Card className="groups-toolbar">
+        <div className="groups-toolbar-content">
+          <div className="groups-toolbar-actions">
+            <Button
+              icon={selectedRowKeys.length === groups.length ? <CheckSquareOutlined /> : <BorderOutlined />}
+              onClick={handleSelectAll}
+            >
+              {selectedRowKeys.length === groups.length ? '取消全选' : '全选'}
+            </Button>
+            <Button onClick={handleSelectActive}>
+              选择活跃群组
+            </Button>
+            <Button onClick={handleClearSelection} disabled={selectedRowKeys.length === 0}>
+              清空选择
+            </Button>
             <Button
               type="primary"
               icon={<CloudSyncOutlined />}
@@ -410,13 +402,16 @@ const Groups: React.FC = () => {
             >
               批量同步消息
             </Button>
-          </Space>
+          </div>
+          <div className="groups-toolbar-summary">
+            <span>已选择 {selectedRowKeys.length} / {groups.length} 个群组</span>
+          </div>
         </div>
       </Card>
 
       {/* 批量同步进度显示 */}
       {showBatchProgress && (
-        <Card style={{ marginBottom: 16 }}>
+        <Card className="batch-progress-card">
           <div style={{ marginBottom: 8 }}>
             <strong>批量同步进度</strong>
           </div>
@@ -470,18 +465,20 @@ const Groups: React.FC = () => {
       </Row>
 
       {/* 群组表格 */}
-      <Table
-        columns={columns}
-        dataSource={groups}
-        rowKey="id"
-        rowSelection={rowSelection}
-        pagination={{
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-        }}
-      />
+      <div className="groups-table-wrapper">
+        <Table
+          columns={columns}
+          dataSource={groups}
+          rowKey="id"
+          rowSelection={rowSelection}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+          }}
+        />
+      </div>
 
       {/* 添加群组模态框 */}
       <Modal

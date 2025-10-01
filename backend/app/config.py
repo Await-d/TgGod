@@ -252,7 +252,14 @@ class Settings:
     @property
     def allowed_origins(self) -> List[str]:
         return self._get_list_config("allowed_origins", ["http://localhost:3000", "http://localhost:3001"])
-    
+
+    @property
+    def install_mode(self) -> str:
+        """依赖安装模式: full|minimal|skip"""
+        env_value = os.environ.get("INSTALL_MODE")
+        value = self._get_config("install_mode", env_value or "full")
+        return (value or "full").strip().lower()
+
     @property
     def media_root(self) -> str:
         # 默认使用外部挂载目录中的媒体文件夹

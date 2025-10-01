@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Row, 
-  Col, 
-  Card, 
-  Statistic, 
-  Progress, 
-  Button, 
-  List, 
-  Typography, 
-  Badge, 
-  Spin, 
+import {
+  Row,
+  Col,
+  Card,
+  Statistic,
+  Progress,
+  Button,
+  List,
+  Typography,
+  Badge,
+  Spin,
   Alert,
   Table,
   Tag,
@@ -37,6 +37,7 @@ import { dashboardApi } from '../services/apiService';
 import QuickTaskExecutor from '../components/TaskExecution/QuickTaskExecutor';
 import TaskLogViewer from '../components/TaskExecution/TaskLogViewer';
 import SystemLogViewer from '../components/SystemLog/SystemLogViewer';
+import './Dashboard.css';
 
 const { Title, Text } = Typography;
 
@@ -180,17 +181,22 @@ const Dashboard: React.FC = () => {
   );
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2}>仪表板</Title>
-        <Button 
-          type="primary" 
-          icon={<ReloadOutlined />}
-          onClick={() => loadData(true)}
-          loading={loading}
-        >
-          刷新数据
-        </Button>
+    <div className="dashboard-page">
+      <div className="dashboard-header">
+        <div className="dashboard-header-title">
+          <Title level={2} style={{ margin: 0 }}>仪表板</Title>
+        </div>
+        <div className="dashboard-header-actions">
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            onClick={() => loadData(true)}
+            loading={loading}
+            block={isMobile}
+          >
+            刷新数据
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -610,31 +616,33 @@ const Dashboard: React.FC = () => {
           
           <Col xs={24} lg={8}>
             <Card title="下载统计表格" size={isMobile ? "small" : "default"}>
-              <Table
-                dataSource={downloadStats.daily_stats.slice(isMobile ? -3 : -5)}
-                columns={[
-                  {
-                    title: '日期',
-                    dataIndex: 'date',
-                    key: 'date',
-                    render: (date: string) => new Date(date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-                  },
-                  {
-                    title: '下载数',
-                    dataIndex: 'downloads_count',
-                    key: 'downloads_count',
-                    render: (count: number) => formatNumber(count)
-                  },
-                  ...(!isMobile ? [{
-                    title: '大小',
-                    dataIndex: 'total_size',
-                    key: 'total_size',
-                    render: (size: number) => formatFileSize(size)
-                  }] : [])
-                ]}
-                pagination={false}
-                size="small"
-              />
+              <div className="dashboard-table-wrapper">
+                <Table
+                  dataSource={downloadStats.daily_stats.slice(isMobile ? -3 : -5)}
+                  columns={[
+                    {
+                      title: '日期',
+                      dataIndex: 'date',
+                      key: 'date',
+                      render: (date: string) => new Date(date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+                    },
+                    {
+                      title: '下载数',
+                      dataIndex: 'downloads_count',
+                      key: 'downloads_count',
+                      render: (count: number) => formatNumber(count)
+                    },
+                    ...(!isMobile ? [{
+                      title: '大小',
+                      dataIndex: 'total_size',
+                      key: 'total_size',
+                      render: (size: number) => formatFileSize(size)
+                    }] : [])
+                  ]}
+                  pagination={false}
+                  size="small"
+                />
+              </div>
             </Card>
           </Col>
         </Row>

@@ -38,6 +38,7 @@ import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import MediaPreview from '../components/Chat/MediaPreview';
+import './DownloadHistory.css';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -247,22 +248,15 @@ const DownloadHistory: React.FC = () => {
         // 只为图片和视频显示缩略图
         if ((record.file_type === 'photo' || record.file_type === 'video') && record.local_file_path && record.download_status === 'completed') {
           return (
-            <div style={{
-              width: 60,
-              height: 60,
-              cursor: 'pointer',
-              borderRadius: 4,
-              overflow: 'hidden'
-            }} onClick={() => handleViewDetail(record)}>
+            <div
+              className="record-preview"
+              onClick={() => handleViewDetail(record)}
+            >
               {record.file_type === 'photo' ? (
                 <img
                   src={record.local_file_path.startsWith('/') ? record.local_file_path : `/${record.local_file_path}`}
                   alt={record.file_name}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
-                  }}
+                  className="record-preview-img"
                   onError={(e) => {
                     // 图片加载失败时显示占位符
                     (e.target as HTMLImageElement).style.display = 'none';
@@ -271,11 +265,7 @@ const DownloadHistory: React.FC = () => {
               ) : (
                 <video
                   src={record.local_file_path.startsWith('/') ? record.local_file_path : `/${record.local_file_path}`}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
-                  }}
+                  className="record-preview-video"
                   muted
                   preload="metadata"
                 />
@@ -434,46 +424,57 @@ const DownloadHistory: React.FC = () => {
   }, [loadDownloadRecords]);
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>
-        <DownloadOutlined /> 下载历史
-      </Title>
-      
-      {/* 统计卡片 */}
+    <div className="download-history-page">
+      <div className="download-history-header">
+        <Title level={2} style={{ margin: 0 }}>
+          <DownloadOutlined /> 下载历史
+        </Title>
+        <div className="download-history-actions">
+          <Button icon={<ReloadOutlined />} onClick={() => loadDownloadRecords(pagination.current, pagination.pageSize)}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<BarChartOutlined />} onClick={() => setStatsModalVisible(true)}>
+            查看统计
+          </Button>
+          <Popconfirm
+            title="确认删除所选记录？"
+            description="删除后无法恢复，但不会删除本地文件"
+            onConfirm={handleBatchDelete}
+            okText="确定"
+            cancelText="取消"
+            disabled={selectedRowKeys.length === 0}
+          >
+            <Button danger disabled={selectedRowKeys.length === 0}>
+              批量删除
+            </Button>
+          </Popconfirm>
+        </div>
+      </div>
+
       {stats && (
         <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={6}>
+          <Col xs={12} md={6}>
             <Card>
-              <Statistic
-                title="总下载数"
-                value={stats.total_downloads}
-                prefix={<DownloadOutlined />}
-              />
+              <Statistic title="总下载数" value={stats.total_downloads} prefix={<DownloadOutlined />} />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} md={6}>
             <Card>
               <Statistic
                 title="成功率"
                 value={stats.success_rate}
                 suffix="%"
                 precision={1}
-                valueStyle={{ 
-                  color: stats.success_rate > 90 ? '#3f8600' : '#cf1322' 
-                }}
+                valueStyle={{ color: stats.success_rate > 90 ? '#3f8600' : '#cf1322' }}
               />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} md={6}>
             <Card>
-              <Statistic
-                title="总文件大小"
-                value={formatFileSize(stats.total_file_size)}
-                prefix={<FileOutlined />}
-              />
+              <Statistic title="总文件大小" value={formatFileSize(stats.total_file_size)} prefix={<FileOutlined />} />
             </Card>
           </Col>
-          <Col span={6}>
+          <Col xs={12} md={6}>
             <Card>
               <Statistic
                 title="失败数量"
@@ -485,118 +486,91 @@ const DownloadHistory: React.FC = () => {
         </Row>
       )}
 
-      {/* 过滤器和操作栏 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row gutter={16} align="middle">
-          <Col span={6}>
-            <Search
-              placeholder="搜索文件名、发送者..."
-              allowClear
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onSearch={handleApplyFilters}
-              enterButton={<SearchOutlined />}
-            />
-          </Col>
-          <Col span={4}>
-            <Select
-              placeholder="文件类型"
-              allowClear
-              style={{ width: '100%' }}
-              value={filters.file_type}
-              onChange={(value) => setFilters(prev => ({ ...prev, file_type: value }))}
-            >
-              <Option value="photo">图片</Option>
-              <Option value="video">视频</Option>
-              <Option value="document">文档</Option>
-              <Option value="audio">音频</Option>
-              <Option value="animation">动画</Option>
-            </Select>
-          </Col>
-          <Col span={4}>
-            <Select
-              placeholder="下载状态"
-              allowClear
-              style={{ width: '100%' }}
-              value={filters.status}
-              onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
-            >
-              <Option value="completed">已完成</Option>
-              <Option value="failed">失败</Option>
-              <Option value="partial">部分完成</Option>
-            </Select>
-          </Col>
-          <Col span={6}>
-            <RangePicker
-              style={{ width: '100%' }}
-              value={dateRange}
-              onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
-              placeholder={['开始日期', '结束日期']}
-            />
-          </Col>
-          <Col span={4}>
-            <Space>
-              <Button
-                type="primary"
-                icon={<FilterOutlined />}
-                onClick={handleApplyFilters}
-              >
-                筛选
-              </Button>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={handleResetFilters}
-              >
-                重置
-              </Button>
-            </Space>
-          </Col>
-        </Row>
+      <Card className="download-filters-card">
+        <div className="download-filters-content">
+          <Search
+            placeholder="搜索文件名、发送者..."
+            allowClear
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onSearch={handleApplyFilters}
+            enterButton={<SearchOutlined />}
+          />
+          <Select
+            placeholder="文件类型"
+            allowClear
+            value={filters.file_type}
+            onChange={(value) => setFilters(prev => ({ ...prev, file_type: value }))}
+            style={{ width: '100%' }}
+          >
+            <Option value="photo">图片</Option>
+            <Option value="video">视频</Option>
+            <Option value="document">文档</Option>
+            <Option value="audio">音频</Option>
+            <Option value="animation">动画</Option>
+          </Select>
+          <Select
+            placeholder="下载状态"
+            allowClear
+            value={filters.status}
+            onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+            style={{ width: '100%' }}
+          >
+            <Option value="completed">已完成</Option>
+            <Option value="failed">失败</Option>
+            <Option value="partial">部分完成</Option>
+          </Select>
+          <RangePicker
+            value={dateRange}
+            onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
+            style={{ width: '100%' }}
+            placeholder={['开始日期', '结束日期']}
+          />
+          <Button type="primary" icon={<FilterOutlined />} onClick={handleApplyFilters}>
+            筛选
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleResetFilters}>
+            重置
+          </Button>
+        </div>
       </Card>
 
-      {/* 操作栏 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Space>
-              <Popconfirm
-                title={`确定要删除选中的 ${selectedRowKeys.length} 条记录吗？`}
-                description="删除后无法恢复，但不会删除本地文件"
-                onConfirm={handleBatchDelete}
-                disabled={selectedRowKeys.length === 0}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button
-                  danger
-                  icon={<DeleteOutlined />}
-                  disabled={selectedRowKeys.length === 0}
-                >
-                  批量删除 ({selectedRowKeys.length})
-                </Button>
-              </Popconfirm>
-              <Button
-                icon={<BarChartOutlined />}
-                onClick={() => setStatsModalVisible(true)}
-              >
-                查看统计
-              </Button>
-            </Space>
-          </Col>
-          <Col>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => loadDownloadRecords(pagination.current, pagination.pageSize)}
-              loading={loading}
+      <Card className="download-toolbar">
+        <div className="download-toolbar-content">
+          <Space size="large" wrap>
+            <Statistic title="当前列表" value={pagination.total || 0} prefix={<DownloadOutlined />} />
+            <Statistic
+              title="已完成"
+              value={records.filter(record => record.download_status === 'completed').length}
+              valueStyle={{ color: '#52c41a' }}
+            />
+            <Statistic
+              title="失败"
+              value={records.filter(record => record.download_status === 'failed').length}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Space>
+          <div className="download-toolbar-actions">
+            <Popconfirm
+              title={`确定要删除选中的 ${selectedRowKeys.length} 条记录吗？`}
+              description="删除后无法恢复，但不会删除本地文件"
+              onConfirm={handleBatchDelete}
+              disabled={selectedRowKeys.length === 0}
+              okText="确定"
+              cancelText="取消"
             >
+              <Button danger icon={<DeleteOutlined />} disabled={selectedRowKeys.length === 0}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
+            <Button icon={<ReloadOutlined />} onClick={() => loadDownloadRecords(pagination.current, pagination.pageSize)} loading={loading}>
               刷新
             </Button>
-          </Col>
-        </Row>
+          </div>
+        </div>
       </Card>
 
-      {/* 下载记录表格 */}
-      <Card>
+      <div className="download-table-wrapper">
         <Table
           columns={columns}
           dataSource={records}
@@ -605,9 +579,8 @@ const DownloadHistory: React.FC = () => {
           pagination={pagination}
           rowSelection={rowSelection}
           onChange={handleTableChange}
-          scroll={{ x: 1200 }}
         />
-      </Card>
+      </div>
 
       {/* 记录详情弹窗 */}
       <Modal

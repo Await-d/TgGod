@@ -13,51 +13,32 @@
   margin-bottom: 24px;
 }
 
-.system-status-title {
-  display: flex;
-  align-items: center;
-  margin: 0 !important;
-  color: #262626;
-  font-weight: 600;
-}
-
 .system-status-actions {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
 .system-stats-grid {
   margin-bottom: 24px;
 }
 
-.metrics-row {
-  margin-bottom: 24px;
-}
-
-.metrics-row .ant-card,
-.system-stats-grid .ant-card {
+.metrics-row .ant-card {
   border-radius: 12px;
 }
 
 .service-table-wrapper {
   width: 100%;
   overflow-x: auto;
+  padding: 0;
 }
 
 .service-table-wrapper .ant-table {
   min-width: 600px;
-  border-radius: 12px;
-}
-
-.system-status-card,
-.system-info-card {
-  border-radius: 12px;
-  margin-bottom: 16px;
 }
 
 .system-info-card {
+  border-radius: 12px;
   margin-top: 16px;
 }
 
@@ -79,50 +60,15 @@
     flex: 1;
   }
 
-  .system-status-title {
-    font-size: 20px !important;
+  .system-stats-grid .ant-col {
+    margin-bottom: 12px;
   }
 
   .service-table-wrapper .ant-table {
     min-width: 360px;
   }
-}
 
-/* 状态颜色辅助类 */
-.status-healthy {
-  color: #52c41a;
-}
-
-.status-warning {
-  color: #faad14;
-}
-
-.status-error {
-  color: #ff4d4f;
-}
-
-.status-maintenance {
-  color: #1890ff;
-}
-
-.status-unknown {
-  color: #d9d9d9;
-}
-
-.priority-critical {
-  color: #ff4d4f;
-  font-weight: 600;
-}
-
-.priority-high {
-  color: #faad14;
-  font-weight: 500;
-}
-
-.priority-medium {
-  color: #1890ff;
-}
-
-.priority-low {
-  color: #52c41a;
+  .system-status-title {
+    font-size: 20px !important;
+  }
 }

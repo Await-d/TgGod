@@ -1038,6 +1038,64 @@ class ServiceInstaller:
                 "success": False,
                 "error": f"安装验证异常: {str(e)}"
             }
+
+    async def verify_dependencies(self) -> Dict[str, any]:
+        """仅执行依赖验证，不触发实际安装"""
+        logger.info("🧪 进入依赖验证模式 (INSTALL_MODE=minimal)")
+
+        available_managers = [
+            pm.name for pm in getattr(self, "package_managers", [])
+            if getattr(pm, "available", False)
+        ]
+        primary_manager = (
+            self.platform_manager.preferred_manager.name
+            if self.platform_manager.preferred_manager
+            else None
+        )
+
+        results = {
+            "success": True,
+            "platform_info": {
+                "system": self.platform_info.system,
+                "arch": self.platform_info.arch,
+                "is_docker": self.platform_info.is_docker,
+                "distro": self.platform_info.distro_info
+            },
+            "package_managers": {
+                "available": available_managers,
+                "primary": primary_manager
+            },
+            "installed_services": [],
+            "failed_services": [],
+            "already_installed": [],
+            "skipped_services": [],
+            "total_checks": 1
+        }
+
+        await self.progress_reporter.set_total_steps(1)
+        try:
+            verification = await self._verify_all_installations()
+            if verification.get("success"):
+                results["already_installed"].append("verification")
+                results["verification"] = verification
+                await self.progress_reporter.report_success("依赖验证完成")
+            else:
+                error_message = verification.get("error") or verification.get("details", "未知错误")
+                results["success"] = False
+                results["failed_services"].append({
+                    "name": "verification",
+                    "error": error_message
+                })
+                await self.progress_reporter.report_error("依赖验证失败", error_message)
+        except Exception as exc:  # noqa: BLE001
+            results["success"] = False
+            results["failed_services"].append({
+                "name": "verification",
+                "error": str(exc)
+            })
+            await self.progress_reporter.report_error("依赖验证异常", str(exc))
+
+        return results
     
     async def _generate_final_report(self, results: Dict[str, any]):
         """生成最终安装报告"""

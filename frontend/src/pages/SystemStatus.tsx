@@ -442,34 +442,30 @@ const SystemStatus: React.FC = () => {
   }, []);
 
   return (
-    <div className="system-status-container">
-      <Row justify="space-between" align="middle" className="system-status-header">
-        <Col>
-          <Title level={2} className="system-status-title">
-            <MonitorOutlined style={{ marginRight: 8 }} />
-            系统状态监控
-          </Title>
-        </Col>
-        <Col>
-          <Space>
-            <Button
-              icon={<ReloadOutlined />}
-              loading={loading}
-              onClick={fetchSystemStatus}
-            >
-              刷新状态
-            </Button>
-            {lastUpdate && (
-              <Text type="secondary">
-                最后更新: {lastUpdate.toLocaleTimeString()}
-              </Text>
-            )}
-          </Space>
-        </Col>
-      </Row>
+    <div className="system-status-page">
+      <div className="system-status-header">
+        <Title level={2} className="system-status-title">
+          <MonitorOutlined style={{ marginRight: 8 }} />
+          系统状态监控
+        </Title>
+        <div className="system-status-actions">
+          <Button
+            icon={<ReloadOutlined />}
+            loading={loading}
+            onClick={fetchSystemStatus}
+          >
+            刷新状态
+          </Button>
+          {lastUpdate && (
+            <Text type="secondary">
+              最后更新: {lastUpdate.toLocaleTimeString()}
+            </Text>
+          )}
+        </div>
+      </div>
 
       {/* 系统健康概览 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} className="system-stats-grid">
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
@@ -523,7 +519,7 @@ const SystemStatus: React.FC = () => {
 
       {/* 系统指标 */}
       {systemInfo?.system_metrics && (
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]} className="metrics-row">
           <Col xs={24} md={8}>
             <Card title="CPU 使用率" size="small">
               <Progress
@@ -594,22 +590,23 @@ const SystemStatus: React.FC = () => {
             <p style={{ marginTop: 16 }}>加载系统状态中...</p>
           </div>
         ) : (
-          <Table
-            columns={serviceColumns}
-            dataSource={getServiceData()}
-            pagination={false}
-            size="middle"
-            scroll={{ x: 1000 }}
-            locale={{
-              emptyText: '暂无服务数据'
-            }}
-          />
+          <div className="service-table-wrapper">
+            <Table
+              columns={serviceColumns}
+              dataSource={getServiceData()}
+              pagination={false}
+              size="middle"
+              locale={{
+                emptyText: '暂无服务数据'
+              }}
+            />
+          </div>
         )}
       </Card>
 
       {/* 系统信息 */}
       {systemInfo && (
-        <Card title="系统信息" style={{ marginTop: 16 }}>
+        <Card title="系统信息" className="system-info-card">
           <Descriptions>
             <Descriptions.Item label="最后更新时间">
               {new Date(systemInfo.timestamp).toLocaleString()}

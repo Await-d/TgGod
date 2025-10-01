@@ -396,6 +396,131 @@
   /* 防止超出容器 */
 }
 
+/* ----------------------------------- */
+/* 移动端专用布局和样式                */
+/* ----------------------------------- */
+@media (max-width: 768px) {
+  .chat-interface {
+    min-height: 100vh;
+    height: 100vh;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .chat-body {
+    flex-direction: column;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .desktop-layout {
+    display: none;
+  }
+
+  .mobile-message-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #f0f0f0;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .mobile-menu-btn {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #8c8c8c;
+    text-transform: capitalize;
+  }
+
+  .connection-status .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #faad14;
+    display: inline-block;
+  }
+
+  .connection-status.connected .status-dot {
+    background: #52c41a;
+  }
+
+  .connection-status.disconnected .status-dot {
+    background: #ff4d4f;
+  }
+
+  .connection-status.connecting .status-dot {
+    background: #faad14;
+  }
+
+  .mobile-group-drawer .ant-drawer-body {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #f8f9fa;
+  }
+
+  .chat-content {
+    position: relative;
+  }
+
+  .chat-content.collapsed {
+    pointer-events: none;
+    filter: blur(2px);
+  }
+
+  .chat-content.collapsed::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  .message-area-container {
+    max-height: none;
+    height: 100%;
+  }
+
+  .message-area-container .message-area {
+    padding: 12px 12px 16px;
+  }
+
+  .message-input-wrapper {
+    border-top: 1px solid #f0f0f0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .batch-download-bar {
+    position: sticky;
+    top: 56px;
+    z-index: 6;
+  }
+}
+
 /* 自定义滚动条 */
 .message-area-container .message-area::-webkit-scrollbar {
   width: 6px;

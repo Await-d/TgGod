@@ -23,6 +23,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from .database import engine, Base
 from .config import settings, init_settings
+from .core.startup_pipeline import StartupPipeline, StartupStage
 from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check, download_history, real_data_api, data_initialization, complete_health_monitoring, services
 from .tasks.message_sync import message_sync_task
 import logging
@@ -69,69 +70,51 @@ try:
 except Exception:
     logger = logging.getLogger(__name__)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """FastAPI应用程序生命周期管理器
 
-    管理应用程序的启动和关闭过程，包括:
-
-    启动阶段:
-        - 自动检查和安装系统依赖(ffmpeg、字体等)
-        - 启动服务监控器
-        - 数据库结构检查和自动修复
-        - 重置异常任务状态
-        - 初始化任务执行服务和调度器
-        - 创建默认管理员账户
-
-    关闭阶段:
-        - 优雅停止任务调度器
-        - 停止消息同步任务
-        - 停止服务监控器
-
-    Args:
-        app (FastAPI): FastAPI应用程序实例
-
-    Yields:
-        None: 应用程序运行期间的控制权
-
-    Note:
-        使用异步上下文管理器确保资源的正确初始化和清理
-    """
-    # 启动时执行
-    logger.info("Starting TgGod API...")
-    
-    # 🚀 启动时自动检查和安装必要服务
+async def _run_dependency_stage() -> None:
+    """安装依赖并启动监控组件"""
     try:
         logger.info("🔍 开始检查和安装必要服务...")
-        
+
         from .services.service_installer import service_installer
-        
-        # 运行服务安装检查 - 使用增强版服务安装器，支持WebSocket进度通知
-        # 为service_installer添加WebSocket管理器支持
+
+        install_mode = getattr(settings, "install_mode", "full") or "full"
+        install_mode = install_mode.lower()
+
         service_installer.progress_reporter.websocket_manager = websocket_manager
-        installation_result = await service_installer.check_and_install_all()
-        
+
+        if install_mode == "skip":
+            logger.info("INSTALL_MODE=skip，跳过依赖安装阶段")
+            installation_result = {
+                "success": True,
+                "installed_services": [],
+                "failed_services": [],
+                "already_installed": [],
+                "skipped_services": ["all"],
+            }
+        elif install_mode == "minimal":
+            logger.info("INSTALL_MODE=minimal，仅执行依赖检测")
+            installation_result = await service_installer.verify_dependencies()
+        else:
+            installation_result = await service_installer.check_and_install_all()
+
         if installation_result["success"]:
             logger.info("✅ 服务依赖检查完成")
-            
-            # 记录安装统计
+
             stats = {
                 "新安装": len(installation_result["installed_services"]),
                 "已存在": len(installation_result["already_installed"]),
                 "跳过": len(installation_result["skipped_services"]),
                 "失败": len(installation_result["failed_services"])
             }
-            
             logger.info(f"📊 服务统计: {stats}")
-            
-            # 如果有安装失败的服务，记录警告
+
             if installation_result["failed_services"]:
                 logger.warning("⚠️ 以下服务安装失败，可能影响某些功能:")
                 for failed in installation_result["failed_services"]:
                     logger.warning(f"  - {failed['name']}: {failed['error']}")
                 logger.warning("建议手动安装这些服务以确保完整功能")
-            
-            # 如果有新安装的服务，记录详情
+
             if installation_result["installed_services"]:
                 logger.info("🎉 新安装的服务:")
                 for installed in installation_result["installed_services"]:
@@ -139,125 +122,115 @@ async def lifespan(app: FastAPI):
         else:
             logger.error(f"❌ 服务依赖检查失败: {installation_result.get('error', '未知错误')}")
             logger.warning("系统将继续启动，但某些功能可能不可用")
-            
-    except Exception as e:
+
+    except Exception as e:  # noqa: BLE001
         logger.error(f"服务安装检查过程异常: {e}")
         logger.warning("系统将继续启动，但建议检查服务依赖")
-    
-    # 🔍 启动服务监控器
+
     try:
         from .services.service_monitor import service_monitor
+
         await service_monitor.start_monitoring()
         logger.info("✅ 服务监控器启动成功")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"服务监控器启动失败: {e}")
         logger.warning("服务监控功能不可用，但系统将继续运行")
 
-    # 🚀 初始化Redis会话存储
     try:
         from .core.session_store import get_session_store
-        session_store = await get_session_store()
+
+        await get_session_store()
         logger.info("✅ Redis会话存储初始化成功")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Redis会话存储初始化失败: {e}")
         logger.warning("会话存储功能可能不可用，建议检查Redis连接")
 
-    # 🚀 启动完整健康监控和自动恢复系统
     try:
         from .services.complete_health_monitoring import start_complete_health_monitoring
+
         await start_complete_health_monitoring()
         logger.info("✅ 完整健康监控和自动恢复系统启动成功")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"完整健康监控系统启动失败: {e}")
         logger.warning("自动恢复功能不可用，但系统将继续运行")
 
-    # 🚀 启动生产状态管理器
     try:
         from .websocket.production_status_manager import production_status_manager
+
         await production_status_manager.start_monitoring()
         logger.info("✅ 生产状态管理器启动成功")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"生产状态管理器启动失败: {e}")
         logger.warning("实时状态监控不可用，但系统将继续运行")
 
-    # 数据库结构检查和创建
+
+async def _run_database_stage() -> None:
+    """执行数据库检查、修复与优化"""
     try:
         logger.info("🔧 开始数据库结构检查和自动修复...")
         from .utils.database_checker import get_database_checker
-        
-        # 运行启动检查（使用新实例确保使用最新配置）
+
         database_checker = get_database_checker()
         check_success = database_checker.run_startup_check()
-        
+
         if check_success:
             logger.info("✅ 数据库结构检查和修复完成")
         else:
             logger.warning("⚠️ 数据库结构存在问题，但系统将继续启动")
             logger.warning("建议手动运行 'alembic upgrade head' 来完成数据库迁移")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"数据库结构检查失败: {e}")
         logger.info("尝试使用传统方式创建数据库表...")
-        
-        # 传统数据库创建方式作为备选
         try:
             from .database import engine, Base
+
             Base.metadata.create_all(bind=engine)
             logger.info("✅ 使用传统方式创建数据库表成功")
-        except Exception as create_error:
+        except Exception as create_error:  # noqa: BLE001
             logger.error(f"❌ 创建数据库表失败: {create_error}")
 
-    # 传统数据库字段检查和修复
     try:
         logger.info("🔧 运行传统数据库字段检查...")
         from pathlib import Path
         import sys
-        import sqlite3
-        
+
         project_root = Path(__file__).parent.parent
         sys.path.insert(0, str(project_root))
-        
-        # 使用我们的数据库修复工具
+
         from fix_database_schema import fix_telegram_messages_table, get_database_path
-        
-        # 获取数据库路径并修复
+
         db_path = get_database_path()
         logger.info(f"数据库路径: {db_path}")
-        
+
         success = fix_telegram_messages_table(db_path)
         if success:
             logger.info("✅ 传统数据库字段检查和修复完成")
         else:
             logger.error("❌ 传统数据库字段修复失败")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"传统数据库字段检查失败: {e}")
 
-    # 数据库迁移脚本检查
     try:
         logger.info("🔧 正在检查用户设置表和下载状态字段...")
         from importlib.util import spec_from_file_location, module_from_spec
         from pathlib import Path
-        
+
         project_root = Path(__file__).parent.parent
-        
-        # 需要运行的迁移脚本列表
+
         migrations = [
             ("add_user_settings_table", "用户设置表"),
             ("add_is_downloading_field", "下载状态字段")
         ]
-        
-        # 逐一运行迁移脚本
+
         for migration_name, migration_desc in migrations:
             migration_file = project_root / "migrations" / f"{migration_name}.py"
-            
             if migration_file.exists():
                 logger.info(f"找到{migration_desc}迁移脚本: {migration_file}")
-                
-                # 动态导入迁移模块
+
                 spec = spec_from_file_location(migration_name, migration_file)
                 migration_module = module_from_spec(spec)
                 spec.loader.exec_module(migration_module)
-                
-                # 运行迁移
+
                 success, message = migration_module.run_migration()
                 if success:
                     logger.info(f"✅ {migration_desc}检查完成: {message}")
@@ -265,29 +238,25 @@ async def lifespan(app: FastAPI):
                     logger.warning(f"⚠️ {migration_desc}检查警告: {message}")
             else:
                 logger.warning(f"未找到{migration_desc}迁移脚本，将跳过自动迁移")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"运行数据库迁移脚本时出错: {e}")
         logger.warning("将继续启动，但数据库表结构可能不完整")
 
-    # 使用db_utils进行数据库自动检查和修复
     try:
         from pathlib import Path
+
         db_utils_file = Path(__file__).parent / "utils" / "db_utils.py"
-        
         if db_utils_file.exists():
             logger.info(f"找到数据库工具脚本: {db_utils_file}")
-            
-            # 导入工具模块
+
             from .utils.db_utils import check_and_fix_database_on_startup
             from .database import SessionLocal
-            
+
             db = SessionLocal()
             try:
-                # 检查和修复数据库
                 db_check_results = check_and_fix_database_on_startup(db)
                 logger.info(f"🔧 数据库自动检查结果: {db_check_results['status']}")
-                
-                # 输出详细信息
+
                 for table, detail in db_check_results.get("details", {}).items():
                     if detail["status"] == "error":
                         logger.error(f"❌ 表 {table}: {detail['message']}")
@@ -299,25 +268,21 @@ async def lifespan(app: FastAPI):
                 db.close()
         else:
             logger.warning("未找到数据库工具脚本，跳过自动检查")
-            
-            # 确保基本表结构存在
-            logger.info("创建基本表结构...")
             from .database import engine, Base
+
+            logger.info("创建基本表结构...")
             Base.metadata.create_all(bind=engine)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"数据库自动检查和修复过程中出现错误: {e}")
         logger.warning("系统将继续启动，但数据库结构可能不完整")
 
-    # 数据库检查和修复
     try:
         logger.info("🔧 开始运行数据库字段修复脚本...")
         from pathlib import Path
         import subprocess
         import sys
-        
+
         project_root = Path(__file__).parent.parent
-        
-        # 修复脚本列表
         repair_scripts = [
             ("scripts/database/fix_task_fields.py", "任务表字段修复"),
             ("scripts/database/fix_filter_rules_fields.py", "过滤规则表字段修复"),
@@ -326,68 +291,75 @@ async def lifespan(app: FastAPI):
             ("scripts/database/add_advanced_rule_fields.py", "添加高级规则过滤字段"),
             ("scripts/database/create_task_rule_association_table.py", "创建任务-规则多对多关联表")
         ]
-        
+
         for script_name, description in repair_scripts:
             script_path = project_root / script_name
             if script_path.exists():
                 logger.info(f"运行{description}脚本...")
-                result = subprocess.run([sys.executable, str(script_path)], 
-                                      capture_output=True, text=True, cwd=str(project_root))
+                result = subprocess.run(
+                    [sys.executable, str(script_path)],
+                    capture_output=True,
+                    text=True,
+                    cwd=str(project_root)
+                )
                 if result.returncode == 0:
                     logger.info(f"✅ {description}完成")
                 else:
                     logger.error(f"❌ {description}失败: {result.stderr}")
             else:
                 logger.warning(f"未找到{script_name}，跳过{description}")
-        
+
         logger.info("🎯 所有数据库字段修复脚本执行完成")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"运行数据库字段修复脚本失败: {e}")
         logger.warning("将继续启动，但可能出现字段访问错误")
 
-    # 数据库健康检查
     try:
         logger.info("🏥 执行数据库健康检查...")
         from pathlib import Path
         import subprocess
         import sys
-        
+
         health_check_script = Path(__file__).parent.parent / "database_health_check.py"
         if health_check_script.exists():
-            result = subprocess.run([sys.executable, str(health_check_script)], 
-                                  capture_output=True, text=True)
+            result = subprocess.run(
+                [sys.executable, str(health_check_script)],
+                capture_output=True,
+                text=True
+            )
             if result.returncode == 0:
                 logger.info("✅ 数据库健康检查完成")
             else:
                 logger.warning(f"数据库健康检查异常: {result.stderr}")
         else:
             logger.info("未找到健康检查脚本，跳过检查")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"数据库健康检查失败: {e}")
 
-    # 重置异常任务状态
     try:
         logger.info("🔧 开始重置异常任务状态...")
         from .database import get_db
         from .models.rule import DownloadTask
         from sqlalchemy.orm import Session
-        
+
         db_gen = get_db()
         db: Session = next(db_gen)
-        
+
         try:
             running_tasks = db.query(DownloadTask).filter(
                 DownloadTask.status.in_(["running", "paused"])
             ).all()
-            
+
             reset_count = 0
             for task in running_tasks:
                 original_status = task.status
                 task.status = "failed"
-                task.error_message = f"应用重启时发现任务处于{original_status}状态，已自动重置"
+                task.error_message = (
+                    f"应用重启时发现任务处于{original_status}状态，已自动重置"
+                )
                 reset_count += 1
                 logger.info(f"重置任务 {task.id}({task.name}) 状态: {original_status} -> failed")
-            
+
             if reset_count > 0:
                 db.commit()
                 logger.info(f"✅ 成功重置 {reset_count} 个异常任务状态")
@@ -395,71 +367,63 @@ async def lifespan(app: FastAPI):
                 logger.info("✅ 没有发现需要重置的异常任务状态")
         finally:
             db.close()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"重置任务状态失败: {e}")
         logger.warning("任务状态可能不同步，建议手动检查")
 
-    # 初始化数据库优化
     try:
         logger.info("🔧 初始化数据库连接池优化...")
         from .utils.db_optimization import initialize_database_optimization
-        initialize_database_optimization()
-
-        # 初始化连接池监控
         from .services.connection_pool_monitor import initialize_pool_monitoring
-        initialize_pool_monitoring()
-
-        # 初始化会话管理
         from .utils.enhanced_db_session import initialize_session_management
-        initialize_session_management()
-
-        # 初始化连接池调优
         from .services.connection_pool_tuner import initialize_pool_tuning
+
+        initialize_database_optimization()
+        initialize_pool_monitoring()
+        initialize_session_management()
         initialize_pool_tuning()
 
         logger.info("✅ 数据库连接池优化初始化完成")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"数据库连接池优化初始化失败: {e}")
         logger.warning("连接池监控功能可能不可用")
 
-    # 数据库和其他启动逻辑
+
+async def _run_service_stage() -> None:
+    """初始化业务服务与默认数据"""
     try:
-        # 初始化设置
         init_settings()
         logger.info("Settings initialized")
 
-        # 初始化任务执行服务
         try:
             from .services.task_execution_service import task_execution_service
+
             await task_execution_service.initialize()
             logger.info("Task execution service initialized successfully")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to initialize task execution service: {e}")
             logger.warning("Task execution service disabled, system will continue startup without it")
 
-        # 初始化完整真实数据提供者
         try:
             from .api.real_data_api import initialize_real_data_provider
+
             await initialize_real_data_provider()
             logger.info("Real data provider initialized successfully")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to initialize real data provider: {e}")
             logger.warning("Real data provider disabled, some features may not work")
 
-        # 注册服务到服务定位器
         try:
             from .core.service_locator import service_locator, ServiceConfig
             from .services.task_execution_service import TaskExecutionService
             from .core.temp_file_manager import temp_file_manager
 
-            # 注册临时文件管理器
             service_locator.register(
                 'temp_file_manager',
                 instance=temp_file_manager,
                 config=ServiceConfig(singleton=True)
             )
 
-            # 注册任务执行服务
             task_execution_service = TaskExecutionService()
             service_locator.register(
                 'task_execution_service',
@@ -467,43 +431,39 @@ async def lifespan(app: FastAPI):
                 config=ServiceConfig(singleton=True)
             )
 
-            # 初始化任务执行服务
             await task_execution_service.initialize()
             logger.info("Services registered and initialized successfully")
-
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to register services: {e}")
             logger.warning("Service registration failed, some features may not work")
 
-        # 启动任务调度器
         try:
             from .services.task_scheduler import task_scheduler
+
             await task_scheduler.start()
             logger.info("Task scheduler started successfully")
         except ImportError as e:
             logger.error(f"Failed to import task scheduler: {e}")
             logger.warning("Task scheduler disabled, recurring tasks will not work")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to start task scheduler: {e}")
             logger.warning("Task scheduler disabled, recurring tasks will not work")
-        
-        # 启动消息同步任务
+
         message_sync_task.start()
         logger.info("Message sync task started")
 
-        # 创建默认账户
         try:
             from .services.user_service import user_service
             from .database import SessionLocal
-            
+
             db = SessionLocal()
             try:
                 init_result = user_service.initialize_system(db)
-                
+
                 if init_result["success"]:
                     admin_info = user_service.get_admin_info()
                     system_status = init_result["system_status"]
-                    
+
                     logger.info("=" * 50)
                     logger.info("TgGod 系统初始化完成")
                     logger.info("=" * 50)
@@ -517,93 +477,128 @@ async def lifespan(app: FastAPI):
                     logger.error(f"系统初始化失败: {init_result['message']}")
             finally:
                 db.close()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"系统初始化异常: {e}")
             logger.error("系统将继续启动，但可能缺少默认账户")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Startup initialization failed: {e}")
         logger.warning("Some features may not work properly")
-    
-    # 应用运行中
-    yield
-    
-    # 关闭时执行
+
+
+async def _shutdown_runtime() -> None:
+    """关闭运行中的服务与资源"""
     logger.info("开始关闭 TgGod API", shutdown_phase="start")
 
-    # 停止任务调度器
     try:
         from .services.task_scheduler import task_scheduler
+
         await task_scheduler.stop()
         logger.info("任务调度器停止成功", component="task_scheduler")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("停止任务调度器失败", error=str(e), component="task_scheduler")
 
-    # 停止消息同步任务
     try:
         message_sync_task.stop()
         logger.info("消息同步任务停止成功", component="message_sync")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("停止消息同步任务失败", error=str(e), component="message_sync")
 
-    # 关闭Redis会话存储
     try:
         from .core.session_store import close_session_store
+
         await close_session_store()
         logger.info("Redis会话存储关闭成功", component="session_store")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("关闭Redis会话存储失败", error=str(e), component="session_store")
 
-    # 停止完整健康监控和自动恢复系统
     try:
         from .services.complete_health_monitoring import stop_complete_health_monitoring
+
         await stop_complete_health_monitoring()
         logger.info("完整健康监控系统停止成功", component="complete_health_monitoring")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("停止完整健康监控系统失败", error=str(e), component="complete_health_monitoring")
 
-    # 停止生产状态管理器
     try:
         from .websocket.production_status_manager import production_status_manager
+
         await production_status_manager.stop_monitoring()
         logger.info("生产状态管理器停止成功", component="production_status_manager")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("停止生产状态管理器失败", error=str(e), component="production_status_manager")
 
-    # 停止服务监控器
     try:
         from .services.service_monitor import service_monitor
+
         await service_monitor.stop_monitoring()
         logger.info("服务监控器停止成功", component="service_monitor")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("停止服务监控器失败", error=str(e), component="service_monitor")
 
-    # 清理完整真实数据提供者
     try:
         from .api.real_data_api import cleanup_real_data_provider
+
         await cleanup_real_data_provider()
         logger.info("真实数据提供者清理成功", component="real_data_provider")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("清理真实数据提供者失败", error=str(e), component="real_data_provider")
 
-    # 关闭临时文件管理器
     try:
         from .core.temp_file_manager import temp_file_manager
+
         temp_file_manager.shutdown()
         logger.info("临时文件管理器关闭成功", component="temp_file_manager")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("关闭临时文件管理器失败", error=str(e), component="temp_file_manager")
 
-    # 关闭批处理日志系统（确保所有日志被写入）
     try:
-        from .core.batch_logging import BatchLogHandler, batch_logging_context
+        from .core.batch_logging import BatchLogHandler
+
         logger.info("关闭批处理日志系统", component="batch_logging")
         BatchLogHandler.shutdown_all()
         logger.info("批处理日志系统关闭完成", component="batch_logging")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"关闭批处理日志系统失败: {e}")
 
     logger.info("TgGod API 关闭完成", shutdown_phase="complete")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI应用程序生命周期管理器"""
+    logger.info("Starting TgGod API...")
+
+    pipeline = StartupPipeline(
+        stages=[
+            StartupStage(
+                name="dependencies",
+                runner=_run_dependency_stage,
+                description="安装系统依赖并启动监控"
+            ),
+            StartupStage(
+                name="database",
+                runner=_run_database_stage,
+                description="执行数据库检查与修复"
+            ),
+            StartupStage(
+                name="services",
+                runner=_run_service_stage,
+                description="初始化业务服务与默认数据"
+            ),
+        ],
+        logger=logger,
+    )
+
+    try:
+        await pipeline.run()
+    except Exception:  # noqa: BLE001
+        logger.exception("启动管线执行失败")
+        raise
+
+    try:
+        yield
+    finally:
+        await _shutdown_runtime()
 
 # 创建FastAPI应用
 app = FastAPI(

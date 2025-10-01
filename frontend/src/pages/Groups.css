@@ -1,0 +1,110 @@
+.groups-page {
+  padding: 24px;
+  background: #f5f7fa;
+  min-height: 100%;
+}
+
+.groups-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.groups-header-actions {
+  display: inline-flex;
+  gap: 12px;
+}
+
+.groups-toolbar {
+  margin-bottom: 16px;
+  border-radius: 12px;
+}
+
+.groups-toolbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.groups-toolbar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.groups-toolbar-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #666;
+}
+
+.groups-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.groups-table-wrapper .ant-table {
+  min-width: 360px;
+}
+
+.batch-progress-card {
+  margin-bottom: 16px;
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .groups-page {
+    padding: 16px 12px 80px;
+  }
+
+  .groups-header {
+    gap: 12px;
+  }
+
+  .groups-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .groups-header-actions .ant-btn {
+    width: 100%;
+  }
+
+  .groups-toolbar-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .groups-toolbar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .groups-toolbar-actions .ant-btn {
+    flex: 1;
+  }
+
+  .groups-toolbar-summary {
+    width: 100%;
+  }
+
+  .groups-table-wrapper {
+    padding: 0;
+    background: transparent;
+  }
+
+  .groups-table-wrapper .ant-table {
+    min-width: 320px;
+  }
+}

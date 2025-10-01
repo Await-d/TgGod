@@ -1,0 +1,134 @@
+.download-history-page {
+  padding: 24px;
+  background: #f5f7fa;
+  min-height: 100%;
+}
+
+.download-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.download-history-actions {
+  display: inline-flex;
+  gap: 12px;
+}
+
+.download-filters-card {
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.download-filters-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.download-toolbar {
+  margin-bottom: 16px;
+  border-radius: 12px;
+}
+
+.download-toolbar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.download-toolbar-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.download-toolbar-summary {
+  color: #666;
+}
+
+.download-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.download-table-wrapper .ant-table {
+  min-width: 480px;
+}
+
+.record-preview {
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.record-preview-img,
+.record-preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .download-history-page {
+    padding: 16px 12px 80px;
+  }
+
+  .download-history-header {
+    gap: 12px;
+  }
+
+  .download-history-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .download-history-actions .ant-btn {
+    width: 100%;
+  }
+
+  .download-filters-content {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
+  .download-toolbar-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .download-table-wrapper {
+    padding: 0;
+    background: transparent;
+  }
+
+  .download-table-wrapper .ant-table {
+    min-width: 360px;
+  }
+
+  .record-preview {
+    width: 48px;
+    height: 48px;
+  }
+
+  .ant-modal {
+    top: 8px;
+    padding-bottom: 0;
+  }
+
+  .ant-modal-content {
+    border-radius: 16px;
+  }
+}

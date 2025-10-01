@@ -16,10 +16,9 @@ import ChatInterface from './pages/ChatInterface';
 import TaskManagement from './pages/TaskManagement';
 import DownloadHistory from './pages/DownloadHistory';
 import { RealTimeStatusMonitor } from './components/StatusMonitor';
-import { webSocketService } from './services/websocket';
-import { realTimeStatusService } from './services/realTimeStatusService';
-import { useGlobalStore, useAuthStore, useUserSettingsStore, useRealTimeStatusStore } from './store';
+import { useAuthStore, useUserSettingsStore } from './store';
 import ThemeProvider from './components/UserSettings/ThemeProvider';
+import { RealTimeStatusProvider } from './providers/RealTimeStatusProvider';
 import './styles/themes.css';
 
 const { Content } = Layout;
@@ -32,51 +31,17 @@ const App: React.FC = () => {
   useEffect(() => {
     document.documentElement.setAttribute('data-density', settings.displayDensity);
   }, [settings.displayDensity]);
-  const { setError } = useGlobalStore();
-  const { isAuthenticated, initializeAuth } = useAuthStore();
-  const { setConnectionStatus } = useRealTimeStatusStore();
+  const { initializeAuth } = useAuthStore();
 
   useEffect(() => {
-    // 初始化认证状态
     initializeAuth();
-
-    // 初始化WebSocket连接和实时状态服务
-    if (isAuthenticated) {
-      try {
-        webSocketService.connect();
-
-        // 初始化实时状态服务连接状态监控
-        const checkConnectionStatus = () => {
-          setConnectionStatus(realTimeStatusService.isConnected());
-        };
-
-        // 立即检查一次连接状态
-        checkConnectionStatus();
-
-        // 定期检查连接状态
-        const connectionInterval = setInterval(checkConnectionStatus, 1000);
-
-        // 清理函数会在组件卸载或依赖变化时执行
-        return () => {
-          clearInterval(connectionInterval);
-        };
-
-      } catch (error) {
-        setError('WebSocket连接失败');
-        console.error('WebSocket连接失败:', error);
-      }
-    }
-
-    // 清理函数
-    return () => {
-      webSocketService.disconnect();
-    };
-  }, [setError, isAuthenticated, initializeAuth, setConnectionStatus]);
+  }, [initializeAuth]);
 
   return (
     <ThemeProvider>
-      <div className="app-container">
-        <Routes>
+      <RealTimeStatusProvider>
+        <div className="app-container">
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={
             <ProtectedRoute>
@@ -195,8 +160,9 @@ const App: React.FC = () => {
               </MainLayout>
             </ProtectedRoute>
           } />
-        </Routes>
-      </div>
+          </Routes>
+        </div>
+      </RealTimeStatusProvider>
     </ThemeProvider>
   );
 };
