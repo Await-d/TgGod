@@ -220,12 +220,12 @@ class TelegramMediaDownloader:
                 main_session_file = f"{main_session_path}.session"
                 current_stat = os.stat(main_session_file)
                 if oct(current_stat.st_mode)[-3:] != '666':
-                    logger.info("修复主session文件权限", session_file=session_file_path)
+                    logger.info("修复主session文件权限", session_file=main_session_file)
                     os.chmod(main_session_file, 0o666)
             except Exception as perm_error:
-                logger.warning("无法修复主session文件权限", error=str(perm_error), session_file=session_file_path)
+                logger.warning("无法修复主session文件权限", error=str(perm_error), session_file=main_session_file)
             
-            logger.info("复制主session到独立文件", target_session=self.session_name, source_session=session_file_path)
+            logger.info("复制主session到独立文件", target_session=self.session_name, source_session=main_session_file)
             
             # 使用临时文件安全地复制session文件
             
