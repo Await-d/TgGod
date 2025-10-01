@@ -1,0 +1,150 @@
+.task-page {
+  padding: 24px;
+  background: var(--app-background);
+  min-height: 100%;
+}
+
+.task-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.task-header-title {
+  margin: 0 !important;
+}
+
+.task-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.task-stats-grid {
+  margin-bottom: 24px;
+}
+
+.task-production-status {
+  margin-bottom: 16px;
+}
+
+.task-statistic .ant-statistic-content-value {
+  font-weight: 600;
+}
+
+.task-statistic-total .ant-statistic-content-value {
+  color: var(--app-primary);
+}
+
+.task-statistic-running .ant-statistic-content-value {
+  color: var(--app-success);
+}
+
+.task-statistic-completed .ant-statistic-content-value {
+  color: var(--app-info);
+}
+
+.task-statistic-failed .ant-statistic-content-value {
+  color: var(--app-danger);
+}
+
+.task-toolbar {
+  margin-bottom: 16px;
+  border-radius: 12px;
+}
+
+.task-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.task-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.task-table-wrapper .ant-table {
+  min-width: 600px;
+}
+
+.task-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.task-filter-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+.task-filter-select {
+  width: 100%;
+}
+
+.task-filter-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.task-selection-alert {
+  margin-bottom: 16px;
+}
+
+.task-create-modal {
+  max-width: 600px;
+}
+
+.task-drawer .ant-drawer-body {
+  padding: 16px;
+}
+
+@media (max-width: 768px) {
+  .task-page {
+    padding: 16px 12px 80px;
+  }
+
+  .task-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .task-header-actions .ant-btn {
+    flex: 1;
+  }
+
+  .task-stats-grid .ant-col {
+    margin-bottom: 12px;
+  }
+
+  .task-filter-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
+  .task-filter-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .task-filter-actions .ant-btn {
+    width: 100%;
+  }
+
+  .task-table-wrapper .ant-table {
+    min-width: 360px;
+  }
+
+  .task-create-modal {
+    width: 95% !important;
+    max-width: 95%;
+    top: 20px !important;
+  }
+}

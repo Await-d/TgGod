@@ -53,6 +53,7 @@ import { taskApi, telegramApi, ruleApi, logApi } from '../services/apiService';
 import { DownloadTask, TelegramGroup, FilterRule, LogEntry } from '../types';
 import { ProductionStatusDisplay } from '../components/ServiceStatus';
 import { useGlobalStore } from '../store';
+import './TaskManagement.css';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -1026,75 +1027,94 @@ const TaskManagement: React.FC = () => {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <Title level={2}>任务管理</Title>
-        <Space>
-          <Text type="secondary">自动刷新</Text>
+    <div className="task-page">
+      <div className="task-header">
+        <Title level={2} className="task-header-title">任务管理</Title>
+        <div className="task-header-actions">
           <Switch
             checked={autoRefresh}
             onChange={setAutoRefresh}
+            checkedChildren="自动刷新"
+            unCheckedChildren="手动刷新"
             size="small"
           />
-        </Space>
+          <Button
+            icon={<ReloadOutlined />}
+            loading={loading}
+            onClick={loadTasks}
+          >
+            刷新数据
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              form.resetFields();
+              resetScheduleState();
+              setCreateModalVisible(true);
+            }}
+          >
+            创建任务
+          </Button>
+        </div>
       </div>
 
       {/* 生产系统状态显示 */}
       <ProductionStatusDisplay
+        className="task-production-status"
         compact={isMobile}
         showDetails={!isMobile}
-        style={{ marginBottom: 16 }}
       />
 
       {/* 统计卡片 */}
       {taskStats && (
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Row gutter={[16, 16]} className="task-stats-grid">
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
+                className="task-statistic task-statistic-total"
                 title="总任务"
                 value={taskStats.total}
                 prefix={<SettingOutlined />}
-                valueStyle={{ color: '#1890ff' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
+                className="task-statistic task-statistic-running"
                 title="运行中"
                 value={taskStats.running}
                 prefix={<PlayCircleOutlined />}
-                valueStyle={{ color: '#52c41a' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
+                className="task-statistic task-statistic-completed"
                 title="已完成"
                 value={taskStats.completed}
                 prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: '#13c2c2' }}
               />
             </Card>
           </Col>
           <Col xs={24} sm={6}>
             <Card>
               <Statistic
+                className="task-statistic task-statistic-failed"
                 title="失败"
                 value={taskStats.failed}
                 prefix={<ExclamationCircleOutlined />}
-                valueStyle={{ color: '#f5222d' }}
               />
             </Card>
           </Col>
-        </Row>
+      </Row>
       )}
 
       {/* 操作栏 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Space style={{ marginBottom: 16 }}>
+      <Card className="task-toolbar">
+        <div className="task-toolbar-actions">
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -1161,72 +1181,64 @@ const TaskManagement: React.FC = () => {
               取消选择
             </Button>
           )}
-        </Space>
+        </div>
 
         {/* 过滤器 */}
         <Form
           form={filterForm}
-          layout={isMobile ? "vertical" : "inline"}
+          layout="vertical"
           onFinish={handleFilter}
-          style={{ marginBottom: 16 }}
+          className="task-filter-form"
         >
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={8}>
-              <Form.Item name="group_id" label={isMobile ? "选择群组" : undefined}>
-                <Select
-                  placeholder="选择群组"
-                  style={{ width: '100%' }}
-                  allowClear
-                  showSearch
-                  filterOption={(input, option) => {
-                    if (!option || !input) return false;
-                    const label = option.label || option.children;
-                    if (typeof label === 'string') {
-                      return label.toLowerCase().includes(input.toLowerCase());
-                    }
-                    return false;
-                  }}
-                >
-                  {groups.map(group => (
-                    <Option key={group.id} value={group.id}>
-                      {group.title}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Form.Item name="status" label={isMobile ? "任务状态" : undefined}>
-                <Select
-                  placeholder="任务状态"
-                  style={{ width: '100%' }}
-                  allowClear
-                >
-                  <Option value="pending">待执行</Option>
-                  <Option value="running">运行中</Option>
-                  <Option value="completed">已完成</Option>
-                  <Option value="failed">失败</Option>
-                  <Option value="paused">已暂停</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={24} md={8}>
-              <Form.Item label={isMobile ? " " : undefined}>
-                <Space style={{ width: '100%', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    icon={<SearchOutlined />}
-                  >
-                    筛选
-                  </Button>
-                  <Button onClick={handleResetFilter}>
-                    重置
-                  </Button>
-                </Space>
-              </Form.Item>
-            </Col>
-          </Row>
+          <div className="task-filter-grid">
+            <Form.Item name="group_id" label={isMobile ? "选择群组" : undefined}>
+              <Select
+                placeholder="选择群组"
+                className="task-filter-select"
+                allowClear
+                showSearch
+                filterOption={(input, option) => {
+                  if (!option || !input) return false;
+                  const label = option.label || option.children;
+                  if (typeof label === 'string') {
+                    return label.toLowerCase().includes(input.toLowerCase());
+                  }
+                  return false;
+                }}
+              >
+                {groups.map(group => (
+                  <Option key={group.id} value={group.id}>
+                    {group.title}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item name="status" label={isMobile ? "任务状态" : undefined}>
+              <Select
+                placeholder="任务状态"
+                className="task-filter-select"
+                allowClear
+              >
+                <Option value="pending">待执行</Option>
+                <Option value="running">运行中</Option>
+                <Option value="completed">已完成</Option>
+                <Option value="failed">失败</Option>
+                <Option value="paused">已暂停</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item label={isMobile ? "操作" : undefined} className="task-filter-actions">
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<SearchOutlined />}
+              >
+                筛选
+              </Button>
+              <Button onClick={handleResetFilter}>
+                重置
+              </Button>
+            </Form.Item>
+          </div>
         </Form>
       </Card>
 
@@ -1237,7 +1249,7 @@ const TaskManagement: React.FC = () => {
             message={`已选择 ${selectedRowKeys.length} 个任务`}
             type="info"
             showIcon
-            style={{ marginBottom: 16 }}
+            className="task-selection-alert"
             action={
               <Space>
                 <Button size="small" onClick={() => setSelectedRowKeys([])}>
@@ -1275,8 +1287,8 @@ const TaskManagement: React.FC = () => {
           resetScheduleState();
         }}
         footer={null}
-        width={isMobile ? '95%' : 600}
-        style={isMobile ? { top: 20 } : undefined}
+        width={600}
+        className="task-create-modal"
       >
         <Form
           form={form}

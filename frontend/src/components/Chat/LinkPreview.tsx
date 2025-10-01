@@ -76,16 +76,16 @@ const LinkPreview: React.FC<LinkPreviewProps> = ({
   };
 
   return (
-    <Card 
-      size="small" 
+    <Card
+      size="small"
       className={`link-preview ${className || ''}`}
       hoverable
       onClick={handleOpenLink}
     >
-      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-        <Space>
-          <LinkOutlined style={{ color: '#1890ff' }} />
-          <Text strong ellipsis style={{ maxWidth: 200 }}>
+      <Space direction="vertical" size={8} className="link-preview-content">
+        <Space className="link-preview-header">
+          <LinkOutlined className="link-preview-icon" />
+          <Text strong ellipsis className="link-preview-title">
             {title || formatUrl(url)}
           </Text>
           <Button 
@@ -102,14 +102,14 @@ const LinkPreview: React.FC<LinkPreviewProps> = ({
         {description && (
           <Paragraph 
             ellipsis={{ rows: 2 }} 
-            style={{ margin: 0, fontSize: 12 }}
+            className="link-preview-description"
             type="secondary"
           >
             {description}
           </Paragraph>
         )}
         
-        <Text type="secondary" style={{ fontSize: 11 }}>
+        <Text type="secondary" className="link-preview-url">
           {formatUrl(url)}
         </Text>
       </Space>

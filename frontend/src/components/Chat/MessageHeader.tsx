@@ -274,39 +274,39 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
               {/* 基础统计 */}
               <div className="stats-grid">
                 <div className="stat-item">
-                  <div className="stat-value" style={{ color: '#1890ff' }}>
-                    {groupStats.total_messages}
-                  </div>
+                <div className="stat-value stat-total">
+                  {groupStats.total_messages}
+                </div>
                   <div className="stat-label">总数</div>
                 </div>
                 <div className="stat-item">
-                  <div className="stat-value" style={{ color: '#52c41a' }}>
-                    {groupStats.text_messages}
-                  </div>
+                <div className="stat-value stat-text">
+                  {groupStats.text_messages}
+                </div>
                   <div className="stat-label">文本</div>
                 </div>
                 <div className="stat-item">
-                  <div className="stat-value" style={{ color: '#faad14' }}>
-                    {groupStats.media_messages}
-                  </div>
+                <div className="stat-value stat-media">
+                  {groupStats.media_messages}
+                </div>
                   <div className="stat-label">媒体</div>
                 </div>
                 <div className="stat-item">
-                  <div className="stat-value" style={{ color: '#13c2c2' }}>
-                    {groupStats.photo_messages}
-                  </div>
+                <div className="stat-value stat-photo">
+                  {groupStats.photo_messages}
+                </div>
                   <div className="stat-label">图片</div>
                 </div>
                 {!isMobile && (
                   <>
                     <div className="stat-item">
-                      <div className="stat-value" style={{ color: '#722ed1' }}>
+                      <div className="stat-value stat-video">
                         {groupStats.video_messages}
                       </div>
                       <div className="stat-label">视频</div>
                     </div>
                     <div className="stat-item">
-                      <div className="stat-value" style={{ color: '#fa8c16' }}>
+                      <div className="stat-value stat-forwarded">
                         {groupStats.forwarded_messages}
                       </div>
                       <div className="stat-label">转发</div>
@@ -325,32 +325,32 @@ const MessageHeader: React.FC<MessageHeaderProps> = ({
                   </div>
                   <div className="media-duration-grid">
                     <div className="duration-item total-duration">
-                      <div className="duration-value" style={{ color: '#f5222d' }}>
+                      <div className="duration-value duration-total">
                         {formatDuration(totalDuration)}
                       </div>
                       <div className="duration-label">总时长</div>
                     </div>
                     {voiceCount > 0 && (
                       <div className="duration-item">
-                        <div className="duration-value" style={{ color: '#722ed1' }}>
-                          {voiceCount}
-                        </div>
+                      <div className="duration-value duration-voice">
+                        {voiceCount}
+                      </div>
                         <div className="duration-label">语音</div>
                       </div>
                     )}
                     {audioCount > 0 && (
                       <div className="duration-item">
-                        <div className="duration-value" style={{ color: '#faad14' }}>
-                          {audioCount}
-                        </div>
+                      <div className="duration-value duration-audio">
+                        {audioCount}
+                      </div>
                         <div className="duration-label">音频</div>
                       </div>
                     )}
                     {videoCount > 0 && (
                       <div className="duration-item">
-                        <div className="duration-value" style={{ color: '#52c41a' }}>
-                          {videoCount}
-                        </div>
+                      <div className="duration-value duration-video">
+                        {videoCount}
+                      </div>
                         <div className="duration-label">视频</div>
                       </div>
                     )}

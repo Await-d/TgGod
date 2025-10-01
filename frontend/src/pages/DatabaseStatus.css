@@ -1,0 +1,93 @@
+.database-status-page {
+  padding: 24px;
+  background: var(--app-background);
+  min-height: 100%;
+}
+
+.database-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.database-status-title {
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.database-status-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.database-status-stats {
+  margin-bottom: 24px;
+}
+
+.database-operations {
+  margin-bottom: 24px;
+  border-radius: 12px;
+}
+
+.database-operations .ant-space {
+  flex-wrap: wrap;
+  gap: 12px !important;
+}
+
+.database-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.database-table-wrapper .ant-table {
+  min-width: 480px;
+  border-radius: 12px;
+}
+
+.database-check-card {
+  margin-bottom: 24px;
+  border-radius: 12px;
+}
+
+.database-check-alert {
+  margin-bottom: 16px;
+}
+
+.database-check-descriptions {
+  margin-bottom: 16px;
+}
+
+.database-check-tag {
+  margin: 2px;
+}
+
+@media (max-width: 768px) {
+  .database-status-page {
+    padding: 16px 12px 80px;
+  }
+
+  .database-status-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .database-status-actions .ant-btn {
+    flex: 1;
+  }
+
+  .database-status-stats .ant-col {
+    margin-bottom: 12px;
+  }
+
+  .database-table-wrapper .ant-table {
+    min-width: 360px;
+  }
+}

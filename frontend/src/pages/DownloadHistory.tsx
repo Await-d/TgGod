@@ -426,7 +426,7 @@ const DownloadHistory: React.FC = () => {
   return (
     <div className="download-history-page">
       <div className="download-history-header">
-        <Title level={2} style={{ margin: 0 }}>
+        <Title level={2} className="download-history-title">
           <DownloadOutlined /> 下载历史
         </Title>
         <div className="download-history-actions">
@@ -452,7 +452,7 @@ const DownloadHistory: React.FC = () => {
       </div>
 
       {stats && (
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} className="download-stats-grid">
           <Col xs={12} md={6}>
             <Card>
               <Statistic title="总下载数" value={stats.total_downloads} prefix={<DownloadOutlined />} />
@@ -487,51 +487,62 @@ const DownloadHistory: React.FC = () => {
       )}
 
       <Card className="download-filters-card">
-        <div className="download-filters-content">
-          <Search
-            placeholder="搜索文件名、发送者..."
-            allowClear
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onSearch={handleApplyFilters}
-            enterButton={<SearchOutlined />}
-          />
-          <Select
-            placeholder="文件类型"
-            allowClear
-            value={filters.file_type}
-            onChange={(value) => setFilters(prev => ({ ...prev, file_type: value }))}
-            style={{ width: '100%' }}
-          >
-            <Option value="photo">图片</Option>
-            <Option value="video">视频</Option>
-            <Option value="document">文档</Option>
-            <Option value="audio">音频</Option>
-            <Option value="animation">动画</Option>
-          </Select>
-          <Select
-            placeholder="下载状态"
-            allowClear
-            value={filters.status}
-            onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
-            style={{ width: '100%' }}
-          >
-            <Option value="completed">已完成</Option>
-            <Option value="failed">失败</Option>
-            <Option value="partial">部分完成</Option>
-          </Select>
-          <RangePicker
-            value={dateRange}
-            onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
-            style={{ width: '100%' }}
-            placeholder={['开始日期', '结束日期']}
-          />
-          <Button type="primary" icon={<FilterOutlined />} onClick={handleApplyFilters}>
-            筛选
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={handleResetFilters}>
-            重置
-          </Button>
+        <div className="download-filters-grid">
+          <div className="download-filter-item">
+            <Search
+              placeholder="搜索文件名、发送者..."
+              allowClear
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onSearch={handleApplyFilters}
+              enterButton={<SearchOutlined />}
+              className="download-filter-control"
+            />
+          </div>
+          <div className="download-filter-item">
+            <Select
+              placeholder="文件类型"
+              allowClear
+              value={filters.file_type}
+              onChange={(value) => setFilters(prev => ({ ...prev, file_type: value }))}
+              className="download-filter-control"
+            >
+              <Option value="photo">图片</Option>
+              <Option value="video">视频</Option>
+              <Option value="document">文档</Option>
+              <Option value="audio">音频</Option>
+              <Option value="animation">动画</Option>
+            </Select>
+          </div>
+          <div className="download-filter-item">
+            <Select
+              placeholder="下载状态"
+              allowClear
+              value={filters.status}
+              onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+              className="download-filter-control"
+            >
+              <Option value="completed">已完成</Option>
+              <Option value="failed">失败</Option>
+              <Option value="partial">部分完成</Option>
+            </Select>
+          </div>
+          <div className="download-filter-item">
+            <RangePicker
+              value={dateRange}
+              onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
+              placeholder={['开始日期', '结束日期']}
+              className="download-filter-control"
+            />
+          </div>
+          <div className="download-filter-actions">
+            <Button type="primary" icon={<FilterOutlined />} onClick={handleApplyFilters}>
+              筛选
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={handleResetFilters}>
+              重置
+            </Button>
+          </div>
         </div>
       </Card>
 

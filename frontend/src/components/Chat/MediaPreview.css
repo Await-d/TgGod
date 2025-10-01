@@ -16,7 +16,7 @@
 
 /* 加载状态 */
 .media-preview.loading {
-  background: #f5f5f5;
+  background: var(--chat-accent-soft, #f5f5f5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -25,14 +25,14 @@
 
 .media-preview.loading::after {
   content: '加载中...';
-  color: #999;
+  color: var(--chat-muted-soft, #999);
   font-size: 14px;
 }
 
 /* 错误状态 */
 .media-preview.error {
-  background: #fff2f0;
-  border: 1px solid #ffccc7;
+  background: var(--chat-danger-soft, #fee2e2);
+  border: 1px solid var(--chat-danger, #ef4444);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -42,22 +42,27 @@
 
 .media-preview.error::after {
   content: '加载失败';
-  color: #ff4d4f;
+  color: var(--chat-danger, #ef4444);
   font-size: 14px;
   margin-top: 8px;
 }
 
 .media-preview.error .anticon {
-  color: #ff4d4f;
+  color: var(--chat-danger, #ef4444);
   font-size: 32px;
 }
 
 .media-thumbnail,
 .video-thumbnail {
   position: relative;
-  cursor: pointer;
+  cursor: default;
   overflow: hidden;
   border-radius: 12px 12px 0 0;
+}
+
+.media-thumbnail.is-clickable,
+.video-thumbnail.is-clickable {
+  cursor: pointer;
 }
 
 .media-preview.image-preview .media-thumbnail,
@@ -74,6 +79,10 @@
 .video-thumbnail video {
   width: 100%;
   height: auto;
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: 8px;
+  object-fit: cover;
   display: block;
   transition: transform 0.3s ease;
 }
@@ -110,6 +119,100 @@
 
 .media-overlay .anticon {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.media-loading-indicator {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.media-loading-text {
+  color: #fff;
+  font-size: 12px;
+}
+
+.media-overlay-icon {
+  font-size: 24px;
+  color: #fff;
+}
+
+.media-retry-button {
+  color: var(--chat-muted-soft, #8c8c8c);
+}
+
+.media-error-indicator {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px dashed var(--chat-danger, #ef4444);
+}
+
+.media-error-icon {
+  font-size: 24px;
+  color: var(--chat-danger, #ef4444);
+  margin-bottom: 4px;
+}
+
+.media-error-text {
+  color: var(--chat-danger, #ef4444);
+  font-size: 12px;
+}
+
+.media-placeholder {
+  width: 200px;
+  height: 150px;
+  border-radius: 8px;
+  background: var(--chat-accent-soft, #f5f5f5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-placeholder-icon {
+  font-size: 48px;
+  color: var(--chat-muted-soft, #d9d9d9);
+}
+
+.media-preview-modal-content {
+  text-align: center;
+}
+
+.media-preview-modal-image {
+  width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+.media-preview-modal-tip {
+  margin-top: 16px;
+  color: var(--chat-muted-soft, #8c8c8c);
+  font-size: 12px;
+}
+
+.media-preview-modal-filename {
+  margin-bottom: 4px;
+}
+
+.media-preview-modal-meta {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--chat-muted-soft, #8c8c8c);
+}
+
+.media-preview-modal-video {
+  width: 100%;
+  max-height: 80vh;
+  border-radius: 8px;
 }
 
 /* 增强媒体类型和大小的显示样式 */
@@ -182,14 +285,14 @@
 .media-meta {
   display: flex;
   justify-content: space-between;
-  color: #8c8c8c;
+  color: var(--chat-muted-soft, #8c8c8c);
   margin-bottom: 6px;
 }
 
 .media-size,
 .media-duration {
   display: inline-block;
-  background-color: #f5f5f5;
+  background-color: var(--chat-accent-soft, #f5f5f5);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 11px;
@@ -205,7 +308,7 @@
 }
 
 .media-details span {
-  background-color: #f5f5f5;
+  background-color: var(--chat-accent-soft, #f5f5f5);
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 11px;
@@ -309,6 +412,12 @@
 }
 
 /* 媒体预览模态框样式 */
+.media-preview-modal {
+  width: 90% !important;
+  max-width: 1200px;
+  top: 20px;
+}
+
 .media-preview-modal .ant-modal-content {
   padding: 20px;
   border-radius: 12px;
@@ -316,7 +425,7 @@
 }
 
 .media-preview-modal .ant-modal-body {
-  padding: 0;
+  padding: 16px;
   text-align: center;
 }
 
@@ -371,7 +480,7 @@
 }
 
 .ant-image-preview-operations .ant-image-preview-operations-operation:hover {
-  color: #1890ff;
+  color: var(--chat-primary, #4c6fff);
   transform: scale(1.1);
 }
 

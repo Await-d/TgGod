@@ -6,7 +6,7 @@
   /* 使用100%而不是100vh，适配MainLayout提供的高度 */
   display: flex;
   flex-direction: column;
-  background: #f5f7fa;
+  background: var(--app-background);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   overflow: hidden;
   /* 阻止ChatInterface本身滚动 */
@@ -18,7 +18,7 @@
   /* 覆盖MainLayout的margin */
   padding: 0 !important;
   /* 覆盖MainLayout的padding */
-  background: #f5f7fa !important;
+  background: var(--app-background) !important;
   /* 覆盖MainLayout的background */
   border-radius: 0 !important;
   /* 覆盖MainLayout的border-radius */
@@ -46,7 +46,7 @@
   /* 关键：允许flex子元素收缩 */
   height: 100%;
   /* 确保有确定的高度 */
-  background: #F5F5F5;
+  background: var(--app-accent-soft);
   /* 使用浅灰色背景作为整体背景 */
   position: relative;
   padding: 0;
@@ -62,7 +62,7 @@
   /* 移除最大宽度限制 */
   margin: 0;
   /* 移除居中margin */
-  background: #ffffff;
+  background: var(--app-surface);
   border-radius: 0;
   /* 移除圆角，铺满整个区域 */
   box-shadow: none;
@@ -76,7 +76,7 @@
 
 /* 平板模式布局优化 */
 .desktop-layout.tablet-mode {
-  background: #f8f9fa;
+  background: var(--app-accent-soft);
 }
 
 .desktop-layout.tablet-mode .group-list-panel {
@@ -96,7 +96,7 @@
   width: 300px;
   min-width: 260px;
   max-width: 380px;
-  background: #F8F9FA;
+  background: var(--app-accent-soft);
   /* 浅灰色背景，更专业 */
   display: flex;
   flex-direction: column;
@@ -106,7 +106,7 @@
   resize: horizontal;
   /* 允许水平拖拽调整宽度 */
   overflow: hidden;
-  border-right: 1px solid #E8EAED;
+  border-right: 1px solid var(--app-border);
   /* 添加右侧分隔线 */
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
   /* 添加微妙的阴影增加深度 */
@@ -199,13 +199,13 @@
 /* 群组列表头部 */
 .group-list-header {
   padding: 20px 16px 16px;
-  border-bottom: 1px solid #E8EAED;
+  border-bottom: 1px solid var(--app-border);
   /* 使用更轻的灰色分隔线 */
   background: transparent;
 }
 
 .group-list-header h3 {
-  color: #202124 !important;
+  color: var(--app-muted) !important;
   /* 使用深灰色文字，更专业 */
   margin: 0;
   font-size: 16px;
@@ -225,19 +225,19 @@
 }
 
 .group-list-content::-webkit-scrollbar-track {
-  background: #E8EAED;
+  background: var(--app-border);
   border-radius: 3px;
   margin: 8px 0;
 }
 
 .group-list-content::-webkit-scrollbar-thumb {
-  background: #BDC1C6;
+  background: rgba(91, 104, 141, 0.12);
   /* 使用灰色滚动条 */
   border-radius: 3px;
 }
 
 .group-list-content::-webkit-scrollbar-thumb:hover {
-  background: #9AA0A6;
+  background: rgba(91, 104, 141, 0.2);
   /* 悬浮时更深的灰色 */
 }
 
@@ -256,15 +256,15 @@
 }
 
 .group-item:hover {
-  background: #E8EAED;
+  background: var(--app-border);
   /* 悬浮时显示浅灰色背景 */
   transform: translateX(2px);
 }
 
 .group-item.selected {
-  background: #FFFFFF;
+  background: var(--app-surface);
   /* 选中时使用白色背景 */
-  border-color: #E8EAED;
+  border-color: var(--app-border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   /* 添加轻微阴影突出选中状态 */
 }
@@ -273,14 +273,14 @@
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: #1890FF;
+  background: var(--app-primary);
   /* 使用品牌蓝色作为头像背景 */
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: 12px;
   flex-shrink: 0;
-  color: #FFFFFF;
+  color: var(--app-surface);
   font-weight: 600;
   font-size: 14px;
   text-transform: uppercase;
@@ -293,7 +293,7 @@
 }
 
 .group-name {
-  color: #202124 !important;
+  color: var(--app-muted) !important;
   /* 深灰色文字 */
   margin: 0 0 2px 0;
   font-size: 14px;
@@ -304,7 +304,7 @@
 }
 
 .member-count {
-  color: #5F6368;
+  color: var(--app-muted-soft);
   /* 中灰色次要文字 */
   font-size: 12px;
   margin: 0;
@@ -312,11 +312,11 @@
 }
 
 .status {
-  background: #E8F4FD;
+  background: var(--app-primary-soft);
   /* 浅蓝色背景 */
-  color: #1890FF;
+  color: var(--app-primary);
   /* 蓝色文字 */
-  border: 1px solid #BAE0FF;
+  border: 1px solid var(--app-border-strong);
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 4px;
@@ -328,7 +328,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--app-surface);
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -346,15 +346,15 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--app-surface);
 }
 
 /* 消息输入区域包装器 - 确保输入框始终显示在底部 */
 .message-input-wrapper {
   flex-shrink: 0;
   /* 防止输入区域被压缩 */
-  background: #ffffff;
-  border-top: 1px solid #f0f0f0;
+  background: var(--app-surface);
+  border-top: 1px solid var(--app-border);
   position: relative;
   z-index: 10;
   /* 确保显示在其他内容之上 */
@@ -371,7 +371,7 @@
   flex-direction: column;
   position: relative;
   /* 确保相对定位作为绝对定位按钮的参考 */
-  background: #ffffff;
+  background: var(--app-surface);
   overflow: hidden;
   /* 防止内容溢出 */
   min-height: 0;
@@ -388,7 +388,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 16px;
-  background: #ffffff;
+  background: var(--app-surface);
   scroll-behavior: smooth;
   min-height: 0;
   /* 关键：允许收缩 */
@@ -403,14 +403,14 @@
   .chat-interface {
     min-height: 100vh;
     height: 100vh;
-    background: #ffffff;
+    background: var(--app-surface);
     overflow: hidden;
   }
 
   .chat-body {
     flex-direction: column;
     overflow: hidden;
-    background: #ffffff;
+    background: var(--app-surface);
   }
 
   .desktop-layout {
@@ -422,7 +422,7 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    background: #ffffff;
+    background: var(--app-surface);
     overflow: hidden;
   }
 
@@ -431,8 +431,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: #ffffff;
-    border-bottom: 1px solid #f0f0f0;
+    background: var(--app-surface);
+    border-bottom: 1px solid var(--app-border);
     position: sticky;
     top: 0;
     z-index: 5;
@@ -452,7 +452,7 @@
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    color: #8c8c8c;
+    color: var(--app-muted-soft);
     text-transform: capitalize;
   }
 
@@ -460,20 +460,20 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #faad14;
+    background: var(--app-warning);
     display: inline-block;
   }
 
   .connection-status.connected .status-dot {
-    background: #52c41a;
+    background: var(--app-success);
   }
 
   .connection-status.disconnected .status-dot {
-    background: #ff4d4f;
+    background: var(--app-danger);
   }
 
   .connection-status.connecting .status-dot {
-    background: #faad14;
+    background: var(--app-warning);
   }
 
   .mobile-group-drawer .ant-drawer-body {
@@ -481,7 +481,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: #f8f9fa;
+    background: var(--app-accent-soft);
   }
 
   .chat-content {
@@ -510,7 +510,7 @@
   }
 
   .message-input-wrapper {
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid var(--app-border);
     padding-bottom: env(safe-area-inset-bottom);
   }
 
@@ -527,19 +527,19 @@
 }
 
 .message-area-container .message-area::-webkit-scrollbar-track {
-  background: #F1F3F4;
+  background: var(--app-accent-soft);
   border-radius: 3px;
   margin: 8px 0;
 }
 
 .message-area-container .message-area::-webkit-scrollbar-thumb {
-  background: #BDC1C6;
+  background: rgba(91, 104, 141, 0.12);
   /* 灰色滚动条与左侧一致 */
   border-radius: 3px;
 }
 
 .message-area-container .message-area::-webkit-scrollbar-thumb:hover {
-  background: #9AA0A6;
+  background: rgba(91, 104, 141, 0.2);
   /* 悬浮时更深的灰色 */
 }
 
@@ -549,8 +549,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: #FFFFFF;
-  border-bottom: 1px solid #E8EAED;
+  background: var(--app-surface);
+  border-bottom: 1px solid var(--app-border);
   /* 使用一致的灰色分隔线 */
   min-height: 64px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -594,8 +594,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fff9c4;
-  border: 1px solid #ffd54f;
+  background: var(--app-warning-soft);
+  border: 1px solid var(--app-warning-border);
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 12px;
@@ -603,12 +603,12 @@
 }
 
 .pinned-icon {
-  color: #fa8c16;
+  color: var(--app-warning);
   flex-shrink: 0;
 }
 
 .pinned-text {
-  color: #666;
+  color: var(--app-muted);
   cursor: pointer;
   flex: 1;
   overflow: hidden;
@@ -618,7 +618,7 @@
 }
 
 .pinned-text:hover {
-  color: #1890ff;
+  color: var(--app-primary);
 }
 
 .pinned-nav {
@@ -637,7 +637,7 @@
 
 .pinned-count {
   font-size: 10px;
-  color: #999;
+  color: var(--app-muted-soft);
   margin: 0 2px;
 }
 
@@ -714,7 +714,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #ffffff;
+  background: var(--app-surface);
   border-radius: 12px;
   margin: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
@@ -735,7 +735,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #1890FF;
+  background: var(--app-primary);
   /* 使用品牌蓝色，更专业 */
   color: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -745,7 +745,7 @@
   flex-shrink: 0;
   border: none;
   background: rgba(255, 255, 255, 0.2);
-  color: #ffffff !important;
+  color: var(--app-surface) !important;
   border-radius: 8px;
   padding: 8px;
   transition: all 0.3s ease;
@@ -774,19 +774,19 @@
 
 .connection-status.connected {
   background: rgba(76, 175, 80, 0.2);
-  color: #4caf50;
+  color: var(--app-success);
   border: 1px solid rgba(76, 175, 80, 0.3);
 }
 
 .connection-status.connecting {
   background: rgba(255, 193, 7, 0.2);
-  color: #ffc107;
+  color: var(--app-warning);
   border: 1px solid rgba(255, 193, 7, 0.3);
 }
 
 .connection-status.disconnected {
   background: rgba(244, 67, 54, 0.2);
-  color: #f44336;
+  color: var(--app-danger);
   border: 1px solid rgba(244, 67, 54, 0.3);
 }
 
@@ -813,7 +813,7 @@
 /* 加载状态优化 */
 .message-area .loading-skeleton {
   padding: 16px;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, var(--app-border) 25%, rgba(91, 104, 141, 0.2) 50%, var(--app-border) 75%);
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
   border-radius: 8px;

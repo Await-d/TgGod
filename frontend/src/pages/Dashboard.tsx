@@ -184,7 +184,7 @@ const Dashboard: React.FC = () => {
     <div className="dashboard-page">
       <div className="dashboard-header">
         <div className="dashboard-header-title">
-          <Title level={2} style={{ margin: 0 }}>仪表板</Title>
+          <Title level={2} className="dashboard-title">仪表板</Title>
         </div>
         <div className="dashboard-header-actions">
           <Button
@@ -205,12 +205,12 @@ const Dashboard: React.FC = () => {
           description={error}
           type="error"
           closable
-          style={{ marginBottom: 16 }}
+          className="dashboard-alert"
         />
       )}
 
       {/* 概览统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} className="dashboard-section">
         <Col xs={24} sm={12} md={6}>
           {renderStatCard(
             "总群组数",
@@ -246,7 +246,7 @@ const Dashboard: React.FC = () => {
       </Row>
 
       {/* 下载统计 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} className="dashboard-section">
         <Col xs={24} sm={12} md={6}>
           {renderStatCard(
             "已下载媒体",
@@ -285,14 +285,14 @@ const Dashboard: React.FC = () => {
               percent={overviewData?.download_stats?.download_completion_rate || 0}
               size="small"
               strokeColor="#52c41a"
-              style={{ marginTop: 8 }}
+              className="dashboard-progress"
             />
           </Card>
         </Col>
       </Row>
 
       {/* 今日统计 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} className="dashboard-section">
         <Col xs={24} sm={12}>
           <Card>
             <Statistic
@@ -341,11 +341,11 @@ const Dashboard: React.FC = () => {
                   <List.Item>
                     <List.Item.Meta
                       title={
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <div className="dashboard-group-item-header">
                           <Text strong>{group.title}</Text>
                           <Badge 
                             count={group.message_count} 
-                            style={{ backgroundColor: '#52c41a' }}
+                            className="dashboard-badge-success"
                           />
                         </div>
                       }
@@ -377,17 +377,8 @@ const Dashboard: React.FC = () => {
             title="实时活动" 
             size={isMobile ? "small" : "default"}
             extra={
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div 
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    backgroundColor: '#52c41a',
-                    marginRight: 8,
-                    animation: 'pulse 2s infinite'
-                  }}
-                />
+              <div className="dashboard-activity-extra">
+                <div className="dashboard-activity-dot" />
                 <Text type="secondary">实时更新</Text>
               </div>
             }
@@ -399,15 +390,10 @@ const Dashboard: React.FC = () => {
                 dataSource={activityData.recent_activities}
                 renderItem={(activity: any, index: number) => (
                   <List.Item
-                    style={{
-                      padding: '12px 0',
-                      borderLeft: index === 0 ? '3px solid #1890ff' : 'none',
-                      paddingLeft: index === 0 ? 12 : 0,
-                      backgroundColor: index === 0 ? '#f6ffed' : 'transparent',
-                      borderRadius: index === 0 ? 4 : 0,
-                      marginBottom: index === 0 ? 8 : 0,
-                      transition: 'all 0.3s ease'
-                    }}
+                    className={index === 0
+                      ? 'dashboard-activity-item dashboard-activity-item-highlight'
+                      : 'dashboard-activity-item'
+                    }
                   >
                     <List.Item.Meta
                       avatar={
@@ -416,27 +402,32 @@ const Dashboard: React.FC = () => {
                         />
                       }
                       title={
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ fontWeight: index === 0 ? 'bold' : 'normal' }}>
+                        <div className="dashboard-activity-header">
+                          <Text
+                            className={index === 0
+                              ? 'dashboard-activity-title dashboard-activity-title-highlight'
+                              : 'dashboard-activity-title'
+                            }
+                          >
                             {activity.description}
                           </Text>
-                          <Space>
-                            {index === 0 && <Tag color="orange" style={{ fontSize: '10px', padding: '1px 4px' }}>新</Tag>}
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                          <Space className="dashboard-activity-meta">
+                            {index === 0 && <Tag color="orange" className="dashboard-activity-new-tag">新</Tag>}
+                            <Text type="secondary" className="dashboard-activity-time">
                               {new Date(activity.timestamp).toLocaleTimeString()}
                             </Text>
                           </Space>
                         </div>
                       }
                       description={
-                        <Space>
+                        <Space className="dashboard-activity-description">
                           <Tag 
                             color={activity.activity_type === 'message' ? 'blue' : 'green'}
-                            style={{ fontSize: '11px' }}
+                            className="dashboard-activity-type-tag"
                           >
                             {activity.activity_type === 'message' ? '💬 消息' : '📥 下载'}
                           </Tag>
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                          <Text type="secondary" className="dashboard-activity-group">
                             📁 {activity.group_name}
                           </Text>
                         </Space>
@@ -456,7 +447,7 @@ const Dashboard: React.FC = () => {
       </Row>
 
       {/* 媒体类型分布图表 */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+      <Row gutter={[16, 16]} className="dashboard-section-top">
         <Col xs={24} lg={12}>
           <Card title="媒体类型分布" size={isMobile ? "small" : "default"} extra={<BarChartOutlined />}>
             {overviewData?.media_distribution ? (
@@ -465,25 +456,22 @@ const Dashboard: React.FC = () => {
                   const total = (Object.values(overviewData.media_distribution) as number[]).reduce((a: number, b: number) => a + b, 0);
                   const percentage = Math.round((count / total) * 100);
                   return (
-                    <div key={type} style={{ marginBottom: 16 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <Space>
-                          <div 
-                            style={{ 
-                              width: 12, 
-                              height: 12, 
-                              borderRadius: '50%', 
-                              backgroundColor: getMediaTypeColor(type) 
-                            }}
+                    <div key={type} className="dashboard-media-item">
+                      <div className="dashboard-media-header">
+                        <Space className="dashboard-media-label">
+                          <div
+                            className="dashboard-media-dot"
+                            style={{ backgroundColor: getMediaTypeColor(type) }}
                           />
                           <Text>{type}</Text>
                         </Space>
-                        <Space>
+                        <Space className="dashboard-media-stats">
                           <Text strong>{formatNumber(count)}</Text>
                           <Text type="secondary">({percentage}%)</Text>
                         </Space>
                       </div>
                       <Progress 
+                        className="dashboard-media-progress"
                         percent={percentage}
                         strokeColor={getMediaTypeColor(type)}
                         size="small"
@@ -504,36 +492,39 @@ const Dashboard: React.FC = () => {
           <Card title="系统信息" size={isMobile ? "small" : "default"}>
             {systemInfo ? (
               <div>
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div className="dashboard-system-block">
+                  <div className="dashboard-system-header">
                     <Text>CPU 使用率</Text>
                     <Text strong>{typeof systemInfo.cpu_usage === 'number' ? systemInfo.cpu_usage.toFixed(1) : (systemInfo.cpu_percent?.toFixed(1) || '0')}%</Text>
                   </div>
                   <Progress 
+                    className="dashboard-system-progress"
                     percent={systemInfo.cpu_usage || systemInfo.cpu_percent || 0} 
                     strokeColor={(systemInfo.cpu_usage || systemInfo.cpu_percent || 0) > 80 ? '#f5222d' : '#52c41a'}
                     size="small"
                   />
                 </div>
                 
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div className="dashboard-system-block">
+                  <div className="dashboard-system-header">
                     <Text>内存使用率</Text>
                     <Text strong>{typeof systemInfo.memory_usage === 'number' ? systemInfo.memory_usage.toFixed(1) : (systemInfo.memory?.usage_percent?.toFixed(1) || '0')}%</Text>
                   </div>
                   <Progress 
+                    className="dashboard-system-progress"
                     percent={systemInfo.memory_usage || systemInfo.memory?.usage_percent || 0} 
                     strokeColor={(systemInfo.memory_usage || systemInfo.memory?.usage_percent || 0) > 80 ? '#f5222d' : '#1890ff'}
                     size="small"
                   />
                 </div>
                 
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div className="dashboard-system-block">
+                  <div className="dashboard-system-header">
                     <Text>磁盘使用率</Text>
                     <Text strong>{typeof systemInfo.disk_usage_percent === 'number' ? systemInfo.disk_usage_percent.toFixed(1) : (systemInfo.disk_usage?.usage_percent?.toFixed(1) || '0')}%</Text>
                   </div>
                   <Progress 
+                    className="dashboard-system-progress"
                     percent={systemInfo.disk_usage_percent || systemInfo.disk_usage?.usage_percent || 0} 
                     strokeColor={(systemInfo.disk_usage_percent || systemInfo.disk_usage?.usage_percent || 0) > 90 ? '#f5222d' : '#722ed1'}
                     size="small"
@@ -542,20 +533,20 @@ const Dashboard: React.FC = () => {
 
                 <Divider />
                 
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Space direction="vertical" size="small" className="dashboard-system-summary">
+                  <div className="dashboard-system-summary-row">
                     <Text type="secondary">总内存</Text>
                     <Text>{formatFileSize(systemInfo.total_memory || 0)}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div className="dashboard-system-summary-row">
                     <Text type="secondary">可用内存</Text>
                     <Text>{formatFileSize(systemInfo.available_memory || 0)}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div className="dashboard-system-summary-row">
                     <Text type="secondary">总磁盘空间</Text>
                     <Text>{formatFileSize(systemInfo.total_disk || 0)}</Text>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div className="dashboard-system-summary-row">
                     <Text type="secondary">可用磁盘空间</Text>
                     <Text>{formatFileSize(systemInfo.free_disk || 0)}</Text>
                   </div>

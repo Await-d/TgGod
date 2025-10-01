@@ -29,6 +29,7 @@ import {
 } from '@ant-design/icons';
 import { logApi, taskApi } from '../../services/apiService';
 import { LogEntry, DownloadTask } from '../../types';
+import './TaskLogViewer.css';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -87,12 +88,12 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
   // 获取日志级别图标
   const getLogLevelIcon = (level: string) => {
     const iconMap: Record<string, React.ReactNode> = {
-      ERROR: <ExclamationCircleOutlined style={{ color: '#f5222d' }} />,
-      WARNING: <WarningOutlined style={{ color: '#fa8c16' }} />,
-      INFO: <InfoCircleOutlined style={{ color: '#1890ff' }} />,
-      DEBUG: <BugOutlined style={{ color: '#666' }} />
+      ERROR: <ExclamationCircleOutlined className="task-log-level-error" />,
+      WARNING: <WarningOutlined className="task-log-level-warning" />,
+      INFO: <InfoCircleOutlined className="task-log-level-info" />,
+      DEBUG: <BugOutlined className="task-log-level-debug" />
     };
-    return iconMap[level] || <InfoCircleOutlined />;
+    return iconMap[level] || <InfoCircleOutlined className="task-log-level-default" />;
   };
 
   // 获取日志级别颜色
@@ -167,13 +168,13 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
     <div>
       <Card
         title={
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <BugOutlined style={{ marginRight: 8 }} />
+          <div className="task-log-header">
+            <BugOutlined className="task-log-header-icon" />
             任务执行日志
             {selectedTaskId && (
               <Badge 
                 count={logs.length} 
-                style={{ marginLeft: 8 }}
+                className="task-log-header-badge"
                 overflowCount={999}
               />
             )}
@@ -205,12 +206,12 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
       >
         {/* 筛选器 */}
         {showFilters && (
-          <div style={{ marginBottom: 16 }}>
+          <div className="task-log-filter-bar">
             <Row gutter={8}>
               <Col xs={24} sm={8}>
                 <Select
                   placeholder="选择任务"
-                  style={{ width: '100%' }}
+                  className="task-log-filter-select"
                   value={selectedTaskId}
                   onChange={handleTaskChange}
                   allowClear
@@ -225,7 +226,7 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
               <Col xs={24} sm={6}>
                 <Select
                   placeholder="日志级别"
-                  style={{ width: '100%' }}
+                  className="task-log-filter-select"
                   onChange={(level) => handleFilter({ ...filters, level })}
                   allowClear
                 >
@@ -247,7 +248,7 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
         )}
 
         {/* 日志列表 */}
-        <div style={{ height, overflowY: 'auto' }}>
+        <div className="task-log-list" style={{ height }}>
           <Spin spinning={loading}>
             {!selectedTaskId ? (
               <Alert
@@ -260,11 +261,7 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
                 size="small"
                 dataSource={logs}
                 renderItem={(log) => (
-                  <List.Item
-                    style={{
-                      padding: '8px 0',
-                      borderBottom: '1px solid #f0f0f0'
-                    }}
+                  <List.Item className="task-log-item"
                     actions={[
                       <Tooltip title="查看详情">
                         <Button
@@ -279,12 +276,12 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
                     <List.Item.Meta
                       avatar={getLogLevelIcon(log.level)}
                       title={
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div className="task-log-item-header">
                           <Space>
                             <Tag color={getLogLevelColor(log.level)}>
                               {log.level}
                             </Tag>
-                            <Text style={{ fontSize: 12, color: '#666' }}>
+                            <Text className="task-log-item-time">
                               {new Date(log.timestamp).toLocaleString()}
                             </Text>
                           </Space>
@@ -292,11 +289,11 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
                       }
                       description={
                         <div>
-                          <Text ellipsis style={{ fontSize: 13 }}>
+                          <Text ellipsis className="task-log-item-message">
                             {log.message}
                           </Text>
                           {log.details && (
-                            <Text type="secondary" style={{ fontSize: 11 }}>
+                            <Text type="secondary" className="task-log-item-extra">
                               {' '}[有详细信息]
                             </Text>
                           )}
@@ -327,7 +324,7 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
       >
         {selectedLog && (
           <div>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space direction="vertical" size="middle" className="task-log-detail-content">
               <Row gutter={16}>
                 <Col span={8}>
                   <Text strong>日志级别:</Text>
@@ -360,29 +357,21 @@ const TaskLogViewer: React.FC<TaskLogViewerProps> = ({
               )}
               
               <Row gutter={16}>
-                <Col span={8} style={{ alignSelf: 'flex-start' }}>
+                <Col span={8} className="task-log-detail-label">
                   <Text strong>消息:</Text>
                 </Col>
                 <Col span={16}>
-                  <Text style={{ whiteSpace: 'pre-wrap' }}>{selectedLog.message}</Text>
+                  <Text className="task-log-detail-message">{selectedLog.message}</Text>
                 </Col>
               </Row>
               
               {selectedLog.details && (
                 <Row gutter={16}>
-                  <Col span={8} style={{ alignSelf: 'flex-start' }}>
+                  <Col span={8} className="task-log-detail-label">
                     <Text strong>详细信息:</Text>
                   </Col>
                   <Col span={16}>
-                    <pre style={{
-                      background: '#f5f5f5',
-                      padding: 12,
-                      borderRadius: 4,
-                      fontSize: 12,
-                      lineHeight: 1.4,
-                      maxHeight: 300,
-                      overflow: 'auto'
-                    }}>
+                    <pre className="task-log-detail-json">
                       {JSON.stringify(selectedLog.details, null, 2)}
                     </pre>
                   </Col>

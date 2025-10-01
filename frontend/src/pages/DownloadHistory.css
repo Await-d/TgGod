@@ -1,6 +1,6 @@
 .download-history-page {
   padding: 24px;
-  background: #f5f7fa;
+  background: var(--app-background);
   min-height: 100%;
 }
 
@@ -13,9 +13,22 @@
   margin-bottom: 20px;
 }
 
+.download-history-title {
+  margin: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .download-history-actions {
   display: inline-flex;
+  align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.download-stats-grid {
+  margin-bottom: 24px;
 }
 
 .download-filters-card {
@@ -23,10 +36,27 @@
   margin-bottom: 16px;
 }
 
-.download-filters-content {
+.download-filters-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
+}
+
+.download-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.download-filter-control {
+  width: 100%;
+}
+
+.download-filter-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .download-toolbar {
@@ -49,13 +79,13 @@
 }
 
 .download-toolbar-summary {
-  color: #666;
+  color: var(--app-muted);
 }
 
 .download-table-wrapper {
   width: 100%;
   overflow-x: auto;
-  background: #fff;
+  background: var(--app-surface);
   border-radius: 12px;
   padding: 16px;
 }
@@ -100,8 +130,18 @@
     width: 100%;
   }
 
-  .download-filters-content {
+  .download-filters-grid {
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
+  .download-filter-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .download-filter-actions .ant-btn {
+    width: 100%;
   }
 
   .download-toolbar-content {

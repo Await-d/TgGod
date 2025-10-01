@@ -1,27 +1,27 @@
 /* MessageHeader 组件样式 */
 .message-header-container {
-  background: #fff;
-  border-bottom: 1px solid #e8e8e8;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  background: var(--chat-surface, #fff);
+  border-bottom: 1px solid var(--chat-border, #e8e8e8);
+  box-shadow: 0 12px 24px rgba(76, 111, 255, 0.08);
 }
 
 /* 导航区域样式 */
 .navigation-section {
   padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
+  border-bottom: 1px solid var(--chat-border, #f0f0f0);
+  background: var(--chat-surface-elevated, #fafafa);
 }
 
 .navigation-section .back-button {
-  color: #1890ff;
+  color: var(--chat-primary, #1890ff);
   border: none !important;
   box-shadow: none !important;
   padding: 4px 8px;
 }
 
 .navigation-section .back-button:hover {
-  color: #40a9ff;
-  background: rgba(24, 144, 255, 0.1);
+  color: var(--chat-primary-hover, #40a9ff);
+  background: var(--chat-primary-soft, rgba(24, 144, 255, 0.1));
 }
 
 /* 群组信息区域 - 紧凑布局 */
@@ -61,7 +61,7 @@
   margin: 0 !important;
   font-size: 16px !important; /* 减小字体大小 */
   line-height: 20px !important; /* 减少行高 */
-  color: #262626 !important;
+  color: var(--chat-muted, #262626) !important;
   font-weight: 600 !important;
 }
 
@@ -107,8 +107,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #fff9c4;
-  border: 1px solid #ffd54f;
+  background: var(--chat-warning-soft, #fff9c4);
+  border: 1px solid var(--chat-warning, #ffd54f);
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 12px;
@@ -117,18 +117,18 @@
 }
 
 .pinned-inline .pinned-content:hover {
-  background: #fff8e1;
-  border-color: #ffcc02;
+  background: var(--chat-warning-soft, #fff8e1);
+  border-color: var(--chat-warning, #ffcc02);
 }
 
 .pinned-inline .pinned-icon {
-  color: #fa8c16;
+  color: var(--chat-warning, #fa8c16);
   flex-shrink: 0;
   font-size: 12px;
 }
 
 .pinned-inline .pinned-text {
-  color: #666;
+  color: var(--chat-muted, #666);
   cursor: pointer;
   flex: 1;
   overflow: hidden;
@@ -140,7 +140,7 @@
 }
 
 .pinned-inline .pinned-text:hover {
-  color: #1890ff;
+  color: var(--chat-primary, #1890ff);
 }
 
 .pinned-inline .pinned-nav {
@@ -157,19 +157,19 @@
   border-radius: 2px !important;
   border: none !important;
   background: transparent !important;
-  color: #999 !important;
+  color: var(--chat-muted-soft, #999) !important;
   font-size: 10px !important;
   min-width: auto !important;
 }
 
 .pinned-inline .pinned-nav-btn:hover {
   background: rgba(250, 173, 20, 0.2) !important;
-  color: #fa8c16 !important;
+  color: var(--chat-warning, #fa8c16) !important;
 }
 
 .pinned-inline .pinned-count {
   font-size: 10px;
-  color: #999;
+  color: var(--chat-muted-soft, #999);
   margin: 0 2px;
   white-space: nowrap;
 }
@@ -178,9 +178,9 @@
 .stats-section {
   margin-bottom: 2px;
   padding: 2px 12px 4px 12px; /* 显著减少内边距 */
-  background: #fafafa;
-  border-top: 1px solid #f0f0f0;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--chat-surface-elevated, #fafafa);
+  border-top: 1px solid var(--chat-border, #f0f0f0);
+  border-bottom: 1px solid var(--chat-border, #f0f0f0);
 }
 
 .stats-header {
@@ -200,7 +200,7 @@
 .stats-toggle-btn {
   border: none !important;
   box-shadow: none !important;
-  color: #666 !important;
+  color: var(--chat-muted, #666) !important;
   font-size: 10px !important;
   height: 16px !important;
   width: 16px !important;
@@ -209,19 +209,19 @@
 }
 
 .stats-toggle-btn:hover {
-  color: #1890ff !important;
-  background: rgba(24, 144, 255, 0.1) !important;
+  color: var(--chat-primary, #1890ff) !important;
+  background: var(--chat-primary-soft, rgba(24, 144, 255, 0.1)) !important;
 }
 
 .stats-icon {
   font-size: 12px;
-  color: #666;
+  color: var(--chat-muted, #666);
 }
 
 .stats-title {
   font-size: 12px;
   font-weight: 500;
-  color: #666;
+  color: var(--chat-muted, #666);
 }
 
 .stats-loading {
@@ -248,10 +248,16 @@
   line-height: 1.1;
   margin-bottom: 0; /* 去除底部间距 */
 }
+.stat-total { color: var(--chat-primary, #1890ff); }
+.stat-text { color: var(--chat-success, #52c41a); }
+.stat-media { color: var(--chat-warning, #faad14); }
+.stat-photo { color: #13c2c2; }
+.stat-video { color: #722ed1; }
+.stat-forwarded { color: var(--chat-warning, #fa8c16); }
 
 .stat-label {
   font-size: 9px; /* 减小标签字体 */
-  color: #8c8c8c;
+  color: var(--chat-muted-soft, #8c8c8c);
   font-weight: 500;
   line-height: 1.1; /* 减少行高 */
 }
@@ -260,9 +266,9 @@
 .pinned-section {
   margin-bottom: 6px;
   padding: 8px 16px;
-  background: #fffbf0;
-  border-top: 1px solid #faad14;
-  border-bottom: 1px solid #faad14;
+  background: var(--chat-warning-soft, #fffbf0);
+  border-top: 1px solid var(--chat-warning, #faad14);
+  border-bottom: 1px solid var(--chat-warning, #faad14);
 }
 
 .pinned-content {
@@ -272,7 +278,7 @@
 }
 
 .pinned-icon {
-  color: #faad14;
+  color: var(--chat-warning, #faad14);
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -283,7 +289,7 @@
 }
 
 .pinned-label {
-  color: #faad14 !important;
+  color: var(--chat-warning, #faad14) !important;
   font-size: 11px !important;
   display: block;
   margin-bottom: 2px;
@@ -291,13 +297,13 @@
 
 .pinned-text {
   font-size: 11px;
-  color: #333;
+  color: var(--chat-muted, #333);
   line-height: 1.4;
 }
 
 .pinned-text .ant-typography {
   font-size: 11px !important;
-  color: #333 !important;
+  color: var(--chat-muted, #333) !important;
   max-width: 200px;
   white-space: nowrap;
   overflow: hidden;
@@ -316,17 +322,17 @@
   padding: 2px 4px !important;
   height: auto !important;
   border: none !important;
-  color: #666 !important;
+  color: var(--chat-muted, #666) !important;
 }
 
 .pinned-nav-btn:hover {
-  color: #faad14 !important;
+  color: var(--chat-warning, #faad14) !important;
   background: rgba(250, 173, 20, 0.1) !important;
 }
 
 .pinned-counter {
   font-size: 9px !important;
-  color: #999 !important;
+  color: var(--chat-muted-soft, #999) !important;
   margin: 0 2px !important;
 }
 
@@ -335,14 +341,14 @@
   padding: 2px 6px !important;
   height: auto !important;
   border: none !important;
-  color: #faad14 !important;
+  color: var(--chat-warning, #faad14) !important;
   background: rgba(250, 173, 20, 0.1) !important;
   border-radius: 3px !important;
 }
 
 .pinned-jump-btn:hover {
   color: #fff !important;
-  background: #faad14 !important;
+  background: var(--chat-warning, #faad14) !important;
 }
 
 /* 移动端适配 - 进一步紧凑化 */
@@ -432,7 +438,7 @@
   
   .stat-label {
     font-size: 8px; /* 减小移动端标签字体 */
-    color: #8c8c8c;
+    color: var(--chat-muted-soft, #8c8c8c);
     font-weight: 500;
     line-height: 1.1; /* 减少移动端行高 */
   }
@@ -460,9 +466,9 @@
 .media-duration-section {
   margin-top: 8px;
   padding: 6px 8px;
-  background: #f8f9fa;
+  background: var(--chat-accent-soft, #f8f9fa);
   border-radius: 4px;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--chat-border, #e9ecef);
 }
 
 .media-duration-header {
@@ -474,13 +480,13 @@
 
 .duration-icon {
   font-size: 12px;
-  color: #f5222d;
+  color: var(--chat-danger, #f5222d);
 }
 
 .duration-title {
   font-size: 12px;
   font-weight: 500;
-  color: #666;
+  color: var(--chat-muted, #666);
 }
 
 .media-duration-grid {
@@ -496,9 +502,9 @@
 }
 
 .duration-item.total-duration {
-  border: 1px solid #ffcdd2;
+  border: 1px solid var(--chat-danger, #ffcdd2);
   border-radius: 4px;
-  background: #ffebee;
+  background: var(--chat-danger-soft, #ffebee);
 }
 
 .duration-value {
@@ -507,10 +513,14 @@
   line-height: 1.1;
   margin-bottom: 2px;
 }
+.duration-total { color: var(--chat-danger, #f5222d); }
+.duration-voice { color: #722ed1; }
+.duration-audio { color: var(--chat-warning, #faad14); }
+.duration-video { color: #52c41a; }
 
 .duration-label {
   font-size: 9px;
-  color: #8c8c8c;
+  color: var(--chat-muted-soft, #8c8c8c);
   font-weight: 500;
   line-height: 1.1;
 }
@@ -549,11 +559,11 @@
 
 .stats-section:hover,
 .pinned-section:hover {
-  background: #f8f8f8;
+  background: var(--chat-accent-soft, #f8f8f8);
 }
 
 .pinned-section:hover {
-  background: #fff8e8;
+  background: var(--chat-warning-soft, #fff8e8);
 }
 
 /* 响应式网格调整 */
@@ -598,7 +608,7 @@
   
   .stat-label {
   font-size: 10px;
-  color: #8c8c8c;
+  color: var(--chat-muted-soft, #8c8c8c);
   font-weight: 500;
   line-height: 1.2;
 }

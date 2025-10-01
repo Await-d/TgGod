@@ -1,6 +1,6 @@
 .system-status-page {
   padding: 24px;
-  background: #f5f5f5;
+  background: var(--app-background);
   min-height: 100%;
 }
 
@@ -17,7 +17,7 @@
   display: flex;
   align-items: center;
   margin: 0 !important;
-  color: #262626;
+  color: var(--app-muted);
   font-weight: 600;
 }
 
@@ -61,6 +61,28 @@
   margin-top: 16px;
 }
 
+.system-status-score {
+  width: 80px;
+}
+
+.system-status-alert {
+  margin-bottom: 16px;
+}
+
+.system-status-badge .ant-badge-count {
+  background-color: var(--app-success);
+}
+
+.system-status-loading {
+  text-align: center;
+  padding: 50px 0;
+}
+
+.system-status-loading-text {
+  margin-top: 16px;
+  color: var(--app-muted);
+}
+
 @media (max-width: 768px) {
   .system-status-page {
     padding: 16px 12px 80px;
@@ -90,39 +112,39 @@
 
 /* 状态颜色辅助类 */
 .status-healthy {
-  color: #52c41a;
+  color: var(--app-success);
 }
 
 .status-warning {
-  color: #faad14;
+  color: var(--app-warning);
 }
 
 .status-error {
-  color: #ff4d4f;
+  color: var(--app-danger);
 }
 
 .status-maintenance {
-  color: #1890ff;
+  color: var(--app-primary);
 }
 
 .status-unknown {
-  color: #d9d9d9;
+  color: var(--app-muted-soft);
 }
 
 .priority-critical {
-  color: #ff4d4f;
+  color: var(--app-danger);
   font-weight: 600;
 }
 
 .priority-high {
-  color: #faad14;
+  color: var(--app-warning);
   font-weight: 500;
 }
 
 .priority-medium {
-  color: #1890ff;
+  color: var(--app-primary);
 }
 
 .priority-low {
-  color: #52c41a;
+  color: var(--app-success);
 }

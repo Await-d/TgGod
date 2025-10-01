@@ -1,8 +1,8 @@
 .media-download-preview {
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--chat-border, #dbe3ff);
   border-radius: 8px;
   padding: 12px;
-  background: #fafafa;
+  background: var(--chat-surface, #fafafa);
   margin: 4px 0;
   max-width: 300px;
   width: 100%;
@@ -63,12 +63,12 @@
 }
 
 .download-progress .ant-progress-bg {
-  background: linear-gradient(90deg, #1890ff 0%, #52c41a 100%) !important;
+  background: linear-gradient(90deg, var(--chat-primary, #4c6fff) 0%, var(--chat-primary-hover, #6885ff) 100%) !important;
   transition: all 0.3s ease !important;
 }
 
 .download-progress .ant-progress-text {
-  color: #1890ff !important;
+  color: var(--chat-primary, #4c6fff) !important;
   font-weight: 500 !important;
 }
 
@@ -86,19 +86,28 @@
 /* 下载信息文本样式 */
 .download-progress .download-info {
   font-size: 11px;
-  color: #8c8c8c;
+  color: var(--chat-muted-soft, #8c8c8c);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.download-cancel-actions {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.download-cancel-button {
+  font-size: 11px !important;
+}
+
 .download-progress .download-speed {
-  color: #1890ff;
+  color: var(--chat-primary, #4c6fff);
   font-weight: 500;
 }
 
 .download-progress .remaining-time {
-  color: #52c41a;
+  color: var(--chat-primary-hover, #6885ff);
   text-align: center;
   margin-top: 4px;
   font-size: 11px;
@@ -120,7 +129,7 @@
   justify-content: center;
   width: 60px;
   height: 60px;
-  background: #f5f5f5;
+  background: var(--chat-accent-soft, #f5f5f5);
   border-radius: 6px;
 }
 
@@ -133,6 +142,7 @@
   overflow: hidden;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
 }
 
 .media-thumbnail:hover {
@@ -147,6 +157,100 @@
   object-fit: cover;
   border-radius: 6px;
 }
+
+.media-audio-player {
+  width: 100%;
+}
+
+.media-preview-modal-placeholder {
+  text-align: center;
+  padding: 20px;
+}
+
+.media-preview-placeholder-icon {
+  font-size: 64px;
+  color: var(--chat-muted-soft, #8c8c8c);
+}
+
+.media-preview-placeholder-action {
+  margin-top: 16px;
+}
+
+.media-download-preview-modal {
+  width: 90% !important;
+  max-width: 800px;
+}
+
+.media-download-preview-modal .ant-modal-body {
+  text-align: center;
+  padding: 16px;
+}
+
+.media-preview-modal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.media-preview-modal-image,
+.media-preview-modal-video {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+}
+
+.media-preview-modal-video {
+  width: 100%;
+}
+
+.media-preview-modal-audio {
+  width: 100%;
+}
+
+.download-progress-card {
+  width: 100%;
+}
+
+.download-progress-header {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.download-progress-icon {
+  font-size: 16px;
+  color: var(--chat-primary, #4c6fff);
+}
+
+.download-progress-text {
+  font-weight: 500;
+}
+
+.download-progress-bar {
+  margin-bottom: 8px;
+}
+
+.media-placeholder {
+  text-align: center;
+  padding: 20px;
+}
+
+.media-placeholder .media-preview-placeholder-icon {
+  font-size: 48px;
+  color: var(--chat-muted-soft, #d9d9d9);
+}
+.media-icon-large {
+  font-size: 48px;
+}
+
+.media-icon-photo { color: var(--chat-primary, #4c6fff); }
+.media-icon-video { color: var(--chat-primary, #4c6fff); }
+.media-icon-document { color: var(--chat-warning, #f59e0b); }
+.media-icon-audio { color: var(--chat-success, #16a34a); }
+.media-icon-default { color: var(--chat-muted-soft, #8c8c8c); }
 
 .thumbnail-overlay {
   position: absolute;
@@ -163,6 +267,15 @@
   border-radius: 6px;
 }
 
+.thumbnail-overlay-icon {
+  color: #ffffff;
+  font-size: 16px;
+}
+
+.thumbnail-overlay-icon-large {
+  font-size: 20px;
+}
+
 .media-thumbnail:hover .thumbnail-overlay {
   opacity: 1;
 }
@@ -177,7 +290,7 @@
 .media-filename {
   font-weight: 500;
   font-size: 14px;
-  color: #262626;
+  color: var(--chat-muted, #262626);
   margin-bottom: 4px;
   /* 文件名文本处理 - 使用ellipsis而不是break-all避免换行 */
   white-space: nowrap; /* 强制单行显示 */
@@ -197,15 +310,15 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--chat-muted-soft, #8c8c8c);
   flex-wrap: wrap; /* 允许标签换行 */
   overflow: hidden; /* 防止溢出 */
   width: 100%;
 }
 
 .media-size {
-  background: #e6f7ff;
-  color: #1890ff;
+  background: var(--chat-primary-soft, #eef1ff);
+  color: var(--chat-primary, #4c6fff);
   padding: 2px 6px;
   border-radius: 4px;
   white-space: nowrap; /* 防止标签内文字换行 */
@@ -213,8 +326,8 @@
 }
 
 .media-type {
-  background: #f6ffed;
-  color: #52c41a;
+  background: var(--chat-accent-soft, #eef1ff);
+  color: var(--chat-primary, #4c6fff);
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 500;
@@ -238,13 +351,17 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+.download-progress-content {
+  text-align: center;
+}
+
 .download-progress .ant-spin {
   width: 100%;
 }
 
 .download-progress .ant-spin-text {
   font-size: 12px;
-  color: #1890ff;
+  color: var(--chat-primary, #4c6fff);
   margin-top: 8px;
 }
 
@@ -264,9 +381,28 @@
   transition: all 0.3s ease;
 }
 
+.download-preview-button {
+  background: linear-gradient(135deg, var(--chat-primary, #4c6fff) 0%, var(--chat-primary-hover, #6885ff) 100%);
+  border: none;
+}
+
+.download-preview-button:hover {
+  background: linear-gradient(135deg, var(--chat-primary-hover, #6885ff) 0%, var(--chat-primary, #4c6fff) 100%);
+}
+
+.download-save-button {
+  border-color: var(--chat-primary, #4c6fff) !important;
+  color: var(--chat-primary, #4c6fff) !important;
+}
+
+.download-save-button:hover {
+  border-color: var(--chat-primary-hover, #6885ff) !important;
+  color: var(--chat-primary-hover, #6885ff) !important;
+}
+
 .download-actions .ant-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(76, 111, 255, 0.3);
 }
 
 .download-placeholder {
@@ -283,9 +419,20 @@
   transition: all 0.3s ease;
 }
 
+.download-primary-button {
+  background: linear-gradient(135deg, var(--chat-primary, #4c6fff) 0%, var(--chat-primary-hover, #6885ff) 100%);
+  border: none;
+  box-shadow: 0 2px 4px rgba(76, 111, 255, 0.2);
+}
+
+.download-primary-button:hover {
+  background: linear-gradient(135deg, var(--chat-primary-hover, #6885ff) 0%, var(--chat-primary, #4c6fff) 100%);
+  box-shadow: 0 6px 16px rgba(76, 111, 255, 0.32);
+}
+
 .download-placeholder .ant-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.4);
+  box-shadow: 0 6px 16px rgba(76, 111, 255, 0.32);
 }
 
 .download-error {
@@ -294,7 +441,26 @@
 
 .download-error .ant-card {
   border-radius: 8px;
-  border: 1px solid #ffccc7;
+  border: 1px solid var(--chat-danger, #ef4444);
+}
+
+.download-error-card {
+  background-color: var(--chat-danger-soft, #fee2e2);
+}
+
+.download-error-message {
+  color: var(--chat-danger, #ef4444);
+  margin-bottom: 8px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.download-error-actions {
+  text-align: center;
+}
+
+.download-error-retry {
+  font-size: 11px !important;
 }
 
 .download-error .ant-btn {
@@ -358,7 +524,7 @@
 
 /* 悬浮效果 */
 .media-download-preview:hover {
-  border-color: #d9d9d9;
+  border-color: var(--chat-border, #dbe3ff);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: all 0.2s ease;
 }
@@ -370,44 +536,36 @@
 
 /* 进度条自定义样式 */
 .download-progress .ant-progress-circle .ant-progress-text {
-  color: #1890ff;
+  color: var(--chat-primary, #4c6fff);
   font-size: 12px;
-}
-
-/* 错误状态样式 */
-.download-error {
-  background: #fff2f0;
-  border: 1px solid #ffccc7;
-  border-radius: 4px;
-  padding: 8px;
 }
 
 /* 成功状态指示 */
 .download-actions .ant-btn-primary {
-  background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+  background: linear-gradient(135deg, var(--chat-primary, #4c6fff) 0%, var(--chat-primary-hover, #6885ff) 100%);
   border: none;
 }
 
 .download-actions .ant-btn-primary:hover {
-  background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+  background: linear-gradient(135deg, var(--chat-primary-hover, #6885ff) 0%, var(--chat-primary, #4c6fff) 100%);
 }
 
 /* 已下载媒体样式 */
 .media-thumbnail.downloaded-media {
-  border: 2px solid #52c41a;
-  box-shadow: 0 2px 12px rgba(82, 196, 26, 0.2);
+  border: 2px solid var(--chat-primary, #4c6fff);
+  box-shadow: 0 2px 12px rgba(76, 111, 255, 0.2);
 }
 
 .media-thumbnail.downloaded-media:hover {
   transform: scale(1.03);
-  box-shadow: 0 4px 16px rgba(82, 196, 26, 0.3);
+  box-shadow: 0 4px 16px rgba(76, 111, 255, 0.28);
 }
 
 .downloaded-indicator {
   position: absolute;
   top: 4px;
   right: 4px;
-  background: #52c41a;
+  background: var(--chat-primary, #4c6fff);
   color: white;
   font-size: 10px;
   padding: 2px 6px;
@@ -419,16 +577,16 @@
 /* 缩略图错误回退样式 - 优化后更加柔和 */
 .media-icon.error-fallback {
   position: relative;
-  border: 1px dashed #d9d9d9;
-  background: #f5f5f5;
+  border: 1px dashed var(--chat-border, #dbe3ff);
+  background: var(--chat-accent-soft, #f5f5f5);
   cursor: pointer;
   box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
 }
 
 .media-icon.error-fallback:hover {
-  border-color: #bfbfbf;
-  background: #f0f0f0;
+  border-color: var(--chat-border, #cbd5ff);
+  background: var(--chat-accent-soft, #f0f0f0);
   transform: scale(1.02);
   transition: all 0.2s ease;
 }
@@ -476,14 +634,14 @@
 
 .download-status-indicator {
   font-size: 12px;
-  color: #52c41a;
+  color: var(--chat-primary, #4c6fff);
   font-weight: 500;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: #f6ffed;
+  background: var(--chat-accent-soft, #eef1ff);
   border-radius: 12px;
-  border: 1px solid #b7eb8f;
+  border: 1px solid var(--chat-success, #16a34a);
   margin-left: 4px;
 }

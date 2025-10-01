@@ -28,6 +28,7 @@ import {
 } from '@ant-design/icons';
 import { taskApi, telegramApi, ruleApi } from '../../services/apiService';
 import { DownloadTask, TelegramGroup, FilterRule } from '../../types';
+import './QuickTaskExecutor.css';
 
 const { Text /* Title */ } = Typography; // Title 暂时未使用
 const { Option } = Select;
@@ -149,8 +150,8 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
       {/* 主控制面板 */}
       <Card
         title={
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <RocketOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+          <div className="quick-task-header">
+            <RocketOutlined className="quick-task-header-icon" />
             <span>快速任务执行</span>
           </div>
         }
@@ -167,37 +168,37 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
       >
         {/* 任务状态统计 */}
         {taskStats && (
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} className="quick-task-stats">
             <Col xs={6}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#52c41a' }}>
+              <div className="quick-task-stat">
+                <div className="quick-task-stat-value quick-task-stat-running">
                   {taskStats.running}
                 </div>
-                <div style={{ fontSize: 12, color: '#666' }}>运行中</div>
+                <div className="quick-task-stat-label">运行中</div>
               </div>
             </Col>
             <Col xs={6}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#fa8c16' }}>
+              <div className="quick-task-stat">
+                <div className="quick-task-stat-value quick-task-stat-pending">
                   {taskStats.pending}
                 </div>
-                <div style={{ fontSize: 12, color: '#666' }}>待执行</div>
+                <div className="quick-task-stat-label">待执行</div>
               </div>
             </Col>
             <Col xs={6}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#1890ff' }}>
+              <div className="quick-task-stat">
+                <div className="quick-task-stat-value quick-task-stat-completed">
                   {taskStats.completed}
                 </div>
-                <div style={{ fontSize: 12, color: '#666' }}>已完成</div>
+                <div className="quick-task-stat-label">已完成</div>
               </div>
             </Col>
             <Col xs={6}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 20, fontWeight: 'bold', color: '#f5222d' }}>
+              <div className="quick-task-stat">
+                <div className="quick-task-stat-value quick-task-stat-failed">
                   {taskStats.failed}
                 </div>
-                <div style={{ fontSize: 12, color: '#666' }}>失败</div>
+                <div className="quick-task-stat-label">失败</div>
               </div>
             </Col>
           </Row>
@@ -205,7 +206,7 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
 
         {/* 最近任务列表 */}
         <div>
-          <Text strong style={{ marginBottom: 8, display: 'block' }}>
+          <Text strong className="quick-task-recent-title">
             最近任务 ({recentTasks.length})
           </Text>
           {recentTasks.length > 0 ? (
@@ -214,7 +215,7 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
               dataSource={recentTasks}
               renderItem={(task) => (
                 <List.Item
-                  style={{ padding: '8px 0' }}
+                  className="quick-task-list-item"
                   actions={[
                     task.status === 'pending' && (
                       <Tooltip title="立即执行">
@@ -232,8 +233,8 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
                 >
                   <List.Item.Meta
                     title={
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text ellipsis style={{ maxWidth: '200px' }}>{task.name}</Text>
+                      <div className="quick-task-list-header">
+                        <Text ellipsis className="quick-task-task-name">{task.name}</Text>
                         <Badge
                           color={getStatusColor(task.status)}
                           text={task.status.toUpperCase()}
@@ -241,13 +242,13 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
                       </div>
                     }
                     description={
-                      <div style={{ fontSize: 12 }}>
+                      <div className="quick-task-task-meta">
                         <div>进度: {task.progress}%</div>
                         {task.progress > 0 && (
                           <Progress 
                             percent={task.progress} 
                             size="small" 
-                            style={{ marginTop: 4 }}
+                            className="quick-task-progress"
                             showInfo={false}
                           />
                         )}
@@ -258,7 +259,7 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
               )}
             />
           ) : (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: '#999' }}>
+            <div className="quick-task-empty">
               暂无最近任务
             </div>
           )}
@@ -268,8 +269,8 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
       {/* 快速执行模态框 */}
       <Modal
         title={
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <RocketOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+          <div className="quick-task-modal-header">
+            <RocketOutlined className="quick-task-modal-icon" />
             快速创建并执行任务
           </div>
         }
@@ -285,7 +286,7 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
           message="快速执行"
           description="创建任务后将立即开始执行下载"
           type="info"
-          style={{ marginBottom: 16 }}
+          className="quick-task-alert"
           showIcon
         />
 
@@ -356,7 +357,7 @@ const QuickTaskExecutor: React.FC<QuickTaskExecutorProps> = ({ onTaskCreated }) 
             <Input placeholder="如: /downloads/my_task" />
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 0 }}>
+          <Form.Item className="quick-task-form-actions">
             <Space>
               <Button 
                 type="primary" 

@@ -1,6 +1,6 @@
 .groups-page {
   padding: 24px;
-  background: #f5f7fa;
+  background: var(--app-background);
   min-height: 100%;
 }
 
@@ -16,6 +16,10 @@
 .groups-header-actions {
   display: inline-flex;
   gap: 12px;
+}
+
+.groups-title {
+  margin: 0 !important;
 }
 
 .groups-toolbar {
@@ -40,13 +44,13 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #666;
+  color: var(--app-muted);
 }
 
 .groups-table-wrapper {
   width: 100%;
   overflow-x: auto;
-  background: #fff;
+  background: var(--app-surface);
   border-radius: 12px;
   padding: 16px;
 }
@@ -58,6 +62,39 @@
 .batch-progress-card {
   margin-bottom: 16px;
   border-radius: 12px;
+}
+
+.groups-table-title {
+  font-weight: bold;
+}
+
+.groups-table-subtitle {
+  font-size: 12px;
+  color: var(--app-muted);
+}
+
+.groups-table-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.groups-progress-heading {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.groups-progress-bar {
+  margin-bottom: 8px;
+}
+
+.groups-progress-meta {
+  font-size: 12px;
+  color: var(--app-muted);
+}
+
+.groups-stats-grid {
+  margin-bottom: 24px;
 }
 
 @media (max-width: 768px) {

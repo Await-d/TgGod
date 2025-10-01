@@ -365,7 +365,7 @@ const SystemStatus: React.FC = () => {
           size="small"
           status={score > 0.8 ? 'success' : score > 0.5 ? 'active' : 'exception'}
           showInfo={false}
-          style={{ width: 80 }}
+          className="system-status-score"
         />
       ),
     },
@@ -557,7 +557,7 @@ const SystemStatus: React.FC = () => {
           description="系统正在维护中，某些功能可能暂时不可用"
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
+          className="system-status-alert"
         />
       )}
 
@@ -568,7 +568,7 @@ const SystemStatus: React.FC = () => {
           description={`检测到 ${systemInfo.error_summary.total_errors} 个错误，其中 ${systemInfo.error_summary.critical_errors} 个为关键错误`}
           type="warning"
           showIcon
-          style={{ marginBottom: 16 }}
+          className="system-status-alert"
         />
       )}
 
@@ -579,15 +579,15 @@ const SystemStatus: React.FC = () => {
         extra={
           <Badge
             count={healthStats.total}
-            style={{ backgroundColor: '#52c41a' }}
+            className="system-status-badge"
             title="总服务数"
           />
         }
       >
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
+          <div className="system-status-loading">
             <Spin size="large" />
-            <p style={{ marginTop: 16 }}>加载系统状态中...</p>
+            <p className="system-status-loading-text">加载系统状态中...</p>
           </div>
         ) : (
           <div className="service-table-wrapper">

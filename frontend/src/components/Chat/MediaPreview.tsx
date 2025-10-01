@@ -234,13 +234,16 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
   if (type === 'image') {
     return (
       <div className={`media-preview image-preview ${className || ''} ${imageError ? 'error' : ''} ${loading ? 'loading' : ''}`}>
-        <div className="media-thumbnail" onClick={() => shouldShowMedia && setPreviewVisible(true)} style={{ position: 'relative' }}>
+        <div
+          className={`media-thumbnail ${shouldShowMedia ? 'is-clickable' : ''}`}
+          onClick={() => shouldShowMedia && setPreviewVisible(true)}
+        >
           {shouldShowMedia ? (
             <>
               <Image
                 src={mediaUrl}
                 alt={filename}
-                style={{ maxWidth: 200, maxHeight: 150, objectFit: 'cover', borderRadius: 8 }}
+                className="media-content"
                 preview={false}
                 onLoadStart={() => setLoading(true)}
                 onLoad={() => {
@@ -276,64 +279,30 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
 
               {/* 加载状态指示器 */}
               {loading && (
-                <div className="media-loading-indicator" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: 'rgba(0,0,0,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 8
-                }}>
-                  <div style={{ color: 'white' }}>加载中...</div>
+                <div className="media-loading-indicator">
+                  <span className="media-loading-text">加载中...</span>
                 </div>
               )}
 
               {/* 错误状态指示器 */}
               {imageError && (
-                <div className="media-error-indicator" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: 'rgba(255,0,0,0.1)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 8,
-                  border: '1px dashed #ff4d4f'
-                }}>
-                  <FileImageOutlined style={{ fontSize: 24, color: '#ff4d4f', marginBottom: 4 }} />
-                  <div style={{ color: '#ff4d4f', fontSize: 12 }}>加载失败</div>
+                <div className="media-error-indicator">
+                  <FileImageOutlined className="media-error-icon" />
+                  <div className="media-error-text">加载失败</div>
                 </div>
               )}
 
               {!loading && !imageError && (
                 <div className="media-overlay">
-                  <EyeOutlined style={{ fontSize: 24, color: 'white' }} />
+                  <EyeOutlined className="media-overlay-icon" />
                 </div>
               )}
             </>
           ) : (
             <>
               {/* 占位符 */}
-              <div
-                style={{
-                  width: 200,
-                  height: 150,
-                  borderRadius: 8,
-                  background: '#f5f5f5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <FileImageOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+              <div className="media-placeholder">
+                <FileImageOutlined className="media-placeholder-icon" />
               </div>
             </>
           )}
@@ -380,19 +349,19 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
               )}
               {/* 对于已下载的文件，提供重新下载选项 */}
               {shouldShowMedia && downloadStatus.status === 'downloaded' && (
-                <Button
-                  type="text"
-                  icon={<DownloadOutlined />}
-                  size="small"
-                  onClick={() => startDownload(true)}
-                  loading={isDownloading}
-                  style={{ color: '#8c8c8c' }}
-                >
-                  重新下载
-                </Button>
-              )}
-            </Space>
-          </div>
+              <Button
+                type="text"
+                icon={<DownloadOutlined />}
+                size="small"
+                onClick={() => startDownload(true)}
+                loading={isDownloading}
+                className="media-retry-button"
+              >
+                重新下载
+              </Button>
+            )}
+          </Space>
+        </div>
         )}
 
         {shouldShowMedia && (
@@ -400,22 +369,20 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
             open={previewVisible}
             footer={null}
             onCancel={() => setPreviewVisible(false)}
-            width="90%"
-            style={{ maxWidth: 1200, top: 20 }}
             centered
             className="media-preview-modal"
           >
-            <div style={{ textAlign: 'center' }}>
+            <div className="media-preview-modal-content">
               <Image
                 src={getFullMediaUrl()}
                 alt={filename}
-                style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+                className="media-preview-modal-image"
                 preview={{
                   mask: '点击放大查看',
                   maskClassName: 'image-zoom-mask'
                 }}
               />
-              <div style={{ marginTop: 16, color: '#8c8c8c', fontSize: 12 }}>
+              <div className="media-preview-modal-tip">
                 {filename && <div>{filename}</div>}
                 <div>点击图片可放大查看</div>
               </div>
@@ -429,18 +396,21 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
   if (type === 'video') {
     return (
       <div className={`media-preview video-preview ${className || ''}`}>
-        <div className="video-thumbnail" onClick={() => {
-          console.log('Open gallery for:', mediaUrl);
-          if (shouldShowMedia) {
-            setPreviewVisible(true);
-          }
-        }} style={{ position: 'relative', cursor: shouldShowMedia ? 'pointer' : 'default' }}>
+        <div
+          className={`video-thumbnail ${shouldShowMedia ? 'is-clickable' : ''}`}
+          onClick={() => {
+            console.log('Open gallery for:', mediaUrl);
+            if (shouldShowMedia) {
+              setPreviewVisible(true);
+            }
+          }}
+        >
           {shouldShowMedia ? (
             <>
               <video
                 ref={videoRef}
                 src={mediaUrl}
-                style={{ maxWidth: 200, maxHeight: 150, objectFit: 'cover', borderRadius: 8 }}
+                className="media-content"
                 muted
                 preload="metadata"
                 playsInline
@@ -513,64 +483,30 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
 
               {/* 加载状态指示器 */}
               {loading && (
-                <div className="media-loading-indicator" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: 'rgba(0,0,0,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 8
-                }}>
-                  <div style={{ color: 'white' }}>加载中...</div>
+                <div className="media-loading-indicator">
+                  <span className="media-loading-text">加载中...</span>
                 </div>
               )}
 
               {/* 错误状态指示器 */}
               {imageError && (
-                <div className="media-error-indicator" style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: 'rgba(255,0,0,0.1)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 8,
-                  border: '1px dashed #ff4d4f'
-                }}>
-                  <VideoCameraOutlined style={{ fontSize: 24, color: '#ff4d4f', marginBottom: 4 }} />
-                  <div style={{ color: '#ff4d4f', fontSize: 12 }}>加载失败</div>
+                <div className="media-error-indicator">
+                  <VideoCameraOutlined className="media-error-icon" />
+                  <div className="media-error-text">加载失败</div>
                 </div>
               )}
 
               {!loading && !imageError && (
                 <div className="media-overlay">
-                  <PlayCircleOutlined style={{ fontSize: 32, color: 'white' }} />
+                  <PlayCircleOutlined className="media-overlay-icon" />
                 </div>
               )}
             </>
           ) : (
             <>
               {/* 占位符 */}
-              <div
-                style={{
-                  width: 200,
-                  height: 150,
-                  borderRadius: 8,
-                  background: '#f5f5f5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <VideoCameraOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+              <div className="media-placeholder">
+                <VideoCameraOutlined className="media-placeholder-icon" />
               </div>
             </>
           )}
@@ -626,7 +562,7 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                   size="small"
                   onClick={() => startDownload(true)}
                   loading={isDownloading}
-                  style={{ color: '#8c8c8c' }}
+                  className="media-retry-button"
                 >
                   重新下载
                 </Button>
@@ -640,16 +576,14 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
             open={previewVisible}
             footer={null}
             onCancel={() => setPreviewVisible(false)}
-            width="90%"
-            style={{ maxWidth: 1200, top: 20 }}
             centered
-            className="video-preview-modal"
+            className="media-preview-modal"
           >
-            <div style={{ textAlign: 'center' }}>
+            <div className="media-preview-modal-content">
               <video
                 src={getFullMediaUrl()}
                 controls
-                style={{ width: '100%', maxHeight: '80vh', borderRadius: '8px' }}
+                className="media-preview-modal-video"
                 controlsList="nodownload"
                 playsInline
                 preload="metadata"
@@ -712,13 +646,13 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
               >
                 您的浏览器不支持视频播放。请尝试使用最新版本的 Chrome、Firefox 或 Safari 浏览器。
               </video>
-              <div style={{ marginTop: 16, color: '#8c8c8c', fontSize: 12 }}>
-                {filename && <div style={{ marginBottom: 4 }}>{filename}</div>}
+              <div className="media-preview-modal-tip">
+                {filename && <div className="media-preview-modal-filename">{filename}</div>}
                 <div className="media-details">
                   {formattedSize && <span>文件大小: {formattedSize}</span>}
                   {videoDuration && <span>时长: {formatDuration(videoDuration)}</span>}
                 </div>
-                <div style={{ marginTop: 8, fontSize: 11 }}>
+                <div className="media-preview-modal-meta">
                   如果视频无法播放，请检查文件格式是否为 MP4、WebM 或 OGG
                 </div>
               </div>

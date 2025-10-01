@@ -27,6 +27,7 @@ import {
   BugOutlined
 } from '@ant-design/icons';
 import api from '../services/apiService';
+import './DatabaseStatus.css';
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
@@ -230,14 +231,36 @@ const DatabaseStatus: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>
-        <DatabaseOutlined style={{ marginRight: 8 }} />
-        数据库状态监控
-      </Title>
+    <div className="database-status-page">
+      <div className="database-status-header">
+        <Title level={2} className="database-status-title">
+          <DatabaseOutlined /> 数据库状态监控
+        </Title>
+        <div className="database-status-actions">
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            loading={loading}
+            onClick={() => Promise.all([
+              fetchDatabaseHealth(),
+              fetchDatabaseInfo(),
+              checkDatabaseStructure()
+            ])}
+          >
+            刷新状态
+          </Button>
+          <Button
+            icon={<DatabaseOutlined />}
+            onClick={runStartupCheck}
+            loading={loading}
+          >
+            启动检查
+          </Button>
+        </div>
+      </div>
 
       {/* 概览卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} className="database-status-stats">
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
@@ -284,11 +307,24 @@ const DatabaseStatus: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 操作按钮 */}
-      <Card style={{ marginBottom: 24 }}>
+      <Card className="database-operations">
         <Space>
           <Button
-            type="primary"
+            icon={<BugOutlined />}
+            loading={checkLoading}
+            onClick={checkDatabaseStructure}
+          >
+            结构检查
+          </Button>
+          <Button
+            icon={<ToolOutlined />}
+            danger={checkResult?.status === 'needs_repair'}
+            disabled={!checkResult || checkResult.status === 'healthy'}
+            onClick={() => setRepairModalVisible(true)}
+          >
+            打开修复选项
+          </Button>
+          <Button
             icon={<ReloadOutlined />}
             loading={loading}
             onClick={() => Promise.all([
@@ -297,46 +333,27 @@ const DatabaseStatus: React.FC = () => {
               checkDatabaseStructure()
             ])}
           >
-            刷新状态
+            刷新数据
           </Button>
-          
-          <Button
-            icon={<BugOutlined />}
-            loading={checkLoading}
-            onClick={checkDatabaseStructure}
-          >
-            结构检查
-          </Button>
-          
-          <Button
-            icon={<ToolOutlined />}
-            type="default"
-            danger={checkResult?.status === 'needs_repair'}
-            disabled={!checkResult || checkResult.status === 'healthy'}
-            onClick={() => setRepairModalVisible(true)}
-          >
-            修复问题
-          </Button>
-          
           <Button
             icon={<DatabaseOutlined />}
             onClick={runStartupCheck}
             loading={loading}
           >
-            启动检查
+            运行启动检查
           </Button>
         </Space>
       </Card>
 
       {/* 检查结果 */}
       {checkResult && (
-        <Card title="结构检查结果" style={{ marginBottom: 24 }}>
+        <Card title="结构检查结果" className="database-check-card">
           <Alert
             message={`检查完成：发现 ${checkResult.issues_found} 个问题`}
             type={checkResult.status === 'healthy' ? 'success' : 
                   checkResult.status === 'needs_repair' ? 'warning' : 'error'}
             showIcon
-            style={{ marginBottom: 16 }}
+            className="database-check-alert"
           />
           
           {checkResult.missing_tables.length > 0 && (
@@ -345,12 +362,12 @@ const DatabaseStatus: React.FC = () => {
               description={
                 <div>
                   {checkResult.missing_tables.map(table => (
-                    <Tag key={table} color="red">{table}</Tag>
+                    <Tag key={table} color="red" className="database-check-tag">{table}</Tag>
                   ))}
                 </div>
               }
               type="error"
-              style={{ marginBottom: 16 }}
+              className="database-check-alert"
             />
           )}
           
@@ -362,14 +379,14 @@ const DatabaseStatus: React.FC = () => {
                   {Object.entries(checkResult.missing_columns).map(([table, columns]) => (
                     <Panel header={`表: ${table}`} key={table}>
                       {columns.map(column => (
-                        <Tag key={column} color="orange">{column}</Tag>
+                        <Tag key={column} color="orange" className="database-check-tag">{column}</Tag>
                       ))}
                     </Panel>
                   ))}
                 </Collapse>
               }
               type="warning"
-              style={{ marginBottom: 16 }}
+              className="database-check-alert"
             />
           )}
           
@@ -384,6 +401,7 @@ const DatabaseStatus: React.FC = () => {
                 </ul>
               }
               type="error"
+              className="database-check-alert"
             />
           )}
         </Card>
@@ -392,7 +410,7 @@ const DatabaseStatus: React.FC = () => {
       {/* 数据库表信息 */}
       {dbInfo && (
         <Card title="数据库表信息">
-          <Descriptions style={{ marginBottom: 16 }}>
+          <Descriptions className="database-check-descriptions">
             <Descriptions.Item label="数据库URL">
               {dbInfo.database_url}
             </Descriptions.Item>
@@ -401,38 +419,40 @@ const DatabaseStatus: React.FC = () => {
             </Descriptions.Item>
           </Descriptions>
           
-          <Table
-            columns={getTableColumns()}
-            dataSource={getTableData()}
-            size="small"
-            pagination={false}
-            expandable={{
-              expandedRowRender: (record) => (
-                <div>
-                  <Descriptions size="small" column={1}>
-                    <Descriptions.Item label="字段列表">
-                      <div>
-                        {record.columns.map((column: string) => (
-                          <Tag key={column} color="blue" style={{ margin: 2 }}>
-                            {column}
-                          </Tag>
-                        ))}
-                      </div>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="索引列表">
-                      <div>
-                        {record.indexes.map((index: string) => (
-                          <Tag key={index} color="green" style={{ margin: 2 }}>
-                            {index}
-                          </Tag>
-                        ))}
-                      </div>
-                    </Descriptions.Item>
-                  </Descriptions>
-                </div>
-              )
-            }}
-          />
+          <div className="database-table-wrapper">
+            <Table
+              columns={getTableColumns()}
+              dataSource={getTableData()}
+              size="small"
+              pagination={false}
+              expandable={{
+                expandedRowRender: (record) => (
+                  <div>
+                    <Descriptions size="small" column={1}>
+                      <Descriptions.Item label="字段列表">
+                        <div>
+                          {record.columns.map((column: string) => (
+                            <Tag key={column} color="blue" className="database-check-tag">
+                              {column}
+                            </Tag>
+                          ))}
+                        </div>
+                      </Descriptions.Item>
+                      <Descriptions.Item label="索引列表">
+                        <div>
+                          {record.indexes.map((index: string) => (
+                            <Tag key={index} color="green" className="database-check-tag">
+                              {index}
+                            </Tag>
+                          ))}
+                        </div>
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </div>
+                )
+              }}
+            />
+          </div>
         </Card>
       )}
 

@@ -283,8 +283,8 @@ const Groups: React.FC = () => {
       key: 'title',
       render: (text: string, record: TelegramGroup) => (
         <div>
-          <div style={{ fontWeight: 'bold' }}>{text}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>
+          <div className="groups-table-title">{text}</div>
+          <div className="groups-table-subtitle">
             @{record.username}
           </div>
         </div>
@@ -295,7 +295,7 @@ const Groups: React.FC = () => {
       dataIndex: 'member_count',
       key: 'member_count',
       render: (count: number) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div className="groups-table-count">
           <TeamOutlined />
           <span>{count.toLocaleString()}</span>
         </div>
@@ -362,7 +362,7 @@ const Groups: React.FC = () => {
   return (
     <div className="groups-page">
       <div className="groups-header">
-        <Title level={2} style={{ margin: 0 }}>群组管理</Title>
+        <Title level={2} className="groups-title">群组管理</Title>
         <div className="groups-header-actions">
           <Button icon={<SyncOutlined />} onClick={loadGroups}>
             刷新
@@ -412,16 +412,14 @@ const Groups: React.FC = () => {
       {/* 批量同步进度显示 */}
       {showBatchProgress && (
         <Card className="batch-progress-card">
-          <div style={{ marginBottom: 8 }}>
-            <strong>批量同步进度</strong>
-          </div>
+          <div className="groups-progress-heading">批量同步进度</div>
           <Progress
             percent={syncProgress.total ? Math.round((syncProgress.current / syncProgress.total) * 100) : 0}
             status={batchSyncing ? 'active' : 'success'}
             format={() => `${syncProgress.current}/${syncProgress.total}`}
-            style={{ marginBottom: 8 }}
+            className="groups-progress-bar"
           />
-          <div style={{ fontSize: '12px', color: '#666' }}>
+          <div className="groups-progress-meta">
             {syncProgress.currentGroup && batchSyncing && (
               <div>正在同步: {syncProgress.currentGroup}</div>
             )}
@@ -431,7 +429,7 @@ const Groups: React.FC = () => {
       )}
 
       {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} className="groups-stats-grid">
         <Col xs={24} sm={8}>
           <Card>
             <Statistic

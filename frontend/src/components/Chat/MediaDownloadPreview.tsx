@@ -120,23 +120,23 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   const getMediaIcon = (mediaType: string) => {
     switch (mediaType) {
       case 'photo':
-        return <FileImageOutlined style={{ color: '#52c41a', fontSize: '48px' }} />;
+        return <FileImageOutlined className="media-icon-large media-icon-photo" />;
       case 'video':
-        return <VideoCameraOutlined style={{ color: '#1890ff', fontSize: '48px' }} />;
+        return <VideoCameraOutlined className="media-icon-large media-icon-video" />;
       case 'document':
-        return <FileTextOutlined style={{ color: '#faad14', fontSize: '48px' }} />;
+        return <FileTextOutlined className="media-icon-large media-icon-document" />;
       case 'audio':
       case 'voice':
-        return <AudioOutlined style={{ color: '#722ed1', fontSize: '48px' }} />;
+        return <AudioOutlined className="media-icon-large media-icon-audio" />;
       default:
-        return <FileTextOutlined style={{ color: '#8c8c8c', fontSize: '48px' }} />;
+        return <FileTextOutlined className="media-icon-large media-icon-default" />;
     }
   };
 
   // 格式化文件大小
   const formatFileSize = (bytes?: number) => {
     if (bytes === undefined || bytes === null) {
-      return '0 KB'; // 替换"未知大小"为"0 KB"
+      return '0 KB';
     }
 
     const units = ['B', 'KB', 'MB', 'GB'];
@@ -154,6 +154,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   // 格式化下载速度
   const formatDownloadSpeed = (bytesPerSecond?: number) => {
     if (!bytesPerSecond) return '计算中...';
+
     const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
     let speed = bytesPerSecond;
     let unitIndex = 0;
@@ -172,30 +173,27 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
     if (seconds < 60) {
       return `${Math.ceil(seconds)}秒`;
-    } else if (seconds < 3600) {
+    }
+
+    if (seconds < 3600) {
       const minutes = Math.floor(seconds / 60);
       const remainingSeconds = Math.ceil(seconds % 60);
-      return `${minutes}分${remainingSeconds > 0 ? remainingSeconds + '秒' : ''}`;
-    } else {
-      const hours = Math.floor(seconds / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
-      return `${hours}小时${minutes > 0 ? minutes + '分' : ''}`;
+      return `${minutes}分${remainingSeconds > 0 ? `${remainingSeconds}秒` : ''}`;
     }
-  };
 
-  // Note: calculateDownloadStats function removed as it's no longer used
-  // The backend now provides download speed and estimated time directly
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours}小时${minutes > 0 ? `${minutes}分` : ''}`;
+  };
 
   // 取消下载
   const handleCancelDownload = async () => {
     try {
-      // 清理前端定时器
       if (pollInterval) {
         clearInterval(pollInterval);
         setPollInterval(null);
       }
 
-      // 调用后端API取消下载
       const response = await mediaApi.cancelDownload(message.message_id);
 
       if (response.status === 'cancelled') {
@@ -208,78 +206,66 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       console.error('取消下载时发生错误:', error);
       notification.info('下载已取消');
     } finally {
-      // 重置前端状态
       setDownloadState({
         status: 'not_downloaded',
-        progress: 0
+        progress: 0,
       });
     }
   };
-
-  // 已移除模拟进度功能，现在使用后端真实进度数据
 
   // 下载媒体文件
   const handleDownload = async () => {
     if (downloadState.status === 'downloading') return;
 
     console.log('Starting download for message:', message.message_id);
-    const initialDownloadState = {
-      status: 'downloading' as const,
+    setDownloadState({
+      status: 'downloading',
       progress: 0,
-      lastProgressUpdate: Date.now()
-    };
-
-    console.log('Setting initial download state:', initialDownloadState);
-    setDownloadState(initialDownloadState);
+      lastProgressUpdate: Date.now(),
+    });
 
     try {
-      // 启动下载任务
       const response = await mediaApi.downloadMedia(message.group_id, message.message_id);
 
       if (response.status === 'already_downloaded') {
         setDownloadState({
           status: 'downloaded',
-          downloadUrl: response.download_url
+          downloadUrl: response.download_url,
+          progress: 100,
         });
         notification.success('文件已存在，无需重新下载');
         return;
       }
 
-      // 开始轮询下载状态
       const newPollInterval = setInterval(async () => {
         try {
           const statusResponse = await mediaApi.getDownloadStatus(message.message_id);
 
           if (statusResponse.status === 'downloaded') {
-            const newDownloadState = {
-              status: 'downloaded' as const,
+            const newDownloadState: DownloadState = {
+              status: 'downloaded',
               downloadUrl: statusResponse.download_url,
               progress: 100,
               downloadedSize: statusResponse.downloaded_size || statusResponse.file_size,
-              totalSize: statusResponse.total_size || statusResponse.file_size
+              totalSize: statusResponse.total_size || statusResponse.file_size,
             };
 
             setDownloadState(newDownloadState);
-
-            // 重置缩略图错误状态，允许重新尝试显示
             setThumbnailError(false);
-
-            // 强制组件重新渲染以确保UI更新
             setForceRefresh(prev => prev + 1);
 
-            // 通知父组件更新消息状态
             if (onUpdateDownloadState) {
               onUpdateDownloadState(message.message_id, {
                 ...newDownloadState,
                 media_downloaded: true,
-                media_path: statusResponse.download_url
+                media_path: statusResponse.download_url,
               });
             }
 
             console.log('Download completed successfully', {
               messageId: message.message_id,
               downloadUrl: statusResponse.download_url,
-              newState: newDownloadState
+              newState: newDownloadState,
             });
 
             notification.success('下载完成，可以预览了！');
@@ -288,51 +274,44 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
           } else if (statusResponse.status === 'download_failed') {
             setDownloadState({
               status: 'error',
-              error: statusResponse.error || '下载失败'
+              error: statusResponse.error || '下载失败',
             });
-            notification.error('下载失败: ' + (statusResponse.error || '未知错误'));
+            notification.error(`下载失败: ${statusResponse.error || '未知错误'}`);
             clearInterval(newPollInterval);
             setPollInterval(null);
           } else if (statusResponse.status === 'downloading') {
-            // 使用后端返回的真实进度数据
-            const newState = {
-              status: 'downloading' as const,
+            const newState: DownloadState = {
+              status: 'downloading',
               progress: statusResponse.progress || 0,
               downloadedSize: statusResponse.downloaded_size || 0,
               totalSize: statusResponse.total_size || message.media_size || 0,
               downloadSpeed: statusResponse.download_speed || 0,
               estimatedTimeRemaining: statusResponse.estimated_time_remaining || 0,
-              lastProgressUpdate: Date.now()
+              lastProgressUpdate: Date.now(),
             };
 
             console.log('Updating download progress:', newState);
-            setDownloadState(prevState => {
-              const updatedState = { ...prevState, ...newState };
-              console.log('Download state will be updated from', prevState, 'to', updatedState);
-              return updatedState;
-            });
+            setDownloadState(prevState => ({ ...prevState, ...newState }));
           }
-          // 继续轮询其他状态
         } catch (error) {
           console.error('轮询下载状态失败:', error);
           setDownloadState({
             status: 'error',
-            error: '获取下载状态失败'
+            error: '获取下载状态失败',
           });
           clearInterval(newPollInterval);
           setPollInterval(null);
         }
-      }, 1000); // 每1秒轮询一次，更频繁的更新
+      }, 1000);
 
       setPollInterval(newPollInterval);
-
     } catch (error: any) {
       console.error('下载请求失败:', error);
       setDownloadState({
         status: 'error',
-        error: error.response?.data?.detail || '下载请求失败'
+        error: error.response?.data?.detail || '下载请求失败',
       });
-      notification.error('下载失败: ' + (error.response?.data?.detail || '网络错误'));
+      notification.error(`下载失败: ${error.response?.data?.detail || '网络错误'}`);
     }
   };
 
@@ -342,15 +321,12 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       messageId: message.message_id,
       downloadState,
       message_media_downloaded: message.media_downloaded,
-      message_media_path: message.media_path
+      message_media_path: message.media_path,
     });
 
-    // 检查是否有可用的媒体URL - 优先使用downloadState
     const hasDownloadUrl = !!downloadState.downloadUrl;
     const hasMessageMediaPath = message.media_downloaded && message.media_path;
     const hasMediaUrl = hasDownloadUrl || hasMessageMediaPath;
-
-    // 优先使用downloadState中的URL，然后使用message中的path
     const mediaUrlForPreview = downloadState.downloadUrl || message.media_path;
 
     console.log('Preview check result', {
@@ -358,7 +334,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       hasMessageMediaPath,
       hasMediaUrl,
       mediaUrlForPreview,
-      downloadStatus: downloadState.status
+      downloadStatus: downloadState.status,
     });
 
     if (hasMediaUrl && mediaUrlForPreview) {
@@ -366,82 +342,76 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       if (onPreview) {
         onPreview(mediaUrlForPreview);
       } else {
-        // 打开预览模态框
         setShowPreviewModal(true);
       }
     } else {
       console.log('No media URL available, starting download');
-      // 需要先下载
       handleDownload();
     }
   };
 
-  // 获取完整的媒体URL（修复重复media路径问题）
-  const getFullMediaUrl = (path: string) => {
+  // 获取完整的媒体URL
+  const getFullMediaUrl = (path?: string | null) => {
     if (!path) return '';
 
-    // 如果已经是完整URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
 
-    // 如果路径以 /media/ 开头，直接返回（已经是完整路径）
     if (path.startsWith('/media/')) {
       return path;
     }
 
-    // 如果路径以 media/ 开头，添加前导斜杠
     if (path.startsWith('media/')) {
-      const result = `/${path}`;
-      return result;
+      return `/${path}`;
     }
 
-    // 如果路径包含 ./media/ 前缀，清理并返回
     if (path.startsWith('./media/')) {
-      const result = path.replace('./media/', '/media/');
-      return result;
+      return path.replace('./media/', '/media/');
     }
 
-    // 对于其他路径，尝试构建完整URL
-    // 首先尝试作为媒体文件路径
     if (!path.startsWith('/')) {
-      const result = `/media/${path}`;
-      return result;
+      return `/media/${path}`;
     }
 
-    // 如果是其他相对路径，使用API基础URL
     const apiBase = process.env.REACT_APP_API_URL || '';
-    const result = `${apiBase}${path}`;
-    return result;
+    return `${apiBase}${path}`;
   };
 
   // 渲染预览内容
   const renderPreviewContent = () => {
-    if (!downloadState.downloadUrl) return null;
+    if (!downloadState.downloadUrl) {
+      return null;
+    }
 
     const fullUrl = getFullMediaUrl(downloadState.downloadUrl);
+    if (!fullUrl) {
+      return null;
+    }
+
+    let content: React.ReactNode;
 
     switch (message.media_type) {
       case 'photo':
-        return (
+        content = (
           <img
             src={fullUrl}
             alt={message.media_filename || '图片'}
-            style={{ maxWidth: '100%', maxHeight: '70vh' }}
+            className="media-preview-modal-image"
             onError={(e) => {
               console.error('Image load error in preview modal:', e, 'URL:', fullUrl);
-              // 可以设置错误处理，比如显示错误提示
             }}
             onLoad={() => {
               console.log('Image loaded successfully in preview modal');
             }}
           />
         );
+        break;
       case 'video':
-        return (
+        content = (
           <video
             controls
-            style={{ maxWidth: '100%', maxHeight: '70vh' }}
+            className="media-preview-modal-video"
             preload="metadata"
             onError={(e) => {
               console.error('Video load error in preview modal:', e, 'URL:', fullUrl);
@@ -454,19 +424,21 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             您的浏览器不支持视频播放
           </video>
         );
+        break;
       case 'audio':
       case 'voice':
-        return (
-          <audio controls style={{ width: '100%' }}>
+        content = (
+          <audio controls className="media-preview-modal-audio">
             <source src={fullUrl} />
             您的浏览器不支持音频播放
           </audio>
         );
+        break;
       default:
-        return (
-          <div style={{ textAlign: 'center', padding: '20px' }}>
-            <FileTextOutlined style={{ fontSize: '64px', color: '#8c8c8c' }} />
-            <div style={{ marginTop: '16px' }}>
+        content = (
+          <div className="media-preview-modal-placeholder">
+            <FileTextOutlined className="media-preview-placeholder-icon" />
+            <div className="media-preview-placeholder-action">
               <a href={fullUrl} download={message.media_filename} target="_blank" rel="noopener noreferrer">
                 <Button type="primary" icon={<DownloadOutlined />}>
                   下载文件
@@ -475,7 +447,14 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             </div>
           </div>
         );
+        break;
     }
+
+    return (
+      <div className="media-preview-modal-content">
+        {content}
+      </div>
+    );
   };
 
   // 渲染下载状态
@@ -492,11 +471,11 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     if (downloadState.status === 'downloading') {
       return (
         <div className="download-progress">
-          <Card size="small" style={{ width: '100%' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ marginBottom: 8 }}>
-                <LoadingOutlined style={{ fontSize: 16, color: '#1890ff' }} spin />
-                <span style={{ marginLeft: 8, fontWeight: 500 }}>下载中...</span>
+          <Card size="small" className="download-progress-card">
+            <div className="download-progress-content">
+              <div className="download-progress-header">
+                <LoadingOutlined className="download-progress-icon" spin />
+                <span className="download-progress-text">下载中...</span>
               </div>
 
               {/* 进度条 */}
@@ -508,7 +487,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                   '100%': '#87d068',
                 }}
                 trailColor="#f5f5f5"
-                style={{ marginBottom: 8 }}
+                className="download-progress-bar"
               />
 
               {/* 下载信息 */}
@@ -537,14 +516,14 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               )}
 
               {/* 取消下载按钮 */}
-              <div style={{ marginTop: 8, textAlign: 'center' }}>
+              <div className="download-cancel-actions">
                 <Button
                   size="small"
                   type="text"
                   danger
                   icon={<CloseOutlined />}
                   onClick={handleCancelDownload}
-                  style={{ fontSize: '11px' }}
+                  className="download-cancel-button"
                 >
                   取消下载
                 </Button>
@@ -572,10 +551,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
             icon={<EyeOutlined />}
             onClick={handlePreview}
             size="small"
-            style={{
-              background: 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)',
-              border: 'none'
-            }}
+            className="download-preview-button"
           >
             预览
           </Button>
@@ -586,10 +562,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               download={message.media_filename || `media_${message.message_id}`}
               target="_blank"
               size="small"
-              style={{
-                borderColor: '#52c41a',
-                color: '#52c41a'
-              }}
+              className="download-save-button"
             >
               保存
             </Button>
@@ -605,17 +578,18 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       case 'error':
         return (
           <div className="download-error">
-            <Card size="small" style={{ backgroundColor: '#fff2f0', borderColor: '#ffccc7' }}>
-              <div style={{ color: '#ff4d4f', marginBottom: 8, fontSize: '12px', textAlign: 'center' }}>
+            <Card size="small" className="download-error-card">
+              <div className="download-error-message">
                 ❌ {downloadState.error}
               </div>
-              <div style={{ textAlign: 'center' }}>
+              <div className="download-error-actions">
                 <Button
                   size="small"
                   type="primary"
                   danger
                   onClick={handleDownload}
                   icon={<DownloadOutlined />}
+                  className="download-error-retry"
                 >
                   重试下载
                 </Button>
@@ -632,11 +606,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               icon={<DownloadOutlined />}
               onClick={handleDownload}
               size="small"
-              style={{
-                background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
-                border: 'none',
-                boxShadow: '0 2px 4px rgba(24, 144, 255, 0.2)'
-              }}
+              className="download-primary-button"
             >
               下载查看
             </Button>
@@ -692,16 +662,10 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
         switch (message.media_type) {
           case 'photo':
             return (
-              <div className="media-thumbnail downloaded-media" onClick={handlePreview} style={{ cursor: 'pointer' }}>
+              <div className="media-thumbnail downloaded-media" onClick={handlePreview}>
                 <img
                   src={fullFileUrl}
                   alt={message.media_filename || '图片'}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    borderRadius: '8px'
-                  }}
                   onError={(e) => {
                     console.error('Downloaded image load error:', e, 'URL:', fullFileUrl);
                     // 回退到图标显示
@@ -713,22 +677,16 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                   }}
                 />
                 <div className="thumbnail-overlay">
-                  <EyeOutlined style={{ color: 'white', fontSize: '16px' }} />
+                  <EyeOutlined className="thumbnail-overlay-icon" />
                   <div className="downloaded-indicator">已下载</div>
                 </div>
               </div>
             );
           case 'video':
             return (
-              <div className="media-thumbnail downloaded-media" onClick={handlePreview} style={{ cursor: 'pointer' }}>
+              <div className="media-thumbnail downloaded-media" onClick={handlePreview}>
                 <video
                   src={fullFileUrl}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    borderRadius: '6px'
-                  }}
                   muted
                   preload="metadata"
                   onError={(e) => {
@@ -741,7 +699,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                   }}
                 />
                 <div className="thumbnail-overlay">
-                  <PlayCircleOutlined style={{ color: 'white', fontSize: '20px' }} />
+                  <PlayCircleOutlined className="thumbnail-overlay-icon thumbnail-overlay-icon-large" />
                   <div className="downloaded-indicator">已下载</div>
                 </div>
               </div>
@@ -755,16 +713,10 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       switch (message.media_type) {
         case 'photo':
           return (
-            <div className="media-thumbnail" onClick={handlePreview} style={{ cursor: 'pointer' }}>
+            <div className="media-thumbnail" onClick={handlePreview}>
               <img
                 src={thumbnailUrl}
                 alt={message.media_filename || '图片'}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  borderRadius: '8px'
-                }}
                 onError={(e) => {
                   console.error('Thumbnail load error:', e, 'URL:', thumbnailUrl);
                   setThumbnailError(true);
@@ -775,21 +727,15 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                 }}
               />
               <div className="thumbnail-overlay">
-                <EyeOutlined style={{ color: 'white', fontSize: '16px' }} />
+                <EyeOutlined className="thumbnail-overlay-icon" />
               </div>
             </div>
           );
         case 'video':
           return (
-            <div className="media-thumbnail" onClick={handlePreview} style={{ cursor: 'pointer' }}>
+            <div className="media-thumbnail" onClick={handlePreview}>
               <video
                 src={thumbnailUrl}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  borderRadius: '6px'
-                }}
                 muted
                 preload="metadata"
                 onError={(e) => {
@@ -802,7 +748,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                 }}
               />
               <div className="thumbnail-overlay">
-                <PlayCircleOutlined style={{ color: 'white', fontSize: '20px' }} />
+                <PlayCircleOutlined className="thumbnail-overlay-icon thumbnail-overlay-icon-large" />
               </div>
             </div>
           );
@@ -811,7 +757,7 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
     // 最终回退：显示带错误提示的图标
     return (
-      <div className="media-icon error-fallback" onClick={handlePreview} style={{ cursor: 'pointer' }}>
+      <div className="media-icon error-fallback" onClick={handlePreview}>
         {getMediaIcon(message.media_type || 'document')}
         {thumbnailError && (
           <div className="error-overlay">
@@ -862,9 +808,8 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
         open={showPreviewModal}
         onCancel={() => setShowPreviewModal(false)}
         footer={null}
-        width="90%"
-        style={{ maxWidth: '800px' }}
         centered
+        className="media-download-preview-modal"
       >
         {renderPreviewContent()}
       </Modal>

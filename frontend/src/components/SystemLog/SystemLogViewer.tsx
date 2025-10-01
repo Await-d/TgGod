@@ -30,6 +30,7 @@ import {
 } from '@ant-design/icons';
 import { logApi } from '../../services/apiService';
 import { LogEntry } from '../../types';
+import './SystemLogViewer.css';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -91,12 +92,12 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
   // 获取日志级别图标
   const getLogLevelIcon = (level: string) => {
     const iconMap: Record<string, React.ReactNode> = {
-      ERROR: <ExclamationCircleOutlined style={{ color: '#f5222d' }} />,
-      WARNING: <WarningOutlined style={{ color: '#fa8c16' }} />,
-      INFO: <InfoCircleOutlined style={{ color: '#1890ff' }} />,
-      DEBUG: <BugOutlined style={{ color: '#666' }} />
+      ERROR: <ExclamationCircleOutlined className="system-log-level-error" />,
+      WARNING: <WarningOutlined className="system-log-level-warning" />,
+      INFO: <InfoCircleOutlined className="system-log-level-info" />,
+      DEBUG: <BugOutlined className="system-log-level-debug" />
     };
-    return iconMap[level] || <InfoCircleOutlined />;
+    return iconMap[level] || <InfoCircleOutlined className="system-log-level-default" />;
   };
 
   // 获取日志级别颜色
@@ -170,13 +171,13 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
     <div>
       <Card
         title={
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <FileTextOutlined style={{ marginRight: 8 }} />
+          <div className="system-log-header">
+            <FileTextOutlined className="system-log-header-icon" />
             系统运行日志
             {logs.length > 0 && (
               <Badge 
                 count={logs.length} 
-                style={{ marginLeft: 8 }}
+                className="system-log-header-badge"
                 overflowCount={999}
               />
             )}
@@ -208,12 +209,12 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
       >
         {/* 筛选器 */}
         {showFilters && (
-          <div style={{ marginBottom: 16 }}>
+          <div className="system-log-filter-bar">
             <Row gutter={8}>
               <Col xs={24} sm={6}>
                 <Select
                   placeholder="日志类型"
-                  style={{ width: '100%' }}
+                  className="system-log-filter-select"
                   value={currentLogType}
                   onChange={setCurrentLogType}
                 >
@@ -225,7 +226,7 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
               <Col xs={24} sm={6}>
                 <Select
                   placeholder="日志级别"
-                  style={{ width: '100%' }}
+                  className="system-log-filter-select"
                   onChange={(level) => handleFilter({ ...filters, level })}
                   allowClear
                 >
@@ -247,18 +248,14 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
         )}
 
         {/* 日志列表 */}
-        <div style={{ height, overflowY: 'auto' }}>
+        <div className="system-log-list" style={{ height }}>
           <Spin spinning={loading}>
             {logs.length > 0 ? (
               <List
                 size="small"
                 dataSource={logs}
                 renderItem={(log) => (
-                  <List.Item
-                    style={{
-                      padding: '8px 0',
-                      borderBottom: '1px solid #f0f0f0'
-                    }}
+                  <List.Item className="system-log-item"
                     actions={[
                       <Tooltip title="查看详情">
                         <Button
@@ -273,7 +270,7 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
                     <List.Item.Meta
                       avatar={getLogLevelIcon(log.level)}
                       title={
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div className="system-log-item-header">
                           <Space>
                             {getLogTypeTag(log)}
                             <Tag color={getLogLevelColor(log.level)}>
@@ -289,7 +286,7 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
                                 {(log as any).module}
                               </Tag>
                             )}
-                            <Text style={{ fontSize: 12, color: '#666' }}>
+                            <Text className="system-log-item-time">
                               {new Date(log.created_at || log.timestamp).toLocaleString()}
                             </Text>
                           </Space>
@@ -298,12 +295,12 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
                       description={
                         <div>
                           <div>
-                            <Text ellipsis style={{ fontSize: 13 }}>
+                            <Text ellipsis className="system-log-item-message">
                               {log.message}
                             </Text>
                             {((log.details && Object.keys(log.details).length > 0) || 
                               ('function' in log && (log as any).function)) && (
-                              <Text type="secondary" style={{ fontSize: 11 }}>
+                              <Text type="secondary" className="system-log-item-extra">
                                 {' '}[有详细信息]
                               </Text>
                             )}
@@ -338,7 +335,7 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
       >
         {selectedLog && (
           <div>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space direction="vertical" size="middle" className="system-log-detail-content">
               <Row gutter={16}>
                 <Col span={8}>
                   <Text strong>日志类型:</Text>
@@ -404,29 +401,21 @@ const SystemLogViewer: React.FC<SystemLogViewerProps> = ({
               <Divider />
               
               <Row gutter={16}>
-                <Col span={8} style={{ alignSelf: 'flex-start' }}>
+                <Col span={8} className="system-log-detail-label">
                   <Text strong>消息:</Text>
                 </Col>
                 <Col span={16}>
-                  <Text style={{ whiteSpace: 'pre-wrap' }}>{selectedLog.message}</Text>
+                  <Text className="system-log-detail-message">{selectedLog.message}</Text>
                 </Col>
               </Row>
               
               {selectedLog.details && Object.keys(selectedLog.details).length > 0 && (
                 <Row gutter={16}>
-                  <Col span={8} style={{ alignSelf: 'flex-start' }}>
+                  <Col span={8} className="system-log-detail-label">
                     <Text strong>详细信息:</Text>
                   </Col>
                   <Col span={16}>
-                    <pre style={{
-                      background: '#f5f5f5',
-                      padding: 12,
-                      borderRadius: 4,
-                      fontSize: 12,
-                      lineHeight: 1.4,
-                      maxHeight: 300,
-                      overflow: 'auto'
-                    }}>
+                    <pre className="system-log-detail-json">
                       {JSON.stringify(selectedLog.details, null, 2)}
                     </pre>
                   </Col>

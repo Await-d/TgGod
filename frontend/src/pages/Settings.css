@@ -1,0 +1,44 @@
+.settings-page {
+  padding: 24px;
+}
+
+.settings-header {
+  margin-bottom: 24px;
+}
+
+.settings-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px !important;
+}
+
+.settings-title-icon {
+  margin-right: 0 !important;
+}
+
+.settings-alert {
+  margin-bottom: 24px;
+}
+
+.settings-tab-status {
+  margin-left: 4px;
+}
+
+.settings-tab-status-success {
+  color: var(--app-success);
+}
+
+.settings-tab-status-warning {
+  color: var(--app-danger);
+}
+
+@media (max-width: 768px) {
+  .settings-page {
+    padding: 16px;
+  }
+
+  .settings-header {
+    margin-bottom: 16px;
+  }
+}

@@ -1,0 +1,89 @@
+.system-log-list {
+  overflow-y: auto;
+}
+
+.system-log-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.system-log-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.system-log-item-time {
+  font-size: 12px;
+  color: #666;
+}
+
+.system-log-item-message {
+  font-size: 13px;
+}
+
+.system-log-item-extra {
+  font-size: 11px;
+}
+
+.system-log-filter-select {
+  width: 100%;
+}
+
+.system-log-detail-label {
+  align-self: flex-start;
+}
+
+.system-log-detail-message {
+  white-space: pre-wrap;
+}
+
+.system-log-detail-json {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.system-log-detail-content {
+  width: 100%;
+}
+
+.system-log-level-error {
+  color: #f5222d;
+}
+
+.system-log-level-warning {
+  color: #fa8c16;
+}
+
+.system-log-level-info {
+  color: #1890ff;
+}
+
+.system-log-level-debug {
+  color: #666;
+}
+
+.system-log-level-default {
+  color: #666;
+}
+.system-log-filter-bar {
+  margin-bottom: 16px;
+}
+.system-log-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.system-log-header-icon {
+  margin-right: 0;
+}
+
+.system-log-header-badge {
+  margin-left: 8px;
+}

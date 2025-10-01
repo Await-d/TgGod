@@ -1,0 +1,90 @@
+.task-log-filter-bar {
+  margin-bottom: 16px;
+}
+
+.task-log-filter-select {
+  width: 100%;
+}
+
+.task-log-list {
+  overflow-y: auto;
+}
+
+.task-log-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.task-log-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.task-log-item-time {
+  font-size: 12px;
+  color: #666;
+}
+
+.task-log-item-message {
+  font-size: 13px;
+}
+
+.task-log-item-extra {
+  font-size: 11px;
+}
+.task-log-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-log-header-icon {
+  margin-right: 0;
+}
+
+.task-log-header-badge {
+  margin-left: 8px;
+}
+
+.task-log-detail-content {
+  width: 100%;
+}
+
+.task-log-detail-label {
+  align-self: flex-start;
+}
+
+.task-log-detail-message {
+  white-space: pre-wrap;
+}
+
+.task-log-detail-json {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.task-log-level-error {
+  color: #f5222d;
+}
+
+.task-log-level-warning {
+  color: #fa8c16;
+}
+
+.task-log-level-info {
+  color: #1890ff;
+}
+
+.task-log-level-debug {
+  color: #666;
+}
+
+.task-log-level-default {
+  color: #666;
+}

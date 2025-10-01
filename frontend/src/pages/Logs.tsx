@@ -41,6 +41,7 @@ import { useLogStore, useGlobalStore } from '../store';
 import { logApi } from '../services/apiService';
 import { subscribeToLogs, webSocketService } from '../services/websocket';
 import { message } from 'antd';
+import './Logs.css';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -352,19 +353,19 @@ const Logs: React.FC = () => {
 
   const getLevelIcon = (level: string) => {
     switch (level) {
-      case 'ERROR': return <CloseCircleOutlined style={{ color: '#f5222d' }} />;
-      case 'WARNING': return <WarningOutlined style={{ color: '#faad14' }} />;
-      case 'INFO': return <InfoCircleOutlined style={{ color: '#1890ff' }} />;
-      case 'DEBUG': return <BugOutlined style={{ color: '#52c41a' }} />;
-      default: return <FileTextOutlined style={{ color: '#666' }} />;
+      case 'ERROR': return <CloseCircleOutlined className="logs-level-icon logs-level-error" />;
+      case 'WARNING': return <WarningOutlined className="logs-level-icon logs-level-warning" />;
+      case 'INFO': return <InfoCircleOutlined className="logs-level-icon logs-level-info" />;
+      case 'DEBUG': return <BugOutlined className="logs-level-icon logs-level-debug" />;
+      default: return <FileTextOutlined className="logs-level-icon" />;
     }
   };
 
   const renderLogItem = (log: LogEntry) => (
     <List.Item key={log.id}>
-      <div style={{ width: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="log-item-content">
+        <div className="log-meta">
+          <div className="log-meta-primary">
             {getLevelIcon(log.level)}
             <Tag color={getLevelColor(log.level)}>{log.level}</Tag>
             {log.task_id && (
@@ -377,23 +378,17 @@ const Logs: React.FC = () => {
               <Tag color="cyan">函数: {log.function}</Tag>
             )}
           </div>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
+          <Text type="secondary" className="log-meta-time">
             {new Date(log.created_at).toLocaleString()}
           </Text>
         </div>
         
-        <div style={{ marginBottom: 8 }}>
+        <div className="log-message">
           <Text>{log.message}</Text>
         </div>
         
         {log.details && (
-          <div style={{ 
-            background: '#f5f5f5', 
-            padding: '8px', 
-            borderRadius: '4px',
-            fontSize: '12px',
-            fontFamily: 'monospace'
-          }}>
+          <div className="logs-details">
             <pre>{JSON.stringify(log.details, null, 2)}</pre>
           </div>
         )}
@@ -407,18 +402,15 @@ const Logs: React.FC = () => {
   const debugCount = logStats?.debug_count || 0;
 
   return (
-    <div>
+    <div className="logs-page">
       {contextHolder}
-      
+
       {/* 错误状态显示 */}
       {loadingError && (
-        <Card 
-          style={{ marginBottom: 16, borderColor: '#ff4d4f' }}
-          size="small"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+        <Card className="logs-error-card" size="small">
+          <div className="logs-error-banner">
+            <div className="logs-error-banner-main">
+              <CloseCircleOutlined className="logs-error-icon" />
               <Text type="danger">日志加载失败: {loadingError}</Text>
               {retryCount > 0 && (
                 <Text type="secondary">({retryCount}/3 次重试)</Text>
@@ -439,19 +431,19 @@ const Logs: React.FC = () => {
         </Card>
       )}
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="logs-header">
         <div>
-          <Title level={2}>日志查看</Title>
+          <Title level={2} className="logs-header-title">日志查看</Title>
           {logStats && (
             <Text type="secondary">
               总计 {logStats.total_logs} 条日志 | 任务日志 {logStats.task_log_count} 条 | 系统日志 {logStats.system_log_count} 条
             </Text>
           )}
         </div>
-        <Space>
+        <div className="logs-header-actions">
           <Tooltip title="自动刷新">
-            <Checkbox 
-              checked={autoRefresh} 
+            <Checkbox
+              checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
             >
               自动刷新
@@ -460,14 +452,13 @@ const Logs: React.FC = () => {
           <Button icon={<ExportOutlined />} onClick={() => setExportModalVisible(true)}>
             导出日志
           </Button>
-          <Button 
-            icon={<ReloadOutlined />} 
+          <Button
+            icon={<ReloadOutlined />}
             onClick={() => {
-              // 强制刷新当前标签页的数据
               if (activeTab === 'realtime') {
                 loadLogs(pagination.current, pagination.pageSize);
               } else {
-                loadLogs(1, 20); // 其他标签页重置到第一页
+                loadLogs(1, 20);
               }
             }}
           >
@@ -484,11 +475,11 @@ const Logs: React.FC = () => {
               清除所有
             </Button>
           </Popconfirm>
-        </Space>
+        </div>
       </div>
 
       {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} className="logs-stats-grid">
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
@@ -532,8 +523,8 @@ const Logs: React.FC = () => {
       </Row>
 
       {/* 过滤器 */}
-      <Card 
-        style={{ marginBottom: 16 }}
+      <Card
+        className="logs-filters-card"
         title={
           <Space>
             <FilterOutlined />
@@ -553,78 +544,69 @@ const Logs: React.FC = () => {
           </Button>
         }
       >
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={6}>
-            <Input.Search
-              placeholder="搜索日志内容"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-              prefix={<SearchOutlined />}
-            />
-          </Col>
-          <Col xs={24} sm={6}>
-            <Select
-              style={{ width: '100%' }}
-              placeholder="选择日志级别"
-              value={levelFilter}
-              onChange={setLevelFilter}
-              allowClear
+        <div className="logs-filters-content">
+          <Input.Search
+            placeholder="搜索日志内容"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            allowClear
+            prefix={<SearchOutlined />}
+          />
+          <Select
+            placeholder="选择日志级别"
+            value={levelFilter}
+            onChange={setLevelFilter}
+            allowClear
+          >
+            <Select.Option value="ERROR">
+              <Space>
+                <CloseCircleOutlined className="logs-level-icon logs-level-error" />
+                ERROR
+              </Space>
+            </Select.Option>
+            <Select.Option value="WARNING">
+              <Space>
+                <WarningOutlined className="logs-level-icon logs-level-warning" />
+                WARNING
+              </Space>
+            </Select.Option>
+            <Select.Option value="INFO">
+              <Space>
+                <InfoCircleOutlined className="logs-level-icon logs-level-info" />
+                INFO
+              </Space>
+            </Select.Option>
+            <Select.Option value="DEBUG">
+              <Space>
+                <BugOutlined className="logs-level-icon logs-level-debug" />
+                DEBUG
+              </Space>
+            </Select.Option>
+          </Select>
+          <RangePicker
+            showTime
+            placeholder={['开始时间', '结束时间']}
+            onChange={handleTimeRangeChange}
+            allowClear
+          />
+          {selectedLogs.length > 0 && (
+            <Popconfirm
+              title={`确定要删除选中的 ${selectedLogs.length} 条日志吗？`}
+              onConfirm={handleBatchDeleteLogs}
+              okText="确定"
+              cancelText="取消"
             >
-              <Select.Option value="ERROR">
-                <Space>
-                  <CloseCircleOutlined style={{ color: '#f5222d' }} />
-                  ERROR
-                </Space>
-              </Select.Option>
-              <Select.Option value="WARNING">
-                <Space>
-                  <WarningOutlined style={{ color: '#faad14' }} />
-                  WARNING
-                </Space>
-              </Select.Option>
-              <Select.Option value="INFO">
-                <Space>
-                  <InfoCircleOutlined style={{ color: '#1890ff' }} />
-                  INFO
-                </Space>
-              </Select.Option>
-              <Select.Option value="DEBUG">
-                <Space>
-                  <BugOutlined style={{ color: '#52c41a' }} />
-                  DEBUG
-                </Space>
-              </Select.Option>
-            </Select>
-          </Col>
-          <Col xs={24} sm={8}>
-            <RangePicker 
-              style={{ width: '100%' }}
-              showTime
-              placeholder={['开始时间', '结束时间']}
-              onChange={handleTimeRangeChange}
-              allowClear
-            />
-          </Col>
-          <Col xs={24} sm={4}>
-            {selectedLogs.length > 0 && (
-              <Popconfirm
-                title={`确定要删除选中的 ${selectedLogs.length} 条日志吗？`}
-                onConfirm={handleBatchDeleteLogs}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button danger size="small" icon={<DeleteOutlined />}>
-                  删除选中 ({selectedLogs.length})
-                </Button>
-              </Popconfirm>
-            )}
-          </Col>
-        </Row>
+              <Button danger size="small" icon={<DeleteOutlined />}>
+                删除选中 ({selectedLogs.length})
+              </Button>
+            </Popconfirm>
+          )}
+        </div>
       </Card>
 
       {/* 日志列表 */}
       <Tabs 
+        className="logs-tabs"
         activeKey={activeTab} 
         onChange={setActiveTab}
         items={[
@@ -658,6 +640,7 @@ const Logs: React.FC = () => {
                   <Empty description="暂无日志数据" />
                 ) : (
                   <List
+                    className="logs-list"
                     dataSource={filteredLogs}
                     renderItem={(item) => (
                       <List.Item
@@ -677,7 +660,7 @@ const Logs: React.FC = () => {
                           </Button>
                         ]}
                       >
-                        <div style={{ width: '100%' }}>
+                        <div className="logs-list-item">
                           <Checkbox
                             checked={selectedLogs.includes(item.id)}
                             onChange={(e) => {
@@ -687,34 +670,28 @@ const Logs: React.FC = () => {
                                 setSelectedLogs(prev => prev.filter(id => id !== item.id));
                               }
                             }}
-                            style={{ marginRight: 8 }}
+                            className="logs-list-checkbox"
                           />
-                          <div style={{ display: 'inline-block', width: 'calc(100% - 24px)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div className="logs-list-content">
+                            <div className="logs-list-header">
+                              <div className="logs-list-tags">
                                 {getLevelIcon(item.level)}
                                 <Tag color={getLevelColor(item.level)}>{item.level}</Tag>
                                 {item.task_id && (
                                   <Tag color="purple">任务ID: {item.task_id}</Tag>
                                 )}
                               </div>
-                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                              <Text type="secondary" className="logs-list-time">
                                 {new Date(item.created_at).toLocaleString()}
                               </Text>
                             </div>
                             
-                            <div style={{ marginBottom: 8 }}>
+                            <div className="logs-list-message">
                               <Text>{item.message}</Text>
                             </div>
                             
                             {item.details && (
-                              <div style={{ 
-                                background: '#f5f5f5', 
-                                padding: '8px', 
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                fontFamily: 'monospace'
-                              }}>
+                              <div className="logs-details">
                                 <pre>{JSON.stringify(item.details, null, 2)}</pre>
                               </div>
                             )}
@@ -765,6 +742,7 @@ const Logs: React.FC = () => {
                   <Empty description="暂无任务日志" />
                 ) : (
                   <List
+                    className="logs-list"
                     dataSource={taskLogs}
                     renderItem={renderLogItem}
                     pagination={{
@@ -803,6 +781,7 @@ const Logs: React.FC = () => {
                   <Empty description="暂无系统日志" />
                 ) : (
                   <List
+                    className="logs-list"
                     dataSource={systemLogs}
                     renderItem={renderLogItem}
                     pagination={{

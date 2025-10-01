@@ -48,6 +48,7 @@ import { messageApi, telegramApi, ruleApi } from '../services/apiService';
 import { TelegramMessage, TelegramGroup, MessageSendRequest } from '../types';
 import { useNormalPageScrollControl } from '../hooks/usePageScrollControl';
 import { webSocketService } from '../services/websocket';
+import './Messages.css';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -553,9 +554,9 @@ const MessagesPage: React.FC = () => {
       width: 120,
       render: (record: TelegramMessage) => (
         <Space direction="vertical" size="small">
-          <div>
-            <EyeOutlined style={{ color: '#1890ff' }} />
-            <Text style={{ marginLeft: 4 }}>{record.view_count || 0}</Text>
+          <div className="messages-view-meta">
+            <EyeOutlined className="messages-stat-icon" />
+            <Text className="messages-stat-value">{record.view_count || 0}</Text>
           </div>
           {record.mentions && record.mentions.length > 0 && (
             <Tag color="purple">
@@ -784,12 +785,12 @@ const MessagesPage: React.FC = () => {
   }, [selectedGroup, filters, fetchMessages, fetchGroupStats]);
 
   return (
-    <div style={{ padding: isMobile ? 16 : 24 }}>
+    <div className={isMobile ? 'messages-page mobile' : 'messages-page'}>
       <Row gutter={[16, 16]}>
         {/* 顶部统计卡片 */}
         {stats && (
           <Col span={24}>
-            <Row gutter={16}>
+            <Row gutter={16} className="messages-stat-grid">
               <Col xs={12} sm={6}>
                 <Card>
                   <Statistic
@@ -835,7 +836,7 @@ const MessagesPage: React.FC = () => {
           <Card
             title={
               <Space wrap>
-                <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>
+                <Title level={isMobile ? 5 : 4} className="messages-card-title">
                   {isMobile ? '消息管理' : '群组消息管理'}
                 </Title>
                 {selectedGroup && (
@@ -844,11 +845,11 @@ const MessagesPage: React.FC = () => {
               </Space>
             }
             extra={
-              <Space wrap size="small">
+              <Space wrap size="small" className="messages-toolbar-actions">
                 <Select
                   placeholder="选择群组"
                   value={selectedGroup?.id}
-                  style={{ width: isMobile ? 120 : 200 }}
+                  className={isMobile ? 'messages-group-select mobile' : 'messages-group-select'}
                   showSearch
                   optionFilterProp="children"
                   filterOption={(input, option) => 
@@ -932,7 +933,7 @@ const MessagesPage: React.FC = () => {
                     danger: true,
                     loading: clearGroupLoading
                   }}
-                  icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+                  icon={<ExclamationCircleOutlined className="messages-clear-icon" />}
                 >
                   <Button
                     danger
@@ -949,20 +950,15 @@ const MessagesPage: React.FC = () => {
           >
             {/* 批量操作工具栏 */}
             {selectedRowKeys.length > 0 && (
-              <div style={{
-                marginBottom: 16,
-                padding: '12px 16px',
-                background: '#f6f8fa',
-                borderRadius: 8,
-                border: '1px solid #d0d7de'
-              }}>
+              <div className="messages-selection-bar">
                 <Row align="middle" justify="space-between">
                   <Col>
-                    <Space>
-                      <Text strong>已选择 {selectedRowKeys.length} 条消息</Text>
+                    <Space className="messages-selection-meta">
+                      <span className="messages-selection-count">已选择 {selectedRowKeys.length} 条消息</span>
                       <Button
                         size="small"
                         type="link"
+                        className="messages-selection-link"
                         onClick={handleSelectAll}
                       >
                         {selectedRowKeys.length === messages.length ? '取消全选' : '全选当前页'}
@@ -970,6 +966,7 @@ const MessagesPage: React.FC = () => {
                       <Button
                         size="small"
                         type="link"
+                        className="messages-selection-link"
                         onClick={handleClearSelection}
                       >
                         清空选择
@@ -1076,9 +1073,9 @@ const MessagesPage: React.FC = () => {
         style={isMobile ? { top: 20 } : {}}
       >
         {replyTo && (
-          <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f5f5f5' }}>
+          <Card size="small" className="messages-reply-card">
             <Text strong>回复消息:</Text>
-            <Typography.Paragraph style={{ margin: '8px 0 0 0' }}>
+            <Typography.Paragraph className="messages-reply-text">
               {replyTo.text || '(媒体消息)'}
             </Typography.Paragraph>
           </Card>
@@ -1164,7 +1161,7 @@ const MessagesPage: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="date_range" label="时间范围">
-            <RangePicker showTime style={{ width: '100%' }} />
+            <RangePicker showTime className="messages-field-full" />
           </Form.Item>
 
           <Form.Item>
@@ -1336,9 +1333,9 @@ const MessagesPage: React.FC = () => {
       >
         {selectedMessageForRule && (
           <>
-            <Card size="small" style={{ marginBottom: 16, backgroundColor: '#f5f5f5' }}>
+            <Card size="small" className="messages-reference-card">
               <Text strong>参考消息:</Text>
-              <div style={{ marginTop: 8 }}>
+              <div className="messages-reference-content">
                 <Space direction="vertical" size="small">
                   <div>
                     <Text strong>发送者:</Text> {selectedMessageForRule.sender_name}
@@ -1349,7 +1346,7 @@ const MessagesPage: React.FC = () => {
                   {selectedMessageForRule.text && (
                     <div>
                       <Text strong>内容:</Text>
-                      <Typography.Paragraph style={{ margin: '4px 0' }}>
+                      <Typography.Paragraph className="messages-reference-text">
                         {selectedMessageForRule.text}
                       </Typography.Paragraph>
                     </div>
@@ -1389,7 +1386,7 @@ const MessagesPage: React.FC = () => {
                     <Select
                       mode="tags"
                       placeholder="输入关键词，按回车添加"
-                      style={{ width: '100%' }}
+                      className="messages-field-full"
                     />
                   </Form.Item>
                 </Col>
@@ -1403,7 +1400,7 @@ const MessagesPage: React.FC = () => {
                     <Select
                       mode="tags"
                       placeholder="输入排除关键词，按回车添加"
-                      style={{ width: '100%' }}
+                      className="messages-field-full"
                     />
                   </Form.Item>
                 </Col>
@@ -1419,7 +1416,7 @@ const MessagesPage: React.FC = () => {
                     <Select
                       mode="tags"
                       placeholder="输入用户名，按回车添加"
-                      style={{ width: '100%' }}
+                      className="messages-field-full"
                     />
                   </Form.Item>
                 </Col>
@@ -1433,7 +1430,7 @@ const MessagesPage: React.FC = () => {
                     <Select
                       mode="multiple"
                       placeholder="选择媒体类型"
-                      style={{ width: '100%' }}
+                      className="messages-field-full"
                     >
                       <Option value="photo">图片</Option>
                       <Option value="video">视频</Option>
@@ -1555,35 +1552,30 @@ const MessagesPage: React.FC = () => {
         footer={null}
         centered
       >
-        <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ marginBottom: 16 }}>
-            <ClearOutlined style={{ fontSize: 48, color: '#ff4d4f', marginBottom: 16 }} />
-            <p style={{ fontSize: 16, marginBottom: 8 }}>正在清空群组消息...</p>
+        <div className="messages-progress-panel">
+          <div>
+            <ClearOutlined className="messages-progress-icon-large" />
+            <p className="messages-progress-text">正在清空群组消息...</p>
             {selectedGroup && (
-              <p style={{ color: '#666' }}>群组：{selectedGroup.title}</p>
+              <p className="messages-clear-caption">群组：{selectedGroup.title}</p>
             )}
           </div>
 
           {clearGroupProgress && (
-            <div style={{ margin: '20px 0' }}>
+            <div className="messages-progress-details">
               <Progress
                 percent={Math.round((clearGroupProgress.current / clearGroupProgress.total) * 100)}
                 status="active"
-                strokeColor={{
-                  '0%': '#ff7875',
-                  '100%': '#ff4d4f',
-                }}
+                className="messages-progress-bar"
               />
-              <p style={{ marginTop: 8, color: '#666' }}>
+              <p className="messages-progress-info">
                 已处理 {clearGroupProgress.current} / {clearGroupProgress.total} 条消息
               </p>
             </div>
           )}
 
-          <div style={{ marginTop: 16, padding: 12, background: '#fff2f0', borderRadius: 6 }}>
-            <p style={{ margin: 0, color: '#cf1322', fontSize: 12 }}>
-              ⚠️ 正在执行删除操作，请勿关闭页面
-            </p>
+          <div className="messages-progress-alert">
+            <p>⚠️ 正在执行删除操作，请勿关闭页面</p>
           </div>
         </div>
       </Modal>
@@ -1667,7 +1659,7 @@ const MessagesPage: React.FC = () => {
                     mode="multiple"
                     placeholder="选择要同步的月份"
                     loading={syncMonthsLoading}
-                    style={{ width: '100%' }}
+                    className="messages-field-full"
                   >
                     {syncMonths.map((month) => (
                       <Option
@@ -1685,13 +1677,13 @@ const MessagesPage: React.FC = () => {
 
           {/* 同步进度显示区域 */}
           {batchSyncStatus !== 'idle' && (
-            <div style={{ marginBottom: 16 }}>
+            <div className="messages-progress-section">
               <Divider orientation="left">同步进度</Divider>
 
               {batchSyncStatus === 'running' && !batchSyncProgress && (
-                <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <div style={{ marginBottom: 16 }}>
-                    <SyncOutlined spin style={{ fontSize: 24, color: '#1890ff', marginBottom: 16 }} />
+                <div className="messages-progress-loading">
+                  <div className="messages-progress-loading-box">
+                    <SyncOutlined spin className="messages-progress-icon" />
                     <p>同步任务正在运行中，请稍候...</p>
                   </div>
                 </div>

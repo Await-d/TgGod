@@ -34,6 +34,7 @@ import {
 import { FilterRule } from '../types';
 import { useRuleStore, useGlobalStore } from '../store';
 import { ruleApi } from '../services/apiService';
+import './Rules.css';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -381,10 +382,10 @@ const Rules: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={2}>规则配置</Title>
-        <Space>
+    <div className="rules-page">
+      <div className="rules-header">
+        <Title level={2} className="rules-title">规则配置</Title>
+        <Space className="rules-header-actions">
           <Button 
             icon={<ReloadOutlined />} 
             onClick={loadData}
@@ -403,7 +404,7 @@ const Rules: React.FC = () => {
       </div>
 
       {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} className="rules-stats-grid">
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
@@ -481,7 +482,7 @@ const Rules: React.FC = () => {
             </Col>
           </Row>
           
-          <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6 }}>
+          <div className="rules-info-box">
             <Text type="secondary">
               💡 提示：规则不再直接绑定群组。创建任务时可以选择规则和群组的组合。
             </Text>
@@ -556,7 +557,7 @@ const Rules: React.FC = () => {
               >
                 <RangePicker 
                   showTime 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                 />
               </Form.Item>
             </Col>
@@ -579,7 +580,7 @@ const Rules: React.FC = () => {
                 name="min_views"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最小浏览量"
                 />
@@ -591,7 +592,7 @@ const Rules: React.FC = () => {
                 name="max_views"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最大浏览量"
                 />
@@ -608,7 +609,7 @@ const Rules: React.FC = () => {
                 tooltip="过滤小于此大小的文件"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   step={0.1}
                   precision={1}
@@ -624,7 +625,7 @@ const Rules: React.FC = () => {
                 tooltip="过滤大于此大小的文件"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   step={0.1}
                   precision={1}
@@ -644,7 +645,7 @@ const Rules: React.FC = () => {
                 tooltip="视频或音频的最小时长"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最小时长"
                 />
@@ -657,7 +658,7 @@ const Rules: React.FC = () => {
                 tooltip="视频或音频的最大时长"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最大时长"
                 />
@@ -674,7 +675,7 @@ const Rules: React.FC = () => {
                 tooltip="视频或图片的最小宽度"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最小宽度"
                 />
@@ -687,7 +688,7 @@ const Rules: React.FC = () => {
                 tooltip="视频或图片的最大宽度"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最大宽度"
                 />
@@ -703,7 +704,7 @@ const Rules: React.FC = () => {
                 tooltip="视频或图片的最小高度"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最小高度"
                 />
@@ -716,7 +717,7 @@ const Rules: React.FC = () => {
                 tooltip="视频或图片的最大高度"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最大高度"
                 />
@@ -733,7 +734,7 @@ const Rules: React.FC = () => {
                 tooltip="消息文本的最小字符数"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最小文本长度"
                 />
@@ -746,7 +747,7 @@ const Rules: React.FC = () => {
                 tooltip="消息文本的最大字符数"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={0}
                   placeholder="请输入最大文本长度"
                 />
@@ -830,7 +831,7 @@ const Rules: React.FC = () => {
                 tooltip="只筛选指定天数内的消息"
               >
                 <InputNumber 
-                  style={{ width: '100%' }}
+                  className="rules-field-full"
                   min={1}
                   placeholder="请输入天数"
                 />
@@ -875,7 +876,7 @@ const Rules: React.FC = () => {
             </Col>
           </Row>
 
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+          <Form.Item className="rules-form-actions">
             <Space>
               <Button onClick={() => setIsModalVisible(false)}>
                 取消

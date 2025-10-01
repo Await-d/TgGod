@@ -17,6 +17,34 @@
   padding: 12px;
 }
 
+.link-preview-content {
+  width: 100%;
+}
+
+.link-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.link-preview-icon {
+  color: #1890ff;
+  font-size: 14px;
+}
+
+.link-preview-title {
+  max-width: 200px;
+}
+
+.link-preview-description {
+  margin: 0 !important;
+  font-size: 12px;
+}
+
+.link-preview-url {
+  font-size: 11px;
+}
+
 /* 消息中的链接样式 */
 .message-link {
   color: #1890ff;

@@ -12,18 +12,44 @@ code {
     monospace;
 }
 
+:root {
+  --app-background: linear-gradient(180deg, #f6f8ff 0%, #eef1ff 100%);
+  --app-surface: #ffffff;
+  --app-surface-elevated: rgba(255, 255, 255, 0.92);
+  --app-border: #dbe3ff;
+  --app-border-strong: #b8c5ff;
+  --app-primary: #4c6fff;
+  --app-primary-hover: #6885ff;
+  --app-primary-soft: rgba(76, 111, 255, 0.12);
+  --app-muted: #5f6c86;
+  --app-muted-soft: #8a94ad;
+  --app-accent-soft: #eef1ff;
+  --app-info: #13c2c2;
+  --app-success: #16a34a;
+  --app-success-soft: #e8f9ef;
+  --app-success-border: rgba(22, 163, 74, 0.35);
+  --app-warning: #f59e0b;
+  --app-warning-soft: #fff4e0;
+  --app-warning-border: rgba(245, 158, 11, 0.35);
+  --app-danger: #ef4444;
+  --app-danger-soft: #fee2e2;
+  --app-danger-border: rgba(239, 68, 68, 0.35);
+  --app-shadow-sm: 0 4px 12px rgba(76, 111, 255, 0.12);
+  --app-shadow-md: 0 10px 24px rgba(76, 111, 255, 0.16);
+}
+
 /* 自定义样式 */
 .app-container {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: var(--app-background);
 }
 
 .content-container {
   padding: 24px;
-  background-color: white;
+  background-color: var(--app-surface);
   margin: 16px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow-sm);
 }
 
 /* 状态指示器 */
@@ -36,23 +62,23 @@ code {
 }
 
 .status-running {
-  background-color: #52c41a;
+  background-color: var(--app-success);
 }
 
 .status-paused {
-  background-color: #faad14;
+  background-color: var(--app-warning);
 }
 
 .status-failed {
-  background-color: #f5222d;
+  background-color: var(--app-danger);
 }
 
 .status-completed {
-  background-color: #1890ff;
+  background-color: var(--app-primary);
 }
 
 .status-pending {
-  background-color: #d9d9d9;
+  background-color: var(--app-muted-soft);
 }
 
 /* 日志样式 */
@@ -66,23 +92,23 @@ code {
 }
 
 .log-debug {
-  background-color: #f6f6f6;
-  color: #666;
+  background-color: var(--app-accent-soft);
+  color: var(--app-muted);
 }
 
 .log-info {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background-color: var(--app-primary-soft);
+  color: var(--app-primary);
 }
 
 .log-warning {
-  background-color: #fff7e6;
-  color: #fa8c16;
+  background-color: var(--app-warning-soft);
+  color: var(--app-warning);
 }
 
 .log-error {
-  background-color: #fff2f0;
-  color: #f5222d;
+  background-color: var(--app-danger-soft);
+  color: var(--app-danger);
 }
 
 /* 响应式设计 */
@@ -97,10 +123,10 @@ code {
 .stat-card {
   text-align: center;
   padding: 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--app-primary) 0%, var(--app-primary-hover) 100%);
+  color: #ffffff;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow-md);
 }
 
 .stat-card h3 {
@@ -126,5 +152,5 @@ code {
   min-width: 80px;
   text-align: right;
   font-size: 12px;
-  color: #666;
+  color: var(--app-muted);
 }

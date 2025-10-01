@@ -1,0 +1,215 @@
+.logs-page {
+  padding: 24px;
+  background: var(--app-background);
+  min-height: 100%;
+}
+
+.logs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.logs-header-title {
+  margin: 0 !important;
+}
+
+.logs-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.logs-error-card {
+  margin-bottom: 16px;
+  border: 1px solid var(--app-danger);
+  border-radius: 12px;
+}
+
+.logs-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.logs-error-banner-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.logs-stats-grid {
+  margin-bottom: 24px;
+}
+
+.logs-filters-card {
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.logs-filters-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.logs-tabs .ant-card {
+  border-radius: 12px;
+}
+
+.logs-list .ant-list-item {
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  margin-bottom: 12px;
+  padding: 16px;
+}
+
+.log-item-content {
+  width: 100%;
+}
+
+.logs-list .log-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.log-meta-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.log-meta-time {
+  font-size: 12px;
+}
+
+.log-message {
+  margin-bottom: 8px;
+}
+
+.logs-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.logs-list-checkbox {
+  margin-top: 4px;
+}
+
+.logs-list-content {
+  flex: 1;
+}
+
+.logs-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.logs-list-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.logs-list-time {
+  font-size: 12px;
+}
+
+.logs-list-message {
+  margin-bottom: 8px;
+}
+
+.logs-details {
+  background: var(--app-accent-soft);
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.logs-level-icon {
+  font-size: 14px;
+}
+
+.logs-level-error {
+  color: var(--app-danger);
+}
+
+.logs-level-warning {
+  color: var(--app-warning);
+}
+
+.logs-level-info {
+  color: var(--app-primary);
+}
+
+.logs-level-debug {
+  color: var(--app-success);
+}
+
+.logs-error-icon {
+  color: var(--app-danger);
+}
+
+@media (max-width: 768px) {
+  .logs-page {
+    padding: 16px 12px 80px;
+  }
+
+  .logs-header-actions {
+    width: 100%;
+  }
+
+  .logs-header-actions .ant-btn {
+    flex: 1;
+  }
+
+  .logs-stats-grid .ant-col {
+    margin-bottom: 12px;
+  }
+
+  .logs-filters-content {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
+  .logs-list .ant-list-item {
+    padding: 12px;
+  }
+
+  .logs-list .log-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .logs-error-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .logs-list-item {
+    flex-direction: column;
+  }
+
+  .logs-list-checkbox {
+    margin-top: 0;
+  }
+}

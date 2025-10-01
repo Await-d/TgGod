@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store';
 import { authApi } from '../services/apiService';
 import { LoginRequest } from '../types';
+import './Login.css';
 
 const { Title, Text } = Typography;
 
@@ -43,22 +44,10 @@ const LoginPage: React.FC = () => {
 
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-    }}>
-      <Card 
-        style={{ 
-          width: 400, 
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-          borderRadius: 12
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Title level={2} style={{ color: '#1890ff', marginBottom: 8 }}>
+    <div className="login-page">
+      <Card className="login-card">
+        <div className="login-header">
+          <Title level={2} className="login-title">
             TgGod 管理系统
           </Title>
           <Text type="secondary">
@@ -108,15 +97,15 @@ const LoginPage: React.FC = () => {
               htmlType="submit" 
               loading={loading}
               block
-              style={{ height: 44 }}
+              className="login-submit"
             >
               登录
             </Button>
           </Form.Item>
         </Form>
 
-        <div style={{ textAlign: 'center', marginTop: 24, color: '#8c8c8c' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+        <div className="login-footer">
+          <Text type="secondary" className="login-footer-text">
             © 2025 TgGod. 群组消息管理系统
           </Text>
         </div>

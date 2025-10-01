@@ -20,6 +20,7 @@ import apiService from '../services/apiService';
 import { useGlobalStore } from '../store';
 import TelegramAuth from '../components/TelegramAuth';
 import { useIsMobile } from '../hooks/useMobileGestures';
+import './Settings.css';
 
 const { Title, Text } = Typography;
 
@@ -93,7 +94,7 @@ const Settings: React.FC = () => {
         }
         type="info"
         showIcon
-        style={{ marginBottom: 24 }}
+        className="settings-alert"
       />
 
       <TelegramAuth
@@ -104,10 +105,10 @@ const Settings: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: isMobile ? '16px' : '24px' }}>
-      <div style={{ marginBottom: isMobile ? 16 : 24 }}>
-        <Title level={isMobile ? 3 : 2}>
-          <SettingOutlined style={{ marginRight: 8 }} />
+    <div className="settings-page">
+      <div className="settings-header">
+        <Title level={isMobile ? 3 : 2} className="settings-title">
+          <SettingOutlined className="settings-title-icon" />
           系统设置
         </Title>
         <Text type="secondary">
@@ -121,7 +122,7 @@ const Settings: React.FC = () => {
           description="后端服务连接断开，请检查服务状态"
           type="warning"
           showIcon
-          style={{ marginBottom: 24 }}
+          className="settings-alert"
         />
       )}
 
@@ -149,9 +150,9 @@ const Settings: React.FC = () => {
                 <WifiOutlined />
                 {isMobile ? 'TG' : 'Telegram认证'}
                 {telegramStatus?.is_authorized ? (
-                  <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 4 }} />
+                  <CheckCircleOutlined className="settings-tab-status settings-tab-status-success" />
                 ) : (
-                  <CloseCircleOutlined style={{ color: '#ff4d4f', marginLeft: 4 }} />
+                  <CloseCircleOutlined className="settings-tab-status settings-tab-status-warning" />
                 )}
               </span>
             ),

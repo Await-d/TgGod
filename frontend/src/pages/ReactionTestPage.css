@@ -1,0 +1,38 @@
+.reaction-page {
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.reaction-title {
+  margin-bottom: 16px !important;
+}
+
+.reaction-list {
+  width: 100%;
+}
+
+.reaction-block {
+  margin-bottom: 16px;
+}
+
+.reaction-preview {
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background-color: var(--app-accent-soft);
+}
+
+.reaction-mobile-card {
+  margin-top: 24px;
+}
+
+@media (max-width: 768px) {
+  .reaction-page {
+    padding: 16px;
+  }
+
+  .reaction-block {
+    margin-bottom: 12px;
+  }
+}

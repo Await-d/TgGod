@@ -47,7 +47,9 @@
       "Bash(npm run build:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Read(//home/await/project/**)",
+      "Bash(pip show:*)"
     ],
     "deny": [],
     "ask": []
