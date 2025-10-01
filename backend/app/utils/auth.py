@@ -10,6 +10,8 @@ from ..database import get_db
 from ..models.user import User
 
 # 密码加密上下文
+# 使用bcrypt 4.0.1以确保与passlib 1.7.4的兼容性
+# 避免bcrypt 4.2+版本中移除__about__模块导致的警告
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 MAX_PASSWORD_BYTES = 72
