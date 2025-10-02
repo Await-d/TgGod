@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: tggod
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       # 数据库文件挂载
       - ./data:/app/data
@@ -16,6 +16,7 @@ services:
       # Telegram会话文件挂载
       - ./telegram_sessions:/app/telegram_sessions
     environment:
+      - TZ=Asia/Shanghai
       - DATABASE_URL=sqlite:////app/data/tggod.db
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}

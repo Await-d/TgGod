@@ -38,6 +38,12 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+def datetime_handler(obj):
+    """JSON序列化时处理datetime对象"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
 class WebSocketManager:
     """实时WebSocket连接管理器
 
@@ -144,7 +150,7 @@ class WebSocketManager:
         """
         if client_id in self.active_connections:
             try:
-                await self.active_connections[client_id].send_text(json.dumps(message))
+                await self.active_connections[client_id].send_text(json.dumps(message, default=datetime_handler))
             except Exception as e:
                 logger.error(f"Error sending message to {client_id}: {e}")
                 self.disconnect(client_id)
@@ -178,10 +184,10 @@ class WebSocketManager:
             - 大消息可能影响性能
         """
         disconnected_clients = []
-        
+
         for client_id, connection in self.active_connections.items():
             try:
-                await connection.send_text(json.dumps(message))
+                await connection.send_text(json.dumps(message, default=datetime_handler))
             except Exception as e:
                 logger.error(f"Error broadcasting to {client_id}: {e}")
                 disconnected_clients.append(client_id)
