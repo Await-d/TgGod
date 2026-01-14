@@ -120,6 +120,18 @@ const SystemConfigTab: React.FC = () => {
     }
   }, []);
 
+  // 配置项中文标签映射
+  const configLabels: Record<string, string> = {
+    telegram_api_id: 'Telegram API ID',
+    telegram_api_hash: 'Telegram API Hash',
+    secret_key: 'JWT密钥',
+    database_url: '数据库地址',
+    log_level: '日志级别',
+    log_file: '日志文件路径',
+    media_root: '媒体文件存储路径',
+    allowed_origins: '允许的跨域来源',
+  };
+
   React.useEffect(() => {
     loadConfigs();
     checkTelegramStatus();
@@ -130,12 +142,13 @@ const SystemConfigTab: React.FC = () => {
       const values = await form.validateFields();
       setSaving(true);
 
-      const updates = Object.keys(values).map(key => ({
-        key,
-        value: values[key] || ''
-      }));
+      // 转换为后端期待的格式: {configs: {key: value, ...}}
+      const configs: Record<string, string> = {};
+      Object.keys(values).forEach(key => {
+        configs[key] = values[key] || '';
+      });
 
-      await apiService.post('/config/batch-update', updates);
+      await apiService.post('/config/configs', { configs });
       message.success('配置已保存');
       await loadConfigs();
       await checkTelegramStatus();
@@ -277,7 +290,7 @@ const SystemConfigTab: React.FC = () => {
           return (
             <Col span={24} key={key} style={{ marginBottom: isMobile ? 12 : 16 }}>
               <Form.Item
-                label={key}
+                label={configLabels[key] || key}
                 name={key}
                 help={config.description}
                 rules={[

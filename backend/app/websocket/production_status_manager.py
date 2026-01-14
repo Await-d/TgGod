@@ -471,7 +471,7 @@ class ProductionStatusManager:
     async def _check_media_downloader_health(self) -> Dict[str, Any]:
         """Check media downloader service health"""
         try:
-            from app.services.media_downloader import MediaDownloader
+            from app.services.media_downloader import TelegramMediaDownloader
 
             metrics = {
                 "service_active": True,
@@ -806,6 +806,9 @@ class ProductionStatusManager:
     async def _broadcast_status_update(self):
         """Broadcast comprehensive status update to all clients"""
         try:
+            # Create snapshot to avoid "dictionary changed size during iteration" error
+            services_snapshot = dict(self.services.items())
+            
             status_data = {
                 "type": "production_status",
                 "timestamp": datetime.now().isoformat(),
@@ -825,7 +828,7 @@ class ProductionStatusManager:
                         "metrics": info.metrics,
                         "recovery_suggestion": info.recovery_suggestion
                     }
-                    for name, info in self.services.items()
+                    for name, info in services_snapshot.items()
                 },
                 "system_metrics": asdict(self.system_metrics) if self.system_metrics else None,
                 "error_summary": {

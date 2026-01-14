@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 
 # 第三方库导入
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, OperationalError, DisconnectionError
 
@@ -674,7 +674,7 @@ class TaskExecutionService:
         try:
             # 测试数据库连接
             with optimized_db_session() as db:
-                db.execute("SELECT 1")
+                db.execute(text("SELECT 1"))
             high_perf_logger.info("数据库连接恢复成功")
             return True
         except Exception as e:
@@ -2170,7 +2170,7 @@ class TaskExecutionService:
         try:
             start_time = time.time()
             with optimized_db_session() as db:
-                db.execute("SELECT 1")
+                db.execute(text("SELECT 1"))
             response_time = time.time() - start_time
 
             return {

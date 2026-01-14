@@ -652,7 +652,7 @@ class CompleteHealthMonitor(ServiceLoggerMixin):
         # 健康数据存储
         self.current_health: Dict[str, ServiceHealth] = {}
         self.health_history: deque = deque(maxlen=1000)
-        self.metrics_database = ":memory:"  # SQLite内存数据库
+        self.metrics_database = "./data/health_metrics.db"  # SQLite持久化数据库
 
         # 告警系统
         self.alert_rules: List[AlertRule] = []
@@ -872,7 +872,14 @@ class CompleteHealthMonitor(ServiceLoggerMixin):
                 break
             except Exception as e:
                 self.error_count += 1
-                self.log_operation_error("monitoring_loop", e)
+                # Log with full traceback for debugging
+                import traceback
+                self.perf_logger.error(
+                    f"Monitoring loop error: {str(e)}",
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                    traceback=traceback.format_exc()
+                )
                 await asyncio.sleep(min(self.config.check_interval, 60.0))
 
     async def _perform_health_checks(self):
@@ -975,7 +982,7 @@ class CompleteHealthMonitor(ServiceLoggerMixin):
             conn.close()
 
         except Exception as e:
-            self.log_operation_error("store_health_data", e, service=health.service_name)
+            self.log_operation_error("store_health_data", e, target_service=health.service_name)
 
     async def _process_alerts(self):
         """处理告警"""

@@ -21,6 +21,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 from enum import Enum
+from sqlalchemy import text
 
 from ..services.connection_pool_monitor import get_pool_monitor
 from ..utils.db_performance_benchmark import get_benchmark_instance
@@ -497,7 +498,7 @@ class ConnectionPoolTuner:
 
                     # 简单查询测试
                     query_start = time.time()
-                    conn.execute("SELECT 1")
+                    conn.execute(text("SELECT 1"))
                     query_time = time.time() - query_start
                     test_results["query_execution_time"].append(query_time)
 

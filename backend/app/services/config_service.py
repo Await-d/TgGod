@@ -12,42 +12,42 @@ class ConfigService:
         self.default_configs = {
             "telegram_api_id": {
                 "value": "",
-                "description": "Telegram API ID from https://my.telegram.org",
+                "description": "从 https://my.telegram.org 获取的 Telegram API ID",
                 "is_encrypted": False
             },
             "telegram_api_hash": {
                 "value": "",
-                "description": "Telegram API Hash from https://my.telegram.org",
+                "description": "从 https://my.telegram.org 获取的 Telegram API Hash",
                 "is_encrypted": True
             },
             "secret_key": {
                 "value": "your-secret-key-here",
-                "description": "JWT Secret Key for authentication",
+                "description": "用于身份验证的 JWT 密钥",
                 "is_encrypted": True
             },
             "database_url": {
                 "value": "sqlite:///./tggod.db",
-                "description": "Database connection URL",
+                "description": "数据库连接地址",
                 "is_encrypted": False
             },
             "log_level": {
                 "value": "INFO",
-                "description": "Application log level (DEBUG, INFO, WARNING, ERROR)",
+                "description": "应用日志级别 (DEBUG, INFO, WARNING, ERROR)",
                 "is_encrypted": False
             },
             "log_file": {
                 "value": "./logs/app.log",
-                "description": "Log file path",
+                "description": "日志文件存储路径",
                 "is_encrypted": False
             },
             "media_root": {
                 "value": "./media",
-                "description": "Media files storage directory",
+                "description": "媒体文件存储目录",
                 "is_encrypted": False
             },
             "allowed_origins": {
                 "value": '["http://localhost:3000", "http://127.0.0.1:3000"]',
-                "description": "CORS allowed origins (JSON array)",
+                "description": "允许的跨域来源 (JSON数组格式)",
                 "is_encrypted": False
             }
         }
@@ -128,7 +128,10 @@ class ConfigService:
                     is_encrypted=default["is_encrypted"]
                 )
                 db.add(config)
-        
+            else:
+                # 更新已存在配置的description（用于汉化等更新）
+                existing.description = default["description"]
+
         try:
             db.commit()
             logger.info("默认配置初始化完成")

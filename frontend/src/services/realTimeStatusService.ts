@@ -41,6 +41,8 @@ class RealTimeStatusService {
   private lastCriticalAlertKey: string | null = null;
   private lastCriticalAlertTime: number = 0;
   private criticalAlertCooldown: number = 300000; // 5分钟冷却时间
+  private lastResourceWarningTimes: Map<string, number> = new Map();
+  private resourceWarningCooldown: number = 60000; // 1分钟冷却时间
 
   constructor() {
     this.initializeWebSocketListeners();
@@ -88,16 +90,20 @@ class RealTimeStatusService {
    */
   private handleConnectionStatusChange(connected: boolean): void {
     if (connected) {
+      // 连接成功时，关闭断开连接的提示
+      notification.destroy('connection-lost');
       notification.success({
+        key: 'connection-success',
         message: '实时连接已建立',
         description: '状态监控已启动',
+        duration: 3,
       });
     } else {
       notification.warning({
+        key: 'connection-lost',
         message: '实时连接已断开',
         description: '正在尝试重新连接…',
         duration: 0, // Persistent until reconnected
-        key: 'connection-lost',
       });
 
       if (this.autoRetryEnabled) {
@@ -167,6 +173,7 @@ class RealTimeStatusService {
       // 所有关键服务已恢复，重置警告状态
       this.lastCriticalAlertKey = null;
       notification.success({
+        key: 'service-recovery',
         message: '服务已恢复',
         description: '所有关键系统服务已恢复正常运行',
         duration: 4.5,
@@ -223,28 +230,48 @@ class RealTimeStatusService {
    * Check for system resource warnings
    */
   private checkResourceWarnings(metrics: SystemMetrics): void {
+    const now = Date.now();
+
     // CPU warning
     if (metrics.cpu_percent > 80) {
-      notification.warning({
-        message: 'CPU 使用率过高',
-        description: `CPU 使用率已达 ${metrics.cpu_percent.toFixed(1)}%`,
-      });
+      const lastWarning = this.lastResourceWarningTimes.get('cpu') || 0;
+      if (now - lastWarning > this.resourceWarningCooldown) {
+        notification.warning({
+          key: 'cpu-warning',
+          message: 'CPU 使用率过高',
+          description: `CPU 使用率已达 ${metrics.cpu_percent.toFixed(1)}%`,
+          duration: 5,
+        });
+        this.lastResourceWarningTimes.set('cpu', now);
+      }
     }
 
     // Memory warning
     if (metrics.memory_percent > 85) {
-      notification.warning({
-        message: '内存使用率过高',
-        description: `内存使用率已达 ${metrics.memory_percent.toFixed(1)}%`,
-      });
+      const lastWarning = this.lastResourceWarningTimes.get('memory') || 0;
+      if (now - lastWarning > this.resourceWarningCooldown) {
+        notification.warning({
+          key: 'memory-warning',
+          message: '内存使用率过高',
+          description: `内存使用率已达 ${metrics.memory_percent.toFixed(1)}%`,
+          duration: 5,
+        });
+        this.lastResourceWarningTimes.set('memory', now);
+      }
     }
 
     // Disk space warning
     if (metrics.disk_percent > 90) {
-      notification.error({
-        message: '磁盘空间告急',
-        description: `磁盘使用率已达 ${metrics.disk_percent.toFixed(1)}%`,
-      });
+      const lastWarning = this.lastResourceWarningTimes.get('disk') || 0;
+      if (now - lastWarning > this.resourceWarningCooldown) {
+        notification.error({
+          key: 'disk-warning',
+          message: '磁盘空间告急',
+          description: `磁盘使用率已达 ${metrics.disk_percent.toFixed(1)}%`,
+          duration: 0, // 持续显示直到问题解决
+        });
+        this.lastResourceWarningTimes.set('disk', now);
+      }
     }
   }
 
@@ -288,15 +315,19 @@ class RealTimeStatusService {
     switch (data.event) {
       case 'monitoring_started':
         notification.success({
+          key: 'monitoring-started',
           message: 'Production Monitoring Active',
           description: 'Real-time system monitoring has been initialized',
+          duration: 3,
         });
         break;
 
       case 'monitoring_stopped':
         notification.warning({
+          key: 'monitoring-stopped',
           message: 'Production Monitoring Stopped',
           description: 'Real-time system monitoring has been disabled',
+          duration: 5,
         });
         break;
 
@@ -306,8 +337,10 @@ class RealTimeStatusService {
         } else {
           notification.destroy('maintenance-mode');
           notification.success({
+            key: 'maintenance-complete',
             message: 'Maintenance Complete',
             description: 'System maintenance has been completed',
+            duration: 3,
           });
         }
         break;
@@ -465,8 +498,10 @@ class RealTimeStatusService {
   private async attemptServiceRecovery(serviceName: string): Promise<void> {
     try {
       notification.info({
+        key: `recovery-${serviceName}`,
         message: 'Recovery Initiated',
         description: `Attempting to recover ${serviceName}...`,
+        duration: 3,
       });
 
       // TODO: Implement actual API call to backend recovery endpoint
@@ -474,8 +509,10 @@ class RealTimeStatusService {
 
     } catch (error) {
       notification.error({
+        key: `recovery-failed-${serviceName}`,
         message: 'Recovery Failed',
         description: `Failed to initiate recovery for ${serviceName}`,
+        duration: 5,
       });
     }
   }

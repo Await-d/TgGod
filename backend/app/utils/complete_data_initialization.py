@@ -24,7 +24,7 @@ from pathlib import Path
 import json
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, text
 
 from ..database import SessionLocal, get_db
 from ..models.telegram import TelegramGroup, TelegramMessage
@@ -839,7 +839,7 @@ class CompleteDataInitializer:
         
         try:
             # 检查数据库连接
-            self.db.execute("SELECT 1")
+            self.db.execute(text("SELECT 1"))
             status["database_connected"] = True
             
             # 统计数据
@@ -1069,7 +1069,7 @@ class CompleteDataInitializer:
         """检查数据库健康状态"""
         try:
             # 尝试执行简单查询
-            result = self.db.execute("SELECT 1").fetchone()
+            result = self.db.execute(text("SELECT 1")).fetchone()
             healthy = result is not None
 
             # 检查连接池状态

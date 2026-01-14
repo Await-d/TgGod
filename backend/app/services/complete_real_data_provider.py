@@ -124,14 +124,14 @@ class CompleteRealDataProvider:
             bool: 初始化是否成功
         """
         try:
-            self.batch_logger.log_info("Initializing complete real data provider...")
+            self.batch_logger.info("Initializing complete real data provider...")
             
             # 初始化Telegram服务
             self.telegram_service = TelegramService()
             telegram_init_success = await self.telegram_service.initialize()
             
             if not telegram_init_success:
-                self.batch_logger.log_warning("Telegram service initialization failed, will retry later")
+                self.batch_logger.warning("Telegram service initialization failed, will retry later")
             
             # 启动自动刷新任务
             if self.config['auto_refresh_enabled']:
@@ -140,12 +140,12 @@ class CompleteRealDataProvider:
             # 预热缓存
             await self._warmup_cache()
             
-            self.batch_logger.log_info("Complete real data provider initialized successfully")
+            self.batch_logger.info("Complete real data provider initialized successfully")
             return True
             
         except Exception as e:
             error_msg = f"Failed to initialize real data provider: {str(e)}"
-            self.batch_logger.log_error(error_msg)
+            self.batch_logger.error(error_msg)
             await self.error_handler.handle_error(e, {"component": "data_provider_init"})
             return False
 
@@ -208,7 +208,7 @@ class CompleteRealDataProvider:
             
         except Exception as e:
             error_msg = f"Failed to get group data: {str(e)}"
-            self.batch_logger.log_error(error_msg)
+            self.batch_logger.error(error_msg)
             await self.error_handler.handle_error(e, {
                 "component": "get_group_data",
                 "group_id": group_id,
@@ -271,7 +271,7 @@ class CompleteRealDataProvider:
             
         except Exception as e:
             error_msg = f"Failed to get message data for group {group_id}: {str(e)}"
-            self.batch_logger.log_error(error_msg)
+            self.batch_logger.error(error_msg)
             await self.error_handler.handle_error(e, {
                 "component": "get_message_data",
                 "group_id": group_id,
@@ -342,7 +342,7 @@ class CompleteRealDataProvider:
             
         except Exception as e:
             error_msg = f"Failed to get statistics data: {str(e)}"
-            self.batch_logger.log_error(error_msg)
+            self.batch_logger.error(error_msg)
             await self.error_handler.handle_error(e, {
                 "component": "get_statistics_data",
                 "stats_type": stats_type
@@ -358,12 +358,12 @@ class CompleteRealDataProvider:
             bool: 刷新是否成功
         """
         if self._pipeline_running:
-            self.batch_logger.log_warning("Data pipeline already running, skipping refresh")
+            self.batch_logger.warning("Data pipeline already running, skipping refresh")
             return False
             
         try:
             self._pipeline_running = True
-            self.batch_logger.log_info("Starting data pipeline refresh...")
+            self.batch_logger.info("Starting data pipeline refresh...")
             
             # 清空内存缓存
             self._memory_cache.clear()
@@ -379,12 +379,12 @@ class CompleteRealDataProvider:
             self._last_pipeline_run = datetime.now()
             self.metrics.last_sync_time = self._last_pipeline_run
             
-            self.batch_logger.log_info("Data pipeline refresh completed successfully")
+            self.batch_logger.info("Data pipeline refresh completed successfully")
             return True
             
         except Exception as e:
             error_msg = f"Data pipeline refresh failed: {str(e)}"
-            self.batch_logger.log_error(error_msg)
+            self.batch_logger.error(error_msg)
             self._pipeline_errors.append({
                 "timestamp": datetime.now(),
                 "error": str(e)
@@ -423,7 +423,7 @@ class CompleteRealDataProvider:
             return health_status
             
         except Exception as e:
-            self.batch_logger.log_error(f"Failed to get provider health: {str(e)}")
+            self.batch_logger.error(f"Failed to get provider health: {str(e)}")
             return {"status": "error", "error": str(e)}
 
     # 私有方法实现
@@ -531,7 +531,7 @@ class CompleteRealDataProvider:
                 return data_items
                 
         except SQLAlchemyError as e:
-            self.batch_logger.log_error(f"Database error in get_groups_from_database: {str(e)}")
+            self.batch_logger.error(f"Database error in get_groups_from_database: {str(e)}")
             return []
 
     async def _get_messages_from_database(
@@ -608,7 +608,7 @@ class CompleteRealDataProvider:
                 return data_items
                 
         except SQLAlchemyError as e:
-            self.batch_logger.log_error(f"Database error in get_messages_from_database: {str(e)}")
+            self.batch_logger.error(f"Database error in get_messages_from_database: {str(e)}")
             return []
 
     async def _get_groups_from_telegram(
@@ -628,11 +628,11 @@ class CompleteRealDataProvider:
             # 由于telegram_service的具体实现，这里做简化处理
             data_items = []
             
-            self.batch_logger.log_info(f"Retrieved group data from Telegram API for group {group_id}")
+            self.batch_logger.info(f"Retrieved group data from Telegram API for group {group_id}")
             return data_items
             
         except Exception as e:
-            self.batch_logger.log_error(f"Telegram API error: {str(e)}")
+            self.batch_logger.error(f"Telegram API error: {str(e)}")
             return []
 
     async def _validate_and_enhance_data(
@@ -669,7 +669,7 @@ class CompleteRealDataProvider:
                     self.metrics.data_validation_failures += 1
                     
             except Exception as e:
-                self.batch_logger.log_warning(f"Data validation failed for item {item.id}: {str(e)}")
+                self.batch_logger.warning(f"Data validation failed for item {item.id}: {str(e)}")
                 self.metrics.data_validation_failures += 1
         
         return validated_data
@@ -742,22 +742,22 @@ class CompleteRealDataProvider:
                 return stats
                 
         except SQLAlchemyError as e:
-            self.batch_logger.log_error(f"Database error in calculate_statistics: {str(e)}")
+            self.batch_logger.error(f"Database error in calculate_statistics: {str(e)}")
             return {}
 
     async def _warmup_cache(self):
         """预热缓存"""
         try:
-            self.batch_logger.log_info("Warming up cache...")
+            self.batch_logger.info("Warming up cache...")
             
             # 预加载关键数据
             await self.get_group_data(include_messages=False)
             await self.get_statistics_data("overview")
             
-            self.batch_logger.log_info("Cache warmup completed")
+            self.batch_logger.info("Cache warmup completed")
             
         except Exception as e:
-            self.batch_logger.log_warning(f"Cache warmup failed: {str(e)}")
+            self.batch_logger.warning(f"Cache warmup failed: {str(e)}")
 
     async def _auto_refresh_loop(self):
         """自动刷新循环"""
@@ -773,7 +773,7 @@ class CompleteRealDataProvider:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                self.batch_logger.log_error(f"Auto refresh loop error: {str(e)}")
+                self.batch_logger.error(f"Auto refresh loop error: {str(e)}")
                 self._refresh_running = False
 
     async def _sync_telegram_data(self):
@@ -795,12 +795,12 @@ class CompleteRealDataProvider:
                             group.telegram_id, limit=50
                         )
                     except Exception as e:
-                        self.batch_logger.log_warning(
+                        self.batch_logger.warning(
                             f"Failed to sync messages for group {group.id}: {str(e)}"
                         )
                         
         except Exception as e:
-            self.batch_logger.log_error(f"Telegram data sync failed: {str(e)}")
+            self.batch_logger.error(f"Telegram data sync failed: {str(e)}")
 
     def _update_response_metrics(self, response_time: float):
         """更新响应时间指标"""
@@ -922,10 +922,10 @@ class CompleteRealDataProvider:
             self._memory_cache.clear()
             self._cache_timestamps.clear()
             
-            self.batch_logger.log_info("Real data provider cleanup completed")
+            self.batch_logger.info("Real data provider cleanup completed")
             
         except Exception as e:
-            self.batch_logger.log_error(f"Cleanup error: {str(e)}")
+            self.batch_logger.error(f"Cleanup error: {str(e)}")
 
 # 全局实例
 real_data_provider = CompleteRealDataProvider()

@@ -183,6 +183,7 @@ async def _run_database_stage() -> None:
         logger.info("尝试使用传统方式创建数据库表...")
         try:
             from .database import engine, Base
+            from . import models  # 导入所有模型以注册到Base.metadata
 
             Base.metadata.create_all(bind=engine)
             logger.info("✅ 使用传统方式创建数据库表成功")

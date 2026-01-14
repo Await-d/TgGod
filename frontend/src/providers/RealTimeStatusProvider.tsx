@@ -27,6 +27,7 @@ export const RealTimeStatusProvider: React.FC<ProviderProps> = ({ children }) =>
 
   const [autoRetryEnabled, updateAutoRetryEnabled] = useState(true);
   const autoRetryRef = useRef(autoRetryEnabled);
+  const lastErrorRef = useRef<string>('');
 
   useEffect(() => {
     autoRetryRef.current = autoRetryEnabled;
@@ -59,10 +60,23 @@ export const RealTimeStatusProvider: React.FC<ProviderProps> = ({ children }) =>
         }
       } catch (error) {
         console.error('Error handling status update:', error);
-        notification.error({
-          message: '实时状态更新失败',
-          description: (error as Error).message,
-        });
+
+        // 使用错误消息作为 key 进行去重，避免重复弹窗
+        const errorMessage = (error as Error).message;
+        if (lastErrorRef.current !== errorMessage) {
+          lastErrorRef.current = errorMessage;
+          notification.error({
+            key: 'status-update-error',
+            message: '实时状态更新失败',
+            description: errorMessage,
+            duration: 5,
+          });
+
+          // 5秒后清除错误记录，允许再次显示
+          setTimeout(() => {
+            lastErrorRef.current = '';
+          }, 5000);
+        }
       }
     };
 
