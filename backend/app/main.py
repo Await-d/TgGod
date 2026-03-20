@@ -24,7 +24,22 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .database import engine, Base
 from .config import settings, init_settings
 from .core.startup_pipeline import StartupPipeline, StartupStage
-from .api import telegram, rule, log, task, config, auth, user_settings, dashboard, database_check, download_history, real_data_api, data_initialization, complete_health_monitoring, services
+from .api import (
+    telegram,
+    rule,
+    log,
+    task,
+    config,
+    auth,
+    user_settings,
+    dashboard,
+    database_check,
+    download_history,
+    real_data_api,
+    data_initialization,
+    complete_health_monitoring,
+    services,
+)
 from .tasks.message_sync import message_sync_task
 import logging
 import os
@@ -34,6 +49,7 @@ import time
 # 初始化日志系统（优先使用批处理日志）
 try:
     from .core.logging_config import configure_service_logging
+
     configure_service_logging()
     print("✅ 批处理日志系统初始化成功")
 except Exception as e:
@@ -56,16 +72,14 @@ except Exception as e:
 
     logging.basicConfig(
         level=getattr(logging, log_level),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
     )
 
 # 获取高性能日志记录器
 try:
     from .core.logging_config import get_logger
+
     logger = get_logger(__name__, use_batch=True)
 except Exception:
     logger = logging.getLogger(__name__)
@@ -105,7 +119,7 @@ async def _run_dependency_stage() -> None:
                 "新安装": len(installation_result["installed_services"]),
                 "已存在": len(installation_result["already_installed"]),
                 "跳过": len(installation_result["skipped_services"]),
-                "失败": len(installation_result["failed_services"])
+                "失败": len(installation_result["failed_services"]),
             }
             logger.info(f"📊 服务统计: {stats}")
 
@@ -120,7 +134,9 @@ async def _run_dependency_stage() -> None:
                 for installed in installation_result["installed_services"]:
                     logger.info(f"  - {installed['name']}: {installed['details']}")
         else:
-            logger.error(f"❌ 服务依赖检查失败: {installation_result.get('error', '未知错误')}")
+            logger.error(
+                f"❌ 服务依赖检查失败: {installation_result.get('error', '未知错误')}"
+            )
             logger.warning("系统将继续启动，但某些功能可能不可用")
 
     except Exception as e:  # noqa: BLE001
@@ -146,7 +162,9 @@ async def _run_dependency_stage() -> None:
         logger.warning("会话存储功能可能不可用，建议检查Redis连接")
 
     try:
-        from .services.complete_health_monitoring import start_complete_health_monitoring
+        from .services.complete_health_monitoring import (
+            start_complete_health_monitoring,
+        )
 
         await start_complete_health_monitoring()
         logger.info("✅ 完整健康监控和自动恢复系统启动成功")
@@ -220,7 +238,7 @@ async def _run_database_stage() -> None:
 
         migrations = [
             ("add_user_settings_table", "用户设置表"),
-            ("add_is_downloading_field", "下载状态字段")
+            ("add_is_downloading_field", "下载状态字段"),
         ]
 
         for migration_name, migration_desc in migrations:
@@ -288,9 +306,15 @@ async def _run_database_stage() -> None:
             ("scripts/database/fix_task_fields.py", "任务表字段修复"),
             ("scripts/database/fix_filter_rules_fields.py", "过滤规则表字段修复"),
             ("scripts/database/fix_incremental_fields.py", "增量查询字段修复"),
-            ("scripts/database/remove_rule_group_id_field.py", "移除规则表group_id字段"),
+            (
+                "scripts/database/remove_rule_group_id_field.py",
+                "移除规则表group_id字段",
+            ),
             ("scripts/database/add_advanced_rule_fields.py", "添加高级规则过滤字段"),
-            ("scripts/database/create_task_rule_association_table.py", "创建任务-规则多对多关联表")
+            (
+                "scripts/database/create_task_rule_association_table.py",
+                "创建任务-规则多对多关联表",
+            ),
         ]
 
         for script_name, description in repair_scripts:
@@ -301,7 +325,7 @@ async def _run_database_stage() -> None:
                     [sys.executable, str(script_path)],
                     capture_output=True,
                     text=True,
-                    cwd=str(project_root)
+                    cwd=str(project_root),
                 )
                 if result.returncode == 0:
                     logger.info(f"✅ {description}完成")
@@ -326,7 +350,7 @@ async def _run_database_stage() -> None:
             result = subprocess.run(
                 [sys.executable, str(health_check_script)],
                 capture_output=True,
-                text=True
+                text=True,
             )
             if result.returncode == 0:
                 logger.info("✅ 数据库健康检查完成")
@@ -347,9 +371,11 @@ async def _run_database_stage() -> None:
         db: Session = next(db_gen)
 
         try:
-            running_tasks = db.query(DownloadTask).filter(
-                DownloadTask.status.in_(["running", "paused"])
-            ).all()
+            running_tasks = (
+                db.query(DownloadTask)
+                .filter(DownloadTask.status.in_(["running", "paused"]))
+                .all()
+            )
 
             reset_count = 0
             for task in running_tasks:
@@ -359,7 +385,9 @@ async def _run_database_stage() -> None:
                     f"应用重启时发现任务处于{original_status}状态，已自动重置"
                 )
                 reset_count += 1
-                logger.info(f"重置任务 {task.id}({task.name}) 状态: {original_status} -> failed")
+                logger.info(
+                    f"重置任务 {task.id}({task.name}) 状态: {original_status} -> failed"
+                )
 
             if reset_count > 0:
                 db.commit()
@@ -403,7 +431,9 @@ async def _run_service_stage() -> None:
             logger.info("Task execution service initialized successfully")
         except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to initialize task execution service: {e}")
-            logger.warning("Task execution service disabled, system will continue startup without it")
+            logger.warning(
+                "Task execution service disabled, system will continue startup without it"
+            )
 
         try:
             from .api.real_data_api import initialize_real_data_provider
@@ -420,16 +450,16 @@ async def _run_service_stage() -> None:
             from .core.temp_file_manager import temp_file_manager
 
             service_locator.register(
-                'temp_file_manager',
+                "temp_file_manager",
                 instance=temp_file_manager,
-                config=ServiceConfig(singleton=True)
+                config=ServiceConfig(singleton=True),
             )
 
             task_execution_service = TaskExecutionService()
             service_locator.register(
-                'task_execution_service',
+                "task_execution_service",
                 instance=task_execution_service,
-                config=ServiceConfig(singleton=True)
+                config=ServiceConfig(singleton=True),
             )
 
             await task_execution_service.initialize()
@@ -519,7 +549,11 @@ async def _shutdown_runtime() -> None:
         await stop_complete_health_monitoring()
         logger.info("完整健康监控系统停止成功", component="complete_health_monitoring")
     except Exception as e:  # noqa: BLE001
-        logger.error("停止完整健康监控系统失败", error=str(e), component="complete_health_monitoring")
+        logger.error(
+            "停止完整健康监控系统失败",
+            error=str(e),
+            component="complete_health_monitoring",
+        )
 
     try:
         from .websocket.production_status_manager import production_status_manager
@@ -527,7 +561,11 @@ async def _shutdown_runtime() -> None:
         await production_status_manager.stop_monitoring()
         logger.info("生产状态管理器停止成功", component="production_status_manager")
     except Exception as e:  # noqa: BLE001
-        logger.error("停止生产状态管理器失败", error=str(e), component="production_status_manager")
+        logger.error(
+            "停止生产状态管理器失败",
+            error=str(e),
+            component="production_status_manager",
+        )
 
     try:
         from .services.service_monitor import service_monitor
@@ -543,7 +581,9 @@ async def _shutdown_runtime() -> None:
         await cleanup_real_data_provider()
         logger.info("真实数据提供者清理成功", component="real_data_provider")
     except Exception as e:  # noqa: BLE001
-        logger.error("清理真实数据提供者失败", error=str(e), component="real_data_provider")
+        logger.error(
+            "清理真实数据提供者失败", error=str(e), component="real_data_provider"
+        )
 
     try:
         from .core.temp_file_manager import temp_file_manager
@@ -551,7 +591,9 @@ async def _shutdown_runtime() -> None:
         temp_file_manager.shutdown()
         logger.info("临时文件管理器关闭成功", component="temp_file_manager")
     except Exception as e:  # noqa: BLE001
-        logger.error("关闭临时文件管理器失败", error=str(e), component="temp_file_manager")
+        logger.error(
+            "关闭临时文件管理器失败", error=str(e), component="temp_file_manager"
+        )
 
     try:
         from .core.batch_logging import BatchLogHandler
@@ -564,6 +606,7 @@ async def _shutdown_runtime() -> None:
 
     logger.info("TgGod API 关闭完成", shutdown_phase="complete")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI应用程序生命周期管理器"""
@@ -574,17 +617,17 @@ async def lifespan(app: FastAPI):
             StartupStage(
                 name="dependencies",
                 runner=_run_dependency_stage,
-                description="安装系统依赖并启动监控"
+                description="安装系统依赖并启动监控",
             ),
             StartupStage(
                 name="database",
                 runner=_run_database_stage,
-                description="执行数据库检查与修复"
+                description="执行数据库检查与修复",
             ),
             StartupStage(
                 name="services",
                 runner=_run_service_stage,
-                description="初始化业务服务与默认数据"
+                description="初始化业务服务与默认数据",
             ),
         ],
         logger=logger,
@@ -601,12 +644,13 @@ async def lifespan(app: FastAPI):
     finally:
         await _shutdown_runtime()
 
+
 # 创建FastAPI应用
 app = FastAPI(
     title="TgGod API",
     description="Telegram群组规则下载系统API",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # 配置CORS
@@ -617,6 +661,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # 全局异常处理器
 @app.exception_handler(Exception)
@@ -638,11 +683,13 @@ async def global_exception_handler(request: Request, exc: Exception):
         - 错误详情会被记录到日志中用于调试
         - 生产环境中应避免暴露敏感的错误信息
     """
-    logger.error(f"全局异常捕获: {request.method} {request.url} - {type(exc).__name__}: {str(exc)}")
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error", "error": str(exc)}
+    logger.error(
+        f"全局异常捕获: {request.method} {request.url} - {type(exc).__name__}: {str(exc)}"
     )
+    return JSONResponse(
+        status_code=500, content={"detail": "Internal server error", "error": str(exc)}
+    )
+
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -663,11 +710,11 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         - 403 Forbidden: 权限不足
         - 400 Bad Request: 请求参数错误
     """
-    logger.warning(f"HTTP异常: {request.method} {request.url} - 状态码: {exc.status_code} - 详情: {exc.detail}")
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail}
+    logger.warning(
+        f"HTTP异常: {request.method} {request.url} - 状态码: {exc.status_code} - 详情: {exc.detail}"
     )
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
 
 # 添加请求日志中间件
 @app.middleware("http")
@@ -693,28 +740,33 @@ async def log_requests(request, call_next):
         处理时间精确到毫秒，有助于性能分析
     """
     start_time = time.time()
-    
+
     try:
         # 记录请求信息
         logger.info(f"🔵 请求开始: {request.method} {request.url}")
         logger.debug(f"🔵 请求头: {dict(request.headers)}")
-        
+
         # 处理请求
         response = await call_next(request)
-        
+
         # 记录响应信息
         process_time = time.time() - start_time
-        logger.info(f"🟢 请求完成: {request.method} {request.url} - 状态码: {response.status_code} - 耗时: {process_time:.4f}s")
-        
+        logger.info(
+            f"🟢 请求完成: {request.method} {request.url} - 状态码: {response.status_code} - 耗时: {process_time:.4f}s"
+        )
+
         return response
-        
+
     except Exception as e:
         # 记录错误信息
         process_time = time.time() - start_time
-        logger.error(f"❌ 请求失败: {request.method} {request.url} - 错误: {str(e)} - 耗时: {process_time:.4f}s")
-        
+        logger.error(
+            f"❌ 请求失败: {request.method} {request.url} - 错误: {str(e)} - 耗时: {process_time:.4f}s"
+        )
+
         # 重新抛出异常，让FastAPI处理
         raise
+
 
 # 静态文件服务
 # 确保媒体目录存在
@@ -728,7 +780,7 @@ if os.path.exists(settings.media_root):
     # 配置媒体文件服务，支持视频流
     from starlette.responses import FileResponse
     from starlette.middleware.base import BaseHTTPMiddleware
-    
+
     class MediaHeaders(BaseHTTPMiddleware):
         """媒体文件HTTP头处理中间件
 
@@ -750,50 +802,52 @@ if os.path.exists(settings.media_root):
         async def dispatch(self, request, call_next):
             try:
                 response = await call_next(request)
-                
+
                 # 为媒体文件添加适当的MIME类型和头部
-                if request.url.path.startswith('/media/'):
-                    file_ext = request.url.path.split('.')[-1].lower()
-                    
+                if request.url.path.startswith("/media/"):
+                    file_ext = request.url.path.split(".")[-1].lower()
+
                     # 视频文件类型
-                    if file_ext in ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv']:
+                    if file_ext in ["mp4", "avi", "mov", "wmv", "flv", "webm", "mkv"]:
                         response.headers["Accept-Ranges"] = "bytes"
                         response.headers["Content-Type"] = f"video/{file_ext}"
-                        if file_ext == 'mp4':
+                        if file_ext == "mp4":
                             response.headers["Content-Type"] = "video/mp4"
-                        elif file_ext == 'webm':
+                        elif file_ext == "webm":
                             response.headers["Content-Type"] = "video/webm"
-                        elif file_ext == 'avi':
+                        elif file_ext == "avi":
                             response.headers["Content-Type"] = "video/x-msvideo"
-                    
-                    # 图片文件类型  
-                    elif file_ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
+
+                    # 图片文件类型
+                    elif file_ext in ["jpg", "jpeg", "png", "gif", "bmp", "webp"]:
                         response.headers["Content-Type"] = f"image/{file_ext}"
-                        if file_ext in ['jpg', 'jpeg']:
+                        if file_ext in ["jpg", "jpeg"]:
                             response.headers["Content-Type"] = "image/jpeg"
-                    
+
                     # 音频文件类型
-                    elif file_ext in ['mp3', 'wav', 'ogg', 'flac', 'aac']:
+                    elif file_ext in ["mp3", "wav", "ogg", "flac", "aac"]:
                         response.headers["Content-Type"] = f"audio/{file_ext}"
-                        if file_ext == 'mp3':
+                        if file_ext == "mp3":
                             response.headers["Content-Type"] = "audio/mpeg"
-                    
+
                     # 设置缓存头部
                     response.headers["Cache-Control"] = "public, max-age=3600"
                     response.headers["Access-Control-Allow-Origin"] = "*"
-                    response.headers["Access-Control-Allow-Methods"] = "GET, HEAD, OPTIONS"
+                    response.headers["Access-Control-Allow-Methods"] = (
+                        "GET, HEAD, OPTIONS"
+                    )
                     response.headers["Access-Control-Allow-Headers"] = "Range"
-                    
+
                 return response
-                
+
             except Exception as e:
                 logger.error(f"MediaHeaders中间件错误: {str(e)}")
                 # 重新抛出异常，让上层处理
                 raise
-    
+
     # 添加媒体文件处理中间件
     app.add_middleware(MediaHeaders)
-    
+
     # 挂载静态文件服务
     app.mount("/media", StaticFiles(directory=settings.media_root), name="media")
 
@@ -818,6 +872,7 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"]
 
 # 媒体文件API
 from .api import media
+
 app.include_router(media.router, prefix="/api/media", tags=["media"])
 
 # 数据库检查API
@@ -828,14 +883,22 @@ app.include_router(download_history.router, prefix="/api", tags=["download_histo
 
 # 服务健康检查API
 from .api import service_health
+
 app.include_router(service_health.router, prefix="/api", tags=["service_health"])
+
+# 实时状态控制API
+from .api import realtime_controls
+
+app.include_router(realtime_controls.router, prefix="/api", tags=["realtime_controls"])
 
 # 连接池监控API
 from .api import connection_pool
+
 app.include_router(connection_pool.router, prefix="/api", tags=["connection_pool"])
 
 # 批处理日志监控API
 from .api import batch_logging_metrics
+
 app.include_router(batch_logging_metrics.router, prefix="/api", tags=["batch_logging"])
 
 # 完整真实数据提供者API
@@ -845,10 +908,15 @@ app.include_router(real_data_api.router, tags=["real_data"])
 app.include_router(data_initialization.router, tags=["data_initialization"])
 
 # 完整健康监控和自动恢复API
-app.include_router(complete_health_monitoring.router, prefix="/api", tags=["complete_health_monitoring"])
+app.include_router(
+    complete_health_monitoring.router,
+    prefix="/api",
+    tags=["complete_health_monitoring"],
+)
 
 # 服务管理和迁移API
 app.include_router(services.router, prefix="/api/services", tags=["services"])
+
 
 # 根路径
 @app.get("/")
@@ -865,6 +933,7 @@ async def root():
         Response: {"message": "TgGod API is running"}
     """
     return {"message": "TgGod API is running"}
+
 
 # 健康检查
 @app.get("/health")
@@ -885,6 +954,7 @@ async def health_check():
         更详细的健康检查请使用 /api/health/* 端点
     """
     return {"status": "healthy"}
+
 
 # WebSocket端点
 @app.websocket("/ws/{client_id}")
@@ -924,63 +994,77 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         连接断开时会自动清理客户端订阅状态
     """
     await websocket_manager.connect(websocket, client_id)
-    
+
     # 存储客户端订阅的群组
     client_subscriptions = set()
-    
+
     try:
         while True:
             # 接收客户端消息
             data = await websocket.receive_text()
-            
+
             try:
                 message = json.loads(data)
                 message_type = message.get("type")
-                
+
                 if message_type == "subscribe_group":
                     # 订阅群组消息
                     group_id = message.get("group_id")
                     if group_id:
                         client_subscriptions.add(group_id)
-                        logger.info(f"Client {client_id} subscribed to group {group_id}")
-                        
+                        logger.info(
+                            f"Client {client_id} subscribed to group {group_id}"
+                        )
+
                         # 将群组添加到同步任务
                         message_sync_task.add_group(int(group_id), interval=30)
-                        
+
                         # 发送订阅确认
-                        await websocket_manager.send_personal_message({
-                            "type": "subscription_confirmed",
-                            "data": {"group_id": group_id}
-                        }, client_id)
-                
+                        await websocket_manager.send_personal_message(
+                            {
+                                "type": "subscription_confirmed",
+                                "data": {"group_id": group_id},
+                            },
+                            client_id,
+                        )
+
                 elif message_type == "unsubscribe_group":
                     # 取消订阅群组消息
                     group_id = message.get("group_id")
                     if group_id and group_id in client_subscriptions:
                         client_subscriptions.remove(group_id)
-                        logger.info(f"Client {client_id} unsubscribed from group {group_id}")
-                        
+                        logger.info(
+                            f"Client {client_id} unsubscribed from group {group_id}"
+                        )
+
                         # 发送取消订阅确认
-                        await websocket_manager.send_personal_message({
-                            "type": "unsubscription_confirmed",
-                            "data": {"group_id": group_id}
-                        }, client_id)
-                
+                        await websocket_manager.send_personal_message(
+                            {
+                                "type": "unsubscription_confirmed",
+                                "data": {"group_id": group_id},
+                            },
+                            client_id,
+                        )
+
                 elif message_type == "ping":
                     # 心跳检测
-                    await websocket_manager.send_personal_message({
-                        "type": "pong"
-                    }, client_id)
-                
+                    await websocket_manager.send_personal_message(
+                        {"type": "pong"}, client_id
+                    )
+
             except json.JSONDecodeError:
                 logger.error(f"Invalid JSON received from client {client_id}")
             except Exception as e:
                 logger.error(f"Error processing message from client {client_id}: {e}")
-                
+
     except WebSocketDisconnect:
         websocket_manager.disconnect(client_id)
-        logger.info(f"Client {client_id} disconnected from groups: {client_subscriptions}")
+        logger.info(
+            f"Client {client_id} disconnected from groups: {client_subscriptions}"
+        )
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

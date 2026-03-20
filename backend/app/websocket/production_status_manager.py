@@ -37,8 +37,10 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+
 class ServiceStatus(Enum):
     """Service status enumeration"""
+
     HEALTHY = "healthy"
     WARNING = "warning"
     ERROR = "error"
@@ -47,16 +49,20 @@ class ServiceStatus(Enum):
     STOPPING = "stopping"
     UNKNOWN = "unknown"
 
+
 class ServicePriority(Enum):
     """Service priority levels"""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
 
+
 @dataclass
 class ServiceInfo:
     """Complete service information structure"""
+
     name: str
     status: ServiceStatus
     priority: ServicePriority
@@ -72,9 +78,11 @@ class ServiceInfo:
     recovery_suggestion: Optional[str] = None
     maintenance_window: Optional[Dict[str, str]] = None
 
+
 @dataclass
 class SystemMetrics:
     """System-wide performance metrics"""
+
     cpu_percent: float
     memory_percent: float
     disk_percent: float
@@ -85,9 +93,11 @@ class SystemMetrics:
     uptime: float
     load_average: List[float]
 
+
 @dataclass
 class ErrorReport:
     """Comprehensive error reporting structure"""
+
     error_id: str
     timestamp: datetime
     service: str
@@ -99,6 +109,7 @@ class ErrorReport:
     auto_recovery_possible: bool
     impact_assessment: str
     resolution_eta: Optional[str] = None
+
 
 class ProductionStatusManager:
     """
@@ -141,43 +152,43 @@ class ProductionStatusManager:
             {
                 "name": "telegram_service",
                 "priority": ServicePriority.CRITICAL,
-                "dependencies": ["database", "network"]
+                "dependencies": ["database", "network"],
             },
             {
                 "name": "database",
                 "priority": ServicePriority.CRITICAL,
-                "dependencies": ["filesystem"]
+                "dependencies": ["filesystem"],
             },
             {
                 "name": "task_execution",
                 "priority": ServicePriority.HIGH,
-                "dependencies": ["telegram_service", "database"]
+                "dependencies": ["telegram_service", "database"],
             },
             {
                 "name": "media_downloader",
                 "priority": ServicePriority.HIGH,
-                "dependencies": ["telegram_service", "filesystem"]
+                "dependencies": ["telegram_service", "filesystem"],
             },
             {
                 "name": "websocket_manager",
                 "priority": ServicePriority.MEDIUM,
-                "dependencies": ["network"]
+                "dependencies": ["network"],
             },
             {
                 "name": "file_organizer",
                 "priority": ServicePriority.MEDIUM,
-                "dependencies": ["filesystem", "database"]
+                "dependencies": ["filesystem", "database"],
             },
             {
                 "name": "network",
                 "priority": ServicePriority.CRITICAL,
-                "dependencies": []
+                "dependencies": [],
             },
             {
                 "name": "filesystem",
                 "priority": ServicePriority.CRITICAL,
-                "dependencies": []
-            }
+                "dependencies": [],
+            },
         ]
 
         for service_config in core_services:
@@ -193,7 +204,7 @@ class ProductionStatusManager:
                 recovery_attempts=0,
                 dependencies=service_config["dependencies"],
                 metrics={},
-                message="Initializing service..."
+                message="Initializing service...",
             )
 
     async def start_monitoring(self):
@@ -211,15 +222,18 @@ class ProductionStatusManager:
         asyncio.create_task(self._auto_recovery_loop())
 
         logger.info("Production status monitoring started")
-        await self._broadcast_system_status("monitoring_started", {
-            "message": "Production monitoring system is now active",
-            "services_count": len(self.services),
-            "monitoring_intervals": {
-                "health_check": self.health_check_interval,
-                "metrics_collection": self.metrics_collection_interval,
-                "status_broadcast": self.status_broadcast_interval
-            }
-        })
+        await self._broadcast_system_status(
+            "monitoring_started",
+            {
+                "message": "Production monitoring system is now active",
+                "services_count": len(self.services),
+                "monitoring_intervals": {
+                    "health_check": self.health_check_interval,
+                    "metrics_collection": self.metrics_collection_interval,
+                    "status_broadcast": self.status_broadcast_interval,
+                },
+            },
+        )
 
     async def stop_monitoring(self):
         """Stop the production status monitoring system"""
@@ -229,9 +243,10 @@ class ProductionStatusManager:
             self.monitor_task.cancel()
 
         logger.info("Production status monitoring stopped")
-        await self._broadcast_system_status("monitoring_stopped", {
-            "message": "Production monitoring system has been stopped"
-        })
+        await self._broadcast_system_status(
+            "monitoring_stopped",
+            {"message": "Production monitoring system has been stopped"},
+        )
 
     async def _health_check_loop(self):
         """Main health checking loop"""
@@ -287,13 +302,21 @@ class ProductionStatusManager:
 
                 if health_result["healthy"]:
                     service_info.status = ServiceStatus.HEALTHY
-                    service_info.health_score = min(service_info.health_score + 0.1, 1.0)
-                    service_info.message = health_result.get("message", "Service is healthy")
+                    service_info.health_score = min(
+                        service_info.health_score + 0.1, 1.0
+                    )
+                    service_info.message = health_result.get(
+                        "message", "Service is healthy"
+                    )
                 else:
                     service_info.status = ServiceStatus.ERROR
-                    service_info.health_score = max(service_info.health_score - 0.2, 0.0)
+                    service_info.health_score = max(
+                        service_info.health_score - 0.2, 0.0
+                    )
                     service_info.error_count += 1
-                    service_info.message = health_result.get("message", "Service is unhealthy")
+                    service_info.message = health_result.get(
+                        "message", "Service is unhealthy"
+                    )
 
                     # Create error report
                     await self._create_error_report(service_name, health_result)
@@ -332,7 +355,7 @@ class ProductionStatusManager:
             return {
                 "healthy": False,
                 "message": f"Health check error: {str(e)}",
-                "error_details": {"exception": str(e)}
+                "error_details": {"exception": str(e)},
             }
 
     async def _check_database_health(self) -> Dict[str, Any]:
@@ -343,14 +366,12 @@ class ProductionStatusManager:
 
             # Simple query to test connectivity
             from sqlalchemy import text
+
             result = db.execute(text("SELECT 1")).scalar()
             query_time = (time.time() - start_time) * 1000
 
             # Check for lock waits and active connections
-            metrics = {
-                "query_response_time": query_time,
-                "connection_active": True
-            }
+            metrics = {"query_response_time": query_time, "connection_active": True}
 
             db.close()
 
@@ -362,14 +383,14 @@ class ProductionStatusManager:
                     "suggested_actions": [
                         "Check database locks",
                         "Analyze slow queries",
-                        "Consider connection pool tuning"
-                    ]
+                        "Consider connection pool tuning",
+                    ],
                 }
 
             return {
                 "healthy": True,
                 "message": f"Database responsive ({query_time:.1f}ms)",
-                "metrics": metrics
+                "metrics": metrics,
             }
 
         except Exception as e:
@@ -380,8 +401,8 @@ class ProductionStatusManager:
                     "Check database service status",
                     "Verify connection parameters",
                     "Check disk space",
-                    "Review database logs"
-                ]
+                    "Review database logs",
+                ],
             }
 
     async def _check_telegram_health(self) -> Dict[str, Any]:
@@ -391,22 +412,32 @@ class ProductionStatusManager:
             from app.services.telegram_service import telegram_service
 
             # Check if client is connected
-            is_connected = telegram_service.is_connected() if hasattr(telegram_service, 'is_connected') else False
+            is_connected = (
+                telegram_service.is_connected()
+                if hasattr(telegram_service, "is_connected")
+                else False
+            )
 
             # 获取健康指标
             metrics = {
                 "client_connected": is_connected,
-                "last_activity": datetime.now().isoformat()
+                "last_activity": datetime.now().isoformat(),
             }
 
             # 如果有健康指标对象，添加更多信息
-            if hasattr(telegram_service, 'health_metrics'):
+            if hasattr(telegram_service, "health_metrics"):
                 health_metrics = telegram_service.health_metrics
-                metrics.update({
-                    "error_count": getattr(health_metrics, 'error_count', 0),
-                    "success_count": getattr(health_metrics, 'success_count', 0),
-                    "last_check_time": getattr(health_metrics, 'last_check_time', datetime.now()).isoformat() if hasattr(health_metrics, 'last_check_time') else datetime.now().isoformat()
-                })
+                metrics.update(
+                    {
+                        "error_count": getattr(health_metrics, "error_count", 0),
+                        "success_count": getattr(health_metrics, "success_count", 0),
+                        "last_check_time": getattr(
+                            health_metrics, "last_check_time", datetime.now()
+                        ).isoformat()
+                        if hasattr(health_metrics, "last_check_time")
+                        else datetime.now().isoformat(),
+                    }
+                )
 
             if not is_connected:
                 return {
@@ -417,14 +448,14 @@ class ProductionStatusManager:
                         "Check Telegram API credentials",
                         "Verify network connectivity",
                         "Review authentication status",
-                        "Check rate limits"
-                    ]
+                        "Check rate limits",
+                    ],
                 }
 
             return {
                 "healthy": True,
                 "message": "Telegram client connected and active",
-                "metrics": metrics
+                "metrics": metrics,
             }
 
         except Exception as e:
@@ -434,8 +465,8 @@ class ProductionStatusManager:
                 "suggested_actions": [
                     "Restart Telegram service",
                     "Check API configuration",
-                    "Verify session files"
-                ]
+                    "Verify session files",
+                ],
             }
 
     async def _check_task_execution_health(self) -> Dict[str, Any]:
@@ -446,15 +477,12 @@ class ProductionStatusManager:
             # Basic health check - service availability
             service = TaskExecutionService()
 
-            metrics = {
-                "service_active": True,
-                "last_check": datetime.now().isoformat()
-            }
+            metrics = {"service_active": True, "last_check": datetime.now().isoformat()}
 
             return {
                 "healthy": True,
                 "message": "Task execution service operational",
-                "metrics": metrics
+                "metrics": metrics,
             }
 
         except Exception as e:
@@ -464,8 +492,8 @@ class ProductionStatusManager:
                 "suggested_actions": [
                     "Restart task execution service",
                     "Check service dependencies",
-                    "Review task queue status"
-                ]
+                    "Review task queue status",
+                ],
             }
 
     async def _check_media_downloader_health(self) -> Dict[str, Any]:
@@ -473,10 +501,7 @@ class ProductionStatusManager:
         try:
             from app.services.media_downloader import TelegramMediaDownloader
 
-            metrics = {
-                "service_active": True,
-                "download_path_accessible": True
-            }
+            metrics = {"service_active": True, "download_path_accessible": True}
 
             # Check if download directory is accessible
             download_path = Path("./media")
@@ -488,14 +513,14 @@ class ProductionStatusManager:
                     "suggested_actions": [
                         "Create media directory",
                         "Check filesystem permissions",
-                        "Verify disk space"
-                    ]
+                        "Verify disk space",
+                    ],
                 }
 
             return {
                 "healthy": True,
                 "message": "Media downloader ready",
-                "metrics": metrics
+                "metrics": metrics,
             }
 
         except Exception as e:
@@ -504,8 +529,8 @@ class ProductionStatusManager:
                 "message": f"Media downloader error: {str(e)}",
                 "suggested_actions": [
                     "Check media service configuration",
-                    "Verify storage availability"
-                ]
+                    "Verify storage availability",
+                ],
             }
 
     async def _check_websocket_health(self) -> Dict[str, Any]:
@@ -516,13 +541,13 @@ class ProductionStatusManager:
 
             metrics = {
                 "active_connections": connection_count,
-                "connected_clients": len(connected_clients)
+                "connected_clients": len(connected_clients),
             }
 
             return {
                 "healthy": True,
                 "message": f"WebSocket manager active ({connection_count} connections)",
-                "metrics": metrics
+                "metrics": metrics,
             }
 
         except Exception as e:
@@ -531,8 +556,8 @@ class ProductionStatusManager:
                 "message": f"WebSocket manager error: {str(e)}",
                 "suggested_actions": [
                     "Restart WebSocket service",
-                    "Check network configuration"
-                ]
+                    "Check network configuration",
+                ],
             }
 
     async def _check_file_organizer_health(self) -> Dict[str, Any]:
@@ -540,14 +565,12 @@ class ProductionStatusManager:
         try:
             from app.services.file_organizer_service import FileOrganizerService
 
-            metrics = {
-                "service_active": True
-            }
+            metrics = {"service_active": True}
 
             return {
                 "healthy": True,
                 "message": "File organizer service operational",
-                "metrics": metrics
+                "metrics": metrics,
             }
 
         except Exception as e:
@@ -556,8 +579,8 @@ class ProductionStatusManager:
                 "message": f"File organizer error: {str(e)}",
                 "suggested_actions": [
                     "Check file system permissions",
-                    "Verify storage space"
-                ]
+                    "Verify storage space",
+                ],
             }
 
     async def _check_network_health(self) -> Dict[str, Any]:
@@ -566,14 +589,14 @@ class ProductionStatusManager:
             # Test basic connectivity
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(5)
-            result = sock.connect_ex(('8.8.8.8', 53))  # Google DNS
+            result = sock.connect_ex(("8.8.8.8", 53))  # Google DNS
             sock.close()
 
             is_connected = result == 0
 
             metrics = {
                 "internet_accessible": is_connected,
-                "dns_responsive": is_connected
+                "dns_responsive": is_connected,
             }
 
             if not is_connected:
@@ -584,14 +607,14 @@ class ProductionStatusManager:
                     "suggested_actions": [
                         "Check network configuration",
                         "Verify DNS settings",
-                        "Test firewall rules"
-                    ]
+                        "Test firewall rules",
+                    ],
                 }
 
             return {
                 "healthy": True,
                 "message": "Network connectivity normal",
-                "metrics": metrics
+                "metrics": metrics,
             }
 
         except Exception as e:
@@ -600,20 +623,20 @@ class ProductionStatusManager:
                 "message": f"Network check error: {str(e)}",
                 "suggested_actions": [
                     "Check network interface status",
-                    "Verify routing configuration"
-                ]
+                    "Verify routing configuration",
+                ],
             }
 
     async def _check_filesystem_health(self) -> Dict[str, Any]:
         """Check filesystem health and space"""
         try:
-            disk_usage = psutil.disk_usage('/')
+            disk_usage = psutil.disk_usage("/")
             free_space_percent = (disk_usage.free / disk_usage.total) * 100
 
             metrics = {
                 "free_space_percent": free_space_percent,
                 "total_space_gb": disk_usage.total / (1024**3),
-                "free_space_gb": disk_usage.free / (1024**3)
+                "free_space_gb": disk_usage.free / (1024**3),
             }
 
             if free_space_percent < 10:
@@ -624,30 +647,27 @@ class ProductionStatusManager:
                     "suggested_actions": [
                         "Clean up old files",
                         "Archive media files",
-                        "Expand storage capacity"
-                    ]
+                        "Expand storage capacity",
+                    ],
                 }
             elif free_space_percent < 20:
                 return {
                     "healthy": True,
                     "message": f"Disk space warning: {free_space_percent:.1f}% free",
-                    "metrics": metrics
+                    "metrics": metrics,
                 }
 
             return {
                 "healthy": True,
                 "message": f"Filesystem healthy ({free_space_percent:.1f}% free)",
-                "metrics": metrics
+                "metrics": metrics,
             }
 
         except Exception as e:
             return {
                 "healthy": False,
                 "message": f"Filesystem check error: {str(e)}",
-                "suggested_actions": [
-                    "Check disk health",
-                    "Verify mount points"
-                ]
+                "suggested_actions": ["Check disk health", "Verify mount points"],
             }
 
     async def _collect_system_metrics(self):
@@ -661,7 +681,7 @@ class ProductionStatusManager:
             memory_percent = memory.percent
 
             # Disk metrics
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             disk_percent = (disk.used / disk.total) * 100
 
             # Network I/O
@@ -685,13 +705,15 @@ class ProductionStatusManager:
                 total_tasks=0,  # Will be updated by task service
                 failed_tasks=0,  # Will be updated by task service
                 uptime=time.time() - psutil.boot_time(),
-                load_average=load_avg
+                load_average=load_avg,
             )
 
         except Exception as e:
             logger.error(f"System metrics collection failed: {e}")
 
-    async def _create_error_report(self, service_name: str, health_result: Dict[str, Any]):
+    async def _create_error_report(
+        self, service_name: str, health_result: Dict[str, Any]
+    ):
         """Create a comprehensive error report"""
         error_id = f"{service_name}_{int(time.time())}"
 
@@ -709,7 +731,9 @@ class ProductionStatusManager:
 
         # Auto-recovery assessment
         auto_recovery_possible = service_name in [
-            "telegram_service", "websocket_manager", "task_execution"
+            "telegram_service",
+            "websocket_manager",
+            "task_execution",
         ]
 
         error_report = ErrorReport(
@@ -723,7 +747,7 @@ class ProductionStatusManager:
             suggested_actions=health_result.get("suggested_actions", []),
             auto_recovery_possible=auto_recovery_possible,
             impact_assessment=self._assess_error_impact(service_name),
-            resolution_eta=self._estimate_resolution_time(service_name, severity)
+            resolution_eta=self._estimate_resolution_time(service_name, severity),
         )
 
         self.error_reports.append(error_report)
@@ -742,7 +766,9 @@ class ProductionStatusManager:
             return "Unknown impact"
 
         if service_info.priority == ServicePriority.CRITICAL:
-            return "Critical system functionality affected. Immediate attention required."
+            return (
+                "Critical system functionality affected. Immediate attention required."
+            )
         elif service_info.priority == ServicePriority.HIGH:
             return "Important features may be degraded. Should be addressed promptly."
         else:
@@ -760,9 +786,10 @@ class ProductionStatusManager:
     async def _check_auto_recovery(self):
         """Check for services that can be automatically recovered"""
         for service_name, service_info in self.services.items():
-            if (service_info.status == ServiceStatus.ERROR and
-                service_info.recovery_attempts < 3):
-
+            if (
+                service_info.status == ServiceStatus.ERROR
+                and service_info.recovery_attempts < 3
+            ):
                 # Attempt auto-recovery for specific services
                 if service_name in ["telegram_service", "websocket_manager"]:
                     await self._attempt_service_recovery(service_name)
@@ -772,7 +799,9 @@ class ProductionStatusManager:
         service_info = self.services[service_name]
         service_info.recovery_attempts += 1
 
-        logger.info(f"Attempting auto-recovery for {service_name} (attempt {service_info.recovery_attempts})")
+        logger.info(
+            f"Attempting auto-recovery for {service_name} (attempt {service_info.recovery_attempts})"
+        )
 
         recovery_success = False
 
@@ -780,10 +809,11 @@ class ProductionStatusManager:
             if service_name == "telegram_service":
                 # Attempt to reconnect Telegram service - 使用全局实例
                 from app.services.telegram_service import telegram_service
-                if hasattr(telegram_service, 'reconnect'):
+
+                if hasattr(telegram_service, "reconnect"):
                     await telegram_service.reconnect()
                     recovery_success = True
-                elif hasattr(telegram_service, 'initialize'):
+                elif hasattr(telegram_service, "initialize"):
                     # 如果没有reconnect方法，尝试重新初始化
                     await telegram_service.initialize()
                     recovery_success = True
@@ -808,7 +838,7 @@ class ProductionStatusManager:
         try:
             # Create snapshot to avoid "dictionary changed size during iteration" error
             services_snapshot = dict(self.services.items())
-            
+
             status_data = {
                 "type": "production_status",
                 "timestamp": datetime.now().isoformat(),
@@ -826,23 +856,32 @@ class ProductionStatusManager:
                         "recovery_attempts": info.recovery_attempts,
                         "message": info.message,
                         "metrics": info.metrics,
-                        "recovery_suggestion": info.recovery_suggestion
+                        "recovery_suggestion": info.recovery_suggestion,
                     }
                     for name, info in services_snapshot.items()
                 },
-                "system_metrics": asdict(self.system_metrics) if self.system_metrics else None,
+                "system_metrics": asdict(self.system_metrics)
+                if self.system_metrics
+                else None,
                 "error_summary": {
                     "total_errors": len(self.error_reports),
-                    "critical_errors": len([e for e in self.error_reports if e.severity == "critical"]),
-                    "recent_errors": len([e for e in self.error_reports
-                                        if e.timestamp > datetime.now() - timedelta(hours=1)])
-                }
+                    "critical_errors": len(
+                        [e for e in self.error_reports if e.severity == "critical"]
+                    ),
+                    "recent_errors": len(
+                        [
+                            e
+                            for e in self.error_reports
+                            if e.timestamp > datetime.now() - timedelta(hours=1)
+                        ]
+                    ),
+                },
             }
 
             if self.maintenance_mode:
                 status_data["maintenance"] = {
                     "message": self.maintenance_message,
-                    "eta": self.maintenance_eta
+                    "eta": self.maintenance_eta,
                 }
 
             await websocket_manager.send_status(status_data)
@@ -856,19 +895,18 @@ class ProductionStatusManager:
             error_data = {
                 "type": "error_report",
                 "error": asdict(error_report),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
-            await websocket_manager.send_notification({
-                "title": f"Service Error: {error_report.service}",
-                "message": error_report.message,
-                "type": "error",
-                "duration": 0,  # Persistent
-                "action": {
-                    "label": "View Details",
-                    "data": error_data
+            await websocket_manager.send_notification(
+                {
+                    "title": f"Service Error: {error_report.service}",
+                    "message": error_report.message,
+                    "type": "error",
+                    "duration": 0,  # Persistent
+                    "action": {"label": "View Details", "data": error_data},
                 }
-            })
+            )
 
         except Exception as e:
             logger.error(f"Failed to broadcast error report: {e}")
@@ -877,23 +915,24 @@ class ProductionStatusManager:
         """Broadcast service recovery notification"""
         try:
             if success:
-                await websocket_manager.send_notification({
-                    "title": "Service Recovery",
-                    "message": f"{service_name} has been automatically recovered",
-                    "type": "success",
-                    "duration": 5000
-                })
-            else:
-                await websocket_manager.send_notification({
-                    "title": "Recovery Failed",
-                    "message": f"Automatic recovery failed for {service_name}. Manual intervention required.",
-                    "type": "error",
-                    "duration": 0,
-                    "action": {
-                        "label": "View Service Status",
-                        "url": "/services"
+                await websocket_manager.send_notification(
+                    {
+                        "title": "Service Recovery",
+                        "message": f"{service_name} has been automatically recovered",
+                        "type": "success",
+                        "duration": 5000,
                     }
-                })
+                )
+            else:
+                await websocket_manager.send_notification(
+                    {
+                        "title": "Recovery Failed",
+                        "message": f"Automatic recovery failed for {service_name}. Manual intervention required.",
+                        "type": "error",
+                        "duration": 0,
+                        "action": {"label": "View Service Status", "url": "/services"},
+                    }
+                )
 
         except Exception as e:
             logger.error(f"Failed to broadcast recovery notification: {e}")
@@ -901,18 +940,22 @@ class ProductionStatusManager:
     async def _broadcast_system_status(self, event_type: str, data: Dict[str, Any]):
         """Broadcast system-level status messages"""
         try:
-            await websocket_manager.send_status({
-                "type": "system_event",
-                "event": event_type,
-                "data": data,
-                "timestamp": datetime.now().isoformat()
-            })
+            await websocket_manager.send_status(
+                {
+                    "type": "system_event",
+                    "event": event_type,
+                    "data": data,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to broadcast system status: {e}")
 
     # Public API methods
 
-    async def set_maintenance_mode(self, enabled: bool, message: str = "", eta: Optional[str] = None):
+    async def set_maintenance_mode(
+        self, enabled: bool, message: str = "", eta: Optional[str] = None
+    ):
         """Set system maintenance mode"""
         self.maintenance_mode = enabled
         self.maintenance_message = message
@@ -925,13 +968,20 @@ class ProductionStatusManager:
                     service_info.status = ServiceStatus.MAINTENANCE
                     service_info.message = message or "System under maintenance"
 
-        await self._broadcast_system_status("maintenance_mode_changed", {
-            "enabled": enabled,
-            "message": message,
-            "eta": eta
-        })
+        await self._broadcast_system_status(
+            "maintenance_mode_changed",
+            {"enabled": enabled, "message": message, "eta": eta},
+        )
 
         logger.info(f"Maintenance mode {'enabled' if enabled else 'disabled'}")
+
+    async def attempt_service_recovery(self, service_name: str) -> bool:
+        if service_name not in self.services:
+            raise ValueError(f"未知服务: {service_name}")
+
+        await self._attempt_service_recovery(service_name)
+        updated_service = self.services[service_name]
+        return updated_service.status in (ServiceStatus.STARTING, ServiceStatus.HEALTHY)
 
     def get_service_status(self, service_name: str) -> Optional[ServiceInfo]:
         """Get status of a specific service"""
@@ -947,16 +997,28 @@ class ProductionStatusManager:
 
     def get_error_reports(self, limit: int = 50) -> List[ErrorReport]:
         """Get recent error reports"""
-        return sorted(self.error_reports, key=lambda x: x.timestamp, reverse=True)[:limit]
+        return sorted(self.error_reports, key=lambda x: x.timestamp, reverse=True)[
+            :limit
+        ]
 
     def get_service_health_summary(self) -> Dict[str, Any]:
         """Get overall system health summary"""
         total_services = len(self.services)
-        healthy_services = sum(1 for s in self.services.values() if s.status == ServiceStatus.HEALTHY)
-        critical_errors = len([e for e in self.error_reports if e.severity == "critical"])
+        healthy_services = sum(
+            1 for s in self.services.values() if s.status == ServiceStatus.HEALTHY
+        )
+        critical_errors = len(
+            [e for e in self.error_reports if e.severity == "critical"]
+        )
 
-        overall_health = "healthy" if healthy_services == total_services else (
-            "critical" if critical_errors > 0 or healthy_services < total_services * 0.5 else "warning"
+        overall_health = (
+            "healthy"
+            if healthy_services == total_services
+            else (
+                "critical"
+                if critical_errors > 0 or healthy_services < total_services * 0.5
+                else "warning"
+            )
         )
 
         return {
@@ -965,9 +1027,13 @@ class ProductionStatusManager:
             "healthy_services": healthy_services,
             "error_services": total_services - healthy_services,
             "critical_errors": critical_errors,
-            "average_health_score": sum(s.health_score for s in self.services.values()) / total_services if total_services > 0 else 0,
-            "maintenance_mode": self.maintenance_mode
+            "average_health_score": sum(s.health_score for s in self.services.values())
+            / total_services
+            if total_services > 0
+            else 0,
+            "maintenance_mode": self.maintenance_mode,
         }
+
 
 # Global instance
 production_status_manager = ProductionStatusManager()

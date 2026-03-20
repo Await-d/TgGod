@@ -21,7 +21,6 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
 
   // 解析字符串格式的 ReactionEmoji
   const parseReactionString = (reactionStr: string): ReactionEmoji[] => {
-    console.log('原始反应字符串:', reactionStr);
     const reactionArray: ReactionEmoji[] = [];
 
     try {
@@ -36,7 +35,6 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
         if (match) {
           const emoticon = match[1];
           const count = parseInt(match[2]);
-          console.log('匹配到表情和数量:', { emoticon, count });
           reactionArray.push({ emoticon, count });
           continue;
         }
@@ -44,7 +42,6 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
 
       // 如果没有匹配到标准格式，尝试更宽松的匹配
       if (reactionArray.length === 0) {
-        console.log('尝试宽松匹配...');
 
         // 匹配 ReactionEmoji(emoticon='❤') 格式（不带数字）
         const loosePattern = /ReactionEmoji\s*\(\s*emoticon\s*=\s*['"]([^'"]+)['"]\s*\)/g;
@@ -64,8 +61,6 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
           numbers.push(...numberMatches.map(n => parseInt(n)));
         }
 
-        console.log('提取的表情:', emojis);
-        console.log('提取的数字:', numbers);
 
         // 配对表情和数字
         emojis.forEach((emoji, index) => {
@@ -76,7 +71,6 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
 
       // 如果还是没有匹配到，尝试直接提取表情符号
       if (reactionArray.length === 0) {
-        console.log('尝试直接提取表情符号...');
 
         // 匹配表情符号和数字的简单格式
         const simplePattern = /([^\s\d\w()='",]+)\s*(\d+)?/g;
@@ -87,7 +81,6 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
 
           // 验证是否是表情符号
           if (emoticon && /[^\w\d\s]/.test(emoticon)) {
-            console.log('匹配到表情符号:', { emoticon, count });
             reactionArray.push({ emoticon, count });
           }
         }
@@ -96,7 +89,6 @@ const MessageReactions: React.FC<MessageReactionsProps> = ({
       console.error('解析表情反应时出错:', error);
     }
 
-    console.log('最终解析结果:', reactionArray);
     return reactionArray;
   };
 

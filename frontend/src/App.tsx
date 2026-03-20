@@ -12,7 +12,7 @@ import Settings from './pages/Settings';
 import DatabaseStatus from './pages/DatabaseStatus';
 import SystemStatus from './pages/SystemStatus';
 import LoginPage from './pages/Login';
-import ChatInterface from './pages/ChatInterface';
+import ChatInterfaceRefactored from './pages/ChatInterface.Refactored';
 import TaskManagement from './pages/TaskManagement';
 import DownloadHistory from './pages/DownloadHistory';
 import { RealTimeStatusMonitor } from './components/StatusMonitor';
@@ -119,7 +119,7 @@ const App: React.FC = () => {
             <ProtectedRoute>
               <MainLayout>
                 <Content className="chat-interface-content">
-                  <ChatInterface />
+                  <ChatInterfaceRefactored />
                 </Content>
               </MainLayout>
             </ProtectedRoute>

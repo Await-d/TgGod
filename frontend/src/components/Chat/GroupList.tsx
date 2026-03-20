@@ -61,11 +61,9 @@ const GroupList: React.FC<GroupListProps> = ({
       const response = await telegramApi.getAllGroups();
       setGroups(response);
       
-      console.log(`成功获取 ${response.length} 个群组`);
       
       // 如果群组列表为空，尝试从Telegram同步
       if (response.length === 0) {
-        console.log('群组列表为空，尝试从Telegram同步群组...');
         try {
           const syncResult = await telegramApi.syncGroups();
           if (syncResult.success && syncResult.synced_count > 0) {

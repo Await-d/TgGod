@@ -80,6 +80,14 @@ export interface RegisterRequest {
 }
 
 // Telegram相关类型
+export interface GroupMember {
+  id: number;
+  name: string;
+  username?: string;
+  is_bot: boolean;
+  role: 'owner' | 'admin' | 'member';
+}
+
 export interface TelegramGroup {
   id: number;
   telegram_id: number;

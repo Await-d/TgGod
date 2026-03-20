@@ -38,12 +38,14 @@ import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import MediaPreview from '../components/Chat/MediaPreview';
+import PageContainer from '../components/Layout/PageContainer';
+import { useIsMobile } from '../hooks/useMobileGestures';
 import './DownloadHistory.css';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 const { Search } = Input;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface DownloadRecord {
   id: number;
@@ -91,9 +93,11 @@ interface FilterOptions {
 dayjs.extend(relativeTime);
 
 const DownloadHistory: React.FC = () => {
+  const isMobile = useIsMobile();
   const [records, setRecords] = useState<DownloadRecord[]>([]);
   const [stats, setStats] = useState<DownloadHistoryStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<DownloadRecord | null>(null);
@@ -117,6 +121,7 @@ const DownloadHistory: React.FC = () => {
   // 加载下载记录
   const loadDownloadRecords = useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true);
+    setError(null);
     try {
       const params = {
         page,
@@ -137,8 +142,9 @@ const DownloadHistory: React.FC = () => {
         total: data.total,
         pageSize: data.page_size,
       }));
-    } catch (error) {
-      console.error('Error loading download records:', error);
+    } catch (err: any) {
+      console.error('Error loading download records:', err);
+      setError('加载下载历史失败');
       message.error('加载下载历史失败');
     } finally {
       setLoading(false);
@@ -424,17 +430,20 @@ const DownloadHistory: React.FC = () => {
   }, [loadDownloadRecords]);
 
   return (
-    <div className="download-history-page">
-      <div className="download-history-header">
-        <Title level={2} className="download-history-title">
-          <DownloadOutlined /> 下载历史
-        </Title>
-        <div className="download-history-actions">
+    <PageContainer
+      title="下载历史"
+      description="查看和管理下载记录"
+      breadcrumb={[{ title: '下载历史' }]}
+      loading={loading}
+      error={error}
+      onRetry={() => loadDownloadRecords(pagination.current, pagination.pageSize)}
+      extra={
+        <Space className="gap-sm" wrap>
           <Button icon={<ReloadOutlined />} onClick={() => loadDownloadRecords(pagination.current, pagination.pageSize)}>
-            刷新
+            {!isMobile && '刷新'}
           </Button>
           <Button type="primary" icon={<BarChartOutlined />} onClick={() => setStatsModalVisible(true)}>
-            查看统计
+            {isMobile ? '统计' : '查看统计'}
           </Button>
           <Popconfirm
             title="确认删除所选记录？"
@@ -445,21 +454,21 @@ const DownloadHistory: React.FC = () => {
             disabled={selectedRowKeys.length === 0}
           >
             <Button danger disabled={selectedRowKeys.length === 0}>
-              批量删除
+              {isMobile ? '删除' : '批量删除'}
             </Button>
           </Popconfirm>
-        </div>
-      </div>
-
+        </Space>
+      }
+    >
       {stats && (
-        <Row gutter={16} className="download-stats-grid">
+        <Row gutter={16} className="download-stats-grid grid-responsive mb-lg">
           <Col xs={12} md={6}>
-            <Card>
-              <Statistic title="总下载数" value={stats.total_downloads} prefix={<DownloadOutlined />} />
+            <Card className="stat-card stat-card--primary">
+              <Statistic title="总下载数" value={stats.total_downloads} prefix={<DownloadOutlined className="stat-card-icon" />} />
             </Card>
           </Col>
           <Col xs={12} md={6}>
-            <Card>
+            <Card className="stat-card stat-card--success">
               <Statistic
                 title="成功率"
                 value={stats.success_rate}
@@ -735,7 +744,7 @@ const DownloadHistory: React.FC = () => {
           </div>
         )}
       </Modal>
-    </div>
+    </PageContainer>
   );
 };
 

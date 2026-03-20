@@ -27,9 +27,11 @@ import {
   BugOutlined
 } from '@ant-design/icons';
 import api from '../services/apiService';
+import PageContainer from '../components/Layout/PageContainer';
+import { useIsMobile } from '../hooks/useMobileGestures';
 import './DatabaseStatus.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Panel } = Collapse;
 
 interface DatabaseHealth {
@@ -60,7 +62,9 @@ interface CheckResult {
 }
 
 const DatabaseStatus: React.FC = () => {
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [checkLoading, setCheckLoading] = useState(false);
   const [repairLoading, setRepairLoading] = useState(false);
   const [health, setHealth] = useState<DatabaseHealth | null>(null);
@@ -72,10 +76,12 @@ const DatabaseStatus: React.FC = () => {
   const fetchDatabaseHealth = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response: any = await api.get('/database/health');
       setHealth(response.data);
-    } catch (error: any) {
-      message.error(`获取数据库健康状态失败: ${error.message}`);
+    } catch (err: any) {
+      setError(`获取数据库健康状态失败: ${err.message}`);
+      message.error(`获取数据库健康状态失败: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -230,51 +236,56 @@ const DatabaseStatus: React.FC = () => {
     initData();
   }, []);
 
+  const refreshAll = () => Promise.all([
+    fetchDatabaseHealth(),
+    fetchDatabaseInfo(),
+    checkDatabaseStructure()
+  ]);
+
   return (
-    <div className="database-status-page">
-      <div className="database-status-header">
-        <Title level={2} className="database-status-title">
-          <DatabaseOutlined /> 数据库状态监控
-        </Title>
-        <div className="database-status-actions">
+    <PageContainer
+      title="数据库状态监控"
+      description="监控数据库健康状态和结构"
+      breadcrumb={[{ title: '数据库状态' }]}
+      loading={loading}
+      error={error}
+      onRetry={refreshAll}
+      extra={
+        <Space className="gap-sm" wrap>
           <Button
             type="primary"
             icon={<ReloadOutlined />}
             loading={loading}
-            onClick={() => Promise.all([
-              fetchDatabaseHealth(),
-              fetchDatabaseInfo(),
-              checkDatabaseStructure()
-            ])}
+            onClick={refreshAll}
           >
-            刷新状态
+            {isMobile ? '刷新' : '刷新状态'}
           </Button>
           <Button
             icon={<DatabaseOutlined />}
             onClick={runStartupCheck}
             loading={loading}
           >
-            启动检查
+            {isMobile ? '检查' : '启动检查'}
           </Button>
-        </div>
-      </div>
-
+        </Space>
+      }
+    >
       {/* 概览卡片 */}
-      <Row gutter={[16, 16]} className="database-status-stats">
+      <Row gutter={[16, 16]} className="database-status-stats grid-responsive mb-lg">
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="stat-card">
             <Statistic
               title="数据库状态"
               value={health?.status || '-'}
               prefix={health ? getStatusIcon(health.status) : <Spin size="small" />}
-              valueStyle={{ 
-                color: health ? (health.status === 'healthy' ? '#52c41a' : 
+              valueStyle={{
+                color: health ? (health.status === 'healthy' ? '#52c41a' :
                                 health.status === 'needs_repair' ? '#faad14' : '#f5222d') : undefined
               }}
             />
           </Card>
         </Col>
-        
+
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
@@ -488,7 +499,7 @@ const DatabaseStatus: React.FC = () => {
           showIcon
         />
       </Modal>
-    </div>
+    </PageContainer>
   );
 };
 

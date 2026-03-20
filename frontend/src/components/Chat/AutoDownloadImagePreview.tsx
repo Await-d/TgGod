@@ -58,7 +58,6 @@ const AutoDownloadImagePreview: React.FC<AutoDownloadImagePreviewProps> = ({
   // 手动下载处理
   const handleManualDownload = async () => {
     // 这里可以触发手动下载逻辑
-    console.log('手动下载图片:', message.id);
   };
 
   // 预览处理

@@ -1,0 +1,157 @@
+/**
+ * GroupListItem Styles
+ *
+ * Design specifications:
+ * - Height: 72px
+ * - Selected background: #f0f5ff
+ * - Hover background: #fafafa
+ * - Smooth transitions
+ */
+
+.groupListItem {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  height: 72px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  user-select: none;
+}
+
+.groupListItem:hover {
+  background-color: #fafafa;
+}
+
+.groupListItem:active {
+  background-color: #f0f0f0;
+}
+
+.groupListItem.selected {
+  background-color: #f0f5ff;
+}
+
+.groupListItem.selected:hover {
+  background-color: #e6f0ff;
+}
+
+/* Focus state for keyboard navigation */
+.groupListItem:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: -2px;
+}
+
+.groupListItem:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Avatar wrapper */
+.avatarWrapper {
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+/* Content area */
+.content {
+  flex: 1;
+  min-width: 0; /* Enable text truncation */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* Header with name and time */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.groupName {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 500;
+  color: #262626;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.time {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #8c8c8c;
+  line-height: 1.4;
+}
+
+/* Last message preview */
+.lastMessage {
+  font-size: 13px;
+  color: #8c8c8c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Selected state text */
+.groupListItem.selected .groupName {
+  color: #1890ff;
+  font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .groupListItem {
+    padding: 10px 12px;
+    height: 68px;
+  }
+
+  .avatarWrapper {
+    margin-right: 10px;
+  }
+
+  .groupName {
+    font-size: 14px;
+  }
+
+  .lastMessage {
+    font-size: 12px;
+  }
+
+  .time {
+    font-size: 11px;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .groupListItem {
+    padding: 12px 14px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .groupListItem {
+    border-bottom-color: rgba(0, 0, 0, 0.2);
+  }
+
+  .groupListItem:hover {
+    background-color: #e8e8e8;
+  }
+
+  .groupListItem.selected {
+    background-color: #d6e9ff;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .groupListItem {
+    transition: none;
+  }
+}

@@ -50,7 +50,13 @@
       "Bash(git push:*)",
       "Read(//home/await/project/**)",
       "Bash(pip show:*)",
-      "Bash(docker-compose up:*)"
+      "Bash(docker-compose up:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pkill:*)",
+      "mcp__serena__insert_after_symbol",
+      "mcp__plugin_serena_serena__get_symbols_overview",
+      "mcp__plugin_serena_serena__activate_project",
+      "mcp__plugin_serena_serena__create_text_file"
     ],
     "deny": [],
     "ask": []

@@ -174,7 +174,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
           try {
             onJumpComplete();
           } catch (error) {
-            console.warn('跳转完成回调执行失败:', error);
           }
         }
 
@@ -188,7 +187,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         try {
           onJumpComplete();
         } catch (callbackError) {
-          console.warn('跳转完成回调执行失败:', callbackError);
         }
       }
     }
@@ -241,7 +239,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
                 behavior: 'auto' // 使用即时行为，auto替代不支持的instant
               });
             } catch (e) {
-              console.warn('scrollTo方法失败:', e);
               // 回退方法
               container.scrollTop = container.scrollHeight * 2;
             }
@@ -251,7 +248,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
               try {
                 messagesEndRef.current.scrollIntoView({ block: 'end', behavior: 'auto' });
               } catch (e) {
-                console.warn('scrollIntoView方法失败:', e);
               }
             }
 
@@ -360,10 +356,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       setGalleryIndex(targetIndex);
       setGalleryVisible(true);
     } else {
-      console.warn('MessageArea - target message not found in media messages', {
-        targetMessageId: targetMessage.id,
-        availableMessageIds: mediaMessages.map(msg => msg.id)
-      });
     }
   }, [displayMessages, downloadStates]);
 
@@ -400,7 +392,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
           setHighlightedMessageId(null);
         }, 3000);
       } else {
-        console.log('MessageArea - message element not found in DOM');
       }
     } else {
       // 如果消息不在当前列表中，调用上级的跳转处理器
@@ -432,12 +423,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
       // 使用工具函数转换筛选条件为API参数格式
       const apiParams = convertFilterToAPIParams(filter, { skip, limit: PAGE_SIZE });
 
-      console.log('MessageArea - 调用API获取消息:', {
-        groupId,
-        pageNum,
-        filter,
-        apiParams
-      });
 
       const response = await messageApi.getGroupMessages(groupId, apiParams);
 
@@ -450,7 +435,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         setMessages(response);
         // 只有page=1的初始加载才滚动到底部，避免历史消息加载后跳跃
         if (pageNum === 1) {
-          console.log('[MessageArea] 初始加载群组消息，滚动到底部');
           setTimeout(scrollToBottom, 100);
         }
       }
@@ -476,21 +460,18 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     // 防抖机制：防止频繁触发
     const now = Date.now();
     if (now - lastLoadTriggerRef.current < 2000) {
-      console.log('[MessageArea] 防抖跳过加载更多');
       return;
     }
     lastLoadTriggerRef.current = now;
 
     // 如果有传入的onLoadMore函数，使用传入的函数
     if (onLoadMore) {
-      console.log('[MessageArea] 使用上层传入的loadMore函数');
       onLoadMore();
       return;
     }
 
     // 否则使用自己的fetchMessages逻辑
     if (loadingMore) {
-      console.log('[MessageArea] 已在加载中，跳过');
       return;
     }
 
@@ -546,7 +527,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
   useEffect(() => {
     // 如果有传入的messages（来自上层管理），则不自己获取消息
     if (propMessages) {
-      console.log('[MessageArea] 使用上层传入的消息数据，跳过自主加载');
       return;
     }
     
@@ -565,7 +545,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
     // 如果有传入的messages，说明由上层管理消息加载，不需要自主加载
     // 但仍然需要记录筛选条件变化，以便在需要时使用
     if (propMessages) {
-      console.log('MessageArea - 检测到筛选条件变化，但消息由上层管理:', searchFilter);
       return;
     }
     
@@ -597,7 +576,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         !isLoadingMore &&
         hasScrolledToBottomForGroup.current !== selectedGroup.id) {
       
-      console.log('[MessageArea] 首次加载群组消息，滚动到底部', selectedGroup.id);
       hasScrolledToBottomForGroup.current = selectedGroup.id;
       setTimeout(scrollToBottom, 100);
     }
@@ -620,7 +598,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
         const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 100;
 
         if (isNearBottom) {
-          console.log('[MessageArea] 检测到新消息且在底部，自动滚动');
           // 如果在底部，自动滚动到新消息
           setTimeout(scrollToBottom, 50);
         } else {
@@ -631,7 +608,6 @@ const MessageArea: React.FC<MessageAreaProps> = ({
           setShowScrollToBottom(true);
         }
       } else if (displayMessages.length > previousMessageCount.current) {
-        console.log('[MessageArea] 检测到历史消息加载，不进行滚动操作');
       }
       
       // 更新状态

@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "dashboard": "仪表板",
+    "chat": "聊天界面",
+    "chatOld": "聊天界面(旧版)",
+    "groups": "群组管理",
+    "messages": "消息管理",
+    "rules": "规则配置",
+    "tasks": "任务管理",
+    "downloadHistory": "下载历史",
+    "logs": "日志查看",
+    "database": "数据库状态",
+    "status": "系统状态",
+    "settings": "系统设置"
+  },
+  "header": {
+    "title": "Telegram群组下载系统",
+    "connected": "已连接",
+    "disconnected": "未连接",
+    "welcome": "欢迎，{name}",
+    "error": "错误"
+  },
+  "userMenu": {
+    "settings": "设置",
+    "logout": "退出"
+  },
+  "settings": {
+    "title": "系统设置",
+    "languageLabel": "界面语言"
+  }
+}

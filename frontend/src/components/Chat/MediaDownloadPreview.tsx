@@ -67,11 +67,9 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   // 监听强制刷新，确保下载完成后UI立即更新
   useEffect(() => {
     if (forceRefresh > 0) {
-      console.log('Force refresh triggered', { forceRefresh, downloadState });
       // 强制重新评估组件状态
       setTimeout(() => {
         // 延迟执行确保状态更新完成
-        console.log('Force refresh completed');
       }, 100);
     }
   }, [forceRefresh, downloadState]);
@@ -87,13 +85,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
     );
 
     if (shouldUpdateState) {
-      console.log('Message state changed, updating download state', {
-        messageId: message.message_id,
-        oldStatus: downloadState.status,
-        newStatus,
-        mediaDownloaded: message.media_downloaded,
-        mediaPath: message.media_path
-      });
 
       setDownloadState({
         status: newStatus,
@@ -199,7 +190,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
       if (response.status === 'cancelled') {
         notification.success('下载已取消');
       } else {
-        console.warn('后端取消下载失败，但前端状态已重置');
         notification.info('下载已取消，但后端可能仍在处理');
       }
     } catch (error) {
@@ -217,7 +207,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   const handleDownload = async () => {
     if (downloadState.status === 'downloading') return;
 
-    console.log('Starting download for message:', message.message_id);
     setDownloadState({
       status: 'downloading',
       progress: 0,
@@ -262,11 +251,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               });
             }
 
-            console.log('Download completed successfully', {
-              messageId: message.message_id,
-              downloadUrl: statusResponse.download_url,
-              newState: newDownloadState,
-            });
 
             notification.success('下载完成，可以预览了！');
             clearInterval(newPollInterval);
@@ -290,7 +274,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               lastProgressUpdate: Date.now(),
             };
 
-            console.log('Updating download progress:', newState);
             setDownloadState(prevState => ({ ...prevState, ...newState }));
           }
         } catch (error) {
@@ -317,35 +300,20 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   // 预览媒体
   const handlePreview = () => {
-    console.log('handlePreview called', {
-      messageId: message.message_id,
-      downloadState,
-      message_media_downloaded: message.media_downloaded,
-      message_media_path: message.media_path,
-    });
 
     const hasDownloadUrl = !!downloadState.downloadUrl;
     const hasMessageMediaPath = message.media_downloaded && message.media_path;
     const hasMediaUrl = hasDownloadUrl || hasMessageMediaPath;
     const mediaUrlForPreview = downloadState.downloadUrl || message.media_path;
 
-    console.log('Preview check result', {
-      hasDownloadUrl,
-      hasMessageMediaPath,
-      hasMediaUrl,
-      mediaUrlForPreview,
-      downloadStatus: downloadState.status,
-    });
 
     if (hasMediaUrl && mediaUrlForPreview) {
-      console.log('Starting preview with URL:', mediaUrlForPreview);
       if (onPreview) {
         onPreview(mediaUrlForPreview);
       } else {
         setShowPreviewModal(true);
       }
     } else {
-      console.log('No media URL available, starting download');
       handleDownload();
     }
   };
@@ -402,7 +370,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               console.error('Image load error in preview modal:', e, 'URL:', fullUrl);
             }}
             onLoad={() => {
-              console.log('Image loaded successfully in preview modal');
             }}
           />
         );
@@ -417,7 +384,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
               console.error('Video load error in preview modal:', e, 'URL:', fullUrl);
             }}
             onLoadedData={() => {
-              console.log('Video loaded successfully in preview modal');
             }}
           >
             <source src={fullUrl} />
@@ -459,13 +425,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
 
   // 渲染下载状态
   const renderDownloadStatus = () => {
-    console.log('renderDownloadStatus called', {
-      messageId: message.message_id,
-      downloadStatus: downloadState.status,
-      progress: downloadState.progress,
-      downloadedSize: downloadState.downloadedSize,
-      totalSize: downloadState.totalSize
-    });
 
     // 首先检查是否正在下载，优先显示进度条
     if (downloadState.status === 'downloading') {
@@ -619,18 +578,15 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
   const getThumbnailUrl = () => {
     // 如果文件已下载，优先使用下载的文件作为缩略图
     if (downloadState.downloadUrl) {
-      console.log('Using downloaded file URL for thumbnail:', downloadState.downloadUrl);
       return getFullMediaUrl(downloadState.downloadUrl);
     }
 
     if (message.media_downloaded && message.media_path) {
-      console.log('Using media path URL for thumbnail:', message.media_path);
       return getFullMediaUrl(message.media_path);
     }
 
     // 最后再尝试使用缩略图URL（可能不可用）
     if (message.media_thumbnail_url) {
-      console.log('Using thumbnail URL (fallback):', message.media_thumbnail_url);
       return message.media_thumbnail_url;
     }
 
@@ -672,7 +628,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                     setThumbnailError(true);
                   }}
                   onLoad={() => {
-                    console.log('Downloaded image loaded successfully:', fullFileUrl);
                     setThumbnailError(false);
                   }}
                 />
@@ -694,7 +649,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                     setThumbnailError(true);
                   }}
                   onLoadedData={() => {
-                    console.log('Downloaded video loaded successfully:', fullFileUrl);
                     setThumbnailError(false);
                   }}
                 />
@@ -722,7 +676,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                   setThumbnailError(true);
                 }}
                 onLoad={() => {
-                  console.log('Thumbnail loaded successfully:', thumbnailUrl);
                   setThumbnailError(false);
                 }}
               />
@@ -743,7 +696,6 @@ const MediaDownloadPreview: React.FC<MediaDownloadPreviewProps> = ({
                   setThumbnailError(true);
                 }}
                 onLoadedData={() => {
-                  console.log('Video thumbnail loaded successfully:', thumbnailUrl);
                   setThumbnailError(false);
                 }}
               />

@@ -135,7 +135,6 @@ export const useInfiniteScroll = (
         container.style.scrollBehavior = '';
       }, 0);
       
-      console.log(`滚动位置调整: ${previousScrollTop} → ${newScrollTop} (差值: ${scrollDiff})`);
     }
   }, [containerRef]);
 
@@ -215,7 +214,6 @@ export const useInfiniteScroll = (
           setHasMore(false);
         }
       } else {
-        console.warn('[InfiniteScroll] 加载历史消息失败: 响应格式错误');
         setHasMore(false);
       }
     } catch (error) {

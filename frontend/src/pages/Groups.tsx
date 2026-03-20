@@ -9,32 +9,32 @@ import {
   message,
   Popconfirm,
   Tag,
-  Typography,
   Card,
   Statistic,
   Row,
   Col,
   Progress,
-  Alert
+  Alert,
+  Badge
 } from 'antd';
-import { 
-  PlusOutlined, 
-  SyncOutlined, 
-  DeleteOutlined, 
+import {
+  PlusOutlined,
+  SyncOutlined,
+  DeleteOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
   TeamOutlined,
   CloudSyncOutlined,
   CheckSquareOutlined,
-  BorderOutlined
+  BorderOutlined,
+  RobotOutlined
 } from '@ant-design/icons';
-import { TelegramGroup } from '../types';
+import { TelegramGroup, GroupMember } from '../types';
 import { useTelegramStore, useGlobalStore } from '../store';
 import { telegramApi } from '../services/apiService';
 import { useNormalPageScrollControl } from '../hooks/usePageScrollControl';
+import PageContainer from '../components/Layout/PageContainer';
 import './Groups.css';
-
-const { Title } = Typography;
 
 const Groups: React.FC = () => {
   // 恢复正常页面滚动
@@ -44,6 +44,11 @@ const Groups: React.FC = () => {
   const { setLoading, setError } = useGlobalStore();
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [isSyncModalVisible, setIsSyncModalVisible] = React.useState(false);
+  const [isMembersModalVisible, setIsMembersModalVisible] = React.useState(false);
+  const [membersGroupTitle, setMembersGroupTitle] = React.useState('');
+  const [members, setMembers] = React.useState<GroupMember[]>([]);
+  const [membersLoading, setMembersLoading] = React.useState(false);
+  const [membersError, setMembersError] = React.useState<string | null>(null);
   const [form] = Form.useForm();
   const [syncForm] = Form.useForm();
   
@@ -65,7 +70,6 @@ const Groups: React.FC = () => {
       // 使用getAllGroups获取所有群组，避免分页限制
       const response = await telegramApi.getAllGroups();
       setGroups(response);
-      console.log(`成功加载 ${response.length} 个群组`);
     } catch (error) {
       setError('加载群组列表失败');
       console.error('加载群组失败:', error);
@@ -111,6 +115,22 @@ const Groups: React.FC = () => {
     } catch (error) {
       message.error('状态更新失败');
       console.error('状态更新失败:', error);
+    }
+  };
+
+  const handleViewMembers = async (group: TelegramGroup) => {
+    setMembersGroupTitle(group.title);
+    setMembers([]);
+    setMembersError(null);
+    setIsMembersModalVisible(true);
+    setMembersLoading(true);
+    try {
+      const res = await telegramApi.getGroupMembers(group.id);
+      setMembers(res.members);
+    } catch (err: any) {
+      setMembersError(err?.message || '获取成员失败');
+    } finally {
+      setMembersLoading(false);
     }
   };
 
@@ -190,7 +210,6 @@ const Groups: React.FC = () => {
       message.error(`批量同步失败: ${error.response?.data?.detail || '请求处理过程中出现错误'}`);
       
       // 回退到逐个同步
-      console.warn('批量API不可用，使用逐个同步:', error);
         
         let successCount = 0;
         let failedCount = 0;
@@ -325,6 +344,14 @@ const Groups: React.FC = () => {
           <Button
             type="text"
             size="small"
+            icon={<TeamOutlined />}
+            onClick={() => handleViewMembers(record)}
+          >
+            成员
+          </Button>
+          <Button
+            type="text"
+            size="small"
             icon={<SyncOutlined />}
             onClick={() => handleSyncMessages(record.id)}
           >
@@ -360,10 +387,12 @@ const Groups: React.FC = () => {
   ];
 
   return (
-    <div className="groups-page">
-      <div className="groups-header">
-        <Title level={2} className="groups-title">群组管理</Title>
-        <div className="groups-header-actions">
+    <PageContainer
+      title="群组管理"
+      description="管理 Telegram 群组"
+      breadcrumb={[{ title: '群组管理' }]}
+      extra={
+        <Space className="gap-sm">
           <Button icon={<SyncOutlined />} onClick={loadGroups}>
             刷新
           </Button>
@@ -374,13 +403,14 @@ const Groups: React.FC = () => {
           >
             添加群组
           </Button>
-        </div>
-      </div>
+        </Space>
+      }
+    >
 
       {/* 批量操作工具栏 */}
-      <Card className="groups-toolbar">
-        <div className="groups-toolbar-content">
-          <div className="groups-toolbar-actions">
+      <Card className="table-toolbar">
+        <div className="table-toolbar-left">
+          <Space className="gap-sm">
             <Button
               icon={selectedRowKeys.length === groups.length ? <CheckSquareOutlined /> : <BorderOutlined />}
               onClick={handleSelectAll}
@@ -402,24 +432,23 @@ const Groups: React.FC = () => {
             >
               批量同步消息
             </Button>
-          </div>
-          <div className="groups-toolbar-summary">
-            <span>已选择 {selectedRowKeys.length} / {groups.length} 个群组</span>
-          </div>
+          </Space>
+        </div>
+        <div className="table-toolbar-right text-secondary">
+          <span>已选择 {selectedRowKeys.length} / {groups.length} 个群组</span>
         </div>
       </Card>
 
       {/* 批量同步进度显示 */}
       {showBatchProgress && (
-        <Card className="batch-progress-card">
-          <div className="groups-progress-heading">批量同步进度</div>
+        <Card className="tg-card mt-md">
+          <div className="tg-card-title">批量同步进度</div>
           <Progress
             percent={syncProgress.total ? Math.round((syncProgress.current / syncProgress.total) * 100) : 0}
             status={batchSyncing ? 'active' : 'success'}
             format={() => `${syncProgress.current}/${syncProgress.total}`}
-            className="groups-progress-bar"
           />
-          <div className="groups-progress-meta">
+          <div className="text-secondary mt-xs">
             {syncProgress.currentGroup && batchSyncing && (
               <div>正在同步: {syncProgress.currentGroup}</div>
             )}
@@ -429,33 +458,33 @@ const Groups: React.FC = () => {
       )}
 
       {/* 统计卡片 */}
-      <Row gutter={[16, 16]} className="groups-stats-grid">
+      <Row gutter={[16, 16]} className="grid-responsive mt-lg">
         <Col xs={24} sm={8}>
-          <Card>
+          <Card className="stat-card stat-card--primary">
             <Statistic
               title="总群组数"
               value={groups.length}
-              prefix={<TeamOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              prefix={<TeamOutlined className="stat-card-icon" />}
+              valueStyle={{ color: 'var(--primary-color)' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card className="stat-card stat-card--success">
             <Statistic
               title="活跃群组"
               value={groups.filter(g => g.is_active).length}
-              prefix={<PlayCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              prefix={<PlayCircleOutlined className="stat-card-icon" />}
+              valueStyle={{ color: 'var(--success-color)' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card className="stat-card">
             <Statistic
               title="总成员数"
               value={groups.reduce((sum, g) => sum + g.member_count, 0)}
-              prefix={<TeamOutlined />}
+              prefix={<TeamOutlined className="stat-card-icon" />}
               valueStyle={{ color: '#722ed1' }}
             />
           </Card>
@@ -463,7 +492,7 @@ const Groups: React.FC = () => {
       </Row>
 
       {/* 群组表格 */}
-      <div className="groups-table-wrapper">
+      <div className="tg-table-container table-responsive mt-lg">
         <Table
           columns={columns}
           dataSource={groups}
@@ -508,7 +537,7 @@ const Groups: React.FC = () => {
           </Form.Item>
           
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
+            <Space className="gap-sm">
               <Button onClick={() => setIsModalVisible(false)}>
                 取消
               </Button>
@@ -518,6 +547,60 @@ const Groups: React.FC = () => {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 群组成员模态框 */}
+      <Modal
+        title={`成员列表 — ${membersGroupTitle}`}
+        open={isMembersModalVisible}
+        onCancel={() => setIsMembersModalVisible(false)}
+        footer={null}
+        width={640}
+      >
+        {membersError && (
+          <Alert type="error" message={membersError} className="mb-md" showIcon />
+        )}
+        <Table
+          dataSource={members}
+          rowKey="id"
+          loading={membersLoading}
+          size="small"
+          pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 名成员` }}
+          columns={[
+            {
+              title: '名称',
+              key: 'name',
+              render: (_: any, r: GroupMember) => (
+                <Space>
+                  {r.is_bot && <RobotOutlined style={{ color: '#722ed1' }} />}
+                  {r.name}
+                </Space>
+              ),
+            },
+            {
+              title: '用户名',
+              dataIndex: 'username',
+              key: 'username',
+              render: (u: string) => u ? `@${u}` : '-',
+            },
+            {
+              title: '角色',
+              dataIndex: 'role',
+              key: 'role',
+              render: (role: string) => {
+                const map: Record<string, string> = { owner: 'gold', admin: 'blue', member: 'default' };
+                const label: Record<string, string> = { owner: '群主', admin: '管理员', member: '成员' };
+                return <Tag color={map[role] || 'default'}>{label[role] || role}</Tag>;
+              },
+            },
+            {
+              title: '机器人',
+              dataIndex: 'is_bot',
+              key: 'is_bot',
+              render: (v: boolean) => v ? <Badge status="processing" text="是" /> : '-',
+            },
+          ]}
+        />
       </Modal>
 
       {/* 批量同步选项模态框 */}
@@ -535,9 +618,9 @@ const Groups: React.FC = () => {
           message={`将同步 ${selectedRowKeys.length} 个群组的消息`}
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
+          className="mb-md"
         />
-        
+
         <Form
           form={syncForm}
           layout="vertical"
@@ -553,15 +636,15 @@ const Groups: React.FC = () => {
             ]}
             help="建议值：100条（测试）、500条（日常）、1000条（完整同步）"
           >
-            <Input 
+            <Input
               type="number"
               placeholder="输入要同步的消息数量"
               suffix="条消息"
             />
           </Form.Item>
-          
+
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
+            <Space className="gap-sm">
               <Button onClick={() => setIsSyncModalVisible(false)}>
                 取消
               </Button>
@@ -572,7 +655,7 @@ const Groups: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </PageContainer>
   );
 };
 

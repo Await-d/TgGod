@@ -53,9 +53,10 @@ import { taskApi, telegramApi, ruleApi, logApi } from '../services/apiService';
 import { DownloadTask, TelegramGroup, FilterRule, LogEntry } from '../types';
 import { ProductionStatusDisplay } from '../components/ServiceStatus';
 import { useGlobalStore } from '../store';
+import PageContainer from '../components/Layout/PageContainer';
 import './TaskManagement.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
@@ -123,6 +124,7 @@ const TaskManagement: React.FC = () => {
   const [rules, setRules] = useState<FilterRule[]>([]);
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setErrorState] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<DownloadTask | null>(null);
 
   // 模态框状态
@@ -171,18 +173,17 @@ const TaskManagement: React.FC = () => {
   const loadTasks = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('开始加载任务数据，过滤条件:', filters);
+      setErrorState(null);
       const [tasksData, statsData] = await Promise.all([
         taskApi.getTasks(filters),
         taskApi.getTaskStats()
       ]);
-      console.log('任务数据加载成功:', tasksData);
-      console.log('任务统计加载成功:', statsData);
       setTasks(tasksData);
       setTaskStats(statsData);
-    } catch (error: any) {
-      console.error('加载任务失败，错误详情:', error);
-      message.error(`加载任务失败: ${error.message}`);
+    } catch (err: any) {
+      console.error('加载任务失败，错误详情:', err);
+      setErrorState(`加载任务失败: ${err.message}`);
+      message.error(`加载任务失败: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -199,9 +200,7 @@ const TaskManagement: React.FC = () => {
 
   const loadRules = useCallback(async () => {
     try {
-      console.log('开始加载规则数据...');
       const rulesData = await ruleApi.getRules();
-      console.log('规则数据加载成功:', rulesData);
       setRules(rulesData);
     } catch (error: any) {
       message.error(`加载规则失败: ${error.message}`);
@@ -393,7 +392,6 @@ const TaskManagement: React.FC = () => {
 
   const handleCreateTask = async (values: Record<string, any>) => {
     try {
-      console.log('开始创建任务，原始表单数据:', values);
       // 处理时间范围数据
       const taskData = { ...values };
       if (values.time_range && values.time_range.length >= 1) {
@@ -425,9 +423,8 @@ const TaskManagement: React.FC = () => {
         delete taskData.max_runs;
       }
 
-      console.log('处理后的任务数据:', taskData);
 
-      const result = await taskApi.createTask(taskData as {
+      await taskApi.createTask(taskData as {
         name: string;
         group_id: number;
         rule_ids: number[];
@@ -435,7 +432,6 @@ const TaskManagement: React.FC = () => {
         date_from?: string;
         date_to?: string;
       });
-      console.log('任务创建成功，返回数据:', result);
       message.success('任务创建成功');
       setCreateModalVisible(false);
       form.resetFields();
@@ -448,7 +444,6 @@ const TaskManagement: React.FC = () => {
   };
 
   const handleEditTask = (task: DownloadTask) => {
-    console.log('开始编辑任务:', task);
     setSelectedTask(task);
     
     // 设置表单数据
@@ -493,7 +488,6 @@ const TaskManagement: React.FC = () => {
     if (!selectedTask) return;
     
     try {
-      console.log('开始更新任务，原始表单数据:', values);
       // 处理时间范围数据
       const taskData = { ...values };
       if (values.time_range && values.time_range.length >= 1) {
@@ -525,10 +519,8 @@ const TaskManagement: React.FC = () => {
         taskData.max_runs = null;
       }
 
-      console.log('处理后的任务数据:', taskData);
 
-      const result = await taskApi.updateTask(selectedTask.id, taskData);
-      console.log('任务更新成功，返回数据:', result);
+      await taskApi.updateTask(selectedTask.id, taskData);
       message.success('任务更新成功');
       setEditModalVisible(false);
       editForm.resetFields();
@@ -1027,10 +1019,15 @@ const TaskManagement: React.FC = () => {
   };
 
   return (
-    <div className="task-page">
-      <div className="task-header">
-        <Title level={2} className="task-header-title">任务管理</Title>
-        <div className="task-header-actions">
+    <PageContainer
+      title="任务管理"
+      description="管理下载任务"
+      breadcrumb={[{ title: '任务管理' }]}
+      loading={loading}
+      error={error}
+      onRetry={loadTasks}
+      extra={
+        <Space className="gap-sm" wrap>
           <Switch
             checked={autoRefresh}
             onChange={setAutoRefresh}
@@ -1043,7 +1040,7 @@ const TaskManagement: React.FC = () => {
             loading={loading}
             onClick={loadTasks}
           >
-            刷新数据
+            {!isMobile && '刷新数据'}
           </Button>
           <Button
             type="primary"
@@ -1054,11 +1051,11 @@ const TaskManagement: React.FC = () => {
               setCreateModalVisible(true);
             }}
           >
-            创建任务
+            {isMobile ? '创建' : '创建任务'}
           </Button>
-        </div>
-      </div>
-
+        </Space>
+      }
+    >
       {/* 生产系统状态显示 */}
       <ProductionStatusDisplay
         className="task-production-status"
@@ -1068,44 +1065,44 @@ const TaskManagement: React.FC = () => {
 
       {/* 统计卡片 */}
       {taskStats && (
-        <Row gutter={[16, 16]} className="task-stats-grid">
+        <Row gutter={[16, 16]} className="task-stats-grid grid-responsive">
           <Col xs={24} sm={6}>
-            <Card>
+            <Card className="stat-card stat-card--primary">
               <Statistic
                 className="task-statistic task-statistic-total"
                 title="总任务"
                 value={taskStats.total}
-                prefix={<SettingOutlined />}
+                prefix={<SettingOutlined className="stat-card-icon" />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={6}>
-            <Card>
+            <Card className="stat-card stat-card--success">
               <Statistic
                 className="task-statistic task-statistic-running"
                 title="运行中"
                 value={taskStats.running}
-                prefix={<PlayCircleOutlined />}
+                prefix={<PlayCircleOutlined className="stat-card-icon" />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={6}>
-            <Card>
+            <Card className="stat-card stat-card--info">
               <Statistic
                 className="task-statistic task-statistic-completed"
                 title="已完成"
                 value={taskStats.completed}
-                prefix={<CheckCircleOutlined />}
+                prefix={<CheckCircleOutlined className="stat-card-icon" />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={6}>
-            <Card>
+            <Card className="stat-card stat-card--error">
               <Statistic
                 className="task-statistic task-statistic-failed"
                 title="失败"
                 value={taskStats.failed}
-                prefix={<ExclamationCircleOutlined />}
+                prefix={<ExclamationCircleOutlined className="stat-card-icon" />}
               />
             </Card>
           </Col>
@@ -1367,7 +1364,22 @@ const TaskManagement: React.FC = () => {
             <Input placeholder="输入下载路径，如: /downloads/task1" />
           </Form.Item>
 
-          {/* 调度配置 */}
+          <Collapse size="small" ghost>
+            <Collapse.Panel header="高级设置" key="advanced">
+              <Form.Item
+                name="use_jellyfin_structure"
+                label="Jellyfin 兼容模式"
+                valuePropName="checked"
+                initialValue={false}
+              >
+                <Switch />
+              </Form.Item>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 8 }}>
+                启用后，媒体文件将按 Jellyfin 目录结构组织
+              </Text>
+            </Collapse.Panel>
+          </Collapse>
+
           <Collapse size="small" ghost>
             <Collapse.Panel header="调度配置" key="schedule">
               <Form.Item
@@ -1638,7 +1650,22 @@ const TaskManagement: React.FC = () => {
             <Input placeholder="输入下载路径，如: /downloads/task1" />
           </Form.Item>
 
-          {/* 调度配置 */}
+          <Collapse size="small" ghost>
+            <Collapse.Panel header="高级设置" key="advanced">
+              <Form.Item
+                name="use_jellyfin_structure"
+                label="Jellyfin 兼容模式"
+                valuePropName="checked"
+                initialValue={false}
+              >
+                <Switch />
+              </Form.Item>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: -16, marginBottom: 8 }}>
+                启用后，媒体文件将按 Jellyfin 目录结构组织
+              </Text>
+            </Collapse.Panel>
+          </Collapse>
+
           <Collapse size="small" ghost>
             <Collapse.Panel header="调度配置" key="schedule">
               <Form.Item
@@ -2008,7 +2035,7 @@ const TaskManagement: React.FC = () => {
           </div>
         )}
       </Drawer>
-    </div>
+    </PageContainer>
   );
 };
 

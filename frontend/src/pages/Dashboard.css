@@ -1,28 +1,41 @@
+/**
+ * Dashboard Page Styles
+ * 使用统一设计系统的仪表板样式
+ */
+
+@import '../styles/design-tokens.css';
+@import '../styles/common.css';
+@import '../styles/responsive.css';
+
+/* ==================== 页面容器 ==================== */
+
 .dashboard-page {
-  padding: 24px;
-  background: var(--app-background);
+  padding: var(--spacing-lg);
+  background: var(--background-color);
   min-height: 100%;
 }
+
+/* ==================== 页面头部 ==================== */
 
 .dashboard-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--spacing-md);
   flex-wrap: wrap;
-  margin-bottom: 24px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .dashboard-header-title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 
 .dashboard-header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 
 .dashboard-title {
@@ -30,70 +43,74 @@
 }
 
 .dashboard-alert {
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-md);
 }
 
+/* ==================== 页面区块 ==================== */
+
 .dashboard-section {
-  margin-bottom: 24px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .dashboard-progress {
-  margin-top: 8px;
+  margin-top: var(--spacing-sm);
 }
 
 .dashboard-section-top {
-  margin-top: 16px;
+  margin-top: var(--spacing-md);
 }
 
+/* ==================== 活动列表 ==================== */
+
 .dashboard-activity-item {
-  padding: 12px 0;
-  transition: all 0.3s ease;
+  padding: var(--spacing-sm) 0;
+  transition: all var(--duration-normal) var(--ease-out);
 }
 
 .dashboard-activity-item-highlight {
-  border-left: 3px solid var(--app-primary);
-  padding-left: 12px;
-  background-color: var(--app-success-soft);
-  border-radius: 4px;
-  margin-bottom: 8px;
+  border-left: 3px solid var(--primary-color);
+  padding-left: var(--spacing-sm);
+  background-color: var(--success-bg);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: var(--spacing-sm);
 }
 
 .dashboard-activity-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
   flex-wrap: wrap;
 }
 
 .dashboard-activity-title {
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .dashboard-activity-title-highlight {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .dashboard-activity-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .dashboard-activity-new-tag {
   font-size: 10px;
-  padding: 1px 4px;
+  padding: 1px var(--spacing-xs);
 }
 
 .dashboard-activity-time {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
 }
 
 .dashboard-activity-description {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px !important;
+  gap: var(--spacing-sm) !important;
 }
 
 .dashboard-activity-type-tag {
@@ -101,81 +118,85 @@
 }
 
 .dashboard-activity-group {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
 }
 
 .dashboard-group-item-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .dashboard-badge-success .ant-badge-count {
-  background-color: var(--app-success);
+  background-color: var(--success-color);
 }
 
 .dashboard-activity-extra {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .dashboard-activity-dot {
-  width: 8px;
-  height: 8px;
+  width: var(--spacing-sm);
+  height: var(--spacing-sm);
   border-radius: 50%;
-  background-color: var(--app-success);
+  background-color: var(--success-color);
   animation: pulse 2s infinite;
 }
 
+/* ==================== 媒体分布 ==================== */
+
 .dashboard-media-item {
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-md);
 }
 
 .dashboard-media-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-  gap: 12px;
+  margin-bottom: var(--spacing-sm);
+  gap: var(--spacing-sm);
   flex-wrap: wrap;
 }
 
 .dashboard-media-label {
   display: inline-flex;
   align-items: center;
-  gap: 8px !important;
+  gap: var(--spacing-sm) !important;
 }
 
 .dashboard-media-dot {
-  width: 12px;
-  height: 12px;
+  width: var(--spacing-sm);
+  height: var(--spacing-sm);
   border-radius: 50%;
 }
 
 .dashboard-media-stats {
   display: inline-flex;
   align-items: center;
-  gap: 8px !important;
+  gap: var(--spacing-sm) !important;
 }
 
 .dashboard-media-progress {
-  margin-top: 4px;
+  margin-top: var(--spacing-xs);
 }
 
+/* ==================== 系统信息 ==================== */
+
 .dashboard-system-block {
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-md);
 }
 
 .dashboard-system-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
 }
 
 .dashboard-system-progress {
-  margin-top: 4px;
+  margin-top: var(--spacing-xs);
 }
 
 .dashboard-system-summary {
@@ -187,6 +208,8 @@
   justify-content: space-between;
 }
 
+/* ==================== 表格容器 ==================== */
+
 .dashboard-table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -196,15 +219,17 @@
   min-width: 360px;
 }
 
+/* ==================== 响应式适配 ==================== */
+
 @media (max-width: 768px) {
   .dashboard-page {
-    padding: 16px 12px 80px;
+    padding: var(--spacing-md) var(--spacing-sm) 80px;
   }
 
   .dashboard-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--spacing-sm);
   }
 
   .dashboard-header-actions {
@@ -221,6 +246,20 @@
   }
 
   .ant-card {
-    border-radius: 12px;
+    border-radius: var(--border-radius-lg);
   }
 }
+
+/* ==================== 动画 ==================== */
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+@keyframes ripple {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+

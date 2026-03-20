@@ -1,0 +1,21 @@
+/* ChatInterface Refactored Styles */
+
+.chat-interface-refactored {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #f5f7fa;
+}
+
+/* 确保布局填满整个容器 */
+.chat-interface-refactored > * {
+  height: 100%;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .chat-interface-refactored {
+    height: 100vh;
+    height: -webkit-fill-available; /* iOS Safari */
+  }
+}

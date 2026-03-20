@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Typography, Button, Space, Spin, Empty, message as antMessage } from 'antd';
 import {
   PushpinOutlined,
@@ -52,7 +52,6 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
     setLoading(true);
     try {
       const messages = await messageApi.getPinnedMessages(selectedGroup.id);
-      console.log('获取到的置顶消息:', messages.map(m => ({ id: m.id, date: m.date, text: m.text?.substring(0, 50) })));
       setPinnedMessages(messages);
       setCurrentIndex(0);
     } catch (error: any) {
@@ -146,10 +145,15 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
     };
   }, [autoPlayInterval]);
 
-  // 当置顶消息变化时停止自动播放
+  const stopAutoPlayRef = useRef(stopAutoPlay);
+  stopAutoPlayRef.current = stopAutoPlay;
+  const prevLengthRef = useRef(pinnedMessages.length);
   useEffect(() => {
-    stopAutoPlay();
-  }, [pinnedMessages, stopAutoPlay]);
+    if (prevLengthRef.current !== pinnedMessages.length) {
+      prevLengthRef.current = pinnedMessages.length;
+      stopAutoPlayRef.current();
+    }
+  });
 
   // 键盘导航支持
   useEffect(() => {
@@ -226,8 +230,6 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
   // 修改跳转函数，直接使用message_id
   const handleJumpToMessage = useCallback((messageId: number) => {
     try {
-      console.log('PinnedMessages - 跳转到消息:', messageId);
-
       // 设置跟踪状态
       setHasJumpedToMessage(true);
 
@@ -315,7 +317,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
           </div>
         )}
         {/* 头部信息 */}
-        <div className="pinned-header" onClick={handleHeaderClick}>
+        <button className="pinned-header" onClick={handleHeaderClick} type="button">
           <div className="pinned-icon">
             <PushpinOutlined />
           </div>
@@ -341,11 +343,12 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
                 </Text>
                 {/* 页面指示器 - 始终显示当前位置 */}
                 <div className="pinned-dots">
-                  {pinnedMessages.map((_, index) => (
-                    <div
-                      key={index}
+                  {pinnedMessages.map((msg, index) => (
+                    <button
+                      key={msg.id ?? index}
+                      type="button"
                       className={`pinned-dot ${index === currentIndex ? 'active' : ''}`}
-                      onClick={() => handleJumpToIndex(index)}
+                      onClick={(e) => { e.stopPropagation(); handleJumpToIndex(index); }}
                       title={`跳转到第 ${index + 1} 条置顶消息`}
                       style={{
                         cursor: pinnedMessages.length > 1 ? 'pointer' : 'default',
@@ -403,7 +406,7 @@ const PinnedMessages: React.FC<PinnedMessagesProps> = ({
               />
             )}
           </div>
-        </div>
+        </button>
 
         {/* 消息内容 */}
         <div

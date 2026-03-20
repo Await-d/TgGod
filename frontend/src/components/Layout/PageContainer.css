@@ -1,0 +1,251 @@
+/**
+ * PageContainer Styles
+ * 页面容器组件样式
+ */
+
+@import '../../styles/design-tokens.css';
+
+/* ==================== 容器基础样式 ==================== */
+
+.page-container {
+  min-height: 100%;
+  padding: var(--spacing-lg);
+  background: var(--background-color);
+}
+
+.page-container--full-width {
+  max-width: none;
+}
+
+.page-container--no-padding {
+  padding: 0;
+}
+
+.page-container--mobile {
+  padding: var(--spacing-md);
+}
+
+/* ==================== 面包屑 ==================== */
+
+.page-container-breadcrumb {
+  margin-bottom: var(--spacing-md);
+}
+
+.page-container-breadcrumb a {
+  color: var(--text-secondary);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.page-container-breadcrumb a:hover {
+  color: var(--primary-color);
+}
+
+/* ==================== 页面头部 ==================== */
+
+.page-container-header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.page-container-header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+}
+
+.page-container-header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-container-header-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+/* 移动端头部 */
+.page-container-header--mobile .page-container-header-main {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.page-container-header--mobile .page-container-header-right {
+  margin-top: var(--spacing-md);
+  justify-content: flex-start;
+}
+
+/* ==================== 标题 ==================== */
+
+.page-container-title {
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: var(--font-size-xxl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  line-height: var(--line-height-tight);
+}
+
+.page-container--mobile .page-container-title {
+  font-size: var(--font-size-xl);
+}
+
+/* ==================== 标签 ==================== */
+
+.page-container-tags {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+/* ==================== 描述 ==================== */
+
+.page-container-description {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: var(--line-height-normal);
+}
+
+/* ==================== 内容区域 ==================== */
+
+.page-container-content {
+  background: var(--background-white);
+  border-radius: var(--border-radius-lg);
+  min-height: 200px;
+}
+
+.page-container--no-padding .page-container-content {
+  background: transparent;
+  border-radius: 0;
+}
+
+/* ==================== 加载状态 ==================== */
+
+.page-container-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xxl);
+  min-height: 300px;
+}
+
+.page-container-skeleton {
+  padding: var(--spacing-lg);
+}
+
+.page-container-skeleton .ant-skeleton {
+  margin-bottom: var(--spacing-lg);
+}
+
+.page-container-skeleton .ant-skeleton:last-child {
+  margin-bottom: 0;
+}
+
+/* ==================== 错误状态 ==================== */
+
+.page-container-error {
+  padding: var(--spacing-lg);
+}
+
+.page-container-retry-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.page-container-retry-btn:hover {
+  background: var(--primary-hover);
+}
+
+.page-container-retry-btn:active {
+  background: var(--primary-active);
+}
+
+/* ==================== 页脚 ==================== */
+
+.page-container-footer {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color-light);
+}
+
+/* ==================== 暗色模式 ==================== */
+
+[data-theme="dark"] .page-container {
+  background: var(--background-color);
+}
+
+[data-theme="dark"] .page-container-content {
+  background: var(--background-white);
+}
+
+[data-theme="dark"] .page-container-breadcrumb a {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .page-container-breadcrumb a:hover {
+  color: var(--primary-color);
+}
+
+/* ==================== 响应式适配 ==================== */
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: var(--spacing-md);
+  }
+
+  .page-container-header-main {
+    flex-direction: column;
+  }
+
+  .page-container-header-right {
+    margin-top: var(--spacing-sm);
+    width: 100%;
+  }
+
+  .page-container-header-right > * {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .page-container-title {
+    font-size: var(--font-size-xl);
+  }
+
+  .page-container-content {
+    border-radius: var(--border-radius-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .page-container {
+    padding: var(--spacing-sm);
+  }
+
+  .page-container-title {
+    font-size: var(--font-size-lg);
+  }
+
+  .page-container-description {
+    font-size: var(--font-size-xs);
+  }
+
+  .page-container-content {
+    border-radius: var(--border-radius-sm);
+  }
+
+  .page-container-loading {
+    min-height: 200px;
+    padding: var(--spacing-lg);
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "chat": "Chat",
+    "chatOld": "Chat (Legacy)",
+    "groups": "Groups",
+    "messages": "Messages",
+    "rules": "Rules",
+    "tasks": "Tasks",
+    "downloadHistory": "Download History",
+    "logs": "Logs",
+    "database": "Database",
+    "status": "System Status",
+    "settings": "Settings"
+  },
+  "header": {
+    "title": "Telegram Group Downloader",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "welcome": "Welcome, {name}",
+    "error": "Error"
+  },
+  "userMenu": {
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "settings": {
+    "title": "Settings",
+    "languageLabel": "Language"
+  }
+}

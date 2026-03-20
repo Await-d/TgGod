@@ -1,86 +1,71 @@
-.task-page {
-  padding: 24px;
-  background: var(--app-background);
-  min-height: 100%;
-}
+/**
+ * TaskManagement Page Styles
+ * 任务管理页面样式 - 使用统一设计系统
+ */
 
-.task-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 24px;
-}
+@import '../styles/design-tokens.css';
+@import '../styles/common.css';
+@import '../styles/responsive.css';
 
-.task-header-title {
-  margin: 0 !important;
-}
-
-.task-header-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
+/* ==================== 统计卡片 ==================== */
 
 .task-stats-grid {
-  margin-bottom: 24px;
-}
-
-.task-production-status {
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .task-statistic .ant-statistic-content-value {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .task-statistic-total .ant-statistic-content-value {
-  color: var(--app-primary);
+  color: var(--primary-color);
 }
 
 .task-statistic-running .ant-statistic-content-value {
-  color: var(--app-success);
+  color: var(--success-color);
 }
 
 .task-statistic-completed .ant-statistic-content-value {
-  color: var(--app-info);
+  color: var(--info-color);
 }
 
 .task-statistic-failed .ant-statistic-content-value {
-  color: var(--app-danger);
+  color: var(--error-color);
 }
 
+/* ==================== 生产状态 ==================== */
+
+.task-production-status {
+  margin-bottom: var(--spacing-md);
+}
+
+/* ==================== 工具栏 ==================== */
+
 .task-toolbar {
-  margin-bottom: 16px;
-  border-radius: 12px;
+  margin-bottom: var(--spacing-md);
+  border-radius: var(--border-radius-lg);
 }
 
 .task-toolbar-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 
-.task-table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  margin-top: 16px;
+/* ==================== 过滤器 ==================== */
+
+.task-filter-form {
+  margin-top: var(--spacing-md);
 }
 
-.task-table-wrapper .ant-table {
-  min-width: 600px;
+.task-filter-form .ant-form-item {
+  margin-bottom: 0;
 }
 
 .task-filter-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.task-filter-form .ant-form-item {
-  margin-bottom: 0;
+  gap: var(--spacing-sm);
 }
 
 .task-filter-select {
@@ -89,39 +74,42 @@
 
 .task-filter-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-sm);
   align-items: center;
   flex-wrap: wrap;
 }
 
+/* ==================== 选择提示 ==================== */
+
 .task-selection-alert {
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-md);
 }
+
+/* ==================== 模态框 ==================== */
 
 .task-create-modal {
   max-width: 600px;
 }
 
+/* ==================== 抽屉 ==================== */
+
 .task-drawer .ant-drawer-body {
-  padding: 16px;
+  padding: var(--spacing-md);
 }
 
+.task-detail-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.task-detail-section:last-child {
+  margin-bottom: 0;
+}
+
+/* ==================== 响应式适配 ==================== */
+
 @media (max-width: 768px) {
-  .task-page {
-    padding: 16px 12px 80px;
-  }
-
-  .task-header-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .task-header-actions .ant-btn {
-    flex: 1;
-  }
-
   .task-stats-grid .ant-col {
-    margin-bottom: 12px;
+    margin-bottom: var(--spacing-sm);
   }
 
   .task-filter-grid {
@@ -131,20 +119,35 @@
   .task-filter-actions {
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: var(--spacing-xs);
   }
 
   .task-filter-actions .ant-btn {
     width: 100%;
   }
 
-  .task-table-wrapper .ant-table {
-    min-width: 360px;
-  }
-
   .task-create-modal {
     width: 95% !important;
     max-width: 95%;
     top: 20px !important;
+  }
+
+  .task-drawer {
+    width: 95% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .task-toolbar-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .task-toolbar-actions .ant-btn {
+    width: 100%;
+  }
+
+  .task-filter-grid {
+    grid-template-columns: 1fr;
   }
 }

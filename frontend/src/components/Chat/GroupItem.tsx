@@ -34,7 +34,6 @@ const GroupItem: React.FC<GroupListItemProps> = ({
       setStatsLoaded(true);
     } catch (error) {
       // 静默失败，不影响基本功能
-      console.warn('获取群组统计失败:', error);
     } finally {
       setLoadingStats(false);
     }

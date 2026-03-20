@@ -89,7 +89,6 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
         
         // 订阅WebSocket进度更新
         const unsubscribe = webSocketService.subscribe('monthly_sync_progress', (progressData) => {
-          console.log('收到进度更新:', progressData);
           setSyncProgress({
             currentMonth: progressData.currentMonth,
             progress: progressData.progress + 1, // 显示当前正在处理的月份
@@ -101,7 +100,6 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
 
         // 订阅同步完成事件
         const unsubscribeComplete = webSocketService.subscribe('monthly_sync_complete', (result) => {
-          console.log('收到同步完成:', result);
           setSyncResult(result);
           setSyncProgress(null);
           setLoading(false);
@@ -115,19 +113,15 @@ const MonthlySyncModal: React.FC<MonthlySyncModalProps> = ({
 
         // 确保WebSocket已连接
         if (!webSocketService.isConnected()) {
-          console.log('WebSocket未连接，尝试连接...');
           webSocketService.connect();
           
           // 等待连接建立
           setTimeout(() => {
             if (!webSocketService.isConnected()) {
-              console.warn('WebSocket连接失败，可能无法接收进度更新');
             } else {
-              console.log('WebSocket连接成功');
             }
           }, 1000);
         } else {
-          console.log('WebSocket已连接');
         }
 
         return () => {

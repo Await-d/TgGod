@@ -172,42 +172,23 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
   // 跳转到特定消息
   useEffect(() => {
     if (jumpToMessageId && containerRef.current) {
-      console.log('尝试跳转到消息ID:', jumpToMessageId);
-
-      // 查找消息在数组中的索引
       const messageIndex = messages.findIndex(msg => msg.id === jumpToMessageId);
 
       if (messageIndex !== -1) {
-        // 如果找到消息引用
         const messageElement = messageRefs.current[messageIndex];
 
         if (messageElement) {
-          console.log('找到消息元素，准备滚动到视图中');
-          // 滚动到目标消息
           messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-          // 添加高亮效果
           messageElement.classList.add('message-highlight-animation');
-
-          // 移除高亮效果
           setTimeout(() => {
             messageElement.classList.remove('message-highlight-animation');
-            // 通知跳转完成
-            if (onJumpComplete) {
-              onJumpComplete();
-            }
+            if (onJumpComplete) onJumpComplete();
           }, 2000);
         } else {
-          console.error('消息元素不存在，无法跳转');
-          if (onJumpComplete) {
-            onJumpComplete();
-          }
+          if (onJumpComplete) onJumpComplete();
         }
       } else {
-        console.error('未找到目标消息ID:', jumpToMessageId);
-        if (onJumpComplete) {
-          onJumpComplete();
-        }
+        if (onJumpComplete) onJumpComplete();
       }
     }
   }, [jumpToMessageId, messages, onJumpComplete]);
@@ -323,12 +304,6 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
         timeSinceLastTrigger > 2000 && // 增加防抖时间
         hasScrollableContent) { // 确保有滚动内容
       
-      console.log('[VirtualizedMessageList] 触发加载更多', {
-        scrollTop,
-        direction,
-        timeSinceLastTrigger,
-        hasScrollableContent
-      });
       
       lastScrollToTopTrigger.current = now;
       onScrollToTop();
@@ -356,29 +331,12 @@ const VirtualizedMessageList = forwardRef<VirtualizedMessageListRef, Virtualized
       
       // 只在有新消息且用户在底部时才自动滚动到底部
       if (isNewMessage && isNearBottom) {
-        console.log('[VirtualizedMessageList] 检测到新消息且用户在底部，自动滚动', {
-          isNewMessage,
-          isNearBottom,
-          currentLastMessageId,
-          lastMessageId: lastMessageId.current
-        });
-        
-        // 使用requestAnimationFrame确保在渲染后执行
         requestAnimationFrame(() => {
           container.scrollTop = container.scrollHeight;
-          // 确保父组件知道我们在底部
           if (onScrollPositionChange) {
             onScrollPositionChange(true);
             lastNotifiedBottomState.current = true;
           }
-        });
-      } else if (currentCount > previousMessageCount.current && !isNewMessage) {
-        console.log('[VirtualizedMessageList] 检测到历史消息加载，不滚动到底部', {
-          currentCount,
-          previousCount: previousMessageCount.current,
-          isNewMessage,
-          currentLastMessageId,
-          lastMessageId: lastMessageId.current
         });
       }
       

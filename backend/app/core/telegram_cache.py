@@ -32,22 +32,25 @@ logger = logging.getLogger(__name__)
 
 class CacheLevel(Enum):
     """缓存级别"""
-    MEMORY = "memory"       # 内存缓存
-    REDIS = "redis"         # Redis缓存
-    DATABASE = "database"   # 数据库缓存
+
+    MEMORY = "memory"  # 内存缓存
+    REDIS = "redis"  # Redis缓存
+    DATABASE = "database"  # 数据库缓存
 
 
 class CachePolicy(Enum):
     """缓存策略"""
-    LRU = "lru"            # 最近最少使用
-    LFU = "lfu"            # 最少使用频率
-    TTL = "ttl"            # 时间过期
-    FIFO = "fifo"          # 先进先出
+
+    LRU = "lru"  # 最近最少使用
+    LFU = "lfu"  # 最少使用频率
+    TTL = "ttl"  # 时间过期
+    FIFO = "fifo"  # 先进先出
 
 
 @dataclass
 class CacheEntry:
     """缓存条目"""
+
     key: str
     value: Any
     created_at: float
@@ -73,6 +76,7 @@ class CacheEntry:
 @dataclass
 class QueryContext:
     """查询上下文"""
+
     user_id: Optional[int]
     permissions: Set[str]
     chat_id: Optional[int]
@@ -83,8 +87,13 @@ class QueryContext:
 class MemoryCache:
     """内存缓存实现"""
 
-    def __init__(self, max_size: int = 1000, max_memory_mb: int = 100,
-                 default_ttl: int = 300, policy: CachePolicy = CachePolicy.LRU):
+    def __init__(
+        self,
+        max_size: int = 1000,
+        max_memory_mb: int = 100,
+        default_ttl: int = 300,
+        policy: CachePolicy = CachePolicy.LRU,
+    ):
         self.max_size = max_size
         self.max_memory_bytes = max_memory_mb * 1024 * 1024
         self.default_ttl = default_ttl
@@ -126,8 +135,13 @@ class MemoryCache:
             self.hits += 1
             return entry.value
 
-    def set(self, key: str, value: Any, ttl: Optional[float] = None,
-            tags: Optional[Set[str]] = None) -> bool:
+    def set(
+        self,
+        key: str,
+        value: Any,
+        ttl: Optional[float] = None,
+        tags: Optional[Set[str]] = None,
+    ) -> bool:
         """设置缓存值"""
         with self._lock:
             tags = tags or set()
@@ -146,7 +160,7 @@ class MemoryCache:
                 access_count=0,
                 ttl=ttl or self.default_ttl,
                 size_bytes=size_bytes,
-                tags=tags
+                tags=tags,
             )
 
             # 如果key已存在，先移除旧条目
@@ -211,9 +225,10 @@ class MemoryCache:
     def _ensure_space(self, required_bytes: int) -> bool:
         """确保有足够空间"""
         # 检查大小限制
-        while (len(self._cache) >= self.max_size or
-               self.current_memory_bytes + required_bytes > self.max_memory_bytes):
-
+        while (
+            len(self._cache) >= self.max_size
+            or self.current_memory_bytes + required_bytes > self.max_memory_bytes
+        ):
             if not self._cache:
                 return False
 
@@ -238,13 +253,13 @@ class MemoryCache:
 
         elif self.policy == CachePolicy.LFU:
             # 选择使用频率最低的
-            return min(self._cache.keys(),
-                      key=lambda k: self._access_frequency.get(k, 0))
+            return min(
+                self._cache.keys(), key=lambda k: self._access_frequency.get(k, 0)
+            )
 
         elif self.policy == CachePolicy.TTL:
             # 选择最老的
-            return min(self._cache.keys(),
-                      key=lambda k: self._cache[k].created_at)
+            return min(self._cache.keys(), key=lambda k: self._cache[k].created_at)
 
         elif self.policy == CachePolicy.FIFO:
             # 选择最先进入的
@@ -256,13 +271,15 @@ class MemoryCache:
         """估算值的大小"""
         try:
             import sys
+
             if isinstance(value, (str, bytes)):
                 return len(value)
             elif isinstance(value, (list, tuple)):
                 return sum(sys.getsizeof(item) for item in value)
             elif isinstance(value, dict):
-                return sum(sys.getsizeof(k) + sys.getsizeof(v)
-                          for k, v in value.items())
+                return sum(
+                    sys.getsizeof(k) + sys.getsizeof(v) for k, v in value.items()
+                )
             else:
                 return sys.getsizeof(value)
         except:
@@ -283,21 +300,25 @@ class MemoryCache:
             "max_memory_mb": self.max_memory_bytes / (1024 * 1024),
             "evictions": self.evictions,
             "policy": self.policy.value,
-            "tags_count": len(self._tags_index)
+            "tags_count": len(self._tags_index),
         }
 
 
 class TelegramQueryCache:
     """Telegram查询缓存主类"""
 
-    def __init__(self, memory_cache_size: int = 1000, memory_limit_mb: int = 100,
-                 default_ttl: int = 300, enable_redis: bool = False):
-
+    def __init__(
+        self,
+        memory_cache_size: int = 1000,
+        memory_limit_mb: int = 100,
+        default_ttl: int = 300,
+        enable_redis: bool = False,
+    ):
         # 内存缓存
         self.memory_cache = MemoryCache(
             max_size=memory_cache_size,
             max_memory_mb=memory_limit_mb,
-            default_ttl=default_ttl
+            default_ttl=default_ttl,
         )
 
         # Redis缓存（可选）
@@ -321,7 +342,9 @@ class TelegramQueryCache:
         self.preload_queue = None
 
         # 权限缓存
-        self.permission_cache = MemoryCache(max_size=500, default_ttl=60)  # 1分钟权限缓存
+        self.permission_cache = MemoryCache(
+            max_size=500, default_ttl=60
+        )  # 1分钟权限缓存
 
         # 预加载任务
         self._preload_task = None
@@ -331,11 +354,12 @@ class TelegramQueryCache:
         """初始化Redis缓存"""
         try:
             import redis
+
             self.redis_cache = redis.Redis(
-                host='localhost',
+                host="localhost",
                 port=6379,
                 db=1,  # 使用DB1避免冲突
-                decode_responses=True
+                decode_responses=True,
             )
             # 测试连接
             self.redis_cache.ping()
@@ -347,8 +371,12 @@ class TelegramQueryCache:
             logger.error(f"Redis连接失败: {e}")
             raise
 
-    def _generate_cache_key(self, query_type: str, params: Dict[str, Any],
-                           context: Optional[QueryContext] = None) -> str:
+    def _generate_cache_key(
+        self,
+        query_type: str,
+        params: Dict[str, Any],
+        context: Optional[QueryContext] = None,
+    ) -> str:
         """生成缓存键"""
         # 基础键
         key_parts = [query_type]
@@ -369,17 +397,21 @@ class TelegramQueryCache:
 
         return ":".join(key_parts)
 
-    def _generate_cache_tags(self, query_type: str, params: Dict[str, Any],
-                           context: Optional[QueryContext] = None) -> Set[str]:
+    def _generate_cache_tags(
+        self,
+        query_type: str,
+        params: Dict[str, Any],
+        context: Optional[QueryContext] = None,
+    ) -> Set[str]:
         """生成缓存标签"""
         tags = {f"type_{query_type}"}
 
         # 添加实体标签
-        if 'group_id' in params:
+        if "group_id" in params:
             tags.add(f"group_{params['group_id']}")
-        if 'message_id' in params:
+        if "message_id" in params:
             tags.add(f"message_{params['message_id']}")
-        if 'user_id' in params:
+        if "user_id" in params:
             tags.add(f"user_{params['user_id']}")
 
         # 添加权限标签
@@ -391,9 +423,13 @@ class TelegramQueryCache:
 
         return tags
 
-    async def get_cached_query(self, query_type: str, params: Dict[str, Any],
-                              context: Optional[QueryContext] = None,
-                              ttl: Optional[int] = None) -> Optional[Any]:
+    async def get_cached_query(
+        self,
+        query_type: str,
+        params: Dict[str, Any],
+        context: Optional[QueryContext] = None,
+        ttl: Optional[int] = None,
+    ) -> Optional[Any]:
         """获取缓存的查询结果"""
         cache_key = self._generate_cache_key(query_type, params, context)
 
@@ -419,15 +455,22 @@ class TelegramQueryCache:
         self.query_stats[f"{query_type}_miss"] += 1
         return None
 
-    async def set_cached_query(self, query_type: str, params: Dict[str, Any],
-                              result: Any, context: Optional[QueryContext] = None,
-                              ttl: Optional[int] = None) -> bool:
+    async def set_cached_query(
+        self,
+        query_type: str,
+        params: Dict[str, Any],
+        result: Any,
+        context: Optional[QueryContext] = None,
+        ttl: Optional[int] = None,
+    ) -> bool:
         """设置查询结果缓存"""
         cache_key = self._generate_cache_key(query_type, params, context)
         cache_tags = self._generate_cache_tags(query_type, params, context)
 
         # 设置内存缓存
-        memory_success = self.memory_cache.set(cache_key, result, ttl=ttl, tags=cache_tags)
+        memory_success = self.memory_cache.set(
+            cache_key, result, ttl=ttl, tags=cache_tags
+        )
 
         # 设置Redis缓存
         redis_success = True
@@ -445,9 +488,12 @@ class TelegramQueryCache:
         self.query_stats[f"{query_type}_set"] += 1
         return memory_success and redis_success
 
-    async def invalidate_cache(self, tags: Optional[Set[str]] = None,
-                              keys: Optional[List[str]] = None,
-                              query_type: Optional[str] = None) -> Dict[str, int]:
+    async def invalidate_cache(
+        self,
+        tags: Optional[Set[str]] = None,
+        keys: Optional[List[str]] = None,
+        query_type: Optional[str] = None,
+    ) -> Dict[str, int]:
         """使缓存失效"""
         result = {"memory": 0, "redis": 0}
 
@@ -479,8 +525,9 @@ class TelegramQueryCache:
 
         return result
 
-    async def check_user_permissions(self, user_id: int, chat_id: int,
-                                   required_permissions: Set[str]) -> bool:
+    async def check_user_permissions(
+        self, user_id: int, chat_id: int, required_permissions: Set[str]
+    ) -> bool:
         """检查用户权限（带缓存）"""
         if not self.permission_cache_enabled:
             return True  # 禁用权限检查时默认通过
@@ -496,10 +543,50 @@ class TelegramQueryCache:
         return required_permissions.issubset(set(cached_permissions))
 
     async def _fetch_user_permissions(self, user_id: int, chat_id: int) -> List[str]:
-        """获取用户权限（需要实际实现）"""
-        # TODO: 实际的权限查询逻辑
-        # 这里返回模拟的权限列表
-        return ["read", "write", "admin"] if user_id == 1 else ["read"]
+        if chat_id == 0:
+            return ["read"]
+
+        try:
+            from telethon.tl.functions.channels import GetParticipantRequest
+            from ..services.telegram_service import telegram_service
+
+            await telegram_service.initialize()
+            entity = await telegram_service.client.get_entity(chat_id)
+            participant_result = await telegram_service.client(
+                GetParticipantRequest(channel=entity, participant=user_id)
+            )
+
+            participant = participant_result.participant
+            permissions: Set[str] = {"read"}
+
+            admin_rights = getattr(participant, "admin_rights", None)
+            if admin_rights:
+                permissions.add("admin")
+                permissions.update(self._extract_enabled_flags(admin_rights))
+
+            regular_permissions = getattr(participant, "permissions", None)
+            if regular_permissions:
+                permissions.add("write")
+                permissions.update(self._extract_enabled_flags(regular_permissions))
+
+            banned_rights = getattr(participant, "banned_rights", None)
+            if banned_rights:
+                permissions.add("restricted")
+
+            return sorted(permissions)
+        except Exception as e:
+            logger.warning(f"获取用户权限失败 user_id={user_id} chat_id={chat_id}: {e}")
+            return ["read"]
+
+    def _extract_enabled_flags(self, rights_obj: Any) -> Set[str]:
+        enabled_flags: Set[str] = set()
+        for attr_name in dir(rights_obj):
+            if attr_name.startswith("_"):
+                continue
+            attr_value = getattr(rights_obj, attr_name, None)
+            if isinstance(attr_value, bool) and attr_value:
+                enabled_flags.add(attr_name)
+        return enabled_flags
 
     def get_cache_statistics(self) -> Dict[str, Any]:
         """获取缓存统计信息"""
@@ -509,16 +596,18 @@ class TelegramQueryCache:
             "query_stats": dict(self.query_stats),
             "redis_enabled": self.enable_redis,
             "preload_enabled": self.preload_enabled,
-            "permission_cache_enabled": self.permission_cache_enabled
+            "permission_cache_enabled": self.permission_cache_enabled,
         }
 
         if self.enable_redis and self.redis_cache:
             try:
-                redis_info = self.redis_cache.info('memory')
+                redis_info = self.redis_cache.info("memory")
                 stats["redis_stats"] = {
-                    "used_memory": redis_info.get('used_memory'),
-                    "used_memory_human": redis_info.get('used_memory_human'),
-                    "connected_clients": self.redis_cache.info('clients').get('connected_clients')
+                    "used_memory": redis_info.get("used_memory"),
+                    "used_memory_human": redis_info.get("used_memory_human"),
+                    "connected_clients": self.redis_cache.info("clients").get(
+                        "connected_clients"
+                    ),
                 }
             except Exception as e:
                 stats["redis_error"] = str(e)
@@ -535,10 +624,14 @@ def get_telegram_cache() -> TelegramQueryCache:
     return telegram_cache
 
 
-async def cached_query(query_type: str, params: Dict[str, Any],
-                      context: Optional[QueryContext] = None,
-                      ttl: Optional[int] = None):
+async def cached_query(
+    query_type: str,
+    params: Dict[str, Any],
+    context: Optional[QueryContext] = None,
+    ttl: Optional[int] = None,
+):
     """缓存查询装饰器"""
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             # 检查缓存
@@ -557,15 +650,18 @@ async def cached_query(query_type: str, params: Dict[str, Any],
             )
 
             return result
+
         return wrapper
+
     return decorator
 
 
 def with_permission_check(required_permissions: Set[str]):
     """权限检查装饰器"""
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
-            context = kwargs.get('context')
+            context = kwargs.get("context")
             if context and isinstance(context, QueryContext):
                 # 检查权限
                 has_permission = await telegram_cache.check_user_permissions(
@@ -575,5 +671,7 @@ def with_permission_check(required_permissions: Set[str]):
                     raise PermissionError(f"缺少必要权限: {required_permissions}")
 
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator

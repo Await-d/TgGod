@@ -54,7 +54,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
     const downloadState = downloadStates[messageId];
     if (downloadState?.downloadUrl) {
       const downloadUrl = downloadState.downloadUrl;
-      console.log('MediaGallery - using downloadUrl:', downloadUrl);
 
       // 如果downloadUrl已经是完整路径，直接返回
       if (downloadUrl.startsWith('/media/')) {
@@ -72,37 +71,31 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
     const path = message.media_path;
     if (!path) return '';
 
-    console.log('MediaGallery - buildMediaUrl input path:', path);
 
     // 如果已经是完整URL，直接返回
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      console.log('MediaGallery - returning complete URL:', path);
       return path;
     }
 
     // 如果路径以 /media/ 开头，直接返回
     if (path.startsWith('/media/')) {
-      console.log('MediaGallery - returning path with /media/ prefix:', path);
       return path;
     }
 
     // 如果路径以 media/ 开头，添加前导斜杠
     if (path.startsWith('media/')) {
       const result = `/${path}`;
-      console.log('MediaGallery - adding leading slash to media/ path:', result);
       return result;
     }
 
     // 如果路径包含 ./media/ 前缀，清理并返回
     if (path.startsWith('./media/')) {
       const result = path.replace('./media/', '/media/');
-      console.log('MediaGallery - cleaning ./media/ prefix:', result);
       return result;
     }
 
     // 其他情况，构建完整路径
     const result = `/media/${path}`;
-    console.log('MediaGallery - adding /media/ prefix to relative path:', result);
     return result;
   }, [downloadStates]);
 
@@ -158,12 +151,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
 
     // 记录类型差异
     if (typeFromExtension !== getTypeFromMediaType(mediaType)) {
-      console.warn('Media type mismatch detected:', {
-        messageId: message.id || message.message_id,
-        declaredType: mediaType,
-        path: mediaPath,
-        actualType: typeFromExtension
-      });
     }
 
     // 返回基于文件扩展名的类型（优先级更高）
@@ -196,14 +183,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
         const downloadState = downloadStates[messageId];
         const hasMediaUrl = msg.media_path || downloadState?.downloadUrl;
 
-        console.log('MediaGallery - filtering message', {
-          messageId,
-          mediaType: msg.media_type,
-          mediaPath: msg.media_path,
-          downloadUrl: downloadState?.downloadUrl,
-          hasMediaUrl: !!hasMediaUrl,
-          included: !!hasMediaUrl
-        });
 
         return !!hasMediaUrl;
       })
@@ -213,13 +192,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
         const mediaUrl = buildMediaUrl(msg);
 
         // 记录详细信息便于调试
-        console.log('MediaGallery - processing message item', {
-          messageId: msg.id || msg.message_id,
-          declaredType: msg.media_type,
-          detectedType: mediaType,
-          mediaPath: msg.media_path,
-          finalUrl: mediaUrl
-        });
 
         return {
           message: msg,
@@ -227,16 +199,6 @@ const MediaGallery: React.FC<MediaGalleryProps> = ({
           type: mediaType
         };
       });
-
-    console.log('MediaGallery - processed media items', {
-      totalMessages: messages.length,
-      filteredItems: items.length,
-      items: items.map(item => ({
-        messageId: item.message.id,
-        url: item.url,
-        type: item.type
-      }))
-    });
 
     setMediaItems(items);
   }, [messages, buildMediaUrl, getMediaType, downloadStates]);

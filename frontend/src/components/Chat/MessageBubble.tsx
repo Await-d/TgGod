@@ -148,13 +148,6 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
         {/* 回复信息 */}
         {message.reply_to_message_id && !message.is_forwarded && (
           <>
-            {console.log('MessageBubble - rendering ReplyMessagePreview', {
-              messageId: message.id,
-              replyToMessageId: message.reply_to_message_id,
-              groupId: message.group_id,
-              hasOnJumpToMessage: !!onJumpToMessage,
-              isForwarded: message.is_forwarded
-            })}
             <ReplyMessagePreview
               replyToMessageId={message.reply_to_message_id}
               groupId={message.group_id}
@@ -236,11 +229,6 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                   className="message-image-preview"
                   maxAutoDownloadSize={2 * 1024 * 1024} // 2MB
                   onPreview={(imageUrl) => {
-                    console.log('MessageBubble - Auto download image preview called', {
-                      messageId: message.id,
-                      imageUrl,
-                      hasOnOpenGallery: !!onOpenGallery
-                    });
                     if (onOpenGallery) {
                       // 创建一个更新的消息对象，包含当前的媒体路径
                       const updatedMessage = {
@@ -261,28 +249,15 @@ const MessageBubble: React.FC<ExtendedMessageBubbleProps> = ({
                   message={message}
                   className="message-media-preview"
                   onPreview={(mediaPath) => {
-                    console.log('MessageBubble - onPreview called', {
-                      messageId: message.id,
-                      mediaPath,
-                      hasOnOpenGallery: !!onOpenGallery
-                    });
                     if (onOpenGallery) {
-                      console.log('MessageBubble - calling onOpenGallery');
                       // 创建一个更新的消息对象，包含当前的媒体路径
                       const updatedMessage = {
                         ...message,
                         media_path: mediaPath,
                         media_downloaded: true
                       };
-                      console.log('MessageBubble - calling onOpenGallery with updated message', {
-                        originalMediaPath: message.media_path,
-                        updatedMediaPath: mediaPath,
-                        messageId: message.id
-                      });
                       onOpenGallery(updatedMessage);
                     } else {
-                      console.log('MessageBubble - no onOpenGallery prop, using fallback');
-                      console.log('Open gallery for:', mediaPath);
                     }
                   }}
                   onUpdateDownloadState={onUpdateDownloadState}

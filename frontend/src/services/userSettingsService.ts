@@ -42,10 +42,8 @@ export const userSettingsService = {
         { ...defaultSettings, ...JSON.parse(localSettings) } : 
         defaultSettings;
       
-      console.log('Loaded user settings:', settings);
       return settings;
     } catch (error) {
-      console.warn('Failed to load user settings, using defaults:', error);
       return defaultSettings;
     }
   },
@@ -60,7 +58,6 @@ export const userSettingsService = {
       // 保存到本地存储
       localStorage.setItem('user-settings', JSON.stringify(newSettings));
       
-      console.log('Saved user settings:', newSettings);
       return newSettings;
     } catch (error) {
       console.error('Failed to save user settings:', error);
@@ -73,7 +70,6 @@ export const userSettingsService = {
     try {
       // 清除本地存储的设置
       localStorage.removeItem('user-settings');
-      console.log('Reset user settings to defaults');
       return defaultSettings;
     } catch (error) {
       console.error('Failed to reset user settings:', error);

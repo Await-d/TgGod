@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { message } from 'antd';
 import { telegramApi, messageApi } from '../services/apiService';
+import { messageCacheService } from '../services/messageCacheService';
 
 // Types
 export interface GroupInfo {
@@ -149,6 +150,25 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const loadMessages = useCallback(async (groupId: string) => {
     setLoadingMessages(true);
     setCurrentPage(1);
+
+    const cachedRaw = messageCacheService.getMessages(parseInt(groupId));
+    if (cachedRaw && cachedRaw.length > 0) {
+      const cachedMapped: Message[] = cachedRaw.map((m): Message => ({
+        id: m.id.toString(),
+        type: normalizeMediaType(m.media_type),
+        content: m.text || '',
+        sender: m.sender_name || 'Unknown',
+        timestamp: new Date(m.date),
+        mediaUrl: m.media_path,
+        thumbnailUrl: m.media_thumbnail_url,
+        fileSize: m.media_size,
+        fileName: m.media_filename,
+        groupId,
+      }));
+      setMessages(cachedMapped);
+      setLoadingMessages(false);
+    }
+
     try {
       const response: MessageApiResponse = await messageApi.getGroupMessages(parseInt(groupId), { skip: 0, limit: 50 });
       const messagesData: Message[] = (response.messages || []).map((m): Message => ({
@@ -165,9 +185,12 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       }));
       setMessages(messagesData);
       setHasMoreMessages((response.total || messagesData.length) > 50);
+      messageCacheService.saveMessages(parseInt(groupId), (response.messages || []) as any);
     } catch (error) {
       console.error('Failed to load messages:', error);
-      message.error('加载消息失败');
+      if (!cachedRaw || cachedRaw.length === 0) {
+        message.error('加载消息失败');
+      }
     } finally {
       setLoadingMessages(false);
     }
@@ -217,36 +240,38 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   }, [selectedGroup, hasMoreMessages, loadingMessages, currentPage]);
 
-  // Send message (Currently disabled - API not implemented)
   const sendMessage = useCallback(
     async (content: string, files?: File[]) => {
       if (!selectedGroup) return;
 
-      // TODO: Implement actual send message API
-      // Currently this feature is disabled as the backend API is not yet implemented
-      message.warning('发送消息功能暂未实现，此为预览模式');
+      const text = content.trim();
+      if (!text && (!files || files.length === 0)) {
+        return;
+      }
 
-      // Commented out mock implementation to avoid misleading users
-      /*
       try {
-        const newMessage: Message = {
-          id: Date.now().toString(),
-          type: files && files.length > 0 ? 'file' : 'text',
-          content,
-          sender: 'You',
-          timestamp: new Date(),
-          groupId: selectedGroup.id,
-        };
+        const groupId = parseInt(selectedGroup.id, 10);
 
-        setMessages((prev) => [...prev, newMessage]);
+        if (files && files.length > 0) {
+          await messageApi.sendMediaMessage(groupId, {
+            files,
+            text: text || undefined,
+          });
+        } else {
+          await messageApi.sendMessage(groupId, {
+            text,
+          });
+        }
+
         message.success('消息发送成功');
+
+        await loadMessages(selectedGroup.id);
       } catch (error) {
         console.error('Failed to send message:', error);
         message.error('发送消息失败');
       }
-      */
     },
-    [selectedGroup]
+    [selectedGroup, loadMessages]
   );
 
   // Add group
@@ -280,8 +305,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   // Load groups on mount
   useEffect(() => {
     loadGroups();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadGroups]);
 
   const value: ChatContextValue = {
     // Groups

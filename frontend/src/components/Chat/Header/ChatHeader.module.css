@@ -1,0 +1,184 @@
+/* ChatHeader Component Styles - Modern design with gradients and smooth transitions */
+
+/* Header Container */
+.header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 64px;
+  padding: 0 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 20;
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Left Section */
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.groupInfo {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Avatar */
+.avatar {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}
+
+/* Group Details */
+.groupDetails {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.groupName {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #1a1a1a;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s ease;
+}
+
+.memberCount {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #8c8c8c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Right Section */
+.rightSection {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Icon Buttons */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  color: #595959;
+  background: transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.iconButton:hover {
+  color: #1890ff;
+  background: rgba(24, 144, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.iconButton:active {
+  transform: translateY(0);
+  background: rgba(24, 144, 255, 0.12);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .header {
+    background: linear-gradient(180deg, #1f1f1f 0%, #141414 100%);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  .groupName { color: #f0f0f0; }
+  .memberCount { color: #8c8c8c; }
+  .iconButton { color: #d9d9d9; }
+  .iconButton:hover {
+    color: #40a9ff;
+    background: rgba(64, 169, 255, 0.12);
+  }
+}
+
+/* Tablet (769-1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .header { height: 60px; padding: 0 20px; }
+  .groupName { font-size: 15px; }
+  .memberCount { font-size: 11px; }
+  .iconButton { width: 34px; height: 34px; }
+}
+
+/* Mobile (≤768px) */
+@media (max-width: 768px) {
+  .header { height: 56px; padding: 0 16px; }
+  .leftSection { gap: 8px; }
+  .groupName { font-size: 15px; font-weight: 600; }
+  .memberCount { display: none; }
+  .iconButton { width: 32px; height: 32px; border-radius: 6px; }
+  .iconButton::before {
+    content: '';
+    position: absolute;
+    top: -6px; right: -6px; bottom: -6px; left: -6px;
+  }
+}
+
+/* Small Mobile (≤480px) */
+@media (max-width: 480px) {
+  .header { padding: 0 12px; }
+  .groupName { font-size: 14px; max-width: 180px; }
+  .leftSection { gap: 6px; }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .header, .avatar, .groupName, .memberCount, .iconButton {
+    transition: none;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .header { border-bottom-width: 2px; border-bottom-color: currentColor; }
+  .iconButton { border: 1px solid currentColor; }
+  .iconButton:hover { background: currentColor; color: white; }
+}
+
+/* Print */
+@media print {
+  .header { box-shadow: none; border-bottom: 1px solid #000; }
+  .iconButton { display: none; }
+}

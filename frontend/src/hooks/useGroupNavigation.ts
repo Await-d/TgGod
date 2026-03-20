@@ -38,16 +38,13 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
       if (group) {
         // 如果当前选中的群组不是URL指定的群组，才更新
         if (!selectedGroup || selectedGroup.id.toString() !== groupId) {
-          console.log('从URL恢复群组:', group.title, 'ID:', groupId);
           setSelectedGroup(group);
           return group;
         } else {
           // 当前已经是正确的群组，不需要更新
-          console.log('当前群组已经是URL指定的群组:', group.title);
           return group;
         }
       } else {
-        console.warn('URL指定的群组不存在:', groupId);
       }
     }
     return null;
@@ -76,7 +73,6 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
 
   // 选择群组的主要方法
   const selectGroup = useCallback(async (group: TelegramGroup | null) => {
-    console.log('选择群组:', group?.title || '无');
     
     // 更新选中状态
     setSelectedGroup(group);
@@ -89,8 +85,7 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     
     // 注释掉自动加载消息，让其他hook负责消息获取
     // if (autoLoadMessages && group) {
-    //   console.log('useGroupNavigation: 群组切换完成，等待其他hook处理消息加载');
-    // }
+    //    // }
   }, [setSelectedGroup, syncGroupToUrl, setMessages]);
 
   // 初始化时恢复URL状态 - 优先级最高
@@ -102,7 +97,6 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
         const group = groups.find(g => g.id.toString() === groupId);
         
         if (group) {
-          console.log('初始化：从URL恢复群组:', group.title, 'ID:', groupId);
           setSelectedGroup(group);
         }
       } 
@@ -110,7 +104,6 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
       else if (!selectedGroup) {
         const defaultGroup = groups.find(g => g.is_active) || groups[0];
         if (defaultGroup) {
-          console.log('选择默认群组:', defaultGroup.title);
           selectGroup(defaultGroup);
         }
       }
@@ -125,7 +118,6 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
       const group = groups.find(g => g.id.toString() === groupId);
       // 如果URL中的群组ID与当前选中的不同，则更新选择
       if (group && (!selectedGroup || selectedGroup.id.toString() !== groupId)) {
-        console.log('URL参数变化，切换群组:', group.title, 'ID:', groupId);
         setSelectedGroup(group);
       }
     }
@@ -151,7 +143,6 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
           
           // 额外保存到sessionStorage作为备份
           sessionStorage.setItem('last_selected_group_id', selectedGroup.id.toString());
-          console.log('已保存群组状态到URL和sessionStorage:', selectedGroup.id);
         } catch (error) {
           console.error('保存群组状态失败:', error);
         }
@@ -172,7 +163,6 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
       if (lastGroupId) {
         const group = groups.find(g => g.id.toString() === lastGroupId);
         if (group) {
-          console.log('从sessionStorage恢复群组:', group.title, 'ID:', lastGroupId);
           setSelectedGroup(group);
           // 同步到URL
           syncGroupToUrl(group);
@@ -197,7 +187,6 @@ export const useGroupNavigation = (options: GroupNavigationOptions = {}) => {
     if (group) {
       selectGroup(group);
     } else {
-      console.warn('未找到群组:', groupId);
     }
   }, [groups, selectGroup]);
 

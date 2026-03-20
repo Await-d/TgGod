@@ -979,7 +979,6 @@ class ErrorManagementService {
       }
     } catch (reportError) {
       // 上报失败时不要抛出错误，避免无限循环
-      console.warn('Failed to report error to backend:', reportError);
     }
   }
 

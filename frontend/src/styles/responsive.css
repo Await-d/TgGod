@@ -1,0 +1,619 @@
+/**
+ * TgGod Responsive Styles
+ * 响应式工具类 - 定义响应式布局和移动端适配
+ */
+
+@import './design-tokens.css';
+
+/* ==================== 响应式断点变量 ==================== */
+/*
+ * 移动端: max-width: 480px
+ * 平板: max-width: 768px
+ * 小桌面: max-width: 1024px
+ * 大桌面: max-width: 1200px
+ */
+
+/* ==================== 显示/隐藏工具类 ==================== */
+
+/* 移动端隐藏 (480px以下) */
+@media (max-width: 480px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* 平板隐藏 (768px以下) */
+@media (max-width: 768px) {
+  .hide-tablet {
+    display: none !important;
+  }
+}
+
+/* 桌面端隐藏 (768px以上) */
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* 仅移动端显示 */
+.show-mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 480px) {
+  .show-mobile-only {
+    display: block !important;
+  }
+
+  .show-mobile-only.flex,
+  .show-mobile-only-flex {
+    display: flex !important;
+  }
+}
+
+/* 仅平板显示 */
+.show-tablet-only {
+  display: none !important;
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .show-tablet-only {
+    display: block !important;
+  }
+}
+
+/* 仅桌面显示 */
+.show-desktop-only {
+  display: none !important;
+}
+
+@media (min-width: 769px) {
+  .show-desktop-only {
+    display: block !important;
+  }
+}
+
+/* ==================== 布局工具类 ==================== */
+
+/* 移动端变为纵向布局 */
+.flex-mobile-column {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .flex-mobile-column {
+    flex-direction: column;
+  }
+}
+
+/* 响应式网格 */
+.grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-md);
+}
+
+@media (max-width: 1200px) {
+  .grid-responsive {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .grid-responsive {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 容器 */
+.container {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+}
+
+.container-fluid {
+  width: 100%;
+  padding: 0 var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+  .container,
+  .container-fluid {
+    padding: 0 var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .container,
+  .container-fluid {
+    padding: 0 var(--spacing-sm);
+  }
+}
+
+/* 移动端无外边距 */
+@media (max-width: 768px) {
+  .m-mobile-0 {
+    margin: 0 !important;
+  }
+
+  .mx-mobile-0 {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .my-mobile-0 {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .p-mobile-sm {
+    padding: var(--spacing-sm) !important;
+  }
+
+  .p-mobile-md {
+    padding: var(--spacing-md) !important;
+  }
+}
+
+/* 响应式间隙 */
+.gap-responsive {
+  gap: var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+  .gap-responsive {
+    gap: var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .gap-responsive {
+    gap: var(--spacing-sm);
+  }
+}
+
+/* ==================== 表格响应式 ==================== */
+
+/* 响应式表格容器 */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+/* 移动端卡片式表格 */
+@media (max-width: 768px) {
+  .table-card-mobile {
+    display: block;
+  }
+
+  .table-card-mobile thead {
+    display: none;
+  }
+
+  .table-card-mobile tbody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .table-card-mobile tr {
+    display: block;
+    background: var(--background-white);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .table-card-mobile td {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid var(--border-color-light);
+  }
+
+  .table-card-mobile td:last-child {
+    border-bottom: none;
+  }
+
+  .table-card-mobile td::before {
+    content: attr(data-label);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-secondary);
+  }
+}
+
+/* ==================== 表单响应式 ==================== */
+
+/* 响应式表单布局 */
+.form-responsive {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+  .form-responsive {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 移动端表单项全宽 */
+@media (max-width: 768px) {
+  .form-item-full-mobile {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .form-item-full-mobile .ant-input,
+  .form-item-full-mobile .ant-select,
+  .form-item-full-mobile .ant-picker {
+    width: 100% !important;
+  }
+}
+
+/* 表单标签响应式 */
+@media (max-width: 768px) {
+  .form-label-responsive {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+  }
+}
+
+/* ==================== 按钮响应式 ==================== */
+
+/* 移动端全宽按钮 */
+@media (max-width: 480px) {
+  .btn-full-mobile {
+    width: 100% !important;
+    display: block !important;
+  }
+}
+
+/* 移动端按钮组纵向 */
+@media (max-width: 480px) {
+  .btn-group-vertical-mobile {
+    flex-direction: column !important;
+    width: 100%;
+  }
+
+  .btn-group-vertical-mobile > * {
+    width: 100%;
+    margin: 0 0 var(--spacing-xs) 0 !important;
+  }
+
+  .btn-group-vertical-mobile > *:last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+/* 按钮间距响应式 */
+@media (max-width: 768px) {
+  .btn-group-responsive {
+    gap: var(--spacing-xs);
+  }
+}
+
+/* ==================== 触摸优化 ==================== */
+
+/* 最小44px触摸目标 */
+.touch-target {
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 移动端增大触摸区域 */
+@media (max-width: 768px) {
+  .touch-target-mobile {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    padding: var(--spacing-sm);
+  }
+}
+
+/* 禁止选择 */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 触摸反馈 */
+.touch-feedback {
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.touch-feedback:active {
+  opacity: 0.7;
+}
+
+/* ==================== 模态框响应式 ==================== */
+
+@media (max-width: 768px) {
+  .modal-responsive {
+    width: calc(100vw - var(--spacing-lg) * 2) !important;
+    max-width: none !important;
+    margin: var(--spacing-md) auto !important;
+  }
+
+  .modal-fullscreen-mobile {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    margin: 0 !important;
+    top: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+}
+
+/* ==================== 抽屉响应式 ==================== */
+
+@media (max-width: 768px) {
+  .drawer-responsive {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ==================== 卡片响应式 ==================== */
+
+@media (max-width: 768px) {
+  .card-responsive {
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+  }
+
+  .card-no-radius-mobile {
+    border-radius: 0;
+    margin-left: calc(var(--spacing-md) * -1);
+    margin-right: calc(var(--spacing-md) * -1);
+    width: calc(100% + var(--spacing-md) * 2);
+  }
+}
+
+/* 统计卡片响应式 */
+@media (max-width: 768px) {
+  .stat-card-responsive {
+    padding: var(--spacing-md);
+  }
+
+  .stat-card-responsive .stat-card-value {
+    font-size: var(--font-size-xl);
+  }
+
+  .stat-card-responsive .stat-card-icon {
+    font-size: 24px;
+  }
+}
+
+/* ==================== 滚动优化 ==================== */
+
+/* 平滑滚动 */
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+/* 隐藏滚动条但保持滚动功能 */
+.scroll-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scroll-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* 移动端弹性滚动 */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+/* ==================== 安全区域适配 ==================== */
+
+/* iOS 安全区域 */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+.safe-area-all {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ==================== 固定底部操作栏 ==================== */
+
+.fixed-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-index-fixed);
+  background: var(--background-white);
+  padding: var(--spacing-md);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+}
+
+/* ==================== 文字响应式 ==================== */
+
+@media (max-width: 768px) {
+  .text-responsive-title {
+    font-size: var(--font-size-lg) !important;
+  }
+
+  .text-responsive-subtitle {
+    font-size: var(--font-size-md) !important;
+  }
+
+  .text-responsive-body {
+    font-size: var(--font-size-sm) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .text-responsive-title {
+    font-size: var(--font-size-md) !important;
+  }
+
+  .text-responsive-subtitle {
+    font-size: var(--font-size-sm) !important;
+  }
+
+  .text-responsive-body {
+    font-size: var(--font-size-xs) !important;
+  }
+}
+
+/* ==================== 页面头部响应式 ==================== */
+
+@media (max-width: 768px) {
+  .page-header-responsive {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+
+  .page-header-responsive .page-header-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* ==================== Ant Design 组件响应式覆盖 ==================== */
+
+@media (max-width: 768px) {
+  /* 表格 */
+  .ant-table-wrapper .ant-table {
+    font-size: var(--font-size-xs);
+  }
+
+  .ant-table-wrapper .ant-table-thead > tr > th,
+  .ant-table-wrapper .ant-table-tbody > tr > td {
+    padding: var(--spacing-sm) var(--spacing-xs);
+  }
+
+  /* 卡片 */
+  .ant-card {
+    border-radius: var(--border-radius-md);
+  }
+
+  .ant-card-body {
+    padding: var(--spacing-md);
+  }
+
+  /* 统计 */
+  .ant-statistic-title {
+    font-size: var(--font-size-xs);
+  }
+
+  .ant-statistic-content-value {
+    font-size: var(--font-size-lg);
+  }
+
+  /* 按钮 */
+  .ant-btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+  }
+
+  .ant-btn-lg {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-md);
+  }
+
+  /* 输入框 */
+  .ant-input,
+  .ant-select-selector,
+  .ant-picker {
+    font-size: var(--font-size-sm);
+  }
+
+  /* 标签 */
+  .ant-tag {
+    font-size: var(--font-size-xs);
+    padding: 0 var(--spacing-xs);
+  }
+
+  /* 分页 */
+  .ant-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-xs);
+  }
+
+  .ant-pagination-item,
+  .ant-pagination-prev,
+  .ant-pagination-next {
+    min-width: 32px;
+    height: 32px;
+    line-height: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 更小屏幕的额外调整 */
+  .ant-table-wrapper .ant-table-thead > tr > th,
+  .ant-table-wrapper .ant-table-tbody > tr > td {
+    padding: var(--spacing-xs);
+  }
+
+  .ant-card-body {
+    padding: var(--spacing-sm);
+  }
+
+  .ant-statistic-content-value {
+    font-size: var(--font-size-md);
+  }
+
+  /* 简化分页 */
+  .ant-pagination-options {
+    display: none;
+  }
+}

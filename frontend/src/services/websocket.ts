@@ -97,7 +97,6 @@ class WebSocketService {
     };
 
     this.socket.onclose = (event) => {
-      console.log('WebSocket连接断开:', event.code, event.reason);
       this.handleReconnect();
     };
 
@@ -119,7 +118,6 @@ class WebSocketService {
   private handleReconnect(): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
       
       this.reconnectTimer = setTimeout(() => {
         this.connect();
@@ -143,7 +141,6 @@ class WebSocketService {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
     } else {
-      console.warn('WebSocket未连接，消息发送失败:', message);
     }
   }
 

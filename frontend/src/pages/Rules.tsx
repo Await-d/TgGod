@@ -21,10 +21,10 @@ import {
   Dropdown
 } from 'antd';
 import { useIsMobile } from '../hooks/useMobileGestures';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
   ExperimentOutlined,
@@ -34,9 +34,10 @@ import {
 import { FilterRule } from '../types';
 import { useRuleStore, useGlobalStore } from '../store';
 import { ruleApi } from '../services/apiService';
+import PageContainer from '../components/Layout/PageContainer';
 import './Rules.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 const { TextArea } = Input;
 
@@ -382,75 +383,77 @@ const Rules: React.FC = () => {
   ];
 
   return (
-    <div className="rules-page">
-      <div className="rules-header">
-        <Title level={2} className="rules-title">规则配置</Title>
-        <Space className="rules-header-actions">
-          <Button 
-            icon={<ReloadOutlined />} 
+    <PageContainer
+      title="规则管理"
+      description="配置下载过滤规则"
+      breadcrumb={[{ title: '规则管理' }]}
+      extra={
+        <Space className="gap-sm">
+          <Button
+            icon={<ReloadOutlined />}
             onClick={loadData}
             title="刷新规则列表"
           >
-            刷新
+            {!isMobile && '刷新'}
           </Button>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
             onClick={() => setIsModalVisible(true)}
           >
-            创建规则
+            {isMobile ? '创建' : '创建规则'}
           </Button>
         </Space>
-      </div>
-
+      }
+    >
       {/* 统计卡片 */}
-      <Row gutter={[16, 16]} className="rules-stats-grid">
+      <Row gutter={[16, 16]} className="grid-responsive mb-lg">
         <Col xs={24} sm={8}>
-          <Card>
+          <Card className="stat-card stat-card--primary">
             <Statistic
               title="总规则数"
               value={rules.length}
-              prefix={<FilterOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              prefix={<FilterOutlined className="stat-card-icon" />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card className="stat-card stat-card--success">
             <Statistic
               title="启用规则"
               value={rules.filter(r => r.is_active).length}
-              prefix={<PlayCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              prefix={<PlayCircleOutlined className="stat-card-icon" />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card className="stat-card stat-card--error">
             <Statistic
               title="禁用规则"
               value={rules.filter(r => !r.is_active).length}
-              prefix={<PauseCircleOutlined />}
-              valueStyle={{ color: '#f5222d' }}
+              prefix={<PauseCircleOutlined className="stat-card-icon" />}
             />
           </Card>
         </Col>
       </Row>
 
       {/* 规则表格 */}
-      <Table
-        columns={columns}
-        dataSource={rules}
-        rowKey="id"
-        scroll={isMobile ? { x: 600 } : undefined}
-        pagination={{
-          pageSize: isMobile ? 5 : 10,
-          showSizeChanger: !isMobile,
-          showQuickJumper: !isMobile,
-          showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-          size: isMobile ? 'small' : 'default',
-        }}
-      />
+      <div className="tg-table-container table-responsive">
+        <Table
+          columns={columns}
+          dataSource={rules}
+          rowKey="id"
+          scroll={isMobile ? { x: 600 } : undefined}
+          pagination={{
+            pageSize: isMobile ? 5 : 10,
+            showSizeChanger: !isMobile,
+            showQuickJumper: !isMobile,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+            size: isMobile ? 'small' : 'default',
+          }}
+        />
+
+      </div>
 
       {/* 创建/编辑规则模态框 */}
       <Modal
@@ -463,15 +466,16 @@ const Rules: React.FC = () => {
         }}
         footer={null}
         width={isMobile ? '95%' : 800}
-        style={isMobile ? { top: 20 } : undefined}
+        className={isMobile ? 'modal-fullscreen-mobile' : 'modal-responsive'}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
+          className="tg-form form-responsive"
         >
           <Row gutter={16}>
-            <Col span={24}>
+            <Col span={24} className="form-item-full">
               <Form.Item
                 label="规则名称"
                 name="name"
@@ -481,7 +485,7 @@ const Rules: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          
+
           <div className="rules-info-box">
             <Text type="secondary">
               💡 提示：规则不再直接绑定群组。创建任务时可以选择规则和群组的组合。
@@ -876,7 +880,7 @@ const Rules: React.FC = () => {
             </Col>
           </Row>
 
-          <Form.Item className="rules-form-actions">
+          <Form.Item className="form-actions form-actions--right">
             <Space>
               <Button onClick={() => setIsModalVisible(false)}>
                 取消
@@ -888,7 +892,7 @@ const Rules: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </PageContainer>
   );
 };
 

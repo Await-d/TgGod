@@ -70,9 +70,7 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
   const checkAuthStatus = useCallback(async () => {
     setLoading(true);
     try {
-      console.log('正在检查Telegram认证状态...');
       const response = await apiService.get('/telegram/auth/status');
-      console.log('Telegram auth status response:', response);
 
       const normalizeStatus = (payload: any): AuthStatus | null => {
         if (!payload || typeof payload !== 'object') {
@@ -97,7 +95,6 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
       const parsedStatus = normalizeStatus(response);
 
       if (!parsedStatus) {
-        console.warn('Telegram认证状态检查失败: 响应结构异常', response);
         const fallbackMessage = (response as any)?.message || '检查认证状态失败';
         setError(fallbackMessage);
         updateAuthStatus({
@@ -114,7 +111,6 @@ const TelegramAuth: React.FC<TelegramAuthProps> = ({ onAuthSuccess, onAuthError 
         message: parsedStatus.message || (parsedStatus.is_authorized ? '认证成功' : '未认证'),
       };
 
-      console.log('Telegram auth status data:', normalizedStatus);
       updateAuthStatus(normalizedStatus);
 
       if (normalizedStatus.is_authorized) {

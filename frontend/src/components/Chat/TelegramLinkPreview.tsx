@@ -113,23 +113,19 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
     
     setLoading(true);
     setApiError(null);
-    console.log('TelegramLinkPreview - fetchGroupPreview called', linkInfo);
     
     try {
       let response;
       
       if (linkInfo.username) {
         // 公开群组
-        console.log('TelegramLinkPreview - fetching public group preview:', linkInfo.username);
         response = await telegramApi.getGroupPreview(linkInfo.username);
       } else if (linkInfo.inviteHash) {
         // 私有群组邀请链接
-        console.log('TelegramLinkPreview - fetching private group preview:', linkInfo.inviteHash);
         response = await telegramApi.getGroupPreviewByInvite(linkInfo.inviteHash);
       }
       
       if (response) {
-        console.log('TelegramLinkPreview - group preview response:', response);
         setGroupPreview(response);
       }
     } catch (error: any) {
@@ -146,23 +142,19 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
     if (!linkInfo || !groupPreview) return;
     
     setJoining(true);
-    console.log('TelegramLinkPreview - attempting to join group', { linkInfo, groupPreview });
     
     try {
       let response;
       
       if (linkInfo.username) {
         // 加入公开群组
-        console.log('TelegramLinkPreview - joining public group:', linkInfo.username);
         response = await telegramApi.joinGroup(linkInfo.username);
       } else if (linkInfo.inviteHash) {
         // 通过邀请链接加入
-        console.log('TelegramLinkPreview - joining via invite:', linkInfo.inviteHash);
         response = await telegramApi.joinGroupByInvite(linkInfo.inviteHash);
       }
       
       if (response) {
-        console.log('TelegramLinkPreview - join success response:', response);
         notification.success('已成功加入群组');
         setGroupPreview(prev => prev ? { ...prev, is_joined: true } : null);
       }
@@ -180,20 +172,10 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
 
   // 跳转到群组
   const handleJumpToGroup = () => {
-    console.log('TelegramLinkPreview - handleJumpToGroup called', {
-      groupPreview,
-      isJoined: groupPreview?.is_joined,
-      hasOnJumpToGroup: !!onJumpToGroup
-    });
     
     if (groupPreview && groupPreview.is_joined && onJumpToGroup) {
-      console.log('TelegramLinkPreview - jumping to group:', groupPreview.id);
       onJumpToGroup(groupPreview.id);
     } else {
-      console.log('TelegramLinkPreview - cannot jump to group, missing conditions');
-      if (!groupPreview) console.log('TelegramLinkPreview - no group preview');
-      if (!groupPreview?.is_joined) console.log('TelegramLinkPreview - not joined to group');
-      if (!onJumpToGroup) console.log('TelegramLinkPreview - no onJumpToGroup callback');
     }
   };
 
@@ -424,7 +406,6 @@ const TelegramLinkPreview: React.FC<TelegramLinkPreviewProps> = ({
         visible={showExternalPreview}
         onClose={() => setShowExternalPreview(false)}
         onJoinGroup={(groupInfo) => {
-          console.log('TelegramLinkPreview - group joined from external preview:', groupInfo);
           setGroupPreview(prev => prev ? { ...prev, is_joined: true } : null);
           notification.success(`已成功加入群组: ${groupInfo.title}`);
         }}

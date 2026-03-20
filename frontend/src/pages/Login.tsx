@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
-import { UserOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone, SendOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store';
 import { authApi } from '../services/apiService';
@@ -19,19 +19,19 @@ const LoginPage: React.FC = () => {
   const handleLogin = async (values: LoginRequest) => {
     setLoading(true);
     setIsLoading(true);
-    
+
     try {
       // 登录
       const loginResponse = await authApi.login(values);
       setToken(loginResponse.access_token);
-      
+
       // 获取用户信息
       const userInfo = await authApi.getCurrentUser();
       setUser(userInfo);
-      
+
       message.success('登录成功！');
       navigate('/dashboard');
-      
+
     } catch (error: any) {
       console.error('登录失败:', error);
       message.error(error.message || '登录失败，请检查用户名和密码');
@@ -41,16 +41,17 @@ const LoginPage: React.FC = () => {
     }
   };
 
-
-
   return (
     <div className="login-page">
       <Card className="login-card">
         <div className="login-header">
+          <div className="login-logo">
+            <SendOutlined />
+          </div>
           <Title level={2} className="login-title">
-            TgGod 管理系统
+            TgGod
           </Title>
-          <Text type="secondary">
+          <Text type="secondary" className="login-subtitle">
             Telegram 群组消息管理平台
           </Text>
         </div>
@@ -58,6 +59,7 @@ const LoginPage: React.FC = () => {
         <Form
           form={form}
           name="login"
+          className="login-form"
           onFinish={handleLogin}
           autoComplete="off"
           size="large"
@@ -92,14 +94,14 @@ const LoginPage: React.FC = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
+            <Button
+              type="primary"
+              htmlType="submit"
               loading={loading}
               block
               className="login-submit"
             >
-              登录
+              {loading ? '登录中...' : '登录'}
             </Button>
           </Form.Item>
         </Form>

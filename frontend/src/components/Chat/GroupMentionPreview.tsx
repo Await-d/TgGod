@@ -45,7 +45,6 @@ const GroupMentionPreview: React.FC<GroupMentionPreviewProps> = ({
     setError(null);
     
     try {
-      console.log('GroupMentionPreview - searching groups:', { type, value });
       
       let searchResults: GroupSearchResult[] = [];
       
@@ -57,7 +56,6 @@ const GroupMentionPreview: React.FC<GroupMentionPreviewProps> = ({
             searchResults = [group];
           }
         } catch (err) {
-          console.log('Group not found by username, will search in local groups');
         }
       } else if (type === 'id') {
         // 通过ID查找
@@ -68,7 +66,6 @@ const GroupMentionPreview: React.FC<GroupMentionPreviewProps> = ({
             searchResults = [group];
           }
         } catch (err) {
-          console.log('Group not found by ID');
         }
       }
       
@@ -120,7 +117,6 @@ const GroupMentionPreview: React.FC<GroupMentionPreviewProps> = ({
   // 处理跳转到群组
   const handleJumpToGroup = useCallback((groupId: number) => {
     if (onJumpToGroup) {
-      console.log('GroupMentionPreview - jumping to group:', groupId);
       onJumpToGroup(groupId);
     } else {
       notification.info('请在消息列表中点击群组名称进入');

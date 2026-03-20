@@ -1,0 +1,208 @@
+/**
+ * TgGod Design Tokens
+ * 统一设计令牌系统 - 定义全局 CSS 变量
+ */
+
+:root {
+  /* ==================== 颜色系统 ==================== */
+
+  /* 主色 */
+  --primary-color: #1890ff;
+  --primary-hover: #40a9ff;
+  --primary-active: #096dd9;
+  --primary-bg: rgba(24, 144, 255, 0.1);
+  --primary-border: rgba(24, 144, 255, 0.3);
+
+  /* 功能色 */
+  --success-color: #52c41a;
+  --success-hover: #73d13d;
+  --success-active: #389e0d;
+  --success-bg: rgba(82, 196, 26, 0.1);
+
+  --warning-color: #faad14;
+  --warning-hover: #ffc53d;
+  --warning-active: #d48806;
+  --warning-bg: rgba(250, 173, 20, 0.1);
+
+  --error-color: #ff4d4f;
+  --error-hover: #ff7875;
+  --error-active: #d9363e;
+  --error-bg: rgba(255, 77, 79, 0.1);
+
+  --info-color: #1890ff;
+  --info-hover: #40a9ff;
+  --info-active: #096dd9;
+  --info-bg: rgba(24, 144, 255, 0.1);
+
+  /* 中性色 */
+  --text-primary: rgba(0, 0, 0, 0.85);
+  --text-secondary: rgba(0, 0, 0, 0.65);
+  --text-tertiary: rgba(0, 0, 0, 0.45);
+  --text-disabled: rgba(0, 0, 0, 0.25);
+  --text-placeholder: rgba(0, 0, 0, 0.25);
+
+  /* 边框色 */
+  --border-color: #d9d9d9;
+  --border-color-light: #f0f0f0;
+  --border-color-dark: #bfbfbf;
+
+  /* 背景色 */
+  --background-color: #f0f2f5;
+  --background-color-light: #fafafa;
+  --background-color-dark: #e8e8e8;
+  --background-white: #ffffff;
+
+  /* 分割线 */
+  --divider-color: rgba(0, 0, 0, 0.06);
+
+  /* ==================== 间距系统 ==================== */
+  --spacing-xxs: 2px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+
+  /* ==================== 字体系统 ==================== */
+
+  /* 字体族 */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-family-code: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+
+  /* 字号 */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-xxl: 24px;
+  --font-size-xxxl: 30px;
+
+  /* 行高 */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* 字重 */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ==================== 圆角系统 ==================== */
+  --border-radius-xs: 2px;
+  --border-radius-sm: 4px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 8px;
+  --border-radius-xl: 12px;
+  --border-radius-xxl: 16px;
+  --border-radius-full: 9999px;
+
+  /* ==================== 阴影系统 ==================== */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-xxl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+  /* 卡片阴影 */
+  --shadow-card: 0 1px 2px -2px rgba(0, 0, 0, 0.16), 0 3px 6px 0 rgba(0, 0, 0, 0.12), 0 5px 12px 4px rgba(0, 0, 0, 0.09);
+  --shadow-card-hover: 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+
+  /* ==================== 动画时间 ==================== */
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --duration-slower: 500ms;
+
+  /* 缓动函数 */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ==================== z-index 层级 ==================== */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+  --z-index-toast: 1080;
+
+  /* ==================== 布局尺寸 ==================== */
+  --header-height: 64px;
+  --sidebar-width: 200px;
+  --sidebar-collapsed-width: 80px;
+  --content-max-width: 1200px;
+  --content-padding: var(--spacing-lg);
+
+  /* 移动端 */
+  --mobile-header-height: 56px;
+  --mobile-bottom-nav-height: 56px;
+  --touch-target-min: 44px;
+}
+
+/* ==================== 暗色模式 ==================== */
+[data-theme="dark"],
+.dark {
+  /* 主色 - 暗色模式调整 */
+  --primary-color: #177ddc;
+  --primary-hover: #3c9ae8;
+  --primary-active: #1765ad;
+  --primary-bg: rgba(23, 125, 220, 0.15);
+  --primary-border: rgba(23, 125, 220, 0.35);
+
+  /* 功能色 - 暗色模式 */
+  --success-color: #49aa19;
+  --success-hover: #6abe39;
+  --success-active: #3c8618;
+  --success-bg: rgba(73, 170, 25, 0.15);
+
+  --warning-color: #d89614;
+  --warning-hover: #e8b339;
+  --warning-active: #aa7714;
+  --warning-bg: rgba(216, 150, 20, 0.15);
+
+  --error-color: #d32029;
+  --error-hover: #e84749;
+  --error-active: #a61d24;
+  --error-bg: rgba(211, 32, 41, 0.15);
+
+  --info-color: #177ddc;
+  --info-hover: #3c9ae8;
+  --info-active: #1765ad;
+  --info-bg: rgba(23, 125, 220, 0.15);
+
+  /* 中性色 - 暗色模式 */
+  --text-primary: rgba(255, 255, 255, 0.85);
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-tertiary: rgba(255, 255, 255, 0.45);
+  --text-disabled: rgba(255, 255, 255, 0.25);
+  --text-placeholder: rgba(255, 255, 255, 0.25);
+
+  /* 边框色 - 暗色模式 */
+  --border-color: #434343;
+  --border-color-light: #303030;
+  --border-color-dark: #5a5a5a;
+
+  /* 背景色 - 暗色模式 */
+  --background-color: #141414;
+  --background-color-light: #1f1f1f;
+  --background-color-dark: #0a0a0a;
+  --background-white: #1f1f1f;
+
+  /* 分割线 - 暗色模式 */
+  --divider-color: rgba(255, 255, 255, 0.08);
+
+  /* 阴影 - 暗色模式 */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+  --shadow-card: 0 1px 2px -2px rgba(0, 0, 0, 0.4), 0 3px 6px 0 rgba(0, 0, 0, 0.3), 0 5px 12px 4px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 3px 6px -4px rgba(0, 0, 0, 0.3), 0 6px 16px 0 rgba(0, 0, 0, 0.2), 0 9px 28px 8px rgba(0, 0, 0, 0.15);
+}

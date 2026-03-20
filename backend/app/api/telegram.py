@@ -43,11 +43,22 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Union, List, Optional
 
 # 第三方库导入
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Path, Query, Body
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    BackgroundTasks,
+    Path,
+    Query,
+    Body,
+    File,
+    Form,
+    UploadFile,
+)
 from ..config import settings
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, desc, asc, and_, or_, text
+from sqlalchemy import func, desc, asc, and_, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
@@ -59,14 +70,23 @@ from telethon.errors import (
     PhoneCodeExpiredError,
     PasswordHashInvalidError,
     ChatIdInvalidError,
-    ChannelPrivateError
+    ChannelPrivateError,
 )
 from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
-from telethon.tl.functions.messages import GetDialogsRequest, GetHistoryRequest, GetFullChatRequest
+from telethon.tl.functions.messages import (
+    GetDialogsRequest,
+    GetHistoryRequest,
+    GetFullChatRequest,
+)
 from telethon.tl.types import (
-    InputPeerChannel, InputPeerChat, InputPeerUser,
-    Channel, Chat, User,
-    ChannelParticipantsSearch, PeerChannel
+    InputPeerChannel,
+    InputPeerChat,
+    InputPeerUser,
+    Channel,
+    Chat,
+    User,
+    ChannelParticipantsSearch,
+    PeerChannel,
 )
 
 # 本地模块导入
@@ -83,6 +103,7 @@ router = APIRouter()
 # 同步队列，防止并发同步冲突
 sync_queue = asyncio.Queue()
 sync_worker_started = False
+
 
 def process_message_json_fields(message):
     """处理消息对象的JSON字段类型转换
@@ -114,7 +135,7 @@ def process_message_json_fields(message):
                 message.mentions = []
         else:
             message.mentions = []
-        
+
         # 处理hashtags字段
         if message.hashtags:
             if isinstance(message.hashtags, str):
@@ -123,11 +144,12 @@ def process_message_json_fields(message):
                 message.hashtags = []
         else:
             message.hashtags = []
-        
+
         # 处理媒体URL - 为已下载的文件设置正确的访问URL
         if message.media_type and message.media_downloaded and message.media_path:
             # 如果文件已下载且有本地路径，设置文件服务URL
             import os
+
             if os.path.exists(message.media_path):
                 message.media_download_url = f"/api/media/download/{message.message_id}"
             else:
@@ -135,9 +157,9 @@ def process_message_json_fields(message):
                 message.media_downloaded = False
                 message.media_path = None
                 message.media_download_url = None
-        
+
         # 注意：media_thumbnail_url 字段将在序列化时动态生成，不在此处设置
-        
+
         # 处理urls字段
         if message.urls:
             if isinstance(message.urls, str):
@@ -146,7 +168,7 @@ def process_message_json_fields(message):
                 message.urls = []
         else:
             message.urls = []
-            
+
         # 处理reactions字段
         if message.reactions:
             if isinstance(message.reactions, str):
@@ -155,7 +177,7 @@ def process_message_json_fields(message):
                 message.reactions = {}
         else:
             message.reactions = {}
-            
+
     except (json.JSONDecodeError, TypeError) as e:
         logger.warning(f"处理消息 {message.id} 的JSON字段失败: {e}")
         # 设置默认值
@@ -164,58 +186,65 @@ def process_message_json_fields(message):
         message.urls = []
         message.reactions = {}
 
+
 def convert_message_to_response_dict(message):
     """将SQLAlchemy消息对象转换为响应字典，包含所有必需字段"""
     # 首先处理JSON字段
     process_message_json_fields(message)
-    
+
     # 转换为字典以便添加计算字段
     message_dict = {
-        'id': message.id,
-        'group_id': message.group_id,
-        'message_id': message.message_id,
-        'sender_id': message.sender_id,
-        'sender_username': message.sender_username,
-        'sender_name': message.sender_name,
-        'text': message.text,
-        'media_type': message.media_type,
-        'media_path': message.media_path,
-        'media_size': message.media_size,
-        'media_filename': message.media_filename,
-        'media_downloaded': message.media_downloaded,
-        'media_download_url': message.media_download_url,
-        'media_thumbnail_path': message.media_thumbnail_path,
-        'view_count': message.view_count,
-        'is_forwarded': message.is_forwarded,
-        'forwarded_from': message.forwarded_from,
-        'forwarded_from_id': message.forwarded_from_id,
-        'forwarded_from_type': message.forwarded_from_type,
-        'forwarded_date': message.forwarded_date,
-        'is_own_message': message.is_own_message,
-        'reply_to_message_id': message.reply_to_message_id,
-        'edit_date': message.edit_date,
-        'is_pinned': message.is_pinned,
-        'reactions': message.reactions,
-        'mentions': message.mentions,
-        'hashtags': message.hashtags,
-        'urls': message.urls,
-        'media_group_id': getattr(message, 'media_group_id', None),  # 安全获取media_group_id字段
-        'date': message.date,
-        'created_at': message.created_at,
-        'updated_at': message.updated_at
+        "id": message.id,
+        "group_id": message.group_id,
+        "message_id": message.message_id,
+        "sender_id": message.sender_id,
+        "sender_username": message.sender_username,
+        "sender_name": message.sender_name,
+        "text": message.text,
+        "media_type": message.media_type,
+        "media_path": message.media_path,
+        "media_size": message.media_size,
+        "media_filename": message.media_filename,
+        "media_downloaded": message.media_downloaded,
+        "media_download_url": message.media_download_url,
+        "media_thumbnail_path": message.media_thumbnail_path,
+        "view_count": message.view_count,
+        "is_forwarded": message.is_forwarded,
+        "forwarded_from": message.forwarded_from,
+        "forwarded_from_id": message.forwarded_from_id,
+        "forwarded_from_type": message.forwarded_from_type,
+        "forwarded_date": message.forwarded_date,
+        "is_own_message": message.is_own_message,
+        "reply_to_message_id": message.reply_to_message_id,
+        "edit_date": message.edit_date,
+        "is_pinned": message.is_pinned,
+        "reactions": message.reactions,
+        "mentions": message.mentions,
+        "hashtags": message.hashtags,
+        "urls": message.urls,
+        "media_group_id": getattr(
+            message, "media_group_id", None
+        ),  # 安全获取media_group_id字段
+        "date": message.date,
+        "created_at": message.created_at,
+        "updated_at": message.updated_at,
     }
-    
+
     # 添加缩略图URL字段
     if message.media_type:
-        message_dict['media_thumbnail_url'] = f"/api/media/thumbnail/{message.message_id}"
+        message_dict["media_thumbnail_url"] = (
+            f"/api/media/thumbnail/{message.message_id}"
+        )
     else:
-        message_dict['media_thumbnail_url'] = None
-        
+        message_dict["media_thumbnail_url"] = None
+
     return message_dict
+
 
 # Pydantic模型
 class GroupCreate(BaseModel):
     username: str
+
 
 class GroupResponse(BaseModel):
     id: int
@@ -228,12 +257,15 @@ class GroupResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime]
 
+
 class MonthInfo(BaseModel):
     year: int
     month: int
 
+
 class MonthlySyncRequest(BaseModel):
     months: List[MonthInfo]
+
 
 class MonthlySyncResponse(BaseModel):
     success: bool
@@ -242,6 +274,7 @@ class MonthlySyncResponse(BaseModel):
     failed_months: List[dict]
     monthly_stats: List[dict]
     error: Optional[str] = None
+
 
 class MessageResponse(BaseModel):
     id: int
@@ -286,6 +319,7 @@ class MessageSendRequest(BaseModel):
     text: str
     reply_to_message_id: Optional[int] = None
 
+
 class TelegramUserResponse(BaseModel):
     id: int
     username: Optional[str]
@@ -304,81 +338,131 @@ class MessageSearchRequest(BaseModel):
     has_media: Optional[bool] = None
     is_forwarded: Optional[bool] = None
 
+
 @router.get("/groups", response_model=List[GroupResponse])
 async def get_groups(
     skip: int = Query(0, ge=0),
     limit: int = Query(1000, ge=1, le=1000),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """获取群组列表"""
     groups = db.query(TelegramGroup).offset(skip).limit(limit).all()
     return groups
 
+
 @router.post("/groups", response_model=GroupResponse)
-async def add_group(
-    group: GroupCreate,
-    db: Session = Depends(get_db)
-):
+async def add_group(group: GroupCreate, db: Session = Depends(get_db)):
     """添加群组"""
     try:
         # 检查群组是否已存在
-        existing_group = db.query(TelegramGroup).filter(
-            TelegramGroup.username == group.username
-        ).first()
-        
+        existing_group = (
+            db.query(TelegramGroup)
+            .filter(TelegramGroup.username == group.username)
+            .first()
+        )
+
         if existing_group:
             raise HTTPException(status_code=400, detail="群组已存在")
-        
+
         # 添加群组到数据库
         new_group = await telegram_service.add_group_to_db(group.username, db)
         if not new_group:
             raise HTTPException(status_code=400, detail="无法获取群组信息")
-        
+
         return new_group
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/groups/{group_id}", response_model=GroupResponse)
-async def get_group(
-    group_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_group(group_id: int, db: Session = Depends(get_db)):
     """获取单个群组信息"""
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
     return group
 
+
 @router.put("/groups/{group_id}", response_model=GroupResponse)
-async def update_group(
-    group_id: int,
-    is_active: bool,
-    db: Session = Depends(get_db)
-):
+async def update_group(group_id: int, is_active: bool, db: Session = Depends(get_db)):
     """更新群组状态"""
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     group.is_active = is_active
     db.commit()
     db.refresh(group)
     return group
 
+
 @router.delete("/groups/{group_id}")
-async def delete_group(
-    group_id: int,
-    db: Session = Depends(get_db)
-):
+async def delete_group(group_id: int, db: Session = Depends(get_db)):
     """删除群组"""
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     db.delete(group)
     db.commit()
     return {"message": "群组删除成功"}
+
+
+@router.get("/groups/{group_id}/members")
+async def get_group_members(group_id: int, db: Session = Depends(get_db)):
+    """获取群组成员列表"""
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+
+    if not telegram_service.is_connected():
+        raise HTTPException(status_code=503, detail="Telegram未连接，请先登录")
+
+    try:
+        from telethon.tl.functions.channels import GetParticipantsRequest
+        from telethon.tl.types import (
+            ChannelParticipantsSearch,
+            ChannelParticipantAdmin,
+            ChannelParticipantCreator,
+        )
+
+        client = telegram_service.client
+        assert client is not None
+        tg_id: int = int(group.telegram_id)  # type: ignore[arg-type]
+        entity = await client.get_entity(tg_id)
+
+        members = []
+        async for participant in client.iter_participants(entity, limit=200):  # type: ignore[arg-type]
+            role = "member"
+            if hasattr(participant, "participant"):
+                p = participant.participant
+                if isinstance(p, ChannelParticipantCreator):
+                    role = "owner"
+                elif isinstance(p, ChannelParticipantAdmin):
+                    role = "admin"
+
+            name = ""
+            if participant.first_name:
+                name = participant.first_name
+            if participant.last_name:
+                name = (name + " " + participant.last_name).strip()
+
+            members.append(
+                {
+                    "id": participant.id,
+                    "name": name or str(participant.id),
+                    "username": participant.username,
+                    "is_bot": participant.bot,
+                    "role": role,
+                }
+            )
+
+        return {"members": members, "total": len(members)}
+    except Exception as e:
+        logger.error(f"获取群组成员失败 group_id={group_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"获取成员列表失败: {str(e)}")
+
 
 @router.get("/groups/{group_id}/messages", response_model=List[MessageResponse])
 async def get_group_messages(
@@ -394,7 +478,7 @@ async def get_group_messages(
     start_date: Optional[datetime] = Query(None, description="开始日期"),
     end_date: Optional[datetime] = Query(None, description="结束日期"),
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user),
 ):
     """获取群组消息列表（支持搜索和过滤）
 
@@ -447,91 +531,97 @@ async def get_group_messages(
         - 支持组合过滤条件
         - 返回的消息包含媒体文件访问链接
     """
-    
+
     try:
         # 检查群组是否存在
         group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
         if not group:
             raise HTTPException(status_code=404, detail="群组不存在")
-        
+
         # 构建查询
         query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group_id)
-        
+
         # 应用过滤条件
         if search:
             query = query.filter(TelegramMessage.text.contains(search))
-        
+
         if sender_username:
             query = query.filter(TelegramMessage.sender_username == sender_username)
-        
+
         if media_type:
             query = query.filter(TelegramMessage.media_type == media_type)
-        
+
         if has_media is not None:
             if has_media:
                 query = query.filter(TelegramMessage.media_type.isnot(None))
             else:
                 query = query.filter(TelegramMessage.media_type.is_(None))
-        
+
         if is_forwarded is not None:
             query = query.filter(TelegramMessage.is_forwarded == is_forwarded)
-        
+
         if is_pinned is not None:
             query = query.filter(TelegramMessage.is_pinned == is_pinned)
-        
+
         if start_date:
             query = query.filter(TelegramMessage.date >= start_date)
-        
+
         if end_date:
             query = query.filter(TelegramMessage.date <= end_date)
-        
+
         # 排序和分页逻辑：
         # 1. 对于Messages页面：最新消息应该排在前面（降序排列）
         # 2. 对于聊天界面：最老消息在前，最新消息在后（正序排列）
         # 3. 这里针对Messages页面的需求，统一使用降序排列
-        
+
         # 排序和分页逻辑：
         # 1. 如果是置顶消息，按照置顶时间排序（最新置顶的在前）
         # 2. 普通消息按照日期排序，先获取最新的消息（倒序），然后对结果进行正序排列
         # 3. 这样前端就不需要做任何排序操作
-        
+
         if is_pinned is True:
             # 置顶消息按照消息日期降序排列（最新置顶的在前）
             # 使用date字段而不是id，因为date更准确反映消息的时间
-            messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+            messages = (
+                query.order_by(TelegramMessage.date.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
         else:
             # 获取消息（降序获取最新的）
-            messages_desc = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+            messages_desc = (
+                query.order_by(TelegramMessage.date.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
             # 反转为正序（最老消息在前，最新消息在后）
             messages = list(reversed(messages_desc))
-        
+
         # 转换为响应字典格式
         result_messages = []
         for message in messages:
             result_messages.append(convert_message_to_response_dict(message))
-        
+
         return result_messages
-        
+
     except Exception as e:
         logger.error(f"获取群组 {group_id} 消息失败: {e}")
-        
+
         # 特殊处理数据库锁定错误
         if "database is locked" in str(e).lower():
             raise HTTPException(
-                status_code=503, 
-                detail="数据库正忙，请稍后重试。可能有同步任务正在进行中。"
+                status_code=503,
+                detail="数据库正忙，请稍后重试。可能有同步任务正在进行中。",
             )
         elif "timeout" in str(e).lower():
             raise HTTPException(
-                status_code=504, 
-                detail="数据库查询超时，请尝试缩小查询范围或稍后重试。"
+                status_code=504, detail="数据库查询超时，请尝试缩小查询范围或稍后重试。"
             )
         else:
             # 其他数据库错误
-            raise HTTPException(
-                status_code=500, 
-                detail=f"数据库查询失败: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
 
 
 @router.get("/groups/{group_id}/messages/paginated", response_model=dict)
@@ -548,128 +638,132 @@ async def get_group_messages_paginated(
     start_date: Optional[datetime] = Query(None, description="开始日期"),
     end_date: Optional[datetime] = Query(None, description="结束日期"),
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user),
 ):
     """获取群组消息（支持搜索和过滤）- 专门用于Messages页面的分页版本"""
-    
+
     try:
         # 检查群组是否存在
         group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
         if not group:
             raise HTTPException(status_code=404, detail="群组不存在")
-        
+
         # 构建查询
         query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group_id)
-        
+
         # 应用过滤条件
         if search:
             query = query.filter(TelegramMessage.text.contains(search))
-        
+
         if sender_username:
             query = query.filter(TelegramMessage.sender_username == sender_username)
-        
+
         if media_type:
             query = query.filter(TelegramMessage.media_type == media_type)
-        
+
         if has_media is not None:
             if has_media:
                 query = query.filter(TelegramMessage.media_type.isnot(None))
             else:
                 query = query.filter(TelegramMessage.media_type.is_(None))
-        
+
         if is_forwarded is not None:
             query = query.filter(TelegramMessage.is_forwarded == is_forwarded)
-        
+
         if is_pinned is not None:
             query = query.filter(TelegramMessage.is_pinned == is_pinned)
-        
+
         if start_date:
             query = query.filter(TelegramMessage.date >= start_date)
-        
+
         if end_date:
             query = query.filter(TelegramMessage.date <= end_date)
-        
+
         # 获取总数（用于分页）
         total_count = query.count()
-        
+
         # 消息按照日期降序排列（最新消息在前）- 适合Messages页面展示
-        messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
-        
+        messages = (
+            query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+        )
+
         # 转换为响应字典格式
         result_messages = []
         for message in messages:
             result_messages.append(convert_message_to_response_dict(message))
-        
+
         # 返回分页信息
         return {
             "data": result_messages,
             "pagination": {
                 "current": (skip // limit) + 1,
                 "pageSize": limit,
-                "total": total_count
-            }
+                "total": total_count,
+            },
         }
-        
+
     except Exception as e:
         logger.error(f"获取群组 {group_id} 分页消息失败: {e}")
-        
+
         # 特殊处理数据库锁定错误
         if "database is locked" in str(e).lower():
             raise HTTPException(
-                status_code=503, 
-                detail="数据库正忙，请稍后重试。可能有同步任务正在进行中。"
+                status_code=503,
+                detail="数据库正忙，请稍后重试。可能有同步任务正在进行中。",
             )
         elif "timeout" in str(e).lower():
             raise HTTPException(
-                status_code=504, 
-                detail="数据库查询超时，请尝试缩小查询范围或稍后重试。"
+                status_code=504, detail="数据库查询超时，请尝试缩小查询范围或稍后重试。"
             )
         else:
             # 其他数据库错误
-            raise HTTPException(
-                status_code=500, 
-                detail=f"数据库查询失败: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
 
 
 async def get_message_detail(
     group_id: int,
     message_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user),
 ):
     """获取单条消息详情"""
-    
+
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     # 获取消息
-    message = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.message_id == message_id
-    ).first()
-    
+    message = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id,
+            TelegramMessage.message_id == message_id,
+        )
+        .first()
+    )
+
     if not message:
         raise HTTPException(status_code=404, detail="消息不存在")
-    
+
     # 转换为响应字典格式
     return convert_message_to_response_dict(message)
 
 
-@router.get("/groups/search-by-id/{telegram_id}", response_model=Optional[GroupResponse])
+@router.get(
+    "/groups/search-by-id/{telegram_id}", response_model=Optional[GroupResponse]
+)
 async def search_group_by_telegram_id(
     telegram_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user),
 ):
     """根据Telegram ID查找群组"""
-    
-    group = db.query(TelegramGroup).filter(
-        TelegramGroup.telegram_id == telegram_id
-    ).first()
-    
+
+    group = (
+        db.query(TelegramGroup).filter(TelegramGroup.telegram_id == telegram_id).first()
+    )
+
     return group
 
 
@@ -679,33 +773,39 @@ async def get_message_replies(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user),
 ):
     """获取消息的回复"""
-    
+
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     # 获取回复消息
-    replies = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.reply_to_message_id == message_id
-    ).order_by(TelegramMessage.date.asc()).offset(skip).limit(limit).all()
-    
+    replies = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id,
+            TelegramMessage.reply_to_message_id == message_id,
+        )
+        .order_by(TelegramMessage.date.asc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
     # 转换为响应字典格式
     result_messages = []
     for reply in replies:
         result_messages.append(convert_message_to_response_dict(reply))
-    
+
     return result_messages
+
 
 @router.post("/groups/{group_id}/sync")
 async def sync_group_messages(
-    group_id: int,
-    limit: int = Query(100, ge=1, le=1000),
-    db: Session = Depends(get_db)
+    group_id: int, limit: int = Query(100, ge=1, le=1000), db: Session = Depends(get_db)
 ):
     """同步群组消息到数据库
 
@@ -753,11 +853,11 @@ async def sync_group_messages(
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     try:
         # 决定使用哪个标识符来获取消息
         group_identifier = None
-        
+
         # 优先使用username
         if group.username:
             group_identifier = group.username
@@ -768,61 +868,59 @@ async def sync_group_messages(
             logger.info(f"使用群组ID获取消息: {group.telegram_id}")
         else:
             raise HTTPException(
-                status_code=400, 
-                detail="群组缺少必要的标识符(username或telegram_id)"
+                status_code=400, detail="群组缺少必要的标识符(username或telegram_id)"
             )
-        
+
         # 获取消息
         messages = await telegram_service.get_messages(group_identifier, limit=limit)
-        
+
         # 保存到数据库
         saved_count = await telegram_service.save_messages_to_db(group_id, messages, db)
-        
+
         # 如果有新消息，通过WebSocket推送消息统计更新
         if saved_count > 0:
             try:
                 from ..websocket.manager import websocket_manager
-                
+
                 # 推送消息统计更新
                 stats_data = {
                     "group_id": group_id,
                     "new_messages": saved_count,
                     "total_fetched": len(messages),
-                    "sync_time": datetime.now().isoformat()
+                    "sync_time": datetime.now().isoformat(),
                 }
-                
+
                 await websocket_manager.send_message_stats(stats_data)
-                
+
             except Exception as ws_error:
                 logger.error(f"WebSocket推送失败: {ws_error}")
                 # 不影响API响应
-        
+
         return {
-            "message": f"成功同步 {saved_count} 条消息", 
+            "message": f"成功同步 {saved_count} 条消息",
             "total_fetched": len(messages),
-            "total_saved": saved_count
+            "total_saved": saved_count,
         }
-    
+
     except Exception as e:
         logger.error(f"同步群组消息失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/groups/{group_id}/sync-monthly")
 async def sync_group_messages_monthly(
-    group_id: int,
-    request: MonthlySyncRequest,
-    db: Session = Depends(get_db)
+    group_id: int, request: MonthlySyncRequest, db: Session = Depends(get_db)
 ):
     """按月同步群组消息（异步任务）"""
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     try:
         # 决定使用哪个标识符来获取消息
         group_identifier = None
-        
+
         # 优先使用username
         if group.username:
             group_identifier = group.username
@@ -833,125 +931,138 @@ async def sync_group_messages_monthly(
             logger.info(f"使用群组ID按月同步: {group.telegram_id}")
         else:
             raise HTTPException(
-                status_code=400, 
-                detail="群组缺少必要的标识符(username或telegram_id)"
+                status_code=400, detail="群组缺少必要的标识符(username或telegram_id)"
             )
-        
+
         # 转换月份数据
-        months_data = [{"year": month.year, "month": month.month} for month in request.months]
-        
+        months_data = [
+            {"year": month.year, "month": month.month} for month in request.months
+        ]
+
         # 启动同步工作进程（如果还没启动）
         global sync_worker_started
         if not sync_worker_started:
             asyncio.create_task(start_sync_worker())
             sync_worker_started = True
-        
+
         # 将同步任务添加到队列
         await sync_queue.put(("single", group_identifier, months_data, group_id))
-        
+
         # 立即返回成功响应
         return {
             "success": True,
             "message": f"月度同步任务已启动，将同步 {len(months_data)} 个月的数据",
-            "total_months": len(months_data)
+            "total_months": len(months_data),
         }
 
     except Exception as e:
         logger.error(f"启动按月同步任务失败: {e}")
         raise HTTPException(status_code=500, detail=f"启动同步任务失败: {str(e)}")
 
+
 async def sync_monthly_task(group_identifier, months_data, group_id):
     """异步执行按月同步任务"""
     try:
         # 执行按月同步，传递group_id用于WebSocket进度推送
-        result = await telegram_service.sync_messages_by_month(group_identifier, months_data, group_id)
-        
+        result = await telegram_service.sync_messages_by_month(
+            group_identifier, months_data, group_id
+        )
+
         # 通过WebSocket推送最终结果
         try:
             from ..websocket import websocket_manager
+
             # 找到所有连接的客户端并发送完成消息
             for client_id in websocket_manager.get_connected_clients():
-                await websocket_manager.send_message(client_id, {
-                    "type": "monthly_sync_complete",
-                    "data": result,
-                    "timestamp": datetime.now().isoformat()
-                })
+                await websocket_manager.send_message(
+                    client_id,
+                    {
+                        "type": "monthly_sync_complete",
+                        "data": result,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                )
         except Exception as ws_e:
             logger.warning(f"WebSocket推送完成消息失败: {ws_e}")
-        
+
     except Exception as e:
         logger.error(f"异步月度同步任务执行失败: {e}")
         # 推送错误消息
         try:
             from ..websocket import websocket_manager
+
             for client_id in websocket_manager.get_connected_clients():
-                await websocket_manager.send_message(client_id, {
-                    "type": "monthly_sync_complete",
-                    "data": {
-                        "success": False,
-                        "error": str(e),
-                        "total_messages": 0,
-                        "months_synced": 0,
-                        "failed_months": [],
-                        "monthly_stats": []
+                await websocket_manager.send_message(
+                    client_id,
+                    {
+                        "type": "monthly_sync_complete",
+                        "data": {
+                            "success": False,
+                            "error": str(e),
+                            "total_messages": 0,
+                            "months_synced": 0,
+                            "failed_months": [],
+                            "monthly_stats": [],
+                        },
+                        "timestamp": datetime.now().isoformat(),
                     },
-                    "timestamp": datetime.now().isoformat()
-                })
+                )
         except Exception as ws_e:
             logger.warning(f"WebSocket推送错误消息失败: {ws_e}")
 
+
 @router.get("/groups/{group_id}/default-sync-months")
 async def get_default_sync_months(
-    group_id: int,
-    count: int = Query(3, ge=1, le=12),
-    db: Session = Depends(get_db)
+    group_id: int, count: int = Query(3, ge=1, le=12), db: Session = Depends(get_db)
 ):
     """获取默认的同步月份（最近N个月）"""
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     try:
         months = await telegram_service.get_default_sync_months(count)
         return {"months": months}
-    
+
     except Exception as e:
         logger.error(f"获取默认同步月份失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取默认同步月份失败: {str(e)}")
 
+
 @router.post("/batch-sync-messages", response_model=dict)
 async def batch_sync_group_messages(
-    request: dict = Body(...),
-    db: Session = Depends(get_db)
+    request: dict = Body(...), db: Session = Depends(get_db)
 ):
     """批量同步多个群组的消息"""
     try:
         group_ids = request.get("group_ids", [])
         limit = request.get("limit", 100)
-        
+
         if not group_ids:
             raise HTTPException(status_code=400, detail="未提供群组ID列表")
-            
+
         if not isinstance(group_ids, list):
             raise HTTPException(status_code=400, detail="群组ID必须是数组")
-            
+
         # 检查所有群组是否存在
         groups = db.query(TelegramGroup).filter(TelegramGroup.id.in_(group_ids)).all()
         if len(groups) != len(group_ids):
             found_ids = [g.id for g in groups]
             missing_ids = [id for id in group_ids if id not in found_ids]
-            raise HTTPException(status_code=404, detail=f"以下群组不存在: {missing_ids}")
-        
+            raise HTTPException(
+                status_code=404, detail=f"以下群组不存在: {missing_ids}"
+            )
+
         # 批量同步结果
         results = []
         success_count = 0
-        
+
         for group in groups:
             try:
                 # 决定使用哪个标识符来获取消息
                 group_identifier = None
-                
+
                 # 优先使用username
                 if group.username:
                     group_identifier = group.username
@@ -961,101 +1072,116 @@ async def batch_sync_group_messages(
                     group_identifier = group.telegram_id
                     logger.info(f"使用群组ID获取消息: {group.telegram_id}")
                 else:
-                    logger.warning(f"群组 {group.title} (ID: {group.id}) 缺少标识符，跳过同步")
-                    results.append({
+                    logger.warning(
+                        f"群组 {group.title} (ID: {group.id}) 缺少标识符，跳过同步"
+                    )
+                    results.append(
+                        {
+                            "group_id": group.id,
+                            "group_title": group.title,
+                            "success": False,
+                            "message": "群组缺少标识符",
+                        }
+                    )
+                    continue
+
+                # 获取消息
+                messages = await telegram_service.get_messages(
+                    group_identifier, limit=limit
+                )
+
+                # 保存到数据库
+                saved_count = await telegram_service.save_messages_to_db(
+                    group.id, messages, db
+                )
+
+                # 记录结果
+                results.append(
+                    {
+                        "group_id": group.id,
+                        "group_title": group.title,
+                        "success": True,
+                        "message": f"成功同步 {saved_count} 条消息",
+                        "sync_count": saved_count,
+                    }
+                )
+
+                success_count += 1
+
+                # 添加延迟以避免API限制
+                await asyncio.sleep(2)
+
+            except Exception as e:
+                logger.error(f"同步群组 {group.title} (ID: {group.id}) 消息失败: {e}")
+                results.append(
+                    {
                         "group_id": group.id,
                         "group_title": group.title,
                         "success": False,
-                        "message": "群组缺少标识符"
-                    })
-                    continue
-                
-                # 获取消息
-                messages = await telegram_service.get_messages(group_identifier, limit=limit)
-                
-                # 保存到数据库
-                saved_count = await telegram_service.save_messages_to_db(group.id, messages, db)
-                
-                # 记录结果
-                results.append({
-                    "group_id": group.id,
-                    "group_title": group.title,
-                    "success": True,
-                    "message": f"成功同步 {saved_count} 条消息",
-                    "sync_count": saved_count
-                })
-                
-                success_count += 1
-                
-                # 添加延迟以避免API限制
-                await asyncio.sleep(2)
-                
-            except Exception as e:
-                logger.error(f"同步群组 {group.title} (ID: {group.id}) 消息失败: {e}")
-                results.append({
-                    "group_id": group.id,
-                    "group_title": group.title,
-                    "success": False,
-                    "message": f"同步失败: {str(e)}"
-                })
-        
+                        "message": f"同步失败: {str(e)}",
+                    }
+                )
+
         return {
             "success": success_count > 0,
             "message": f"批量同步完成: {success_count}/{len(groups)} 个群组",
-            "results": results
+            "results": results,
         }
-        
+
     except Exception as e:
         logger.error(f"批量同步消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"批量同步消息失败: {str(e)}")
 
+
 @router.post("/sync-all-groups-monthly", response_model=dict)
 async def sync_all_groups_monthly(
-    request: MonthlySyncRequest,
-    db: Session = Depends(get_db)
+    request: MonthlySyncRequest, db: Session = Depends(get_db)
 ):
     """对所有活跃群组执行按月同步"""
     try:
         # 获取所有活跃群组
-        active_groups = db.query(TelegramGroup).filter(
-            TelegramGroup.is_active == True
-        ).all()
-        
+        active_groups = (
+            db.query(TelegramGroup).filter(TelegramGroup.is_active == True).all()
+        )
+
         if not active_groups:
             return {"message": "没有活跃群组", "synced_groups": 0}
-        
+
         # 转换月份数据
-        months_data = [{"year": month.year, "month": month.month} for month in request.months]
-        
+        months_data = [
+            {"year": month.year, "month": month.month} for month in request.months
+        ]
+
         # 启动同步工作进程（如果还没启动）
         global sync_worker_started
         if not sync_worker_started:
             asyncio.create_task(start_sync_worker())
             sync_worker_started = True
-        
+
         # 将批量同步任务添加到队列
         await sync_queue.put(("batch", active_groups, months_data, None))
-        
+
         return {
             "success": True,
             "message": f"批量同步任务已启动，将同步 {len(active_groups)} 个群组",
-            "total_groups": len(active_groups)
+            "total_groups": len(active_groups),
         }
-        
+
     except Exception as e:
         logger.error(f"启动批量同步任务失败: {e}")
         raise HTTPException(status_code=500, detail=f"启动批量同步任务失败: {str(e)}")
 
+
 async def start_sync_worker():
     """启动同步工作进程，串行处理同步队列"""
     logger.info("同步工作进程已启动")
-    
+
     while True:
         try:
             # 从队列获取同步任务
             task_type, *args = await sync_queue.get()
             logger.info(f"处理同步任务: {task_type}")
-            
+
             if task_type == "single":
                 # 单个群组同步
                 group_identifier, months_data, group_id = args
@@ -1064,14 +1190,15 @@ async def start_sync_worker():
                 # 批量群组同步
                 active_groups, months_data, _ = args
                 await batch_sync_task(active_groups, months_data)
-            
+
             # 标记任务完成
             sync_queue.task_done()
-            
+
         except Exception as e:
             logger.error(f"同步工作进程异常: {str(e)}")
             # 继续处理下一个任务
             continue
+
 
 async def batch_sync_task(active_groups, months_data):
     """执行批量同步任务"""
@@ -1083,95 +1210,104 @@ async def batch_sync_task(active_groups, months_data):
             "synced_groups": 0,
             "failed_groups": [],
             "total_messages": 0,
-            "group_results": []
+            "group_results": [],
         }
-        
+
         # 逐个群组同步
         for group in active_groups:
             try:
                 # 决定使用哪个标识符
-                group_identifier = group.username if group.username else group.telegram_id
-                
+                group_identifier = (
+                    group.username if group.username else group.telegram_id
+                )
+
                 if not group_identifier:
                     logger.warning(f"群组 {group.title} 缺少标识符，跳过")
-                    batch_result["failed_groups"].append({
-                        "group_id": group.id,
-                        "title": group.title,
-                        "error": "缺少标识符"
-                    })
+                    batch_result["failed_groups"].append(
+                        {
+                            "group_id": group.id,
+                            "title": group.title,
+                            "error": "缺少标识符",
+                        }
+                    )
                     continue
-                
+
                 # 执行同步
-                result = await telegram_service.sync_messages_by_month(group_identifier, months_data)
-                
+                result = await telegram_service.sync_messages_by_month(
+                    group_identifier, months_data
+                )
+
                 if result["success"]:
                     batch_result["synced_groups"] += 1
                     batch_result["total_messages"] += result["total_messages"]
-                    batch_result["group_results"].append({
-                        "group_id": group.id,
-                        "title": group.title,
-                        "result": result
-                    })
+                    batch_result["group_results"].append(
+                        {"group_id": group.id, "title": group.title, "result": result}
+                    )
                 else:
-                    batch_result["failed_groups"].append({
-                        "group_id": group.id,
-                        "title": group.title,
-                        "error": result.get("error", "同步失败")
-                    })
-                
+                    batch_result["failed_groups"].append(
+                        {
+                            "group_id": group.id,
+                            "title": group.title,
+                            "error": result.get("error", "同步失败"),
+                        }
+                    )
+
                 # 添加延迟以避免API限制
                 await asyncio.sleep(5)
-                
+
             except Exception as e:
                 logger.error(f"群组 {group.title} 同步失败: {e}")
-                batch_result["failed_groups"].append({
-                    "group_id": group.id,
-                    "title": group.title,
-                    "error": str(e)
-                })
-        
+                batch_result["failed_groups"].append(
+                    {"group_id": group.id, "title": group.title, "error": str(e)}
+                )
+
         # 通过WebSocket推送更新
         try:
             from ..websocket import websocket_manager
-            await websocket_manager.broadcast({
-                "type": "batch_monthly_sync_complete",
-                "data": batch_result
-            })
+
+            await websocket_manager.broadcast(
+                {"type": "batch_monthly_sync_complete", "data": batch_result}
+            )
         except Exception as ws_e:
             logger.warning(f"WebSocket推送失败: {ws_e}")
-        
-        logger.info(f"批量同步完成: {batch_result['synced_groups']}/{batch_result['total_groups']} 个群组")
-        
+
+        logger.info(
+            f"批量同步完成: {batch_result['synced_groups']}/{batch_result['total_groups']} 个群组"
+        )
+
     except Exception as e:
         logger.error(f"批量同步任务执行失败: {e}")
         # 推送错误消息
         try:
             from ..websocket import websocket_manager
-            await websocket_manager.broadcast({
-                "type": "batch_monthly_sync_complete",
-                "data": {
-                    "success": False,
-                    "error": str(e),
-                    "total_groups": len(active_groups) if active_groups else 0,
-                    "synced_groups": 0,
-                    "failed_groups": [],
-                    "total_messages": 0,
-                    "group_results": []
+
+            await websocket_manager.broadcast(
+                {
+                    "type": "batch_monthly_sync_complete",
+                    "data": {
+                        "success": False,
+                        "error": str(e),
+                        "total_groups": len(active_groups) if active_groups else 0,
+                        "synced_groups": 0,
+                        "failed_groups": [],
+                        "total_messages": 0,
+                        "group_results": [],
+                    },
                 }
-            })
+            )
         except Exception as ws_e:
             logger.warning(f"WebSocket推送错误消息失败: {ws_e}")
+
 
 # 简单的内存缓存
 # 统计信息缓存，格式: {group_id: {"data": stats, "timestamp": time.time()}}
 _stats_cache: Dict[int, Dict[str, Any]] = {}
 CACHE_TTL = 300  # 5分钟缓存
 
+
 @router.get("/groups/{group_id}/stats")
 async def get_group_stats(
-    group_id: int,
-    db: Session = Depends(get_db),
-    force_refresh: bool = False
+    group_id: int, db: Session = Depends(get_db), force_refresh: bool = False
 ):
     """获取群组统计信息（带缓存）"""
     # 检查缓存
@@ -1181,62 +1317,86 @@ async def get_group_stats(
         if current_time - cached_data["timestamp"] < CACHE_TTL:
             logger.info(f"返回群组 {group_id} 的缓存统计数据")
             return cached_data["data"]
-    
+
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     # 统计消息数量
-    total_messages = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id
-    ).count()
-    
+    total_messages = (
+        db.query(TelegramMessage).filter(TelegramMessage.group_id == group_id).count()
+    )
+
     # 统计媒体消息数量
-    media_messages = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.media_type.isnot(None)
-    ).count()
-    
+    media_messages = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id, TelegramMessage.media_type.isnot(None)
+        )
+        .count()
+    )
+
     # 统计各类型媒体消息数量
-    photo_messages = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.media_type == 'photo'
-    ).count()
-    
-    video_messages = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.media_type == 'video'
-    ).count()
-    
-    document_messages = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.media_type == 'document'
-    ).count()
-    
-    audio_messages = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.media_type.in_(['audio', 'voice'])
-    ).count()
-    
+    photo_messages = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id, TelegramMessage.media_type == "photo"
+        )
+        .count()
+    )
+
+    video_messages = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id, TelegramMessage.media_type == "video"
+        )
+        .count()
+    )
+
+    document_messages = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id,
+            TelegramMessage.media_type == "document",
+        )
+        .count()
+    )
+
+    audio_messages = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id,
+            TelegramMessage.media_type.in_(["audio", "voice"]),
+        )
+        .count()
+    )
+
     # 统计转发消息数量
-    forwarded_messages = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.is_forwarded == True
-    ).count()
-    
+    forwarded_messages = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id, TelegramMessage.is_forwarded == True
+        )
+        .count()
+    )
+
     # 统计置顶消息数量
-    pinned_messages = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.is_pinned == True
-    ).count()
-    
+    pinned_messages = (
+        db.query(TelegramMessage)
+        .filter(TelegramMessage.group_id == group_id, TelegramMessage.is_pinned == True)
+        .count()
+    )
+
     # 统计有反应的消息数量
-    messages_with_reactions = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.reactions.isnot(None)
-    ).count()
-    
+    messages_with_reactions = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id, TelegramMessage.reactions.isnot(None)
+        )
+        .count()
+    )
+
     # 构建统计结果
     stats_result = {
         "total_messages": total_messages,
@@ -1249,15 +1409,12 @@ async def get_group_stats(
         "forwarded_messages": forwarded_messages,
         "pinned_messages": pinned_messages,
         "messages_with_reactions": messages_with_reactions,
-        "member_count": group.member_count
+        "member_count": group.member_count,
     }
-    
+
     # 缓存结果
-    _stats_cache[group_id] = {
-        "data": stats_result,
-        "timestamp": current_time
-    }
-    
+    _stats_cache[group_id] = {"data": stats_result, "timestamp": current_time}
+
     logger.info(f"已缓存群组 {group_id} 的统计数据")
     return stats_result
 
@@ -1267,28 +1424,33 @@ async def send_message_to_group(
     group_id: int,
     message_request: MessageSendRequest,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user),
 ):
     """发送消息到群组"""
-    
+
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
+    group_username_value = getattr(group, "username", None)
+    if not isinstance(group_username_value, str) or group_username_value.strip() == "":
+        raise HTTPException(status_code=400, detail="群组缺少用户名，无法发送消息")
+    group_username = group_username_value
+
     try:
         # 发送消息
         message_id = await telegram_service.send_message(
-            group.username,
+            group_username,
             message_request.text,
-            reply_to_message_id=message_request.reply_to_message_id
+            reply_to_message_id=message_request.reply_to_message_id,
         )
-        
+
         if message_id:
             # 发送消息成功后，通过WebSocket推送消息更新
             try:
                 from ..websocket.manager import websocket_manager
-                
+
                 # 构造消息数据
                 message_data = {
                     "chat_id": group_id,
@@ -1298,27 +1460,90 @@ async def send_message_to_group(
                     "sender_username": current_user.username,
                     "date": datetime.now().isoformat(),
                     "is_own_message": True,
-                    "reply_to_message_id": message_request.reply_to_message_id
+                    "reply_to_message_id": message_request.reply_to_message_id,
                 }
-                
+
                 # 广播新消息
-                await websocket_manager.send_message(message_data)
-                
+                await websocket_manager.send_realtime_message(message_data)
+
             except Exception as ws_error:
                 logger.error(f"WebSocket推送失败: {ws_error}")
                 # 不影响API响应
-            
+
             return {
                 "success": True,
                 "message_id": message_id,
-                "message": "消息发送成功"
+                "message": "消息发送成功",
             }
         else:
             raise HTTPException(status_code=500, detail="消息发送失败")
-    
+
     except Exception as e:
         logger.error(f"发送消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"发送消息失败: {str(e)}")
+
+
+@router.post("/groups/{group_id}/send-media", response_model=dict)
+async def send_media_to_group(
+    group_id: int,
+    files: List[UploadFile] = File(...),
+    text: Optional[str] = Form(None),
+    reply_to_message_id: Optional[int] = Form(None),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="群组不存在")
+
+    group_username_value = getattr(group, "username", None)
+    if not isinstance(group_username_value, str) or group_username_value.strip() == "":
+        raise HTTPException(status_code=400, detail="群组缺少用户名，无法发送媒体")
+    group_username = group_username_value
+
+    if not files:
+        raise HTTPException(status_code=400, detail="至少上传一个文件")
+
+    try:
+        message_ids = await telegram_service.send_media_message(
+            group_username,
+            files=files,
+            text=text,
+            reply_to_message_id=reply_to_message_id,
+        )
+
+        if not message_ids:
+            raise HTTPException(status_code=500, detail="媒体发送失败")
+
+        try:
+            from ..websocket.manager import websocket_manager
+
+            await websocket_manager.send_realtime_message(
+                {
+                    "chat_id": group_id,
+                    "message_id": message_ids[0],
+                    "text": text or "[媒体消息]",
+                    "sender_name": current_user.full_name or current_user.username,
+                    "sender_username": current_user.username,
+                    "date": datetime.now().isoformat(),
+                    "is_own_message": True,
+                    "reply_to_message_id": reply_to_message_id,
+                }
+            )
+        except Exception as ws_error:
+            logger.error(f"WebSocket推送失败: {ws_error}")
+
+        return {
+            "success": True,
+            "message_ids": message_ids,
+            "message": f"成功发送 {len(message_ids)} 个媒体文件",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"发送媒体消息失败: {e}")
+        raise HTTPException(status_code=500, detail=f"发送媒体消息失败: {str(e)}")
 
 
 @router.post("/groups/{group_id}/messages/{message_id}/reply", response_model=dict)
@@ -1327,42 +1552,44 @@ async def reply_to_message(
     message_id: int,
     text: str,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user),
 ):
     """回复消息"""
-    
+
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     # 检查要回复的消息是否存在
-    original_message = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.message_id == message_id
-    ).first()
-    
+    original_message = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id,
+            TelegramMessage.message_id == message_id,
+        )
+        .first()
+    )
+
     if not original_message:
         raise HTTPException(status_code=404, detail="要回复的消息不存在")
-    
+
     try:
         # 回复消息
         reply_message_id = await telegram_service.send_message(
-            group.username,
-            text,
-            reply_to_message_id=message_id
+            group.username, text, reply_to_message_id=message_id
         )
-        
+
         if reply_message_id:
             return {
                 "success": True,
                 "message_id": reply_message_id,
                 "reply_to_message_id": message_id,
-                "message": "回复发送成功"
+                "message": "回复发送成功",
             }
         else:
             raise HTTPException(status_code=500, detail="回复发送失败")
-    
+
     except Exception as e:
         logger.error(f"回复消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"回复消息失败: {str(e)}")
@@ -1373,43 +1600,49 @@ async def delete_message(
     group_id: int,
     message_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user),
 ):
     """删除消息"""
-    
+
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     # 检查消息是否存在
-    message = db.query(TelegramMessage).filter(
-        TelegramMessage.group_id == group_id,
-        TelegramMessage.message_id == message_id
-    ).first()
-    
+    message = (
+        db.query(TelegramMessage)
+        .filter(
+            TelegramMessage.group_id == group_id,
+            TelegramMessage.message_id == message_id,
+        )
+        .first()
+    )
+
     if not message:
         raise HTTPException(status_code=404, detail="消息不存在")
-    
+
     try:
         # 确定群组标识符（优先使用用户名，否则使用telegram_id）
         group_identifier = group.username or group.telegram_id
-        
+
         if not group_identifier:
-            raise HTTPException(status_code=400, detail="群组缺少用户名和ID，无法删除消息")
-        
+            raise HTTPException(
+                status_code=400, detail="群组缺少用户名和ID，无法删除消息"
+            )
+
         # 删除Telegram消息
         success = await telegram_service.delete_message(group_identifier, message_id)
-        
+
         if success:
             # 从数据库中删除消息记录
             db.delete(message)
             db.commit()
-            
+
             return {"success": True, "message": "消息删除成功"}
         else:
             raise HTTPException(status_code=500, detail="消息删除失败")
-    
+
     except Exception as e:
         logger.error(f"删除消息失败: {e}")
         raise HTTPException(status_code=500, detail=f"删除消息失败: {str(e)}")
@@ -1421,51 +1654,57 @@ async def search_messages(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user),
 ):
     """搜索群组消息"""
-    
+
     # 检查群组是否存在
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     # 构建查询
     query = db.query(TelegramMessage).filter(TelegramMessage.group_id == group_id)
-    
+
     # 应用搜索条件
     if search_request.query:
         query = query.filter(TelegramMessage.text.contains(search_request.query))
-    
+
     if search_request.sender_username:
-        query = query.filter(TelegramMessage.sender_username == search_request.sender_username)
-    
+        query = query.filter(
+            TelegramMessage.sender_username == search_request.sender_username
+        )
+
     if search_request.media_type:
         query = query.filter(TelegramMessage.media_type == search_request.media_type)
-    
+
     if search_request.has_media is not None:
         if search_request.has_media:
             query = query.filter(TelegramMessage.media_type.isnot(None))
         else:
             query = query.filter(TelegramMessage.media_type.is_(None))
-    
+
     if search_request.is_forwarded is not None:
-        query = query.filter(TelegramMessage.is_forwarded == search_request.is_forwarded)
-    
+        query = query.filter(
+            TelegramMessage.is_forwarded == search_request.is_forwarded
+        )
+
     if search_request.start_date:
         query = query.filter(TelegramMessage.date >= search_request.start_date)
-    
+
     if search_request.end_date:
         query = query.filter(TelegramMessage.date <= search_request.end_date)
-    
+
     # 排序和分页
-    messages = query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
-    
+    messages = (
+        query.order_by(TelegramMessage.date.desc()).offset(skip).limit(limit).all()
+    )
+
     # 转换为响应字典格式
     result_messages = []
     for message in messages:
         result_messages.append(convert_message_to_response_dict(message))
-    
+
     return result_messages
 
 
@@ -1475,19 +1714,24 @@ class AuthStatusResponse(BaseModel):
     user_info: Optional[dict] = None
     message: str
 
+
 class AuthCodeRequest(BaseModel):
     phone: str
+
 
 class AuthLoginRequest(BaseModel):
     phone: str
     code: str
     password: Optional[str] = None
 
+
 class AuthState(BaseModel):
     phone: str
     phone_code_hash: str
-    
+
+
 # Redis会话存储已集成，使用持久化存储替代内存存储
+
 
 @router.get("/auth/status", response_model=AuthStatusResponse)
 async def get_auth_status():
@@ -1497,7 +1741,7 @@ async def get_auth_status():
         async def check_auth_status():
             await telegram_service.initialize()
             is_authorized = await telegram_service.client.is_user_authorized()
-            
+
             if is_authorized:
                 me = await telegram_service.client.get_me()
                 user_info = {
@@ -1505,38 +1749,34 @@ async def get_auth_status():
                     "first_name": me.first_name,
                     "last_name": me.last_name,
                     "username": me.username,
-                    "phone": me.phone
+                    "phone": me.phone,
                 }
                 return AuthStatusResponse(
-                    is_authorized=True,
-                    user_info=user_info,
-                    message="已授权"
+                    is_authorized=True, user_info=user_info, message="已授权"
                 )
             else:
                 return AuthStatusResponse(
-                    is_authorized=False,
-                    message="未授权，需要进行手机验证"
+                    is_authorized=False, message="未授权，需要进行手机验证"
                 )
-        
+
         # 设置30秒超时
         result = await asyncio.wait_for(check_auth_status(), timeout=30.0)
         await telegram_service.disconnect()
         return result
-        
+
     except asyncio.TimeoutError:
         logger.error("获取认证状态超时")
         await telegram_service.disconnect()
         return AuthStatusResponse(
-            is_authorized=False,
-            message="获取认证状态超时，请检查网络连接"
+            is_authorized=False, message="获取认证状态超时，请检查网络连接"
         )
     except Exception as e:
         logger.error(f"获取认证状态失败: {e}")
         await telegram_service.disconnect()
         return AuthStatusResponse(
-            is_authorized=False,
-            message=f"获取认证状态失败: {str(e)}"
+            is_authorized=False, message=f"获取认证状态失败: {str(e)}"
         )
+
 
 @router.post("/auth/send-code")
 async def send_auth_code(request: AuthCodeRequest):
@@ -1545,29 +1785,29 @@ async def send_auth_code(request: AuthCodeRequest):
         api_id = settings.telegram_api_id
         api_hash = settings.telegram_api_hash
         if not api_id or not api_hash:
-            raise HTTPException(status_code=400, detail="Telegram API 配置缺失，请在设置页填写 API ID 与 API Hash")
+            raise HTTPException(
+                status_code=400,
+                detail="Telegram API 配置缺失，请在设置页填写 API ID 与 API Hash",
+            )
         # 确保每次都重新初始化客户端
         await telegram_service.disconnect()  # 先断开现有连接
         await telegram_service.initialize()
-        
+
         logger.info(f"准备发送验证码到: {request.phone}")
         # 发送验证码并获取phone_code_hash
         result = await telegram_service.client.send_code_request(request.phone)
-        
+
         # 保存认证状态到Redis
         session_key = f"auth_{request.phone}"
-        auth_data = {
-            "phone": request.phone,
-            "phone_code_hash": result.phone_code_hash
-        }
+        auth_data = {"phone": request.phone, "phone_code_hash": result.phone_code_hash}
         await set_auth_session(session_key, auth_data, ttl=600)  # 10分钟过期
-        
+
         await telegram_service.disconnect()
-        
+
         return {
             "success": True,
             "message": "验证码已发送",
-            "session_key": session_key  # 返回session key给前端
+            "session_key": session_key,  # 返回session key给前端
         }
     except HTTPException as http_exc:
         await telegram_service.disconnect()
@@ -1581,6 +1821,7 @@ async def send_auth_code(request: AuthCodeRequest):
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"发送验证码失败: {str(e)}")
 
+
 @router.post("/auth/login")
 async def login_with_code(request: AuthLoginRequest):
     """使用验证码登录"""
@@ -1588,7 +1829,10 @@ async def login_with_code(request: AuthLoginRequest):
         api_id = settings.telegram_api_id
         api_hash = settings.telegram_api_hash
         if not api_id or not api_hash:
-            raise HTTPException(status_code=400, detail="Telegram API 配置缺失，请在设置页填写 API ID 与 API Hash")
+            raise HTTPException(
+                status_code=400,
+                detail="Telegram API 配置缺失，请在设置页填写 API ID 与 API Hash",
+            )
         # 获取认证状态
         session_key = f"auth_{request.phone}"
         auth_data = await get_auth_session(session_key)
@@ -1596,32 +1840,29 @@ async def login_with_code(request: AuthLoginRequest):
             raise HTTPException(status_code=400, detail="请先发送验证码或验证码已过期")
 
         phone_code_hash = auth_data.get("phone_code_hash")
-        
+
         # 确保每次都重新初始化客户端
         await telegram_service.disconnect()  # 先断开现有连接
         await telegram_service.initialize()
-        
+
         try:
             # 使用phone_code_hash进行登录
             await telegram_service.client.sign_in(
-                phone=request.phone,
-                code=request.code,
-                phone_code_hash=phone_code_hash
+                phone=request.phone, code=request.code, phone_code_hash=phone_code_hash
             )
         except Exception as auth_error:
             # 检查是否需要两步验证
-            if "Two-step verification" in str(auth_error) or "SessionPasswordNeeded" in str(auth_error):
+            if "Two-step verification" in str(
+                auth_error
+            ) or "SessionPasswordNeeded" in str(auth_error):
                 if not request.password:
                     await telegram_service.disconnect()
-                    raise HTTPException(
-                        status_code=400, 
-                        detail="需要两步验证密码"
-                    )
+                    raise HTTPException(status_code=400, detail="需要两步验证密码")
                 # 使用两步验证密码
                 await telegram_service.client.sign_in(password=request.password)
             else:
                 raise auth_error
-        
+
         # 获取用户信息
         me = await telegram_service.client.get_me()
         user_info = {
@@ -1629,20 +1870,16 @@ async def login_with_code(request: AuthLoginRequest):
             "first_name": me.first_name,
             "last_name": me.last_name,
             "username": me.username,
-            "phone": me.phone
+            "phone": me.phone,
         }
-        
+
         await telegram_service.disconnect()
-        
+
         # 清除认证状态
         await delete_auth_session(session_key)
-        
-        return {
-            "success": True,
-            "message": "登录成功",
-            "user_info": user_info
-        }
-        
+
+        return {"success": True, "message": "登录成功", "user_info": user_info}
+
     except HTTPException as http_exc:
         await telegram_service.disconnect()
         raise http_exc
@@ -1655,6 +1892,7 @@ async def login_with_code(request: AuthLoginRequest):
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"登录失败: {str(e)}")
 
+
 @router.post("/auth/logout")
 async def logout():
     """登出"""
@@ -1662,36 +1900,32 @@ async def logout():
         await telegram_service.initialize()
         await telegram_service.client.log_out()
         await telegram_service.disconnect()
-        
-        return {
-            "success": True,
-            "message": "登出成功"
-        }
+
+        return {"success": True, "message": "登出成功"}
     except Exception as e:
         logger.error(f"登出失败: {e}")
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"登出失败: {str(e)}")
+
 
 @router.get("/sync-status")
 async def get_sync_status():
     """获取消息同步状态"""
     try:
         from ..tasks.message_sync import message_sync_task
-        
-        return {
-            "success": True,
-            "data": message_sync_task.get_sync_status()
-        }
+
+        return {"success": True, "data": message_sync_task.get_sync_status()}
     except Exception as e:
         logger.error(f"获取同步状态失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取同步状态失败: {str(e)}")
+
 
 @router.post("/sync-control")
 async def control_sync(action: str):
     """控制消息同步任务"""
     try:
         from ..tasks.message_sync import message_sync_task
-        
+
         if action == "start":
             message_sync_task.start()
             return {"success": True, "message": "同步任务已启动"}
@@ -1704,12 +1938,13 @@ async def control_sync(action: str):
         logger.error(f"控制同步任务失败: {e}")
         raise HTTPException(status_code=500, detail=f"控制同步任务失败: {str(e)}")
 
+
 @router.post("/groups/{group_id}/enable-realtime")
 async def enable_realtime_sync(group_id: int, enabled: bool = True):
     """启用/禁用群组实时同步"""
     try:
         from ..tasks.message_sync import message_sync_task
-        
+
         if enabled:
             message_sync_task.add_group(group_id, interval=30)
             return {"success": True, "message": f"群组 {group_id} 实时同步已启用"}
@@ -1720,40 +1955,43 @@ async def enable_realtime_sync(group_id: int, enabled: bool = True):
         logger.error(f"设置实时同步失败: {e}")
         raise HTTPException(status_code=500, detail=f"设置实时同步失败: {str(e)}")
 
+
 @router.post("/sync-groups")
 async def sync_telegram_groups(db: Session = Depends(get_db)):
     """从Telegram同步群组列表到数据库"""
     try:
         await telegram_service.initialize()
-        
+
         # 检查是否已授权
         is_authorized = await telegram_service.client.is_user_authorized()
         if not is_authorized:
             await telegram_service.disconnect()
             raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
-        
+
         # 获取对话列表
         dialogs = await telegram_service.client.get_dialogs()
         groups = [d for d in dialogs if d.is_group or d.is_channel]
-        
+
         synced_count = 0
         errors = []
-        
+
         for i, dialog in enumerate(groups):
             try:
                 # 添加延迟以避免flood wait
                 if i > 0 and i % 5 == 0:
                     logger.info(f"处理第{i}个群组，暂停2秒避免频率限制...")
                     await asyncio.sleep(2)
-                
+
                 # 直接传递dialog.entity，避免ID查找问题
                 group_info = await telegram_service.get_group_info(dialog.entity)
                 if group_info:
                     # 检查群组是否已存在
-                    existing_group = db.query(TelegramGroup).filter(
-                        TelegramGroup.telegram_id == group_info["telegram_id"]
-                    ).first()
-                    
+                    existing_group = (
+                        db.query(TelegramGroup)
+                        .filter(TelegramGroup.telegram_id == group_info["telegram_id"])
+                        .first()
+                    )
+
                     if existing_group:
                         # 更新现有群组信息
                         for key, value in group_info.items():
@@ -1764,63 +2002,68 @@ async def sync_telegram_groups(db: Session = Depends(get_db)):
                         new_group = TelegramGroup(**group_info)
                         db.add(new_group)
                         logger.info(f"新增群组: {group_info['title']}")
-                    
+
                     synced_count += 1
                 else:
-                    logger.warning(f"跳过群组 {getattr(dialog, 'name', 'Unknown')}，无法获取信息")
-                    
+                    logger.warning(
+                        f"跳过群组 {getattr(dialog, 'name', 'Unknown')}，无法获取信息"
+                    )
+
             except Exception as e:
-                error_msg = f"同步群组 {getattr(dialog, 'name', 'Unknown')} 失败: {str(e)}"
+                error_msg = (
+                    f"同步群组 {getattr(dialog, 'name', 'Unknown')} 失败: {str(e)}"
+                )
                 errors.append(error_msg)
                 logger.error(error_msg)
-                
+
                 # 如果是flood wait错误，增加延迟
                 if "flood" in str(e).lower() or "wait" in str(e).lower():
                     logger.info("检测到频率限制，等待5秒...")
                     await asyncio.sleep(5)
-        
+
         db.commit()
         await telegram_service.disconnect()
-        
+
         return {
             "success": True,
             "message": f"成功同步 {synced_count} 个群组",
             "synced_count": synced_count,
             "total_groups": len(groups),
-            "errors": errors
+            "errors": errors,
         }
-        
+
     except Exception as e:
         logger.error(f"同步群组失败: {e}")
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"同步群组失败: {str(e)}")
+
 
 @router.post("/test-connection")
 async def test_telegram_connection():
     """测试Telegram连接和群组获取"""
     try:
         await telegram_service.initialize()
-        
+
         # 检查是否已授权
         is_authorized = await telegram_service.client.is_user_authorized()
-        
+
         if not is_authorized:
             await telegram_service.disconnect()
             return {
                 "success": False,
                 "message": "未授权，请先完成Telegram认证",
-                "connection_status": "unauthorized"
+                "connection_status": "unauthorized",
             }
-        
+
         # 获取用户信息
         me = await telegram_service.client.get_me()
-        
+
         # 尝试获取对话列表
         dialogs = await telegram_service.client.get_dialogs()
         groups = [d for d in dialogs if d.is_group or d.is_channel]
-        
+
         await telegram_service.disconnect()
-        
+
         return {
             "success": True,
             "message": "连接测试成功",
@@ -1830,7 +2073,7 @@ async def test_telegram_connection():
                 "first_name": me.first_name,
                 "last_name": me.last_name,
                 "username": me.username,
-                "phone": me.phone
+                "phone": me.phone,
             },
             "stats": {
                 "total_dialogs": len(dialogs),
@@ -1839,54 +2082,56 @@ async def test_telegram_connection():
                     {
                         "id": group.entity.id,
                         "name": group.name,
-                        "is_channel": group.is_channel
+                        "is_channel": group.is_channel,
                     }
                     for group in groups[:5]  # 前5个群组预览
-                ]
-            }
+                ],
+            },
         }
-        
+
     except Exception as e:
         logger.error(f"连接测试失败: {e}")
         await telegram_service.disconnect()
         return {
             "success": False,
             "message": f"连接测试失败: {str(e)}",
-            "connection_status": "error"
+            "connection_status": "error",
         }
+
 
 @router.get("/media-info")
 async def get_media_info():
     """获取媒体文件信息"""
     try:
         from ..config import settings
-        
+
         media_root = settings.media_root
-        
+
         info = {
             "media_root": media_root,
             "media_exists": os.path.exists(media_root),
-            "directories": {}
+            "directories": {},
         }
-        
+
         if os.path.exists(media_root):
             for subdir in ["photos", "videos", "audios", "documents"]:
                 subdir_path = os.path.join(media_root, subdir)
                 info["directories"][subdir] = {
                     "exists": os.path.exists(subdir_path),
                     "path": subdir_path,
-                    "files": []
+                    "files": [],
                 }
-                
+
                 if os.path.exists(subdir_path):
                     files = os.listdir(subdir_path)
                     info["directories"][subdir]["files"] = files[:5]  # 只显示前5个文件
                     info["directories"][subdir]["count"] = len(files)
-        
+
         return info
-        
+
     except Exception as e:
         return {"error": str(e)}
+
 
 @router.get("/me", response_model=TelegramUserResponse)
 async def get_current_telegram_user():
@@ -1894,31 +2139,32 @@ async def get_current_telegram_user():
     try:
         # 确保 Telegram 客户端已连接
         await telegram_service.initialize()
-        
+
         # 获取当前用户信息
         me = await telegram_service.client.get_me()
-        
+
         if me:
             full_name = ""
             if me.first_name:
                 full_name = me.first_name
             if me.last_name:
                 full_name += f" {me.last_name}" if full_name else me.last_name
-            
+
             return TelegramUserResponse(
                 id=me.id,
                 username=me.username,
                 first_name=me.first_name,
                 last_name=me.last_name,
                 full_name=full_name.strip() if full_name else None,
-                is_self=True
+                is_self=True,
             )
         else:
             raise HTTPException(status_code=500, detail="无法获取当前用户信息")
-    
+
     except Exception as e:
         logger.error(f"获取当前用户信息失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取当前用户信息失败: {str(e)}")
+
 
 # 群组预览相关接口
 class GroupPreviewResponse(BaseModel):
@@ -1934,31 +2180,33 @@ class GroupPreviewResponse(BaseModel):
     category: Optional[str] = None
     last_activity: Optional[str] = None
 
+
 @router.get("/groups/preview/{username}", response_model=GroupPreviewResponse)
-async def get_group_preview(
-    username: str,
-    db: Session = Depends(get_db)
-):
+async def get_group_preview(username: str, db: Session = Depends(get_db)):
     """获取公开群组预览信息"""
     try:
         await telegram_service.initialize()
-        
+
         # 检查是否已授权
         is_authorized = await telegram_service.client.is_user_authorized()
         if not is_authorized:
             await telegram_service.disconnect()
             raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
-        
+
         try:
             # 处理特殊情况：非用户名格式的请求（如guanPic）
-            if not username.isalnum() and not all(c.isalnum() or c == '_' for c in username):
+            if not username.isalnum() and not all(
+                c.isalnum() or c == "_" for c in username
+            ):
                 logger.warning(f"无效的用户名格式: {username}")
                 await telegram_service.disconnect()
-                raise HTTPException(status_code=400, detail=f"无效的用户名格式: {username}")
-            
+                raise HTTPException(
+                    status_code=400, detail=f"无效的用户名格式: {username}"
+                )
+
             # 通过用户名获取群组实体
             entity = await telegram_service.client.get_entity(username)
-            
+
             # 获取群组详细信息，需要根据类型使用不同的请求
             full_info = None
             if isinstance(entity, Channel):
@@ -1970,16 +2218,15 @@ async def get_group_preview(
             else:
                 await telegram_service.disconnect()
                 raise HTTPException(status_code=400, detail="不支持的实体类型")
-            
+
             # 检查是否已加入该群组
             is_joined = False
             try:
                 if isinstance(entity, Channel):
                     # 对于频道和大群组
-                    participant = await telegram_service.client(GetParticipantRequest(
-                        channel=entity,
-                        participant='me'
-                    ))
+                    participant = await telegram_service.client(
+                        GetParticipantRequest(channel=entity, participant="me")
+                    )
                     is_joined = participant.participant is not None
                 elif isinstance(entity, Chat):
                     # 对于普通群组，通过对话列表检查
@@ -1989,34 +2236,40 @@ async def get_group_preview(
                 logger.warning(f"无法检查成员状态: {e}")
                 # 如果无法获取成员状态，默认为未加入
                 is_joined = False
-            
+
             # 构建响应
             description = None
             if full_info:
-                if hasattr(full_info, 'full_chat') and hasattr(full_info.full_chat, 'about'):
+                if hasattr(full_info, "full_chat") and hasattr(
+                    full_info.full_chat, "about"
+                ):
                     description = full_info.full_chat.about
-                elif hasattr(full_info, 'full_channel') and hasattr(full_info.full_channel, 'about'):
+                elif hasattr(full_info, "full_channel") and hasattr(
+                    full_info.full_channel, "about"
+                ):
                     description = full_info.full_channel.about
-            
+
             preview = GroupPreviewResponse(
                 id=entity.id,
                 title=entity.title,
                 description=description,
-                member_count=getattr(entity, 'participants_count', None),
+                member_count=getattr(entity, "participants_count", None),
                 is_joined=is_joined,
                 is_public=True,  # 通过用户名访问的都是公开群组
                 username=username,
-                verification_status="none"  # 默认值，可根据实际情况调整
+                verification_status="none",  # 默认值，可根据实际情况调整
             )
-            
+
             await telegram_service.disconnect()
             return preview
-            
+
         except ValueError as e:
             # 群组不存在或无法访问
             logger.warning(f"群组不存在或无法访问: @{username}, 错误: {e}")
             await telegram_service.disconnect()
-            raise HTTPException(status_code=404, detail=f"群组 @{username} 不存在或无法访问")
+            raise HTTPException(
+                status_code=404, detail=f"群组 @{username} 不存在或无法访问"
+            )
         except ConnectionError as e:
             # 连接错误
             logger.error(f"Telegram连接错误: {e}")
@@ -2032,7 +2285,7 @@ async def get_group_preview(
             logger.error(f"获取群组预览时出现异常: {e}")
             await telegram_service.disconnect()
             raise HTTPException(status_code=500, detail=f"获取群组预览失败: {str(e)}")
-        
+
     except Exception as e:
         logger.error(f"获取群组预览失败: {e}")
         # 确保在任何情况下都断开连接
@@ -2042,55 +2295,55 @@ async def get_group_preview(
             logger.error(f"断开Telegram连接时出错: {disconnect_error}")
         raise HTTPException(status_code=500, detail=f"获取群组预览失败: {str(e)}")
 
+
 @router.get("/groups/preview/invite/{invite_hash}", response_model=GroupPreviewResponse)
-async def get_group_preview_by_invite(
-    invite_hash: str,
-    db: Session = Depends(get_db)
-):
+async def get_group_preview_by_invite(invite_hash: str, db: Session = Depends(get_db)):
     """通过邀请链接获取群组预览信息"""
     try:
         await telegram_service.initialize()
-        
+
         # 检查是否已授权
         is_authorized = await telegram_service.client.is_user_authorized()
         if not is_authorized:
             await telegram_service.disconnect()
             raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
-        
+
         try:
             # 通过邀请链接获取群组信息
             from telethon.tl.functions.messages import CheckChatInviteRequest
-            
-            invite_info = await telegram_service.client(CheckChatInviteRequest(invite_hash))
-            
+
+            invite_info = await telegram_service.client(
+                CheckChatInviteRequest(invite_hash)
+            )
+
             # 检查邀请链接类型
-            if hasattr(invite_info, 'chat'):
+            if hasattr(invite_info, "chat"):
                 # 已加入的群组
                 chat = invite_info.chat
                 preview = GroupPreviewResponse(
                     id=chat.id,
                     title=chat.title,
-                    member_count=getattr(chat, 'participants_count', None),
+                    member_count=getattr(chat, "participants_count", None),
                     is_joined=True,
                     is_public=False,  # 邀请链接的群组通常是私有的
-                    verification_status="none"
+                    verification_status="none",
                 )
-            elif hasattr(invite_info, 'title'):
+            elif hasattr(invite_info, "title"):
                 # 未加入的群组预览
                 preview = GroupPreviewResponse(
                     id=0,  # 未加入时无法获取真实ID
                     title=invite_info.title,
-                    member_count=getattr(invite_info, 'participants_count', None),
+                    member_count=getattr(invite_info, "participants_count", None),
                     is_joined=False,
                     is_public=False,
-                    verification_status="none"
+                    verification_status="none",
                 )
             else:
                 raise HTTPException(status_code=400, detail="无效的邀请链接")
-            
+
             await telegram_service.disconnect()
             return preview
-            
+
         except Exception as e:
             await telegram_service.disconnect()
             if "INVITE_HASH_EXPIRED" in str(e):
@@ -2098,51 +2351,56 @@ async def get_group_preview_by_invite(
             elif "INVITE_HASH_INVALID" in str(e):
                 raise HTTPException(status_code=400, detail="无效的邀请链接")
             else:
-                raise HTTPException(status_code=404, detail=f"无法获取邀请群组信息: {str(e)}")
-        
+                raise HTTPException(
+                    status_code=404, detail=f"无法获取邀请群组信息: {str(e)}"
+                )
+
     except Exception as e:
         logger.error(f"获取邀请群组预览失败: {e}")
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"获取邀请群组预览失败: {str(e)}")
 
+
 @router.post("/groups/join/{username}")
-async def join_group(
-    username: str,
-    db: Session = Depends(get_db)
-):
+async def join_group(username: str, db: Session = Depends(get_db)):
     """加入公开群组"""
     try:
         await telegram_service.initialize()
-        
+
         # 检查是否已授权
         is_authorized = await telegram_service.client.is_user_authorized()
         if not is_authorized:
             await telegram_service.disconnect()
             raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
-        
+
         try:
             # 获取群组实体
             entity = await telegram_service.client.get_entity(username)
-            
+
             # 加入群组，根据类型使用不同的方法
             if isinstance(entity, Channel):
                 # 频道或大群组
                 from telethon.tl.functions.channels import JoinChannelRequest
+
                 await telegram_service.client(JoinChannelRequest(entity))
             elif isinstance(entity, Chat):
                 # 普通群组需要邀请链接才能加入
-                raise HTTPException(status_code=400, detail="普通群组需要邀请链接才能加入")
+                raise HTTPException(
+                    status_code=400, detail="普通群组需要邀请链接才能加入"
+                )
             else:
                 raise HTTPException(status_code=400, detail="不支持的群组类型")
-            
+
             # 将群组添加到数据库
             group_info = await telegram_service.get_group_info(entity)
             if group_info:
                 # 检查群组是否已存在
-                existing_group = db.query(TelegramGroup).filter(
-                    TelegramGroup.telegram_id == group_info["telegram_id"]
-                ).first()
-                
+                existing_group = (
+                    db.query(TelegramGroup)
+                    .filter(TelegramGroup.telegram_id == group_info["telegram_id"])
+                    .first()
+                )
+
                 if existing_group:
                     # 更新现有群组信息
                     for key, value in group_info.items():
@@ -2158,15 +2416,15 @@ async def join_group(
                     db.refresh(group)
             else:
                 group = None
-            
+
             await telegram_service.disconnect()
-            
+
             return {
                 "success": True,
                 "group": group,
-                "message": f"成功加入群组 @{username}"
+                "message": f"成功加入群组 @{username}",
             }
-            
+
         except Exception as e:
             await telegram_service.disconnect()
             if "USER_ALREADY_PARTICIPANT" in str(e):
@@ -2175,51 +2433,51 @@ async def join_group(
                 return {
                     "success": True,
                     "group": None,
-                    "message": "加入请求已发送，等待管理员审核"
+                    "message": "加入请求已发送，等待管理员审核",
                 }
             else:
                 raise HTTPException(status_code=400, detail=f"加入群组失败: {str(e)}")
-        
+
     except Exception as e:
         logger.error(f"加入群组失败: {e}")
         await telegram_service.disconnect()
         raise HTTPException(status_code=500, detail=f"加入群组失败: {str(e)}")
 
+
 @router.post("/groups/join/invite/{invite_hash}")
-async def join_group_by_invite(
-    invite_hash: str,
-    db: Session = Depends(get_db)
-):
+async def join_group_by_invite(invite_hash: str, db: Session = Depends(get_db)):
     """通过邀请链接加入群组"""
     try:
         await telegram_service.initialize()
-        
+
         # 检查是否已授权
         is_authorized = await telegram_service.client.is_user_authorized()
         if not is_authorized:
             await telegram_service.disconnect()
             raise HTTPException(status_code=401, detail="Telegram未授权，请先完成认证")
-        
+
         try:
             # 通过邀请链接加入群组
             from telethon.tl.functions.messages import ImportChatInviteRequest
-            
+
             result = await telegram_service.client(ImportChatInviteRequest(invite_hash))
-            
+
             # 获取加入的群组信息
             group_entity = None
-            if hasattr(result, 'chats') and result.chats:
+            if hasattr(result, "chats") and result.chats:
                 group_entity = result.chats[0]
-            
+
             if group_entity:
                 # 将群组添加到数据库
                 group_info = await telegram_service.get_group_info(group_entity)
                 if group_info:
                     # 检查群组是否已存在
-                    existing_group = db.query(TelegramGroup).filter(
-                        TelegramGroup.telegram_id == group_info["telegram_id"]
-                    ).first()
-                    
+                    existing_group = (
+                        db.query(TelegramGroup)
+                        .filter(TelegramGroup.telegram_id == group_info["telegram_id"])
+                        .first()
+                    )
+
                     if existing_group:
                         # 更新现有群组信息
                         for key, value in group_info.items():
@@ -2237,15 +2495,15 @@ async def join_group_by_invite(
                     group = None
             else:
                 group = None
-            
+
             await telegram_service.disconnect()
-            
+
             return {
                 "success": True,
                 "group": group,
-                "message": "成功通过邀请链接加入群组"
+                "message": "成功通过邀请链接加入群组",
             }
-            
+
         except Exception as e:
             await telegram_service.disconnect()
             if "USER_ALREADY_PARTICIPANT" in str(e):
@@ -2256,27 +2514,31 @@ async def join_group_by_invite(
                 raise HTTPException(status_code=400, detail="无效的邀请链接")
             else:
                 raise HTTPException(status_code=400, detail=f"加入群组失败: {str(e)}")
-        
+
     except Exception as e:
         logger.error(f"通过邀请链接加入群组失败: {e}")
         await telegram_service.disconnect()
-        raise HTTPException(status_code=500, detail=f"通过邀请链接加入群组失败: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"通过邀请链接加入群组失败: {str(e)}"
+        )
 
 
 @router.get("/groups/{group_id}/unread")
 async def get_group_unread_count(
     group_id: int,
-    last_read_time: Optional[str] = Query(None, description="用户最后读取时间 (ISO格式)"),
-    db: Session = Depends(get_db)
+    last_read_time: Optional[str] = Query(
+        None, description="用户最后读取时间 (ISO格式)"
+    ),
+    db: Session = Depends(get_db),
 ):
     """
     获取群组未读消息数量
-    
+
     Args:
         group_id: 群组ID
         last_read_time: 用户最后读取时间，ISO格式字符串，如果未提供则返回最近24小时的消息数
         db: 数据库会话
-    
+
     Returns:
         未读消息数量和相关信息
     """
@@ -2284,19 +2546,23 @@ async def get_group_unread_count(
     group = db.query(TelegramGroup).filter(TelegramGroup.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="群组不存在")
-    
+
     try:
         # 确定未读消息的时间界限
         if last_read_time:
             try:
                 # 解析ISO时间格式
                 from datetime import datetime
+
                 try:
                     import dateutil.parser
+
                     cutoff_time = dateutil.parser.isoparse(last_read_time)
                 except ImportError:
                     # 如果没有dateutil，使用fromisoformat (Python 3.7+)
-                    cutoff_time = datetime.fromisoformat(last_read_time.replace('Z', '+00:00'))
+                    cutoff_time = datetime.fromisoformat(
+                        last_read_time.replace("Z", "+00:00")
+                    )
             except Exception as e:
                 logger.warning(f"解析时间格式失败: {last_read_time}, 错误: {e}")
                 # 如果时间格式错误，使用24小时前作为默认值
@@ -2304,26 +2570,37 @@ async def get_group_unread_count(
         else:
             # 默认返回最近24小时的未读消息
             cutoff_time = datetime.now() - timedelta(hours=24)
-        
+
         # 查询未读消息数量（在cutoff_time之后的消息）
-        unread_count = db.query(TelegramMessage).filter(
-            TelegramMessage.group_id == group_id,
-            TelegramMessage.date > cutoff_time
-        ).count()
-        
+        unread_count = (
+            db.query(TelegramMessage)
+            .filter(
+                TelegramMessage.group_id == group_id, TelegramMessage.date > cutoff_time
+            )
+            .count()
+        )
+
         # 获取最新消息信息
-        latest_message = db.query(TelegramMessage).filter(
-            TelegramMessage.group_id == group_id
-        ).order_by(desc(TelegramMessage.date)).first()
-        
+        latest_message = (
+            db.query(TelegramMessage)
+            .filter(TelegramMessage.group_id == group_id)
+            .order_by(desc(TelegramMessage.date))
+            .first()
+        )
+
         # 获取最新未读消息信息
         latest_unread_message = None
         if unread_count > 0:
-            latest_unread_message = db.query(TelegramMessage).filter(
-                TelegramMessage.group_id == group_id,
-                TelegramMessage.date > cutoff_time
-            ).order_by(desc(TelegramMessage.date)).first()
-        
+            latest_unread_message = (
+                db.query(TelegramMessage)
+                .filter(
+                    TelegramMessage.group_id == group_id,
+                    TelegramMessage.date > cutoff_time,
+                )
+                .order_by(desc(TelegramMessage.date))
+                .first()
+            )
+
         result = {
             "group_id": group_id,
             "group_title": group.title,
@@ -2332,24 +2609,32 @@ async def get_group_unread_count(
             "latest_message": {
                 "id": latest_message.id,
                 "message_id": latest_message.message_id,
-                "text": latest_message.text[:100] + "..." if latest_message.text and len(latest_message.text) > 100 else latest_message.text,
+                "text": latest_message.text[:100] + "..."
+                if latest_message.text and len(latest_message.text) > 100
+                else latest_message.text,
                 "sender_name": latest_message.sender_name,
                 "date": latest_message.date.isoformat(),
-                "media_type": latest_message.media_type
-            } if latest_message else None,
+                "media_type": latest_message.media_type,
+            }
+            if latest_message
+            else None,
             "latest_unread_message": {
                 "id": latest_unread_message.id,
                 "message_id": latest_unread_message.message_id,
-                "text": latest_unread_message.text[:100] + "..." if latest_unread_message.text and len(latest_unread_message.text) > 100 else latest_unread_message.text,
+                "text": latest_unread_message.text[:100] + "..."
+                if latest_unread_message.text and len(latest_unread_message.text) > 100
+                else latest_unread_message.text,
                 "sender_name": latest_unread_message.sender_name,
                 "date": latest_unread_message.date.isoformat(),
-                "media_type": latest_unread_message.media_type
-            } if latest_unread_message else None
+                "media_type": latest_unread_message.media_type,
+            }
+            if latest_unread_message
+            else None,
         }
-        
+
         logger.info(f"群组 {group_id} 未读消息统计: {unread_count} 条")
         return result
-        
+
     except Exception as e:
         logger.error(f"获取群组 {group_id} 未读消息数量失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取未读消息数量失败: {str(e)}")
@@ -2357,16 +2642,18 @@ async def get_group_unread_count(
 
 @router.get("/groups/unread-summary")
 async def get_all_groups_unread_summary(
-    last_read_times: Optional[str] = Query(None, description="所有群组的最后读取时间，JSON格式: {group_id: iso_time}"),
-    db: Session = Depends(get_db)
+    last_read_times: Optional[str] = Query(
+        None, description="所有群组的最后读取时间，JSON格式: {group_id: iso_time}"
+    ),
+    db: Session = Depends(get_db),
 ):
     """
     获取所有群组的未读消息摘要
-    
+
     Args:
         last_read_times: JSON字符串，包含各群组的最后读取时间
         db: 数据库会话
-    
+
     Returns:
         所有群组的未读消息摘要
     """
@@ -2374,20 +2661,20 @@ async def get_all_groups_unread_summary(
         # 解析最后读取时间
         import json
         from datetime import datetime
-        
+
         group_read_times = {}
         if last_read_times:
             try:
                 group_read_times = json.loads(last_read_times)
             except Exception as e:
                 logger.warning(f"解析群组读取时间失败: {e}")
-        
+
         # 获取所有群组
         groups = db.query(TelegramGroup).filter(TelegramGroup.is_active == True).all()
-        
+
         summary = []
         total_unread = 0
-        
+
         for group in groups:
             # 确定该群组的未读消息时间界限
             if str(group.id) in group_read_times:
@@ -2395,50 +2682,66 @@ async def get_all_groups_unread_summary(
                     time_str = group_read_times[str(group.id)]
                     try:
                         import dateutil.parser
+
                         cutoff_time = dateutil.parser.isoparse(time_str)
                     except ImportError:
                         # 如果没有dateutil，使用fromisoformat (Python 3.7+)
-                        cutoff_time = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                        cutoff_time = datetime.fromisoformat(
+                            time_str.replace("Z", "+00:00")
+                        )
                 except:
                     cutoff_time = datetime.now() - timedelta(hours=24)
             else:
                 # 默认24小时前
                 cutoff_time = datetime.now() - timedelta(hours=24)
-            
+
             # 查询该群组的未读消息数量
-            unread_count = db.query(TelegramMessage).filter(
-                TelegramMessage.group_id == group.id,
-                TelegramMessage.date > cutoff_time
-            ).count()
-            
+            unread_count = (
+                db.query(TelegramMessage)
+                .filter(
+                    TelegramMessage.group_id == group.id,
+                    TelegramMessage.date > cutoff_time,
+                )
+                .count()
+            )
+
             # 获取最新消息
-            latest_message = db.query(TelegramMessage).filter(
-                TelegramMessage.group_id == group.id
-            ).order_by(desc(TelegramMessage.date)).first()
-            
+            latest_message = (
+                db.query(TelegramMessage)
+                .filter(TelegramMessage.group_id == group.id)
+                .order_by(desc(TelegramMessage.date))
+                .first()
+            )
+
             group_summary = {
                 "group_id": group.id,
                 "group_title": group.title,
                 "group_username": group.username,
                 "unread_count": unread_count,
                 "cutoff_time": cutoff_time.isoformat() if cutoff_time else None,
-                "latest_message_time": latest_message.date.isoformat() if latest_message else None,
-                "latest_message_text": latest_message.text[:50] + "..." if latest_message and latest_message.text and len(latest_message.text) > 50 else (latest_message.text if latest_message else None)
+                "latest_message_time": latest_message.date.isoformat()
+                if latest_message
+                else None,
+                "latest_message_text": latest_message.text[:50] + "..."
+                if latest_message
+                and latest_message.text
+                and len(latest_message.text) > 50
+                else (latest_message.text if latest_message else None),
             }
-            
+
             summary.append(group_summary)
             total_unread += unread_count
-        
+
         result = {
             "total_unread": total_unread,
             "groups_count": len(groups),
             "groups_with_unread": len([g for g in summary if g["unread_count"] > 0]),
-            "groups": summary
+            "groups": summary,
         }
-        
+
         logger.info(f"所有群组未读消息摘要: 总计 {total_unread} 条未读消息")
         return result
-        
+
     except Exception as e:
         logger.error(f"获取所有群组未读消息摘要失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取未读消息摘要失败: {str(e)}")

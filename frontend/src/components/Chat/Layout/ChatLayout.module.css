@@ -1,0 +1,209 @@
+/* 聊天布局 - 现代化设计 */
+
+.chatLayout {
+  --header-height: 64px;
+  --footer-height: 80px;
+  --sidebar-width: 320px;
+  --transition-speed: 250ms;
+  --transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+  display: flex;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 侧边栏 - 桌面端/平板 */
+.sidebar {
+  flex-shrink: 0;
+  background: #ffffff;
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
+  transition: width var(--transition-speed) var(--transition-easing),
+              transform var(--transition-speed) var(--transition-easing);
+  overflow: hidden;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarHidden {
+  width: 0 !important;
+  min-width: 0 !important;
+  border-right: none;
+  box-shadow: none;
+}
+
+/* 抽屉 - 移动端 */
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+  pointer-events: none;
+  transition: opacity var(--transition-speed) var(--transition-easing);
+  opacity: 0;
+}
+
+.drawerVisible {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.drawerOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.drawerContent {
+  position: relative;
+  height: 100%;
+  background: #ffffff;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  transform: translateX(-100%);
+  transition: transform var(--transition-speed) var(--transition-easing);
+}
+
+.drawerVisible .drawerContent {
+  transform: translateX(0);
+}
+
+/* 主容器 */
+.mainContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #ffffff;
+  border-radius: 16px 0 0 16px;
+  overflow: hidden;
+  box-shadow: -2px 0 16px rgba(0, 0, 0, 0.04);
+}
+
+/* 头部 */
+.header {
+  height: var(--header-height);
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 20;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* 主内容区 */
+.main {
+  flex: 1;
+  overflow: hidden;
+  background: #f8f9fa;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 底部输入区 */
+.footer {
+  height: var(--footer-height);
+  flex-shrink: 0;
+  background: #ffffff;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* 移动端适配 */
+.mobile {
+  --header-height: 56px;
+  --footer-height: 72px;
+}
+
+.mobile .mainContainer {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mobile .header {
+  padding: 0 16px;
+}
+
+.mobile .footer {
+  padding: 12px 16px;
+}
+
+/* 平板适配 */
+.tablet .sidebar {
+  width: 280px;
+}
+
+.tablet .header {
+  padding: 0 20px;
+}
+
+/* 桌面端适配 */
+.desktop .sidebar {
+  resize: horizontal;
+  overflow: auto;
+}
+
+/* 响应式断点 */
+@media (max-width: 768px) {
+  .chatLayout {
+    background: #ffffff;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .mainContainer {
+    border-radius: 12px 0 0 12px;
+  }
+}
+
+/* 暗色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .chatLayout {
+    background: linear-gradient(135deg, #1a1d23 0%, #0f1115 100%);
+  }
+
+  .sidebar,
+  .mainContainer,
+  .header,
+  .footer {
+    background: #1e2128;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .main {
+    background: #16181d;
+  }
+
+  .drawerContent {
+    background: #1e2128;
+  }
+
+  .drawerOverlay {
+    background: rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* 动画优化 */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .drawer,
+  .drawerContent {
+    transition: none;
+  }
+}

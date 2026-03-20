@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  Card, 
-  Select, 
-  Button, 
-  Space, 
-  List, 
-  Tag, 
+import {
+  Card,
+  Select,
+  Button,
+  Space,
+  List,
+  Tag,
   Typography,
   Row,
   Col,
@@ -22,9 +22,9 @@ import {
   Badge,
   Empty
 } from 'antd';
-import { 
-  DeleteOutlined, 
-  ReloadOutlined, 
+import {
+  DeleteOutlined,
+  ReloadOutlined,
   SearchOutlined,
   FileTextOutlined,
   BugOutlined,
@@ -41,12 +41,15 @@ import { useLogStore, useGlobalStore } from '../store';
 import { logApi } from '../services/apiService';
 import { subscribeToLogs, webSocketService } from '../services/websocket';
 import { message } from 'antd';
+import PageContainer from '../components/Layout/PageContainer';
+import { useIsMobile } from '../hooks/useMobileGestures';
 import './Logs.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const Logs: React.FC = () => {
+  const isMobile = useIsMobile();
   const [messageApi, contextHolder] = message.useMessage();
   const { addLog, clearLogs } = useLogStore();
   const { setLoading, setError } = useGlobalStore();
@@ -68,7 +71,6 @@ const Logs: React.FC = () => {
   const [retryCount, setRetryCount] = React.useState(0);
 
   const loadLogs = React.useCallback(async (page = 1, pageSize = 20) => {
-    console.log(`🔄 加载日志 - Tab: ${activeTab}, Page: ${page}, PageSize: ${pageSize}`);
     setLoading(true);
     try {
       const params = {
@@ -79,30 +81,20 @@ const Logs: React.FC = () => {
         skip: (page - 1) * pageSize,
         limit: pageSize
       };
-      console.log('📋 请求参数:', params);
 
       // 根据当前标签加载不同类型的日志
       switch (activeTab) {
         case 'task':
-          console.log('📦 请求任务日志...');
           const taskLogsResponse = await logApi.getTaskLogs(params);
-          console.log('✅ 任务日志响应:', taskLogsResponse);
-          console.log('📊 任务日志数量:', Array.isArray(taskLogsResponse) ? taskLogsResponse.length : '非数组类型');
           setTaskLogs(taskLogsResponse);
           break;
         case 'system':
-          console.log('🖥️ 请求系统日志...');
           const systemLogsResponse = await logApi.getSystemLogs(params);
-          console.log('✅ 系统日志响应:', systemLogsResponse);
-          console.log('📊 系统日志数量:', Array.isArray(systemLogsResponse) ? systemLogsResponse.length : '非数组类型');
           setSystemLogs(systemLogsResponse);
           break;
         default:
           // 实时日志
-          console.log('⚡ 请求实时日志...');
           const logsResponse = await logApi.getLogs(params);
-          console.log('✅ 实时日志响应:', logsResponse);
-          console.log('📊 实时日志数量:', logsResponse?.logs?.length || 0);
           setFilteredLogs(logsResponse.logs);
           setPagination(prev => ({
             ...prev,
@@ -130,7 +122,6 @@ const Logs: React.FC = () => {
       
       // 只在非用户主动触发的情况下显示错误消息
       if (retryCount < 3) {
-        console.warn(`日志加载失败，将自动重试 (${retryCount + 1}/3):`, error);
         setRetryCount(prev => prev + 1);
         // 延迟重试
         setTimeout(() => {
@@ -178,29 +169,23 @@ const Logs: React.FC = () => {
 
   // WebSocket 订阅 - 独立的 effect
   React.useEffect(() => {
-    console.log('📡 初始化WebSocket日志订阅...');
 
     // 确保WebSocket连接已建立
     if (!webSocketService.isConnected()) {
-      console.log('🔌 WebSocket未连接，正在连接...');
       webSocketService.connect();
 
       // 等待连接建立
       setTimeout(() => {
         if (webSocketService.isConnected()) {
-          console.log('✅ WebSocket连接成功');
         } else {
-          console.warn('⚠️ WebSocket连接失败，实时日志可能无法工作');
           messageApi.warning('实时日志连接失败，请刷新页面重试');
         }
       }, 1000);
     } else {
-      console.log('✅ WebSocket已连接');
     }
 
     // 订阅实时日志
     const unsubscribe = subscribeToLogs((logData) => {
-      console.log('📝 收到实时日志:', logData);
       addLog(logData);
 
       // 只在实时日志tab才更新显示
@@ -213,10 +198,8 @@ const Logs: React.FC = () => {
       }
     });
 
-    console.log('✅ WebSocket日志订阅已建立');
 
     return () => {
-      console.log('🔌 取消WebSocket日志订阅');
       unsubscribe();
     };
   }, [addLog, activeTab, messageApi]); // 依赖 addLog, activeTab, messageApi
@@ -402,51 +385,24 @@ const Logs: React.FC = () => {
   const debugCount = logStats?.debug_count || 0;
 
   return (
-    <div className="logs-page">
-      {contextHolder}
-
-      {/* 错误状态显示 */}
-      {loadingError && (
-        <Card className="logs-error-card" size="small">
-          <div className="logs-error-banner">
-            <div className="logs-error-banner-main">
-              <CloseCircleOutlined className="logs-error-icon" />
-              <Text type="danger">日志加载失败: {loadingError}</Text>
-              {retryCount > 0 && (
-                <Text type="secondary">({retryCount}/3 次重试)</Text>
-              )}
-            </div>
-            <Button 
-              size="small" 
-              type="primary" 
-              onClick={() => {
-                setLoadingError(null);
-                setRetryCount(0);
-                loadLogs(pagination.current, pagination.pageSize);
-              }}
-            >
-              重新加载
-            </Button>
-          </div>
-        </Card>
-      )}
-      
-      <div className="logs-header">
-        <div>
-          <Title level={2} className="logs-header-title">日志查看</Title>
-          {logStats && (
-            <Text type="secondary">
-              总计 {logStats.total_logs} 条日志 | 任务日志 {logStats.task_log_count} 条 | 系统日志 {logStats.system_log_count} 条
-            </Text>
-          )}
-        </div>
-        <div className="logs-header-actions">
+    <PageContainer
+      title="日志管理"
+      description={logStats ? `总计 ${logStats.total_logs} 条日志 | 任务日志 ${logStats.task_log_count} 条 | 系统日志 ${logStats.system_log_count} 条` : "查看系统和任务日志"}
+      breadcrumb={[{ title: '日志管理' }]}
+      error={loadingError}
+      onRetry={() => {
+        setLoadingError(null);
+        setRetryCount(0);
+        loadLogs(pagination.current, pagination.pageSize);
+      }}
+      extra={
+        <Space className="gap-sm" wrap>
           <Tooltip title="自动刷新">
             <Checkbox
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
             >
-              自动刷新
+              {!isMobile && '自动刷新'}
             </Checkbox>
           </Tooltip>
           <Button icon={<ExportOutlined />} onClick={() => setExportModalVisible(true)}>
@@ -472,14 +428,16 @@ const Logs: React.FC = () => {
             cancelText="取消"
           >
             <Button danger icon={<ClearOutlined />}>
-              清除所有
+              {isMobile ? '清除' : '清除所有'}
             </Button>
           </Popconfirm>
-        </div>
-      </div>
+        </Space>
+      }
+    >
+      {contextHolder}
 
       {/* 统计卡片 */}
-      <Row gutter={[16, 16]} className="logs-stats-grid">
+      <Row gutter={[16, 16]} className="logs-stats-grid grid-responsive mb-lg">
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
@@ -859,7 +817,7 @@ const Logs: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </PageContainer>
   );
 };
 

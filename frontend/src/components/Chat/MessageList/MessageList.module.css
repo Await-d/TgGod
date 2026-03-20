@@ -1,0 +1,191 @@
+/* MessageList Component Styles */
+
+.messageList {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--background-color, #f8f9fa);
+  overflow: hidden;
+}
+
+/* Virtual List */
+.virtualList {
+  padding: var(--spacing-md, 16px);
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+.virtualList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.virtualList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.virtualList::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--border-radius-full, 9999px);
+}
+
+.virtualList::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Message Row */
+.messageRow {
+  display: flex;
+  justify-content: flex-start;
+  padding: 0 var(--spacing-sm, 8px);
+}
+
+/* Load More Trigger */
+.loadMoreTrigger {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.loadingIndicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
+  background: var(--background-white, #ffffff);
+  border-radius: var(--border-radius-xl, 12px);
+  box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+  font-size: var(--font-size-sm, 14px);
+  color: var(--text-secondary, rgba(0, 0, 0, 0.65));
+}
+
+/* Scroll to Top Button */
+.scrollTopBtn {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  z-index: 100;
+  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+  animation: fadeInUp var(--duration-normal, 200ms) var(--ease-out);
+}
+
+.scrollTopBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1));
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Initial Loading */
+.initialLoading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md, 16px);
+  font-size: var(--font-size-md, 16px);
+  color: var(--text-secondary, rgba(0, 0, 0, 0.65));
+}
+
+/* Empty State */
+.messageList :global(.ant-empty) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .virtualList {
+    padding: var(--spacing-sm, 12px);
+  }
+
+  .messageRow {
+    padding: 0 var(--spacing-xs, 4px);
+  }
+
+  .scrollTopBtn {
+    bottom: 70px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .loadingIndicator {
+    font-size: var(--font-size-xs, 12px);
+    padding: var(--spacing-xs, 6px) var(--spacing-sm, 12px);
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .virtualList {
+    padding: var(--spacing-sm, 8px);
+  }
+
+  .scrollTopBtn {
+    bottom: 60px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .scrollTopBtn :global(.anticon) {
+    font-size: 16px;
+  }
+}
+
+/* Dark Mode Support */
+[data-theme="dark"] .messageList,
+.dark .messageList {
+  background: var(--background-color-light, #1f1f1f);
+}
+
+[data-theme="dark"] .loadingIndicator,
+.dark .loadingIndicator {
+  background: var(--background-color-light, #1f1f1f);
+  color: var(--text-secondary, rgba(255, 255, 255, 0.65));
+}
+
+[data-theme="dark"] .virtualList::-webkit-scrollbar-thumb,
+.dark .virtualList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .virtualList::-webkit-scrollbar-thumb:hover,
+.dark .virtualList::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Loading Animation */
+.loadingIndicator :global(.anticon-loading) {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   message,
-  Typography,
   Alert,
-  Tabs
+  Tabs,
+  Radio,
+  Switch,
+  Space
 } from 'antd';
 import {
   SettingOutlined,
@@ -11,8 +13,10 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   UserOutlined,
-  IdcardOutlined
+  IdcardOutlined,
+  BulbOutlined
 } from '@ant-design/icons';
+import PageContainer from '../components/Layout/PageContainer';
 import UserSettingsForm from '../components/UserSettings/UserSettingsForm';
 import UserProfileForm from '../components/UserSettings/UserProfileForm';
 import SystemConfigTab from '../components/Settings/SystemConfigTab';
@@ -20,9 +24,9 @@ import apiService from '../services/apiService';
 import { useGlobalStore } from '../store';
 import TelegramAuth from '../components/TelegramAuth';
 import { useIsMobile } from '../hooks/useMobileGestures';
+import { useTranslation } from '../i18n';
+import { useUserSettingsStore } from '../store/userSettingsStore';
 import './Settings.css';
-
-const { Title, Text } = Typography;
 
 interface TelegramStatus {
   is_authorized: boolean;
@@ -39,18 +43,23 @@ interface TelegramStatus {
 const Settings: React.FC = () => {
   const isMobile = useIsMobile();
   const { connectionStatus } = useGlobalStore();
+  const { t, language } = useTranslation();
+  const { settings, setLanguage, setTheme } = useUserSettingsStore();
 
   const [activeTab, setActiveTab] = React.useState('system');
   const [telegramStatus, setTelegramStatus] = React.useState<TelegramStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // 检查 Telegram 状态
   const checkTelegramStatus = React.useCallback(async () => {
     try {
+      setError(null);
       const response = await apiService.get('/telegram/auth/status');
       const data = response.data || response;
       setTelegramStatus(data);
-    } catch (error) {
-      console.error('检查Telegram状态失败:', error);
+    } catch (err) {
+      console.error('检查Telegram状态失败:', err);
+      setError('检查Telegram状态失败，请重试');
       setTelegramStatus({
         is_authorized: false,
         message: '检查状态失败'
@@ -105,17 +114,13 @@ const Settings: React.FC = () => {
   );
 
   return (
-    <div className="settings-page">
-      <div className="settings-header">
-        <Title level={isMobile ? 3 : 2} className="settings-title">
-          <SettingOutlined className="settings-title-icon" />
-          系统设置
-        </Title>
-        <Text type="secondary">
-          配置系统运行所需的参数和Telegram认证。
-        </Text>
-      </div>
-
+    <PageContainer
+      title="系统设置"
+      description="配置系统参数和 Telegram 认证"
+      breadcrumb={[{ title: '系统设置' }]}
+      error={error}
+      onRetry={checkTelegramStatus}
+    >
       {connectionStatus === 'disconnected' && (
         <Alert
           message="连接状态"
@@ -125,6 +130,30 @@ const Settings: React.FC = () => {
           className="settings-alert"
         />
       )}
+
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+        <Space>
+          <span style={{ fontSize: 14 }}>{t('settings.languageLabel')}：</span>
+          <Radio.Group
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            buttonStyle="solid"
+            size="small"
+          >
+            <Radio.Button value="zh_CN">中文</Radio.Button>
+            <Radio.Button value="en_US">English</Radio.Button>
+          </Radio.Group>
+        </Space>
+        <Space>
+          <BulbOutlined />
+          <span style={{ fontSize: 14 }}>深色模式</span>
+          <Switch
+            checked={settings.theme === 'dark'}
+            onChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+            size="small"
+          />
+        </Space>
+      </div>
 
       <Tabs
         activeKey={activeTab}
@@ -180,7 +209,7 @@ const Settings: React.FC = () => {
           },
         ]}
       />
-    </div>
+    </PageContainer>
   );
 };
 

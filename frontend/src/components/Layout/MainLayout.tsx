@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layout, Menu, Avatar, Dropdown, Badge, Button, Drawer } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from '../../i18n';
 import {
   DashboardOutlined,
   TeamOutlined,
@@ -34,9 +35,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const { error, clearError } = useGlobalStore();
   const { user, logout } = useAuthStore();
+  const { t } = useTranslation();
   
   // 检查是否为聊天界面
-  const isChatInterface = location.pathname === '/chat';
+  const isChatInterface =
+    location.pathname === '/chat' ||
+    location.pathname === '/chat-new' ||
+    location.pathname === '/chat-old';
   
   const [collapsed, setCollapsed] = React.useState(false);
   const [wsConnected, setWsConnected] = React.useState(false);
@@ -68,74 +73,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }, []);
 
   const menuItems = [
-    {
-      key: '/dashboard',
-      icon: <DashboardOutlined />,
-      label: '仪表板',
-    },
-    {
-      key: '/chat',
-      icon: <MessageOutlined />,
-      label: '聊天界面',
-    },
-    {
-      key: '/groups',
-      icon: <TeamOutlined />,
-      label: '群组管理',
-    },
-    {
-      key: '/messages',
-      icon: <MessageOutlined />,
-      label: '消息管理',
-    },
-    {
-      key: '/rules',
-      icon: <FilterOutlined />,
-      label: '规则配置',
-    },
-    {
-      key: '/tasks',
-      icon: <DownloadOutlined />,
-      label: '任务管理',
-    },
-    {
-      key: '/download-history',
-      icon: <HistoryOutlined />,
-      label: '下载历史',
-    },
-    {
-      key: '/logs',
-      icon: <FileTextOutlined />,
-      label: '日志查看',
-    },
-    {
-      key: '/database',
-      icon: <DatabaseOutlined />,
-      label: '数据库状态',
-    },
-    {
-      key: '/status',
-      icon: <MonitorOutlined />,
-      label: '系统状态',
-    },
-    {
-      key: '/settings',
-      icon: <SettingOutlined />,
-      label: '系统设置',
-    },
+    { key: '/dashboard', icon: <DashboardOutlined />, label: t('nav.dashboard') },
+    { key: '/chat', icon: <MessageOutlined />, label: t('nav.chat') },
+    { key: '/chat-old', icon: <MessageOutlined />, label: t('nav.chatOld') },
+    { key: '/groups', icon: <TeamOutlined />, label: t('nav.groups') },
+    { key: '/messages', icon: <MessageOutlined />, label: t('nav.messages') },
+    { key: '/rules', icon: <FilterOutlined />, label: t('nav.rules') },
+    { key: '/tasks', icon: <DownloadOutlined />, label: t('nav.tasks') },
+    { key: '/download-history', icon: <HistoryOutlined />, label: t('nav.downloadHistory') },
+    { key: '/logs', icon: <FileTextOutlined />, label: t('nav.logs') },
+    { key: '/database', icon: <DatabaseOutlined />, label: t('nav.database') },
+    { key: '/status', icon: <MonitorOutlined />, label: t('nav.status') },
+    { key: '/settings', icon: <SettingOutlined />, label: t('nav.settings') },
   ];
 
   const userMenuItems = [
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: '设置',
-    },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: '退出',
-    },
+    { key: 'settings', icon: <SettingOutlined />, label: t('userMenu.settings') },
+    { key: 'logout', icon: <LogoutOutlined />, label: t('userMenu.logout') },
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -256,7 +210,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               overflow: 'hidden',
               textOverflow: 'ellipsis'
             }}>
-              {isMobile ? 'TgGod' : 'Telegram群组下载系统'}
+              {isMobile ? 'TgGod' : t('header.title')}
             </h1>
             
             {/* WebSocket连接状态 */}
@@ -271,7 +225,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   fontSize: '12px', 
                   color: wsConnected ? '#52c41a' : '#f5222d' 
                 }}>
-                  {wsConnected ? '已连接' : '未连接'}
+                  {wsConnected ? t('header.connected') : t('header.disconnected')}
                 </span>
               </div>
             )}
@@ -287,7 +241,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 onClick={clearError}
                 style={{ maxWidth: isMobile ? '120px' : 'none' }}
               >
-                {isMobile ? '错误' : error}
+                {isMobile ? t('header.error') : error}
               </Button>
             )}
             

@@ -1,147 +1,335 @@
-.groups-page {
-  padding: 24px;
-  background: var(--app-background);
-  min-height: 100%;
-}
+/**
+ * Groups Page Styles
+ * 群组管理页面样式 - 使用统一设计系统
+ */
 
-.groups-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
+@import '../styles/design-tokens.css';
+@import '../styles/common.css';
+@import '../styles/responsive.css';
 
-.groups-header-actions {
-  display: inline-flex;
-  gap: 12px;
-}
-
-.groups-title {
-  margin: 0 !important;
-}
-
-.groups-toolbar {
-  margin-bottom: 16px;
-  border-radius: 12px;
-}
-
-.groups-toolbar-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.groups-toolbar-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.groups-toolbar-summary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--app-muted);
-}
-
-.groups-table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  background: var(--app-surface);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.groups-table-wrapper .ant-table {
-  min-width: 360px;
-}
-
-.batch-progress-card {
-  margin-bottom: 16px;
-  border-radius: 12px;
-}
+/* ==================== 群组表格样式 ==================== */
 
 .groups-table-title {
-  font-weight: bold;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
 }
 
 .groups-table-subtitle {
-  font-size: 12px;
-  color: var(--app-muted);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xxs);
 }
 
 .groups-table-count {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--spacing-xs);
+  color: var(--text-secondary);
 }
 
-.groups-progress-heading {
-  margin-bottom: 8px;
-  font-weight: 600;
+.groups-table-count .anticon {
+  font-size: var(--font-size-md);
 }
 
-.groups-progress-bar {
-  margin-bottom: 8px;
+/* ==================== 批量操作工具栏 ==================== */
+
+.table-toolbar {
+  margin-bottom: var(--spacing-md);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
-.groups-progress-meta {
-  font-size: 12px;
-  color: var(--app-muted);
+.table-toolbar .ant-card-body {
+  padding: var(--spacing-md);
 }
 
-.groups-stats-grid {
-  margin-bottom: 24px;
+/* ==================== 批量同步进度卡片 ==================== */
+
+.batch-progress-card {
+  margin-bottom: var(--spacing-md);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ==================== 响应式适配 ==================== */
+
+/* 平板和移动端 (768px以下) */
+@media (max-width: 768px) {
+  /* 工具栏响应式 */
+  .table-toolbar .ant-card-body {
+    padding: var(--spacing-sm);
+  }
+
+  .table-toolbar-left {
+    width: 100%;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .table-toolbar-left .ant-space {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .table-toolbar-left .ant-btn {
+    flex: 1 1 auto;
+    min-width: 80px;
+  }
+
+  .table-toolbar-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* 表格样式优化 */
+  .groups-table-title {
+    font-size: var(--font-size-sm);
+  }
+
+  .groups-table-subtitle {
+    font-size: 11px;
+  }
+
+  /* 统计卡片响应式 */
+  .stat-card {
+    padding: var(--spacing-md);
+  }
+
+  .stat-card .ant-statistic-title {
+    font-size: var(--font-size-xs);
+  }
+
+  .stat-card .ant-statistic-content-value {
+    font-size: var(--font-size-lg);
+  }
+
+  .stat-card-icon {
+    font-size: 24px !important;
+  }
+}
+
+/* 小屏幕移动端 (480px以下) */
+@media (max-width: 480px) {
+  /* 工具栏按钮全宽 */
+  .table-toolbar-left .ant-btn {
+    width: 100%;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .table-toolbar-left .ant-space {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .table-toolbar-left .ant-space-item {
+    width: 100%;
+  }
+
+  /* 表格操作按钮优化 */
+  .table-actions {
+    flex-direction: column;
+    gap: var(--spacing-xxs);
+  }
+
+  .table-actions .ant-btn {
+    width: 100%;
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-xxs) var(--spacing-xs);
+  }
+
+  /* 统计卡片进一步优化 */
+  .stat-card {
+    padding: var(--spacing-sm);
+  }
+
+  .stat-card .ant-statistic-content-value {
+    font-size: var(--font-size-md);
+  }
+
+  .stat-card-icon {
+    font-size: 20px !important;
+  }
+
+  /* 表格字体缩小 */
+  .groups-table-title {
+    font-size: var(--font-size-xs);
+  }
+
+  .groups-table-subtitle {
+    font-size: 10px;
+  }
+
+  .groups-table-count {
+    font-size: var(--font-size-xs);
+  }
+}
+
+/* ==================== 触摸优化 ==================== */
+
+@media (max-width: 768px) {
+  /* 增大触摸目标 */
+  .table-toolbar .ant-btn {
+    min-height: var(--touch-target-min);
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  /* 表格行增加间距 */
+  .tg-table-container .ant-table-tbody > tr > td {
+    padding: var(--spacing-sm) var(--spacing-xs);
+  }
+
+  /* 操作按钮触摸优化 */
+  .table-actions .ant-btn {
+    min-height: 36px;
+  }
+}
+
+/* ==================== 状态标签样式 ==================== */
+
+.ant-tag {
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  padding: var(--spacing-xxs) var(--spacing-sm);
+}
+
+/* ==================== 模态框响应式 ==================== */
+
+@media (max-width: 768px) {
+  .ant-modal {
+    max-width: calc(100vw - var(--spacing-lg) * 2);
+    margin: var(--spacing-md) auto;
+  }
+
+  .ant-modal-body {
+    padding: var(--spacing-md);
+  }
+
+  .ant-modal-footer {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .ant-modal {
+    max-width: calc(100vw - var(--spacing-md) * 2);
+  }
+
+  .ant-modal-body {
+    padding: var(--spacing-sm);
+  }
+}
+
+/* ==================== 进度条样式 ==================== */
+
+.ant-progress {
+  margin-bottom: var(--spacing-sm);
+}
+
+.ant-progress-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* ==================== 表单优化 ==================== */
+
+.ant-form-item {
+  margin-bottom: var(--spacing-md);
+}
+
+.ant-form-item-label > label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.ant-input,
+.ant-input-number {
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.ant-input:focus,
+.ant-input-number:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-bg);
+}
+
+/* ==================== 分页样式 ==================== */
+
+.ant-pagination {
+  margin-top: var(--spacing-md);
 }
 
 @media (max-width: 768px) {
-  .groups-page {
-    padding: 16px 12px 80px;
+  .ant-pagination {
+    text-align: center;
   }
 
-  .groups-header {
-    gap: 12px;
+  .ant-pagination-item,
+  .ant-pagination-prev,
+  .ant-pagination-next {
+    min-width: 32px;
+    height: 32px;
+    line-height: 32px;
+    margin: 0 var(--spacing-xxs);
   }
 
-  .groups-header-actions {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+  .ant-pagination-options {
+    margin-left: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  /* 简化分页显示 */
+  .ant-pagination-options {
+    display: none;
   }
 
-  .groups-header-actions .ant-btn {
-    width: 100%;
+  .ant-pagination-jump-prev,
+  .ant-pagination-jump-next {
+    display: none;
   }
+}
 
-  .groups-toolbar-content {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+/* ==================== 卡片阴影和悬浮效果 ==================== */
 
-  .groups-toolbar-actions {
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
+.stat-card {
+  transition: all var(--duration-normal) var(--ease-out);
+}
 
-  .groups-toolbar-actions .ant-btn {
-    flex: 1;
-  }
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
 
-  .groups-toolbar-summary {
-    width: 100%;
-  }
+.tg-card {
+  transition: box-shadow var(--duration-normal) var(--ease-out);
+}
 
-  .groups-table-wrapper {
-    padding: 0;
-    background: transparent;
-  }
+.tg-card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
 
-  .groups-table-wrapper .ant-table {
-    min-width: 320px;
-  }
+/* ==================== 空状态样式 ==================== */
+
+.ant-empty {
+  padding: var(--spacing-xxl) var(--spacing-md);
+}
+
+.ant-empty-description {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* ==================== 加载状态 ==================== */
+
+.ant-spin {
+  color: var(--primary-color);
+}
+
+.ant-spin-text {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-sm);
 }

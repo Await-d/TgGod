@@ -57,7 +57,6 @@ export const useRealTimeMessages = (
   }, [selectedGroup]);
 
   const handleNewMessage = useCallback((messageData: any) => {
-    console.log('收到新消息:', messageData);
     
     const currentGroup = selectedGroupRef.current;
     // 检查消息是否属于当前选中的群组
@@ -91,25 +90,21 @@ export const useRealTimeMessages = (
       };
 
       addMessage(newMessage);
-      console.log('新消息已添加到列表');
     }
   }, [addMessage]);
 
   // 处理群组状态更新 - 使用ref避免依赖循环
   const handleGroupStatusUpdate = useCallback((statusData: any) => {
-    console.log('群组状态更新:', statusData);
     
     const currentGroup = selectedGroupRef.current;
     // 如果是当前群组的状态更新，可以处理相关逻辑
     if (currentGroup && statusData.group_id === currentGroup.id) {
       // 可以更新群组相关状态，比如在线成员数、最后活动时间等
-      console.log(`群组 ${currentGroup.title} 状态更新:`, statusData);
     }
   }, []);
 
   // 订阅群组实时消息
   const subscribeToGroupMessages = useCallback((groupId: string | number) => {
-    console.log('订阅群组消息:', groupId);
     
     // 发送订阅消息到服务器
     if (webSocketService.isConnected()) {
@@ -124,7 +119,6 @@ export const useRealTimeMessages = (
   const unsubscribeFromGroupMessages = useCallback((groupId?: string | number) => {
     const targetGroupId = groupId || selectedGroup?.id;
     if (targetGroupId) {
-      console.log('取消订阅群组消息:', targetGroupId);
       
       if (webSocketService.isConnected()) {
         webSocketService.send({
@@ -143,7 +137,6 @@ export const useRealTimeMessages = (
     filter: MessageFilter = {}
   ) => {
     try {
-      console.log('获取最新消息:', { groupId, limit, filter });
       
       // 使用工具函数转换筛选条件
       const apiParams = convertFilterToAPIParams(filter, { 
@@ -155,7 +148,6 @@ export const useRealTimeMessages = (
 
       if (response && Array.isArray(response)) {
         setMessages(response);
-        console.log(`成功加载 ${response.length} 条消息`);
         
         // 根据参数决定是否需要滚动到底部
         if (shouldScrollToBottom) {
@@ -188,7 +180,6 @@ export const useRealTimeMessages = (
     // 订阅新群组的消息并加载初始消息
     if (currentGroupId) {
       subscribeToGroupMessages(currentGroupId);
-      console.log('useRealTimeMessages: 已订阅群组消息，开始加载初始消息');
 
       // 延迟加载初始消息，确保其他状态已经重置
       setTimeout(() => {

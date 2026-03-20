@@ -34,34 +34,11 @@ const ReplyMessagePreview: React.FC<ReplyMessagePreviewProps> = ({
     setError(null);
     
     try {
-      console.log('ReplyMessagePreview - fetching reply message:', {
-        replyToMessageId,
-        groupId
-      });
-      
       const message = await messageApi.getMessageById(groupId, replyToMessageId);
-      console.log('ReplyMessagePreview - fetched message:', message);
       setReplyMessage(message);
     } catch (error: any) {
       console.error('Failed to fetch reply message:', error);
       setError('无法加载回复消息');
-      
-      // 创建模拟数据用于测试UI
-      const mockMessage: TelegramMessage = {
-        id: replyToMessageId,
-        message_id: replyToMessageId,
-        group_id: groupId,
-        text: '这是被回复的消息内容 (模拟数据)',
-        sender_name: '测试用户',
-        sender_username: 'testuser',
-        sender_id: 123,
-        date: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        is_forwarded: false,
-        is_pinned: false
-      };
-      setReplyMessage(mockMessage);
-      console.log('ReplyMessagePreview - using mock data for testing');
     } finally {
       setLoading(false);
     }
@@ -73,25 +50,10 @@ const ReplyMessagePreview: React.FC<ReplyMessagePreviewProps> = ({
 
   // 处理跳转到消息
   const handleJumpToMessage = useCallback(() => {
-    console.log('ReplyMessagePreview - handleJumpToMessage called', {
-      hasHandler: !!onJumpToMessage,
-      replyToMessageId,
-      replyMessage: replyMessage ? {
-        id: replyMessage.id,
-        text: replyMessage.text?.substring(0, 50)
-      } : null
-    });
-    
     if (onJumpToMessage && replyToMessageId) {
-      console.log('ReplyMessagePreview - jumping to message ID:', replyToMessageId);
       onJumpToMessage(replyToMessageId);
-    } else {
-      console.log('ReplyMessagePreview - cannot jump', {
-        hasHandler: !!onJumpToMessage,
-        hasReplyToMessageId: !!replyToMessageId
-      });
     }
-  }, [onJumpToMessage, replyToMessageId, replyMessage]);
+  }, [onJumpToMessage, replyToMessageId]);
 
   // 格式化时间
   const formatMessageTime = (dateString: string) => {
@@ -149,15 +111,6 @@ const ReplyMessagePreview: React.FC<ReplyMessagePreviewProps> = ({
     );
   };
 
-  console.log('ReplyMessagePreview - render state', {
-    loading,
-    error,
-    hasReplyMessage: !!replyMessage,
-    replyToMessageId,
-    groupId,
-    hasOnJumpToMessage: !!onJumpToMessage
-  });
-
   if (loading) {
     return (
       <div className={`reply-message-preview loading ${className}`}>
@@ -189,11 +142,14 @@ const ReplyMessagePreview: React.FC<ReplyMessagePreviewProps> = ({
     return null;
   }
 
+  const containerProps = onJumpToMessage
+    ? { onClick: handleJumpToMessage, onKeyDown: (e: React.KeyboardEvent) => e.key === 'Enter' && handleJumpToMessage(), role: 'button' as const, tabIndex: 0, style: { cursor: 'pointer' } }
+    : { style: { cursor: 'default' } };
+
   return (
     <div 
       className={`reply-message-preview ${compact ? 'compact' : ''} ${className}`}
-      onClick={handleJumpToMessage}
-      style={{ cursor: onJumpToMessage ? 'pointer' : 'default' }}
+      {...containerProps}
     >
       <div className="reply-content">
         {/* 回复指示图标 */}

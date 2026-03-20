@@ -10,7 +10,6 @@ import {
   Space,
   Typography,
   Statistic,
-  Spin,
   Progress,
   Badge,
   Tooltip,
@@ -32,9 +31,10 @@ import {
   SettingOutlined
 } from '@ant-design/icons';
 import api from '../services/apiService';
+import PageContainer from '../components/Layout/PageContainer';
 import './SystemStatus.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface ServiceStatus {
   name: string;
@@ -78,6 +78,7 @@ const SystemStatus: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // 获取系统状态信息
   const fetchSystemStatus = async () => {
@@ -142,7 +143,6 @@ const SystemStatus: React.FC = () => {
           }
         };
       } catch (dashboardError) {
-        console.warn('Dashboard API不可用，尝试其他方式获取系统状态');
 
         // 如果dashboard API失败，创建基本的系统状态
         systemData = {
@@ -188,6 +188,7 @@ const SystemStatus: React.FC = () => {
     } catch (error: any) {
       message.error(`获取系统状态失败: ${error.message}`);
       console.error('获取系统状态失败:', error);
+      setError('获取系统状态失败');
     } finally {
       setLoading(false);
     }
@@ -442,13 +443,15 @@ const SystemStatus: React.FC = () => {
   }, []);
 
   return (
-    <div className="system-status-page">
-      <div className="system-status-header">
-        <Title level={2} className="system-status-title">
-          <MonitorOutlined style={{ marginRight: 8 }} />
-          系统状态监控
-        </Title>
-        <div className="system-status-actions">
+    <PageContainer
+      title="系统状态"
+      description="监控系统运行状态"
+      breadcrumb={[{ title: '系统状态' }]}
+      loading={loading}
+      error={error}
+      onRetry={fetchSystemStatus}
+      extra={
+        <Space>
           <Button
             icon={<ReloadOutlined />}
             loading={loading}
@@ -461,9 +464,9 @@ const SystemStatus: React.FC = () => {
               最后更新: {lastUpdate.toLocaleTimeString()}
             </Text>
           )}
-        </div>
-      </div>
-
+        </Space>
+      }
+    >
       {/* 系统健康概览 */}
       <Row gutter={[16, 16]} className="system-stats-grid">
         <Col xs={24} sm={12} md={6}>
@@ -584,24 +587,17 @@ const SystemStatus: React.FC = () => {
           />
         }
       >
-        {loading ? (
-          <div className="system-status-loading">
-            <Spin size="large" />
-            <p className="system-status-loading-text">加载系统状态中...</p>
-          </div>
-        ) : (
-          <div className="service-table-wrapper">
-            <Table
-              columns={serviceColumns}
-              dataSource={getServiceData()}
-              pagination={false}
-              size="middle"
-              locale={{
-                emptyText: '暂无服务数据'
-              }}
-            />
-          </div>
-        )}
+        <div className="service-table-wrapper">
+          <Table
+            columns={serviceColumns}
+            dataSource={getServiceData()}
+            pagination={false}
+            size="middle"
+            locale={{
+              emptyText: '暂无服务数据'
+            }}
+          />
+        </div>
       </Card>
 
       {/* 系统信息 */}
@@ -629,7 +625,7 @@ const SystemStatus: React.FC = () => {
           </Descriptions>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 };
 

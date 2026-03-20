@@ -1,0 +1,226 @@
+/**
+ * ChatSidebar Styles
+ *
+ * Design specifications:
+ * - Mobile: 85% width (drawer mode)
+ * - Tablet: 280px width (fixed)
+ * - Desktop: 320px width (resizable 260-420px)
+ * - Background: #ffffff
+ * - Border: 1px rgba(0, 0, 0, 0.06)
+ * - Shadow: 2px 0 12px rgba(0, 0, 0, 0.03)
+ */
+
+.chatSidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #ffffff;
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+/* Search container */
+.searchContainer {
+  flex-shrink: 0;
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: #ffffff;
+}
+
+.searchInput {
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.searchInput:hover,
+.searchInput:focus {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+}
+
+/* Group list container */
+.groupList {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: #ffffff;
+}
+
+/* Custom scrollbar */
+.groupList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.groupList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.groupList::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.groupList::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Empty state */
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px 20px;
+}
+
+/* Footer with group count */
+.footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: #fafafa;
+  text-align: center;
+}
+
+.groupCount {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+/* Mobile layout (≤768px) - Drawer mode */
+@media (max-width: 768px) {
+  .chatSidebar {
+    width: 85%;
+    max-width: 400px;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .searchContainer {
+    padding: 12px;
+  }
+
+  .searchInput {
+    font-size: 13px;
+  }
+
+  .footer {
+    padding: 10px 12px;
+  }
+
+  .groupCount {
+    font-size: 11px;
+  }
+}
+
+/* Tablet layout (769px - 1024px) - Fixed sidebar */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .chatSidebar {
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
+  }
+
+  .searchContainer {
+    padding: 14px;
+  }
+}
+
+/* Desktop layout (≥1025px) - Resizable sidebar */
+@media (min-width: 1025px) {
+  .chatSidebar {
+    width: 320px;
+    min-width: 260px;
+    max-width: 420px;
+    resize: horizontal;
+    overflow: auto;
+  }
+
+  /* Resize handle visual indicator */
+  .chatSidebar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+    background-color: transparent;
+    cursor: col-resize;
+    transition: background-color 0.2s ease;
+  }
+
+  .chatSidebar:hover::after {
+    background-color: rgba(24, 144, 255, 0.1);
+  }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+  .chatSidebar {
+    background-color: #1f1f1f;
+    border-right-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .searchContainer {
+    background-color: #1f1f1f;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .groupList {
+    background-color: #1f1f1f;
+  }
+
+  .groupList::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .groupList::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .footer {
+    background-color: #141414;
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .groupCount {
+    color: #8c8c8c;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .chatSidebar {
+    border-right-color: rgba(0, 0, 0, 0.3);
+  }
+
+  .searchContainer {
+    border-bottom-color: rgba(0, 0, 0, 0.3);
+  }
+
+  .footer {
+    border-top-color: rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .searchInput,
+  .chatSidebar::after {
+    transition: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  .chatSidebar {
+    box-shadow: none;
+    border-right: 1px solid #000;
+  }
+
+  .searchContainer {
+    display: none;
+  }
+}

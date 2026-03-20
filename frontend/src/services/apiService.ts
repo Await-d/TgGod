@@ -15,7 +15,8 @@ import {
   ServiceHealthResponse,
   ServiceHealthSummaryResponse,
   ServiceStatusSnapshotResponse,
-  ServiceHealthCheckResponse
+  ServiceHealthCheckResponse,
+  GroupMember
 } from '../types';
 
 // 创建axios实例
@@ -206,6 +207,10 @@ export const telegramApi = {
   // 删除群组
   deleteGroup: (groupId: number): Promise<{ message: string }> => {
     return api.delete(`/telegram/groups/${groupId}`);
+  },
+
+  getGroupMembers: (groupId: number): Promise<{ members: GroupMember[]; total: number }> => {
+    return api.get(`/telegram/groups/${groupId}/members`);
   },
 
 
@@ -426,10 +431,6 @@ export const messageApi = {
       Object.entries(params).filter(([_, value]) => value !== undefined)
     );
 
-    console.log('API调用 - getGroupMessages:', {
-      groupId,
-      cleanParams
-    });
 
     return api.get(`/telegram/groups/${groupId}/messages`, { params: cleanParams });
   },
@@ -494,6 +495,38 @@ export const messageApi = {
     message: string;
   }> => {
     return api.post(`/telegram/groups/${groupId}/send`, message);
+  },
+
+  sendMediaMessage: (
+    groupId: number,
+    payload: {
+      files: File[];
+      text?: string;
+      reply_to_message_id?: number;
+    }
+  ): Promise<{
+    success: boolean;
+    message_ids: number[];
+    message: string;
+  }> => {
+    const formData = new FormData();
+    payload.files.forEach((file) => {
+      formData.append('files', file);
+    });
+
+    if (payload.text) {
+      formData.append('text', payload.text);
+    }
+
+    if (payload.reply_to_message_id !== undefined) {
+      formData.append('reply_to_message_id', String(payload.reply_to_message_id));
+    }
+
+    return api.post(`/telegram/groups/${groupId}/send-media`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
   },
 
   // 回复消息
@@ -832,6 +865,37 @@ export const serviceHealthApi = {
   // 强制执行一次检查
   forceHealthCheck: (): Promise<ServiceHealthCheckResponse> => {
     return api.post('/health/check');
+  }
+};
+
+export const realtimeControlApi = {
+  recoverService: (serviceName: string): Promise<{
+    success: boolean;
+    data: {
+      service_name: string;
+      recovery_started: boolean;
+    };
+    message: string;
+  }> => {
+    return api.post('/realtime/services/recover', null, {
+      params: { service_name: serviceName }
+    });
+  },
+
+  setMaintenanceMode: (payload: {
+    enabled: boolean;
+    message?: string;
+    eta?: string;
+  }): Promise<{
+    success: boolean;
+    data: {
+      enabled: boolean;
+      message: string;
+      eta?: string;
+    };
+    message: string;
+  }> => {
+    return api.post('/realtime/maintenance/mode', payload);
   }
 };
 

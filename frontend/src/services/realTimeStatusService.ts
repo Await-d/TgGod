@@ -17,8 +17,10 @@
  * @version 1.0.0
  */
 
+import React from 'react';
 import { webSocketService } from './websocket';
-import { notification, Modal } from 'antd';
+import { notification, Modal, Form, Input as AntInput, Switch } from 'antd';
+import { realtimeControlApi } from './apiService';
 import {
   ServiceStatus,
   ServicePriority,
@@ -504,8 +506,23 @@ class RealTimeStatusService {
         duration: 3,
       });
 
-      // TODO: Implement actual API call to backend recovery endpoint
-      // await apiService.recoverService(serviceName);
+      const response = await realtimeControlApi.recoverService(serviceName);
+
+      if (response.success) {
+        notification.success({
+          key: `recovery-success-${serviceName}`,
+          message: 'Recovery Started',
+          description: response.message || `${serviceName} recovery started`,
+          duration: 4,
+        });
+      } else {
+        notification.warning({
+          key: `recovery-warning-${serviceName}`,
+          message: 'Recovery Not Started',
+          description: response.message || `${serviceName} recovery not started`,
+          duration: 5,
+        });
+      }
 
     } catch (error) {
       notification.error({
@@ -521,12 +538,76 @@ class RealTimeStatusService {
    * Show system maintenance dialog
    */
   public showMaintenanceDialog(): void {
-    // TODO: Implement maintenance mode toggle functionality
-    Modal.info({
-      title: 'System Maintenance',
-      content: 'Maintenance mode controls will be available in the admin panel.',
-      okText: 'OK',
+    const currentlyEnabled = !!this.currentStatus?.maintenance_mode;
+    let formValues = {
+      enabled: currentlyEnabled,
+      reason: this.currentStatus?.maintenance?.message || '',
+      eta: this.currentStatus?.maintenance?.eta || '',
+    };
+
+    const content = React.createElement(
+      Form,
+      { layout: 'vertical', style: { marginTop: 16 } },
+      React.createElement(
+        Form.Item,
+        { label: '启用维护模式' },
+        React.createElement(Switch, {
+          defaultChecked: currentlyEnabled,
+          onChange: (checked: boolean) => { formValues.enabled = checked; },
+        })
+      ),
+      React.createElement(
+        Form.Item,
+        { label: '维护说明（可留空）' },
+        React.createElement(AntInput, {
+          defaultValue: formValues.reason,
+          placeholder: '请输入维护说明',
+          onChange: (e: React.ChangeEvent<HTMLInputElement>) => { formValues.reason = e.target.value; },
+        })
+      ),
+      React.createElement(
+        Form.Item,
+        { label: '预计恢复时间（可留空）' },
+        React.createElement(AntInput, {
+          defaultValue: formValues.eta,
+          placeholder: '例如：2026-03-20 18:00',
+          onChange: (e: React.ChangeEvent<HTMLInputElement>) => { formValues.eta = e.target.value; },
+        })
+      )
+    );
+
+    Modal.confirm({
+      title: '维护模式设置',
+      width: 480,
+      content,
+      okText: '确认',
+      cancelText: '取消',
+      onOk: () => {
+        return realtimeControlApi
+          .setMaintenanceMode({
+            enabled: formValues.enabled,
+            message: formValues.reason,
+            eta: formValues.eta || undefined,
+          })
+          .then((response) => {
+            notification.success({
+              key: 'maintenance-mode-success',
+              message: 'Maintenance Mode Updated',
+              description: response.message,
+              duration: 4,
+            });
+          })
+          .catch((error: any) => {
+            notification.error({
+              key: 'maintenance-mode-failed',
+              message: 'Maintenance Mode Update Failed',
+              description: error?.message || 'Failed to update maintenance mode',
+              duration: 5,
+            });
+          });
+      },
     });
+
   }
 
   /**

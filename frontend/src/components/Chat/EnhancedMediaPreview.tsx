@@ -189,16 +189,6 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
   const mediaUrl = getMediaUrl(currentMediaPath || '');
 
   // Debug logging
-  console.log('MediaPreview Debug:', {
-    mediaType,
-    mediaPath: currentMediaPath,
-    mediaUrl,
-    filename,
-    size,
-    downloaded,
-    messageId,
-    fileId
-  });
   const formattedSize = size ? formatFileSize(size) : undefined;
   const fileType = getFileType(filename || '', mediaType);
 
@@ -220,7 +210,6 @@ const EnhancedMediaPreview: React.FC<EnhancedMediaPreviewProps> = ({
     const video = e.currentTarget;
     if (video.duration && !isNaN(video.duration)) {
       setVideoDuration(video.duration);
-      console.log('Video duration detected:', video.duration);
     }
   };
 

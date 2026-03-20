@@ -104,7 +104,6 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
     const video = e.currentTarget;
     if (video.duration && !isNaN(video.duration)) {
       setVideoDuration(video.duration);
-      console.log('Video duration detected:', video.duration);
     }
   };
 
@@ -149,28 +148,23 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
   const getDisplayUrl = () => {
     // 如果有缩略图URL，优先使用缩略图进行预览
     if (thumbnailUrl && !downloadStatus.downloadUrl && !downloadStatus.filePath) {
-      console.log('Using thumbnail URL for preview:', thumbnailUrl);
       return getMediaUrl(thumbnailUrl);
     }
     
     // 优先使用下载状态中的URL
     if (downloadStatus.downloadUrl) {
-      console.log('Using downloadStatus.downloadUrl:', downloadStatus.downloadUrl);
       return downloadStatus.downloadUrl;
     }
     if (downloadStatus.filePath) {
       const filePathUrl = getMediaUrl(downloadStatus.filePath);
-      console.log('Using downloadStatus.filePath as URL:', filePathUrl);
       return filePathUrl;
     }
     // 如果没有下载状态URL，使用备选URLs
     if (alternativeUrls.length > 0) {
-      console.log('Using alternative URL:', alternativeUrls[currentUrlIndex]);
       return alternativeUrls[currentUrlIndex];
     }
     // 最后使用原始URL
     const originalUrl = getMediaUrl(url);
-    console.log('Using original URL:', originalUrl);
     return originalUrl;
   };
 
@@ -178,17 +172,14 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
   const getFullMediaUrl = () => {
     // 对于模态框预览，始终使用完整文件URL
     if (downloadStatus.downloadUrl) {
-      console.log('Using downloadStatus.downloadUrl for full preview:', downloadStatus.downloadUrl);
       return downloadStatus.downloadUrl;
     }
     if (downloadStatus.filePath) {
       const filePathUrl = getMediaUrl(downloadStatus.filePath);
-      console.log('Using downloadStatus.filePath as full URL:', filePathUrl);
       return filePathUrl;
     }
     // 如果没有下载的文件，使用原始完整URL
     const originalUrl = getMediaUrl(url);
-    console.log('Using original URL for full preview:', originalUrl);
     return originalUrl;
   };
 
@@ -216,16 +207,6 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
 
   // 调试输出
   React.useEffect(() => {
-    console.log('MediaPreview debug:', {
-      messageId,
-      url,
-      downloaded,
-      downloadStatus,
-      isLocalFile,
-      hasDownloadedFile,
-      shouldShowMedia,
-      mediaUrl
-    });
   }, [messageId, url, downloaded, downloadStatus, isLocalFile, hasDownloadedFile, shouldShowMedia, mediaUrl]);
 
   // 将媒体类型转换为下载组件需要的格式
@@ -256,7 +237,6 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                   // 尝试下一个备选URL
                   if (currentUrlIndex < alternativeUrls.length - 1) {
                     setCurrentUrlIndex(prev => prev + 1);
-                    console.log('Trying alternative URL:', alternativeUrls[currentUrlIndex + 1]);
                   } else {
                     setImageError(true);
                     setLoading(false);
@@ -399,7 +379,6 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
         <div
           className={`video-thumbnail ${shouldShowMedia ? 'is-clickable' : ''}`}
           onClick={() => {
-            console.log('Open gallery for:', mediaUrl);
             if (shouldShowMedia) {
               setPreviewVisible(true);
             }
@@ -420,7 +399,6 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                   setImageError(false);
                 }}
                 onCanPlay={() => {
-                  console.log('Video can play:', mediaUrl);
                 }}
                 onError={(e) => {
                   console.error('Video load error:', e);
@@ -435,7 +413,6 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                   // 尝试下一个备选URL
                   if (currentUrlIndex < alternativeUrls.length - 1) {
                     setCurrentUrlIndex(prev => prev + 1);
-                    console.log('Trying alternative video URL:', alternativeUrls[currentUrlIndex + 1]);
                   } else {
                     setImageError(true);
                     setLoading(false);
@@ -443,19 +420,11 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                   }
                 }}
                 onLoadedMetadata={(e) => {
-                  const video = e.target as HTMLVideoElement;
-                  console.log('Video metadata loaded:', {
-                    duration: video.duration,
-                    videoWidth: video.videoWidth,
-                    videoHeight: video.videoHeight,
-                    readyState: video.readyState
-                  });
-                  // 获取视频时长
-                  handleVideoMetadata(e as React.SyntheticEvent<HTMLVideoElement>);
-                }}
-              >
-                {/* 添加多种视频格式支持 */}
-                <source src={mediaUrl} type="video/mp4" />
+                   handleVideoMetadata(e as React.SyntheticEvent<HTMLVideoElement>);
+                 }}
+               >
+                 {/* 添加多种视频格式支持 */}
+                 <source src={mediaUrl} type="video/mp4" />
                 <source src={mediaUrl} type="video/webm" />
                 <source src={mediaUrl} type="video/ogg" />
                 您的浏览器不支持视频播放
@@ -600,12 +569,6 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                   // 检查文件是否存在
                   fetch(mediaUrl, { method: 'HEAD' })
                     .then(response => {
-                      console.log('Video file check:', {
-                        url: mediaUrl,
-                        status: response.status,
-                        contentType: response.headers.get('content-type'),
-                        contentLength: response.headers.get('content-length')
-                      });
 
                       if (response.status !== 200) {
                         message.error(`视频文件不存在或无法访问 (状态码: ${response.status})`);
@@ -619,33 +582,21 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({
                   // 尝试下一个备选URL
                   if (currentUrlIndex < alternativeUrls.length - 1) {
                     setCurrentUrlIndex(prev => prev + 1);
-                    console.log('Trying alternative URL for video playback:', alternativeUrls[currentUrlIndex + 1]);
                   } else {
                     message.error('视频播放失败，所有备选URL都无法加载');
                   }
                 }}
                 onLoadedData={() => {
-                  console.log('Video loaded successfully for playback');
                   message.success('视频加载完成，可以播放');
                 }}
                 onCanPlay={() => {
-                  console.log('Video can play in modal');
                 }}
                 onLoadedMetadata={(e) => {
-                  const video = e.target as HTMLVideoElement;
-                  console.log('Modal video metadata:', {
-                    duration: video.duration,
-                    videoWidth: video.videoWidth,
-                    videoHeight: video.videoHeight,
-                    readyState: video.readyState,
-                    src: video.src
-                  });
-                  // 获取视频时长
-                  handleVideoMetadata(e as React.SyntheticEvent<HTMLVideoElement>);
-                }}
-              >
-                您的浏览器不支持视频播放。请尝试使用最新版本的 Chrome、Firefox 或 Safari 浏览器。
-              </video>
+                   handleVideoMetadata(e as React.SyntheticEvent<HTMLVideoElement>);
+                 }}
+               >
+               您的浏览器不支持视频播放。请尝试使用最新版本的 Chrome、Firefox 或 Safari 浏览器。
+               </video>
               <div className="media-preview-modal-tip">
                 {filename && <div className="media-preview-modal-filename">{filename}</div>}
                 <div className="media-details">

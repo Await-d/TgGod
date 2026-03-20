@@ -10,7 +10,6 @@ import {
   Typography,
   Badge,
   Spin,
-  Alert,
   Table,
   Tag,
   Space,
@@ -34,39 +33,21 @@ import {
   BarChartOutlined
 } from '@ant-design/icons';
 import { dashboardApi } from '../services/apiService';
+import PageContainer from '../components/Layout/PageContainer';
 import QuickTaskExecutor from '../components/TaskExecution/QuickTaskExecutor';
 import TaskLogViewer from '../components/TaskExecution/TaskLogViewer';
 import SystemLogViewer from '../components/SystemLog/SystemLogViewer';
 import './Dashboard.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const Dashboard: React.FC = () => {
   const isMobile = useIsMobile();
-  
-  // CSS animations
-  React.useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-      }
-      @keyframes ripple {
-        0% { transform: scale(1); opacity: 1; }
-        100% { transform: scale(2); opacity: 0; }
-      }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
+
   // 状态管理
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // 数据状态
   const [overviewData, setOverviewData] = useState<any>(null);
   const [groupsData, setGroupsData] = useState<any>(null);
@@ -181,36 +162,27 @@ const Dashboard: React.FC = () => {
   );
 
   return (
-    <div className="dashboard-page">
-      <div className="dashboard-header">
-        <div className="dashboard-header-title">
-          <Title level={2} className="dashboard-title">仪表板</Title>
-        </div>
-        <div className="dashboard-header-actions">
-          <Button
-            type="primary"
-            icon={<ReloadOutlined />}
-            onClick={() => loadData(true)}
-            loading={loading}
-            block={isMobile}
-          >
-            刷新数据
-          </Button>
-        </div>
-      </div>
-
-      {error && (
-        <Alert
-          message="数据加载失败"
-          description={error}
-          type="error"
-          closable
-          className="dashboard-alert"
-        />
-      )}
-
+    <PageContainer
+      title="仪表板"
+      description="系统概览和统计数据"
+      breadcrumb={[{ title: '仪表板' }]}
+      loading={loading}
+      error={error}
+      onRetry={() => loadData(true)}
+      extra={
+        <Button
+          type="primary"
+          icon={<ReloadOutlined />}
+          onClick={() => loadData(true)}
+          loading={loading}
+          block={isMobile}
+        >
+          刷新数据
+        </Button>
+      }
+    >
       {/* 概览统计卡片 */}
-      <Row gutter={[16, 16]} className="dashboard-section">
+      <Row gutter={[16, 16]} className="dashboard-section grid-responsive">
         <Col xs={24} sm={12} md={6}>
           {renderStatCard(
             "总群组数",
@@ -734,7 +706,7 @@ const Dashboard: React.FC = () => {
           </Text>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };
 
